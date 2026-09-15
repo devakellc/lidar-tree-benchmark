@@ -42,10 +42,15 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # GPU results.csv), so it cannot be re-fused offline; noted in the results doc.
 # All apex z are AGL (normalized clip, or DTM-converted), so the fusion height
 # gate is apples-to-apples.
+# Paired RGB modes use the completed DeepForest tile caches. Optical
+# apex heights use the native CHM at every rung. Its calibrated vote is fitted
+# on the other plots; the original LiDAR modes remain the ablation controls.
 #
 # Usage:
 #   Rscript scripts/fuse_detectors.R SITE=SOAP CORES=1
 #   Rscript scripts/fuse_detectors.R SITES=SOAP,SJER,TEAK RUNGS=native CORES=1
+#   Rscript scripts/fuse_detectors.R SITE=SOAP RUNGS=native,8,4,2,1 CORES=1
+# RGB=0 disables optical modes; PLOTS=... OUT=... provides a bounded smoke run.
 # (CORES=1: detect_lasr uses lasR exec, which can drop dense cells under fork.)
 # Reads (read-only): work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv},
 #   the cached field crown widths vst rds, the frozen normalized clips + DTMs, and
@@ -58,6 +63,7 @@ d <- .job_dir()
 source(.find("sweep_lib.R"))
 source(.find("model_bench_lib.R"))
 source(.find("io_bridge.R"))
+source(.find("coverage_lib.R"))
 
 ## ---- args -----------------------------------------------------------------
 args  <- strsplit(commandArgs(TRUE), "=")
@@ -77,6 +83,12 @@ CANOPY_MIN <- as.numeric(if (is.null(A$CANOPY_MIN)) 2.0 else A$CANOPY_MIN)
 MINTREES  <- as.integer(if (is.null(A$MINTREES)) 1 else A$MINTREES)
 CHM_ARMS  <- c("chm_vwf", "multichm")           # overstory family for the layered mode
 SAT_ID_FIELD <- "PredInstance"
+RGB <- is.null(A$RGB) || A$RGB != "0"
+YEAR <- if (is.null(A$YEAR)) "2021" else A$YEAR
+WEIGHT_MIN <- as.numeric(if (is.null(A$WEIGHT_MIN)) 1.5 else A$WEIGHT_MIN)
+PLOTS <- if (is.null(A$PLOTS) || A$PLOTS == "ALL") NULL else strsplit(A$PLOTS, ",")[[1]]
+OUT <- A$OUT
+if (!is.null(OUT) && length(SITES) != 1L) stop("OUT requires one SITE")
 
 field_crowns <- function(site) {
   rds <- file.path(d, "neon", site, "vst", paste0(tolower(site), "_vst_allyears.rds"))
@@ -107,7 +119,9 @@ materialize <- function(las, clip, dtm, frdens, res, nd, site, pid, rung) {
     else data.frame(x = co[, 1], y = co[, 2],
                     z = if (ncol(co) >= 3) co[, 3] else tt$Z) }, error = function(e) NULL)
   if (rung == "native") out$li2012 <- tryCatch({
-    if (sum(las$Z >= 2) < 1) data.frame(x = numeric(), y = numeric(), z = numeric())
+    persisted <- inst_path(file.path(nd, "li2012_instances"), pid, rung)
+    if (!is.na(persisted)) read_instances_laz(persisted, id_field = "treeID")
+    else if (sum(las$Z >= 2) < 1) data.frame(x = numeric(), y = numeric(), z = numeric())
     else { seg <- lidR::segment_trees(las, lidR::li2012(dt1 = 1.5, dt2 = 2, R = 2, hmin = 2))
       reduce_instances(seg@data, id_col = "treeID", x = "X", y = "Y", z = "Z") }
   }, error = function(e) NULL)
@@ -137,7 +151,7 @@ materialize <- function(las, clip, dtm, frdens, res, nd, site, pid, rung) {
 }
 
 ## ---- per (plot, rung) fusion + dual scoring ------------------------------
-run_plot <- function(site, pid, pc, gt, nd) {
+run_plot <- function(site, pid, pc, gt, nd, calibration = NULL) {
   ci <- pc[pc$plotID == pid, ][1, ]
   cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
   stems <- gt[gt$plotID == pid &
@@ -147,6 +161,22 @@ run_plot <- function(site, pid, pc, gt, nd) {
                   stems$maxCrownDiameter / 2, FALLBACK_R)
   ref_class <- setNames(as.character(stems$crown_class),
                         as.character(seq_len(nrow(stems))))
+  optical <- if (RGB) tryCatch(
+    deepforest_plot_detections(nd, site, pid, cx, cy, ph + TOL, YEAR),
+    error = function(e) {
+      warning("RGB unavailable for ", site, "/", pid, ": ", conditionMessage(e), call. = FALSE)
+      NULL
+    }) else NULL
+  probability <- NULL
+  training_plots <- 0L
+  if (!is.null(optical) && !is.null(calibration)) {
+    train <- calibration[!(calibration$site == site & calibration$plot == pid), , drop = FALSE]
+    if (nrow(train)) {
+      lookup <- confidence_lookup(train$raw, train$label)
+      probability <- apply_confidence_lookup(optical$score, lookup)
+      training_plots <- length(unique(paste(train$site, train$plot)))
+    }
+  }
   rows <- list()
   for (rung in RUNGS) {
     clip <- fz(nd, site, pid, rung, "clip_normalized.laz")
@@ -180,10 +210,15 @@ run_plot <- function(site, pid, pc, gt, nd) {
     cfgs <- c(lapply(names(arms), function(a) list(name = a, det = arms[[a]])),
               list(list(name = "union",    det = fp$union),
                    list(name = "majority", det = fp$majority),
-                   list(name = "layered",  det = fp$layered)),
+                   list(name = "layered",  det = fp$layered),
+                   list(name = "lidar_nms", det = apex_nms(stack$x, stack$y, stack$z,
+                        rep(1, nrow(stack)), MERGE_TOL, Z_TOL))),
               lapply(seq_len(n_arms), function(k)
                 list(name = sprintf("k%d", k),
                      det = f_all[f_all$votes >= k, c("x", "y", "z"), drop = FALSE])))
+    rgb_cfgs <- rgb_fusion_points(as.data.frame(stack), optical, probability,
+                                  MERGE_TOL, Z_TOL, WEIGHT_MIN)
+    cfgs <- c(cfgs, lapply(names(rgb_cfgs), function(nm) list(name = nm, det = rgb_cfgs[[nm]])))
     for (cfg in cfgs) {
       det <- cfg$det
       if (is.null(det)) det <- data.frame(x = numeric(), y = numeric(), z = numeric())
@@ -196,7 +231,11 @@ run_plot <- function(site, pid, pc, gt, nd) {
       ic <- score_instance_cell(pred, ref, ref_class = ref_class)
       rows[[length(rows) + 1]] <- cbind(
         data.frame(site = site, plot = pid, rung = rung, config = cfg$name,
-                   n_arms = n_arms, n_apex = nrow(det), stringsAsFactors = FALSE),
+                   n_arms = if (cfg$name == "deepforest") 1L else
+                     n_arms + as.integer(startsWith(cfg$name, "rgb_")),
+                   n_apex = nrow(det), rgb_available = !is.null(optical),
+                   rgb_calibration_plots = training_plots, rgb_weight_min = WEIGHT_MIN,
+                   rgb_year = YEAR, stringsAsFactors = FALSE),
         sp,
         data.frame(iou_n_ref = ic$n_ref, iou_TP = ic$TP, iou_FP = ic$FP,
                    iou_FN = ic$FN, iou_sum_iou = ic$sum_iou,
@@ -218,23 +257,33 @@ run_site <- function(site) {
   gt <- merge(gt, field_crowns(site), by = "individualID", all.x = TRUE)
   if (is.null(gt$maxCrownDiameter)) gt$maxCrownDiameter <- NA_real_
   plots <- intersect(unique(gt$plotID), pc$plotID)
+  if (!is.null(PLOTS)) plots <- intersect(plots, PLOTS)
   cat(sprintf("[%s] fusing %d plots over rungs {%s}\n", site, length(plots),
               paste(RUNGS, collapse = ",")))
   if (!length(plots)) return(NULL)
+  calibration <- NULL
+  cf <- file.path(nd, "confidence_calibration.csv")
+  if (RGB && file.exists(cf)) {
+    ca <- read.csv(cf, stringsAsFactors = FALSE)
+    if (all(c("site", "plot", "arm", "raw", "label", "rung", "rgb_year") %in% names(ca)))
+      calibration <- ca[which(ca$arm == "deepforest" & ca$rung == "native" &
+                          ca$rgb_year == YEAR & is.finite(ca$raw) & is.finite(ca$label)), , drop = FALSE]
+  }
   res_list <- mclapply(plots, function(p)
-    tryCatch(run_plot(site, p, pc, gt, nd),
+    tryCatch(run_plot(site, p, pc, gt, nd, calibration),
              error = function(e) { message("  ", p, " failed: ", conditionMessage(e)); NULL }),
     mc.cores = CORES, mc.preschedule = FALSE)
   res <- rbindlist(Filter(Negate(is.null), res_list), fill = TRUE)
   if (!nrow(res)) { cat(sprintf("[%s] no cells fused\n", site)); return(NULL) }
-  o <- file.path(nd, "fusion_results.csv"); write.csv(res, o, row.names = FALSE)
+  o <- if (is.null(OUT)) file.path(nd, "fusion_results.csv") else OUT
+  write.csv(res, o, row.names = FALSE)
   cat(sprintf("[%s] wrote %d cell rows -> %s\n", site, nrow(res), o))
   as.data.frame(res)
 }
 
 ## ---- pooled report (fusion vs best single arm; Pareto) --------------------
 ARMS_ALL <- c("chm_vwf", "multichm", "li2012", "ptrees", "ams3d",
-              "segmentanytree", "forestformer3d")
+              "segmentanytree", "forestformer3d", "deepforest")
 print_report <- function(res) {
   iou_pool <- function(sub) {                       # pooled IoU recall@.5 / cov / PQ
     TP <- sum(sub$iou_TP); FN <- sum(sub$iou_FN); FP <- sum(sub$iou_FP)
@@ -268,7 +317,8 @@ print_report <- function(res) {
     cat(sprintf("\n===== FUSION @ rung %s (pooled) =====\n", rung))
     cat(sprintf("%-16s %6s %6s %6s %6s | %7s %7s %7s\n",
                 "config", "n_ref", "recall", "prec", "F1", "iou_R", "iou_Cov", "iou_PQ"))
-    show <- c(intersect(ARMS_ALL, rr$config), "union", "majority", "layered")
+    show <- c(intersect(ARMS_ALL, rr$config), "union", "majority", "layered", "lidar_nms",
+               "rgb_union", "rgb_agreement", "rgb_nms", "rgb_weighted_raw", "rgb_weighted")
     best_arm_f1 <- -1; best_arm <- NA
     for (nm in show) {
       sub <- rr[rr$config == nm, , drop = FALSE]; if (!nrow(sub)) next
@@ -297,7 +347,44 @@ print_report <- function(res) {
     for (kk in ks) { p <- pool(pool_on(rr, kk, kc))
       cat(sprintf("%s R=%.3f P=%.3f F1=%.3f  ", kk, p$recall, p$precision, p$F1)) }
     cat("\n")
+    rgb_modes <- intersect(c("rgb_union", "rgb_agreement", "rgb_nms",
+                              "rgb_weighted_raw", "rgb_weighted"), rr$config)
+    if (length(rgb_modes)) {
+      cc <- common_cells(rr, c("union", "lidar_nms", "deepforest", rgb_modes))
+      cat(sprintf("RGB comparison: %d common cells; raw apex metrics + Voronoi mask proxy\n", length(cc)))
+      for (nm in c("union", "lidar_nms", "deepforest", rgb_modes)) {
+        p <- pool(pool_on(rr, nm, cc))
+        cat(sprintf("  %-18s n_ref=%d R=%.3f P=%.3f F1=%.3f R_under=%.3f\n",
+                    nm, p$n_ref, p$recall, p$precision, p$F1, p$rec_understory))
+      }
+    }
   }
+}
+
+rgb_summary <- function(res) {
+  groups <- split(res, paste(res$site, res$rung, sep = "::"))
+  rows <- lapply(groups, function(rr) {
+    if (!all(c("union", "lidar_nms", "deepforest", "rgb_union") %in% rr$config))
+      return(NULL)
+    modes <- intersect(c("union", "lidar_nms", "deepforest", "rgb_union", "rgb_agreement",
+                          "rgb_nms", "rgb_weighted_raw", "rgb_weighted"), rr$config)
+    common <- Reduce(intersect, lapply(modes, function(m) rr$plot[rr$config == m]))
+    if (!length(common)) return(NULL)
+    do.call(rbind, lapply(modes, function(m) {
+      sub <- rr[rr$config == m & rr$plot %in% common, , drop = FALSE]
+      p <- pool(sub)
+      den <- sum(sub$iou_TP + 0.5 * sub$iou_FP + 0.5 * sub$iou_FN)
+      p$iou_coverage <- sum(sub$iou_sum_maxiou) / sum(sub$iou_n_ref)
+      p$iou_PQ <- if (den > 0) sum(sub$iou_sum_iou) / den else 0
+      cbind(data.frame(site = rr$site[1], rung = rr$rung[1], config = m,
+                       cells = length(common)), p)
+    }))
+  })
+  out <- do.call(rbind, Filter(Negate(is.null), rows))
+  if (!is.null(out)) return(out)
+  cbind(data.frame(site = "", rung = "", config = "", cells = 0L),
+        pool(res[FALSE, , drop = FALSE]),
+        data.frame(iou_coverage = NA_real_, iou_PQ = NA_real_))[FALSE, , drop = FALSE]
 }
 
 run_main <- function() {
@@ -312,6 +399,16 @@ run_main <- function() {
   cat(sprintf("\nDONE: %d cell rows across %d sites in %.1f min\n",
               if (is.null(res)) 0 else nrow(res), length(all_res), dt))
   if (!is.null(res) && nrow(res)) print_report(res)
+  if (!is.null(res) && nrow(res)) {
+    summary <- rgb_summary(res)
+    # Also write empty summaries, so RGB=0 cannot leave a stale prior comparison.
+    for (site in unique(res$site)) {
+      path <- if (is.null(OUT)) file.path(d, "neon", site, "fusion_rgb_summary.csv") else
+        sub("[.]csv$", "_summary.csv", OUT)
+      if (identical(path, OUT)) path <- paste0(OUT, "_summary.csv")
+      write.csv(summary[summary$site == site, ], path, row.names = FALSE)
+    }
+  }
 }
 
 if (sys.nframe() == 0L) run_main()
