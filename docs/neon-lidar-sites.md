@@ -9,7 +9,7 @@ EPSG:32611** for NEON woody-vegetation and AOP LiDAR products.
 **Airborne LiDAR (primary):** NEON discrete-return point cloud `DP1.30003.001`
 (AOP tiles via `neon_download_lidar.R`, restricted to 1 km tiles overlapping
 field plots). **Cross-check LiDAR:** USGS 3DEP public EPT projects
-([`ept_discovery.R`](../scripts/ept_discovery.R), issue #4).
+([`ept_discovery.R`](../scripts/ept_discovery.R)).
 
 Acquisition months below are from the NEON Data Portal API
 (`GET /api/v0/sites/{SITE}`, product `DP1.30003.001`) as of 2026-06-10.
@@ -47,7 +47,7 @@ remain on the portal but are not used in the benchmark pipeline.
 
 ---
 
-## USGS 3DEP LiDAR (native QL2 cross-check, issue #4)
+## USGS 3DEP LiDAR (native QL2 cross-check)
 
 Public entwine EPT projects covering each site (preferred project per
 [`native-ql2-crosscheck-results.md`](../results/native-ql2-crosscheck-results.md)):
@@ -68,7 +68,7 @@ to UTM 11N before CHM construction ([`extract.json`](../scripts/extract.json)
 
 Ground truth pairs each stem with the `apparentindividual` record **nearest
 2021 within ±4 yr** (`neon_ground_truth.R`: `meas_year`, `dist21`). Exact-2021
-field coverage (issue #5):
+field coverage:
 
 | Site | Mapped live-tree stems | Measured in 2021 | Exact-2021 share |
 |------|:----------------------:|:----------------:|:----------------:|
@@ -78,3 +78,24 @@ field coverage (issue #5):
 
 SJER field stems were mostly measured in **2022 and 2024**, not 2021; treat its
 sweep metrics as carrying the full ±4 yr temporal slack.
+
+## FGI-EMIT external instance benchmark
+
+[FGI-EMIT](https://doi.org/10.5281/zenodo.19351234) is a public, version-pinned
+external dataset under CC-BY-NC-SA-4.0, not a gated NEON acquisition. It contains
+19 boreal and urban forest plots in Espoo, Finland, acquired with helicopter
+multispectral **ALS** in July 2023. Its 1,561 trees have manual per-point instance
+annotations. The official split reserves six plots and 463 trees for testing;
+the remaining 13 plots contain 1,098 trees for development.
+
+The distributed LAS files use plot-local metric coordinates without a CRS.
+Do not assign a NEON UTM zone to them. `tree_index=0` is background, and the
+semantic labels are dataset-specific: class 2 is a building, not ground.
+The A-D neighborhood categories are retained as published, without relabeling
+them as NEON crown classes.
+
+The [external evaluation runner](../scripts/detect_external_fgiemit.R) reuses
+the installed SegmentAnyTree, ForestFormer3D, TreeisoNet, and Treeiso settings.
+It exports labels on a common 3D point substrate and checks pooled instance
+metrics against the archived official evaluator. See the
+[external results and reproduction commands](../results/fgi-emit-external-results.md).

@@ -284,6 +284,7 @@ workflows.
 | detect_li2012_native.R / detect_treeiso_sweep.R | Native point-cloud segmentation baselines |
 | detect_treeisonet_sweep.R / detect_treeisonet_crowns.R | TreeisoNet apex and tree-offset crown arms |
 | detect_segmentanytree_sweep.R / detect_forestformer3d_sweep.R | GPU point/instance segmentation arms |
+| download_external_fgiemit.R / detect_external_fgiemit.R | Checksum-pinned external dataset and frozen detector transfer evaluation |
 | detect_deepforest_sweep.R / detect_detectree2_sweep.R | RGB detector and crown-width arms |
 | detect_sam2point_sweep.R | Promptable seed-to-refine point-cloud arm |
 | analyze_model_benchmark.R / compare_model_sites.R | Equal-set-guarded model synthesis and cross-site results |
