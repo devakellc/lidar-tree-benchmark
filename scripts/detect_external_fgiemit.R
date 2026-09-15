@@ -77,6 +77,7 @@ fgi_provenance <- function(opt, resources) {
   if ("forestformer3d" %in% opt$arms) {
     images$forestformer3d <- fgi_image_id("ff3d-sm120")
     files <- c(files, resources$ff_entry, resources$ff_driver, resources$ff_patch,
+                file.path(dirname(resources$ff_driver), "ff3d_export.py"),
                 resources$ff_ckpt,
                 list.files(file.path(resources$ff_repo, "configs"), "[.]py$",
                            recursive = TRUE, full.names = TRUE),
@@ -87,6 +88,7 @@ fgi_provenance <- function(opt, resources) {
   }
   if ("treeisonet" %in% opt$arms)
     files <- c(files, resources$ti_driver, resources$loc, resources$off,
+               file.path(dirname(resources$ti_driver), "treeisonet_export.py"),
                resources$lcfg, resources$ocfg,
                list.files(file.path(.ROOT, "gpu/TreeAIBox/modules/treeisonet"),
                           "[.]py$", recursive = TRUE, full.names = TRUE))
@@ -141,10 +143,14 @@ fgi_ff_points <- function(path) {
 fgi_run_arm <- function(arm, prep, directory, opt, resources, images) {
   dir.create(directory, recursive = TRUE, showWarnings = FALSE)
   if (arm == "treeisonet") {
-    return(run_python_crown_arm(resources$ti_python, resources$ti_driver,
+    aligned <- file.path(directory, "aligned.laz")
+    if (file.exists(aligned)) unlink(aligned)
+    result <- run_python_crown_arm(resources$ti_python, resources$ti_driver,
       prep$normalized, file.path(directory, "crowns.csv"),
       extra = c(resources$loc, resources$lcfg, resources$off, resources$ocfg,
-                "0", "0.22", "2"), timeout = opt$timeout, label = arm))
+                "0", "0.22", "2", aligned), timeout = opt$timeout, label = arm)
+    if (is.null(result) || !file.exists(aligned)) return(NULL)
+    return(read_instance_points_laz(aligned, "tree_pred"))
   }
   output <- file.path(directory, "predictions.laz")
   if (arm == "treeiso") {
@@ -265,7 +271,8 @@ run_main <- function() {
           src <- fgi_run_arm(arm, prep, directory, opt, resources, provenance$images)
           if (is.null(src)) stop("Inference failed or produced invalid instance output")
           query <- if (arm == "treeisonet") prep$query else points
-          transfer <- fgi_transfer_labels(src, query)
+          transfer <- if (arm == "treeisonet") fgi_aligned_labels(src, query) else
+            fgi_transfer_labels(src, query)
           if (nrow(src) && !any(is.finite(transfer$distance) & transfer$distance <= 0.5))
             stop("Prediction coordinate frame does not overlap the reference")
           scored <- fgi_score(transfer$labels, points, classes)
