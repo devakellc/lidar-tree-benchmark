@@ -1,5 +1,8 @@
 # LiDAR Tree Benchmarks
 
+<!-- HTML preserves the centered header and explicit image width. -->
+<!-- rumdl-disable MD033 -->
+
 <p align="center">
   <img src="assets/intelifore-promo-lidar.gif"
        alt="Animated LiDAR point-cloud forest scene"
@@ -16,16 +19,17 @@
   <a href="#methods-and-results">Methods &amp; results</a> ·
   <a href="#start-here">Quick start</a> ·
   <a href="#reproduce-a-workflow">Reproduce</a> ·
-  <a href="paper.tex">Paper</a> ·
   <a href="#script-reference">Scripts</a>
 </p>
+
+<!-- rumdl-enable MD033 -->
 
 ---
 
 This is a field-grounded comparison of tree-top detectors and crown
 delineators: a bundled LiDAR tile for fast checks, a USGS 3DEP area of interest
-for production-scale processing, and field-mapped NEON stems at SJER, SOAP, and
-TEAK for method evaluation.
+for production-scale processing, field-mapped NEON stems at SJER, SOAP, and
+TEAK, and manually annotated FGI-EMIT instances for external validation.
 
 | 🌲 Tree detection | 🧩 Crown delineation | 📏 Evaluation |
 | --- | --- | --- |
@@ -35,9 +39,9 @@ TEAK for method evaluation.
 
 ### Tree-top detection
 
-Detection metrics use one-to-one matching against mapped field stems. Values
-below are pooled benchmark results; their site, density, and matched-set scope
-are stated so that unlike comparisons are not implied.
+NEON detection metrics use one-to-one matching against mapped field stems.
+Historical three-site comparisons and the newer paired SOAP fusion study use
+different reference populations; their scores are not directly interchangeable.
 
 | Method family | Implementations in this repository | Headline result | Best fit |
 | --- | --- | --- | --- |
@@ -45,8 +49,22 @@ are stated so that unlike comparisons are not implied.
 | Multi-layer CHM | multichm and lmfauto | multichm reaches native F1 0.412 over the same three-site population and is the most stable LiDAR arm across sparse rungs. | A robust classical default, especially when point density is modest. |
 | Point-cloud detectors | lidR point LMF, Li 2012, and lasR point local maximum | Li 2012 raises understory recall to 0.257 versus 0.200 for CHM-VWF, but pooled F1 is 0.346. | Recovering additional sub-canopy trees when precision trade-off is acceptable. |
 | Point/instance models | SegmentAnyTree, TreeisoNet, ForestFormer3D, AMS3D, ptrees, and Treeiso | SegmentAnyTree is the strongest native single arm in the pooled comparison: F1 0.443 and understory recall 0.448. | High-density ALS where compute and model setup are available. |
-| RGB detection | DeepForest and Detectree2 | DeepForest achieves F1 0.368 and understory recall 0.348 at SOAP; Detectree2 transfers poorly without domain-matched weights (F1 0.255). | An optical complement or low-density fallback, not the best standalone LiDAR replacement. |
-| Multi-detector fusion | Union, majority, layered, and k-of-N consensus | Union lifts pooled recall to 0.764 and understory recall to 0.600, but F1 falls to 0.349 because the stem reference is incomplete for many isolated detections. | Recall-oriented inventories and a calibrated operating-point frontier. |
+| RGB detection | DeepForest and Detectree2 | DeepForest reaches F1 0.457 and understory recall 0.356 on the paired SOAP set of 232 core stems. Historical standalone F1 was 0.368 over 253 stems; Detectree2 scored 0.255 over its separate 147-stem set. | An optional optical complement; the different reference populations are not a paired model comparison. |
+| Historical LiDAR fusion | Union, majority, layered, and k-of-N consensus | Three-site union recall reaches 0.764 and understory recall 0.600, with F1 0.349. Incomplete stem mapping complicates precision and F1. | Recall-oriented inventories with explicit precision trade-offs. |
+| Paired RGB-LiDAR fusion | RGB union, agreement, calibrated voting, and non-maximum suppression | On 18 SOAP plots at 1 pt/m2, RGB union raises recall from 0.677 to 0.741 and understory recall from 0.556 to 0.578, but F1 falls from 0.414 to 0.406. | Optional sparse-rung recall support, not a universal optical-dominant routing rule. |
+
+The [paired RGB-LiDAR study](results/rgb-lidar-fusion-results.md) covers five
+density rungs on the same 232 SOAP core stems. Optical boxes and native-CHM
+heights remain fixed across rungs, so this is not a wholly sparse-input test.
+Weighted fusion reaches F1 0.463 at 1 pt/m2, but its raw-score control reaches
+0.465; that gain cannot be attributed to calibration.
+
+[Confidence calibration](results/confidence-calibration-results.md) now holds
+out whole plots for both scaling and fitting. Native-density validation covers
+5,643 detections across six arms and 46 plots; DeepForest contributes SOAP
+only. Calibration reduces held-out calibration error for every arm, but does
+not improve precision at every operating point or site. Its ranking recall
+counts labelled detections, not unique stems after spatial fusion.
 
 ### Crown delineation
 
@@ -68,7 +86,35 @@ matched-tree counts, bias, MAE, R², density sensitivity, and the full
 three-dimensional comparison. Crown methods should be chosen on that crown
 metric, not on the F1 of the detector that supplied their seeds.
 
+### External instance validation
+
+The [FGI-EMIT frozen transfer study](results/fgi-emit-external-results.md)
+evaluates four existing detector configurations on six boreal test plots and
+463 manually annotated trees. It uses genuine point-set instance IoU at 0.5,
+not NEON apex-distance matching or stem-Voronoi proxies. SegmentAnyTree leads
+this historical frozen comparison with F1 0.566, but matches only six of 58
+category-D trees beneath taller neighbors; strong understory transfer is not
+demonstrated.
+
+The [training-only adapter audit](results/frozen-transfer-audit-results.md)
+then checks two separate training plots with 141 reference trees. Correcting
+ForestFormer3D's inference route and exports raises pooled F1 from 0.089 to
+0.570, versus 0.629 for unchanged SegmentAnyTree. The original six-plot test
+results remain unchanged; corrected held-out transfer has not been measured.
+
+ForestFormer3D remains **experimental** because scene assembly still degrades
+instance identity. Regenerate confidence features from corrected outputs;
+do not reuse calibration based on its former score broadcast. TreeisoNet is
+**deferred** after export corrections leave substantial fragmentation. SAT and
+classical Treeiso remain candidates for controlled comparison, with Treeiso's
+annotation-assisted semantic exclusions disclosed. These findings do not
+establish architecture rankings, ensemble benefit, or final routing thresholds.
+
 ### Choosing a method
+
+These starting points apply to the measured benchmark conditions, not a claim
+of production readiness. Use the external audit's eligibility limits when
+selecting members for a new ensemble.
 
 | Goal | Recommended starting point | Why |
 | --- | --- | --- |
@@ -76,7 +122,7 @@ metric, not on the F1 of the detector that supplied their seeds.
 | Reliable classical detector at varied density | multichm | It is the strongest stable classical LiDAR arm in the benchmark. |
 | Maximum high-density detection F1 | SegmentAnyTree | Best pooled native F1 and understory recall among the evaluated single arms. |
 | More understory trees | SegmentAnyTree, Li 2012, or a fusion operating point | These methods raise coverage; choose the precision/recall point explicitly. |
-| Optical or sparse-LiDAR complement | DeepForest | It supplies density-independent RGB coverage and a different failure mode. |
+| Optical or sparse-LiDAR complement | Optional DeepForest support | Paired SOAP results support added recall at 1 pt/m2, with a precision cost; a universal threshold below 2 pt/m2 is not established. |
 | Best classical crown diameter | Random walker with the per-crown stop rule | It has the lowest pooled crown-diameter RMSE in the shared-seed test. |
 | Straightforward CHM crown product | lasR region growing or Dalponte | They are close in diameter accuracy and easier to inspect and reproduce. |
 
@@ -85,8 +131,11 @@ Detailed evidence:
 - [Cross-model detection benchmark](results/model-benchmark-results.md)
 - [Classical and 3-D crown benchmark](results/crown-segmentation-results.md)
 - [Point-cloud detector comparison](results/pointcloud-detector-results.md)
-- [RGB detector results](results/rgb-lidar-fusion-results.md)
+- [RGB detectors and paired fusion](results/rgb-lidar-fusion-results.md)
+- [Plot-held-out confidence calibration](results/confidence-calibration-results.md)
 - [Detector-fusion results](results/detector-fusion-results.md)
+- [Frozen external instance validation](results/fgi-emit-external-results.md)
+- [Training-only transfer audit](results/frozen-transfer-audit-results.md)
 - [lasR versus lidR implementation comparison](results/treetop-lasr-vs-lidr-comparison.md)
 
 ## Benchmark design
@@ -101,10 +150,13 @@ the repository.
 - CHM resolution, local-maximum window, and smoothing are derived from measured
   density rather than copied as fixed parameters between acquisitions.
 - Detection uses one-to-one apex matching; crown delineation uses field crown
-  widths; instance metrics use a clearly labelled Voronoi-on-stems proxy rather
-  than hand-drawn reference masks.
+  widths. NEON instance metrics use a labelled Voronoi-on-stems proxy;
+  FGI-EMIT uses manual 3D instance annotations and its original A-D categories.
 - Results pool counts or error sums before calculating rates and RMSE, so small
   plots do not dominate a site-level result.
+- Calibration and paired RGB weights hold out the target plot. External test
+  scores and training-only adapter diagnostics remain separate experiments;
+  an observed test set is not a fresh holdout for changes motivated by it.
 
 Read the [methodology](docs/treetop-detection-approach.md) for the parameter
 rules and [NEON site notes](docs/neon-lidar-sites.md) for the data context.
@@ -132,14 +184,17 @@ Rscript scripts/shared_chm.R
 | Reproduce crown-diameter metrics | [Crown workflow](#bundled-toy-tile) and [crown benchmark](results/crown-segmentation-results.md) |
 | Process a real USGS 3DEP AOI | [USGS 3DEP workflow](#usgs-3dep-aoi) |
 | Reproduce the field benchmark | [NEON method benchmark](#neon-method-benchmark) |
+| Compare optical and LiDAR fusion | [Paired RGB-LiDAR workflow](#paired-rgb-lidar-fusion) |
+| Inspect external transfer and adapter limits | [External validation and audit](#external-validation-and-audit) |
 | Find every runnable entry point | [Script reference](#script-reference) |
 
 ## Reproduce a workflow
 
-All scripts use CLAUDE_JOB_DIR for their working directory. It defaults to
-work below the current directory, but setting it explicitly keeps inputs and
-generated outputs separate from the checkout. Scripts accept KEY=VALUE
-positional arguments rather than command-line flags.
+Run these examples from the repository root and set `CLAUDE_JOB_DIR`
+explicitly. The shared R path helper defaults to the repository's `work/`
+directory. Most R drivers accept `KEY=VALUE` arguments; comparison scripts may
+take positional paths, and Python helpers use their documented command-line
+flags. Check each entry point's usage before changing its invocation.
 
 ### Bundled toy tile
 
@@ -207,6 +262,46 @@ Rscript scripts/run_sweep.R SITE=SOAP MEAS_YEAR=2021 \
   OUT="$CLAUDE_JOB_DIR/neon/SOAP/sweep_results_2021.csv"
 ~~~
 
+### Paired RGB-LiDAR fusion
+
+This workflow requires the frozen NEON cells, persisted LiDAR instance outputs,
+completed DeepForest tile predictions, and cached labelled detections. See the
+[RGB-LiDAR report](results/rgb-lidar-fusion-results.md) for preparation and the
+fixed operating points. Use `CORES=1` because lasR execution under fork can
+drop dense cells.
+
+~~~sh
+Rscript scripts/calibrate_confidence.R SITES=SOAP,SJER,TEAK FROM_CACHE=1
+Rscript scripts/fuse_detectors.R SITE=SOAP RUNGS=native,8,4,2,1 CORES=1
+~~~
+
+`RGB=0` retains the LiDAR-only controls. A bounded smoke run can use
+`PLOTS=SOAP_031,SOAP_021 RUNGS=native,1 OUT=work/fusion-rgb-smoke.csv`.
+Outputs include `fusion_results.csv` and the equal-set `fusion_rgb_summary.csv`.
+Full-data deployment lookups must not score their own training plots; the
+paired benchmark fits optical weights excluding each target plot.
+
+### External validation and audit
+
+Start with the [external protocol and results](results/fgi-emit-external-results.md)
+for pinned acquisition, evaluator setup, and the historical frozen configuration.
+The audit's [declaration](docs/frozen-transfer-audit-protocol.md),
+[runtime note](docs/frozen-transfer-audit-runtime-note.md), and
+[reproduction steps](results/frozen-transfer-audit-results.md#reproduction-and-artifacts)
+describe its separate training controls, prerequisites, and protected artifacts.
+
+`download_external_fgiemit.R` acquires the pinned release;
+`detect_external_fgiemit.R` runs and scores selected arms. The audit driver,
+`audit_frozen_transfer.R`, supports `MODE=infer` and `MODE=analyze` only on the
+two predeclared training plots, after its declaration and frozen preparation.
+Generated artifacts live under `work/external/fgiemit/`, with audit outputs
+under `audit/`.
+
+Current adapters include the audit corrections and will not reproduce the
+historical frozen baseline unchanged. Use the documented frozen checkout for
+that baseline, and a distinct `OUT_DIR` for a separately declared experiment.
+Do not overwrite archived test predictions or tune on their labels.
+
 ## Requirements
 
 | Scope | Requirements |
@@ -216,8 +311,10 @@ Rscript scripts/run_sweep.R SITE=SOAP MEAS_YEAR=2021 \
 | NEON workflows | neonUtilities and jsonlite, plus network access for public NEON products |
 | EPT extraction | PDAL 2.9 or later |
 | Optional analyses | clue, rpart, crownsegmentr, and lidRplugins as required by the corresponding arm |
-| GPU/vision arms | The documented container or conda environment under [gpu](gpu/) for that specific model |
+| GPU/vision arms | The documented container, conda environment, or virtualenv under [gpu](gpu/) for that specific model |
+| External instance validation | Existing detector runtimes, R dbscan and yaml, and the pinned official Python evaluator described in the external report |
 | Tests | testthat |
+| Markdown checks | rumdl with [.rumdl.toml](.rumdl.toml) |
 
 The [lasR setup notes](results/density-ladder-sweep-results.md) document the
 pre-development build requirement and the feature check behind it.
@@ -237,9 +334,12 @@ be described as the same CHM algorithm.
 - The NEON scorer pools counts before calculating rates; it does not average
   plot-level recall or precision. This prevents small plots from dominating a
   site result.
-- Field stems support an apex/detection benchmark. The point-set instance
-  metrics use a clearly labeled Voronoi-on-stems crown proxy, not hand-drawn
-  crown masks.
+- NEON field stems support an apex/detection benchmark and clearly labelled
+  Voronoi-on-stems instance proxies. External FGI-EMIT scores use manual point
+  labels; neither score should be presented as the other metric.
+- Cache reuse must match selected density/configuration, source and input
+  provenance, and successful output receipts where required. Missing or
+  ambiguous cache variants are not interchangeable with completed empty runs.
 
 ## Script reference
 
@@ -285,11 +385,12 @@ workflows.
 | detect_treeisonet_sweep.R / detect_treeisonet_crowns.R | TreeisoNet apex and tree-offset crown arms |
 | detect_segmentanytree_sweep.R / detect_forestformer3d_sweep.R | GPU point/instance segmentation arms |
 | download_external_fgiemit.R / detect_external_fgiemit.R | Checksum-pinned external dataset and frozen detector transfer evaluation |
+| audit_frozen_transfer.R | Declared training-only adapter inference and official-metric, export, and scene-assembly diagnostics |
 | detect_deepforest_sweep.R / detect_detectree2_sweep.R | RGB detector and crown-width arms |
 | detect_sam2point_sweep.R | Promptable seed-to-refine point-cloud arm |
 | analyze_model_benchmark.R / compare_model_sites.R | Equal-set-guarded model synthesis and cross-site results |
 | score_instances_iou.R / compare_matching_rules.R | Point-set IoU, Coverage, PQ, and metric-ranking sensitivity |
-| fuse_detectors.R / calibrate_confidence.R / route_detectors.R | Detector fusion, score calibration, and per-cell routing |
+| fuse_detectors.R / calibrate_confidence.R / route_detectors.R | LiDAR and paired RGB fusion, plot-held-out score calibration, and per-cell routing experiments |
 | coverage_gap.R | Re-grade isolated likely-real false positives using cross-family agreement |
 | crown_metrics_sweep.R / analyze_crown_metrics.R | Field crown-diameter benchmark and analysis |
 | crown_allometry.R | Crown width and height to DBH/biomass analysis |
@@ -304,6 +405,9 @@ workflows.
 | model_bench_lib.R / model_runner.R / io_bridge.R | Shared model scoring, runtime, and point-instance I/O helpers |
 | route_lib.R / coverage_lib.R / allometry_lib.R | Pure helpers for routing, coverage credit, and allometry |
 | crown_metrics_3d.R / crown_metrics_deepmodel.R | Shared crown-metric helpers |
+| external_fgiemit_lib.R / transfer_audit_lib.R | External reference projection, official metrics, protected provenance, and transfer diagnostics |
+| gpu/prepare_fgiemit_reference.py / gpu/evaluate_fgiemit.py | Lossless reference-label conversion and official Python evaluator bridge |
+| gpu/declare_transfer_audit.py / gpu/export_treeisonet_audit.py | Protected-file declaration and same-forward-pass diagnostic exports |
 
 ## Documentation and result index
 
@@ -318,8 +422,12 @@ workflows.
 | [Crown-segmentation results](results/crown-segmentation-results.md) | Field crown-width error for delineation methods |
 | [Point-cloud detector results](results/pointcloud-detector-results.md) | Native-density CHM and point-cloud detector comparison |
 | [Instance IoU, Coverage, and PQ](results/instance-iou-pq-results.md) | Mask-aware proxy evaluation |
-| [RGB–LiDAR fusion](results/rgb-lidar-fusion-results.md) | DeepForest and Detectree2 results |
-| [Overleaf manuscript](paper.tex) | Research-paper draft and reproducible method summary |
+| [RGB-LiDAR fusion](results/rgb-lidar-fusion-results.md) | Standalone optical results and paired, calibrated five-rung SOAP fusion |
+| [Frozen external transfer](results/fgi-emit-external-results.md) | Six-plot FGI-EMIT historical baseline with manual instance labels |
+| [Frozen transfer audit](results/frozen-transfer-audit-results.md) | Training-only adapter corrections, scene-assembly diagnostics, and arm eligibility |
+| [Audit protocol](docs/frozen-transfer-audit-protocol.md) | Predeclared comparisons, protected test artifacts, and follow-on validation split |
+| [Audit runtime note](docs/frozen-transfer-audit-runtime-note.md) | Bounded memory and empty-output handling exceptions |
+| [Agent guidance](AGENTS.md) / [Detailed repository guidance](CLAUDE.md) | Working conventions, methodology invariants, and completion checks |
 
 Additional targeted analyses:
 
@@ -344,5 +452,21 @@ Rscript tests/run_tests.R
 ~~~
 
 The tests cover the shared scoring, pooling, detector-extractor, instance-I/O,
-model-runner, routing, allometry, and uncertainty helpers. They do not require
-the large generated LiDAR working set.
+model-runner, routing, allometry, uncertainty, calibration, RGB fusion, and
+external-transfer helpers. Unit fixtures do not require the large generated
+LiDAR working set; optional live tests report their environment requirements.
+
+For the Python reference and export tests, use the configured model environment
+with NumPy, laspy, and a LAZ backend. The optional upstream fixtures also need
+Torch, numpy_indexed, and the local TreeAIBox checkout:
+
+~~~sh
+gpu/.venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
+~~~
+
+Before publication, check the final documentation and diff:
+
+~~~sh
+rumdl check --no-cache .
+git diff --check
+~~~

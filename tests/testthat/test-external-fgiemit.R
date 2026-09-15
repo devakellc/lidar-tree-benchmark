@@ -52,6 +52,16 @@ test_that("official small-instance filters include their exact boundary", {
   expect_true(all(is.na(filtered[-(1:40)])))
 })
 
+test_that("aligned transfer preserves duplicate rows and rejects reordered output", {
+  src <- data.frame(X = c(0, 0, 1), Y = 0, Z = c(2, 2, 20), crown_id = c(1L, 2L, 0L))
+  query <- src[, c("X", "Y", "Z")]
+  expect_identical(fgi_aligned_labels(src, query)$labels, c(1L, 2L, NA_integer_))
+  expect_error(fgi_aligned_labels(src[c(3, 1, 2), ], query), "order or coordinates")
+  expect_error(fgi_aligned_labels(src[-1, ], query), "every input row")
+  src$X <- src$X + 0.0005
+  expect_identical(fgi_aligned_labels(src, query)$labels, c(1L, 2L, NA_integer_))
+})
+
 test_that("scoring ignores boundary objects and retains background false positives", {
   p <- data.frame(X = seq_len(160), Y = 0, Z = rep(seq(0, 2, length.out = 40), 4),
     Classification = rep(c(1L, 1L, 0L, 5L), each = 40),

@@ -69,6 +69,21 @@ fgi_transfer_labels <- function(source, query, tol = 0.5) {
   list(labels = out, distance = distance)
 }
 
+fgi_aligned_labels <- function(source, query, tol = 0.001) {
+  xyz <- c("X", "Y", "Z")
+  if (!all(c(xyz, "crown_id") %in% names(source)) || !all(xyz %in% names(query)) ||
+      nrow(source) != nrow(query)) stop("Aligned labels require every input row")
+  delta <- as.matrix(source[, xyz, drop = FALSE]) - as.matrix(query[, xyz, drop = FALSE])
+  distance <- sqrt(rowSums(delta^2))
+  if (any(!is.finite(distance) | distance > tol))
+    stop("Aligned output changed point order or coordinates")
+  ids <- source$crown_id
+  if (any(!is.na(ids) & (!is.finite(ids) | ids < 0 | ids != floor(ids))))
+    stop("Invalid aligned instance labels")
+  ids[!is.na(ids) & ids == 0] <- NA_integer_
+  list(labels = ids, distance = distance)
+}
+
 fgi_filter_predictions <- function(pred, z, min_points = 40L, min_height = 1.5) {
   if (length(pred) != length(z) || any(!is.finite(z))) stop("Invalid scoring substrate")
   pred[pred == 0 & !is.na(pred)] <- NA_integer_

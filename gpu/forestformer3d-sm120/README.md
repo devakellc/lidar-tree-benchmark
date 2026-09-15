@@ -1,12 +1,12 @@
 # ForestFormer3D on Blackwell (sm_120)
 
-ForestFormer3D (#M8, ICCV 2025, `SmartForest-no/ForestFormer3D`) ported to run on
+ForestFormer3D (ICCV 2025, `SmartForest-no/ForestFormer3D`) ported to run on
 the **RTX 5090** (sm_120) under **torch 2.7.0 / CUDA 12.8** — upstream is torch
 1.13 / cu116 and does not run on Blackwell. Verified end-to-end: the model
 loads the official `epoch_3000_fix.pth`, runs inference on a point-cloud plot, and
 emits per-tree instance masks.
 
-## Result (zero-shot on sparse NEON ALS)
+## Historical sparse NEON smoke test
 
 A NEON SJER plot (31,676 pts, ~3.5 pts/m²) through the pretrained model:
 
@@ -16,9 +16,13 @@ model per-point assignment: 8 trees (18.4% of points)
 score>=0.10: 35 candidate trees   score>=0.15: 14
 ```
 
-Scores are low because FF3D is trained on **dense ULS/TLS/MLS**; zero-shot on
-sparse airborne ALS is expected weak (see memory note `gpu-arm-blackwell-sm120`).
-The port is correct — the domain gap is the limiter, not the implementation.
+These are historical fallback-path outputs, not evidence that the native
+inference path was correct or that domain shift alone explained the result.
+The pinned model dispatches on `test` in the input path. The benchmark driver
+now stages `test_cyl_*` scenes, reads the complete saved PLY rather than the
+last-region return value, and validates point order, label ranges, coordinate
+restoration, and per-point confidence. See the
+[frozen transfer audit](../../results/frozen-transfer-audit-results.md).
 
 ## The four hard problems (and fixes)
 
@@ -26,7 +30,7 @@ The port is correct — the domain gap is the limiter, not the implementation.
    `oneformer3d.py` imports ME at module top. Solved by the shared
    [`../minkowski-sm120`](../minkowski-sm120) build (ME 0.5.4 for arch 12.0).
 2. **spconv backbone** (SpConvUNet). `spconv-cu128` 2.4.1 + `cumm-cu128` 0.9.1
-   from the rathaROG index run on sm_120 (see issue #18). `cumm-cu128` must come
+   from the rathaROG index run on sm_120. `cumm-cu128` must come
    from rathaROG, not PyPI; and keep `ccimport>=0.4.4` / `pccm>=0.4.16` (older
    pins break `cumm`'s `IsAppleSiliconMacOs`).
 3. **mmcv `_ext` build on torch 2.7.** No cu128 wheel exists, so it compiles from
@@ -61,6 +65,11 @@ consumes (dummy sem=0/ins=0, empty `(0,7)` bboxes → `gt_num=0`). Then
 only the **test** pkl — `update_pkl_infos` crashes on the empty train/val pkls.)
 
 ## Run
+
+The supported benchmark entry point is `ff3d_entry.sh`, which invokes
+`ff3d_arm.py <cylinder_directory> <output.laz> <checkpoint>` inside an isolated
+copy of the model checkout. The commands below are historical port smoke tests;
+`run_infer_save.py` is not the corrected full-scene benchmark adapter.
 
 ```sh
 # build the image (FROM the proven ME base) — see Dockerfile
