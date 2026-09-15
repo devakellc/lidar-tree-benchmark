@@ -43,7 +43,7 @@ test_that("year-aware reference and bounded download entry points agree", {
   expect_equal(pc$plot_meas_year, 2022)
 
   calls <- list()
-  e$byTileAOP <- function(...) {
+  e$neon_by_tile_aop <- function(...) {
     a <- list(...); calls[[length(calls) + 1L]] <<- a
     if (a$dpID == "DP1.30003.001") {
       las <- lidR::LAS(data.frame(X = c(500000, 500001), Y = c(4700000, 4700001), Z = c(1, 2)))

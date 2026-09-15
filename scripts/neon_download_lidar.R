@@ -18,6 +18,7 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # Reads work/neon/<SITE>/ground_truth_stems.csv (built by neon_ground_truth.R).
 suppressMessages(library(neonUtilities))
 source(.find("neon_spatial_lib.R"))
+source(.find("neon_acquisition_lib.R"))
 args <- strsplit(commandArgs(TRUE), "=")
 A    <- setNames(lapply(args, `[`, 2), sapply(args, `[`, 1))
 site <- if (is.null(A$SITE)) "SOAP" else A$SITE
@@ -42,7 +43,7 @@ options(timeout = 3600)
 # buffer >= the per-plot clip reach (core_half + BUF = 45 m for tower plots in
 # sweep_lib.R), so a plot whose clip box crosses a 1 km tile boundary always has
 # the neighbouring tile present and the clip is never silently truncated.
-byTileAOP(dpID = "DP1.30003.001", site = site, year = year,
+neon_by_tile_aop(dpID = "DP1.30003.001", site = site, year = year,
           easting = centres$easting, northing = centres$northing, buffer = 50,
           check.size = FALSE, savepath = savep, include.provisional = FALSE, token = token)
 laz <- list.files(savep, pattern = "\\.laz$", recursive = TRUE, full.names = TRUE)

@@ -59,3 +59,35 @@ eastern_field_candidates <- function(gt, pc, year) {
       lidar_coverage = "pending", rgb_coverage = "pending", split_frozen = FALSE)
   }))
 }
+
+# Census metadata can disprove full-box coverage, but area alone cannot prove
+# spatial support or completeness of a particular growth-form population.
+eastern_sampling_support <- function(pc, pp, year) {
+  required <- c("plotID", "date", "eventID", "eventType", "subplotsSampled",
+                "totalSampledAreaTrees", "samplingProtocolVersion")
+  if (!all(required %in% names(pp))) stop("Missing census sampling metadata")
+  if (!all(c("plotID", "plotType") %in% names(pc)) || anyDuplicated(pc$plotID))
+    stop("Missing or ambiguous plot metadata")
+  year <- neon_year(year)
+  pp <- unique(pp[!is.na(pp$date) & substr(as.character(pp$date), 1, 4) == year, required])
+  do.call(rbind, lapply(order(pc$plotID), function(i) {
+    p <- pp[!is.na(pp$plotID) & pp$plotID == pc$plotID[i], , drop = FALSE]
+    nominal <- if (pc$plotType[i] %in% "tower") 1600 else
+      if (pc$plotType[i] %in% "distributed") 400 else NA_real_
+    one <- nrow(p) == 1L
+    area <- if (one) suppressWarnings(as.numeric(as.character(p$totalSampledAreaTrees))) else NA_real_
+    missing <- one && any(is.na(p) | trimws(as.matrix(p)) == "")
+    status <- if (!nrow(p)) "missing_event" else if (!one) "ambiguous_event" else
+      if (missing || !is.finite(area)) "missing_sampling_metadata" else
+      if (is.na(nominal)) "unknown_plot_type" else
+      if (area <= 0 || area > nominal) "inconsistent_sampled_area" else
+      if (area < nominal) "partial_nominal_area" else "footprint_audit_required"
+    data.frame(plot = pc$plotID[i], census_year = year, census_rows = nrow(p),
+      event_id = paste(sort(unique(p$eventID)), collapse = "|"),
+      event_type = paste(sort(unique(p$eventType)), collapse = "|"),
+      subplots_sampled = if (one) as.character(p$subplotsSampled) else NA_character_,
+      sampling_protocol = paste(sort(unique(p$samplingProtocolVersion)), collapse = "|"),
+      nominal_area_m2 = nominal, sampled_tree_area_m2 = area,
+      reference_coverage_status = status, reference_support_verified = FALSE)
+  }))
+}
