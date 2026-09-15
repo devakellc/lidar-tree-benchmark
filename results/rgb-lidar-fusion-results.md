@@ -1,9 +1,9 @@
-# DeepForest RGB arm + the density-invariant anchor (#X1)
+# DeepForest RGB arm + the density-invariant anchor
 
-Every LiDAR arm degrades as point density drops; an **RGB** detector does not. So
-a DeepForest arm gives the meta-pipeline a **density-invariant anchor** — its flat
-accuracy-vs-density line tells the router (#P2) exactly which rung each LiDAR arm
-stops beating optical, and it is the first optical member for #P1 fusion. This
+RGB detections stay fixed as the benchmark thins LiDAR inputs, giving DeepForest
+a **density-invariant reference** for the router and fusion.
+The historical standalone comparison below motivated the paired fusion study;
+it does not by itself establish a routing policy. This
 promotes DeepForest from "optional reference" to a scored arm: it runs the
 NEON-pretrained crown model on the NEON RGB camera mosaics (DP3.30010, 2021 — the
 same epoch as the LiDAR/field data), reduces each crown box to its centroid,
@@ -23,7 +23,7 @@ Blackwell GPU build needed; a 1 km² tile predicts in ~14 s
 (`gpu/run_deepforest.py`, which georeferences the pixel boxes through the raster
 transform). Verified on SOAP (8 tiles, 2021, 100,953 crown boxes site-wide).
 
-## Generated tables
+## Historical standalone tables
 
 ### DeepForest (RGB) standalone — SOAP, 253 stems
 
@@ -45,16 +45,16 @@ transform). Verified on SOAP (8 tiles, 2021, 100,953 crown boxes site-wide).
 | chm_vwf | 0.38 | 0.36 | 0.42 | 0.39 | 0.40 |
 | forestformer3d | 0.26 | — | — | — | — |
 
-## Readings
+## Historical hypotheses
 
 - **DeepForest is the density floor every LiDAR arm is measured against.** Its F1
   is flat at 0.37 by construction (fixed-resolution RGB). SegmentAnyTree — the
   best *high*-density arm — beats it at native/8/4 (0.44–0.46) but **falls below
-  it at 2 pts/m² (0.32) and collapses at 1 pt/m² (0.12)**. So the router rule is
-  concrete: **below ~2 pts/m², prefer optical (DeepForest) over the deep LiDAR
-  arm.** ForestFormer3D is already below the floor at native.
+  it at 2 pts/m² (0.32) and collapses at 1 pt/m² (0.12)**. This motivated testing
+  optical support below ~2 pts/m², not replacing all LiDAR arms at that density.
+  ForestFormer3D is already below the floor at native.
 - **multichm is the one LiDAR arm that stays above the optical floor at every
-  rung** (0.42–0.46), confirming #P2's finding that it is the robust low-density
+  rung** (0.42–0.46), consistent with the routing study's robust low-density
   default; DeepForest is the safety net for the arms that aren't.
 - **RGB sees understory the 2.5-D CHM misses.** DeepForest's understory recall
   (0.348) beats CHM-VWF's (0.27): a nadir RGB detector catches canopy-gap crowns
@@ -62,23 +62,110 @@ transform). Verified on SOAP (8 tiles, 2021, 100,953 crown boxes site-wide).
   member should add.
 - **It pays in recall, not precision.** DeepForest over-detects (precision 0.29;
   100k boxes site-wide, many in the buffer / small understory) — so as a fusion
-  member it contributes recall and the density-invariant floor, with the #P4
-  calibrator (or a score threshold) needed to temper its commission.
+  member it contributes recall and the density-invariant floor, with confidence
+  calibration or a score threshold needed to temper its commission.
 
-## RGB×LiDAR fusion — the opportunity, quantified
+## RGB plus LiDAR fusion
 
-The fusion case is now evidence-backed rather than assumed: DeepForest adds
-(a) **low-density coverage** where SAT/FF3D collapse (≤2 pts/m²) and (b)
-**understory recall** the CHM arms lack — two decorrelated gains. A
-detection-level RGB×LiDAR consensus (union for recall, agreement for precision)
-in `fuse_detectors.R` is the natural next step: the DeepForest centroids are now
-persisted per tile (`deepforest_boxes/`) and scored (`deepforest_results.csv`)
-with the same harness as the LiDAR arms, so `fuse_apexes` can ingest them
-directly as a seventh, optical member. Running that full consensus across the
-density ladder (and SJER/TEAK) is follow-up; this PR establishes the arm and the
-density-invariant anchor it provides.
+Regenerated 2026-09-15 on **18 SOAP plots, 232 core stems, all five density
+rungs**. The equal-set population differs from the historical 253-stem optical
+table above. DeepForest scores F1 0.457 and understory recall 0.356 on this
+population at every rung. The run produced 1,872 cell/configuration rows in
+`fusion_results.csv` and 40 equal-set summaries in `fusion_rgb_summary.csv`.
 
-## Detectree2 — a second optical detector (#X3)
+```sh
+Rscript scripts/calibrate_confidence.R SITES=SOAP,SJER,TEAK FROM_CACHE=1
+Rscript scripts/fuse_detectors.R SITE=SOAP RUNGS=native,8,4,2,1 CORES=1
+# Smoke run with separate outputs:
+Rscript scripts/fuse_detectors.R SITE=SOAP PLOTS=SOAP_031,SOAP_021 \
+  RUNGS=native,1 CORES=1 OUT=work/fusion-rgb-smoke.csv
+```
+
+### Operating points
+
+- `union`, `majority`, `layered`, and `k1`-`kN` are the LiDAR-only controls.
+  The available members are CHM-VWF, multichm, ptrees, AMS3D, SegmentAnyTree,
+  native Li2012, and ForestFormer3D where its persisted cloud exists. In this
+  run there were seven LiDAR members at native and five at the sparse rungs;
+  no SOAP 8-rung ForestFormer3D clouds were available.
+- `rgb_union` reclusters the LiDAR and DeepForest apexes together using the
+  existing 2 m horizontal / 5 m vertical gates. `rgb_agreement` retains only
+  clusters containing both DeepForest and at least one LiDAR member.
+- `lidar_nms` and `rgb_nms` use greedy detection-level non-maximum suppression,
+  which suppresses only neighbors of a retained apex and avoids transitive
+  cluster chains. LiDAR detections have priority 1; optical detections use their
+  calibrated probability, with height and coordinates breaking ties.
+- `rgb_weighted` requires at least 1.5 votes, fixed before the run: each LiDAR
+  member contributes 1 and DeepForest contributes its calibrated probability.
+  Duplicate detections from one arm contribute only their maximum weight.
+  `rgb_weighted_raw` substitutes the original DeepForest score as the control.
+  Full confidence weighting of every LiDAR member remains future pipeline work.
+
+DeepForest calibration uses 303 labelled core detections and holds out the
+target plot: each fusion cell uses the other 17 SOAP plots. No target-plot
+labels enter its weights. Optical boxes and their native-CHM heights remain
+fixed across rungs. Missing RGB coverage or missing tile predictions omit the
+optical member; completed empty predictions retain a zero-detection row.
+`RGB=0` disables optical modes. All summaries use shared plots per rung.
+
+### Recall and F1
+
+| rung | LiDAR union R | RGB union R | LiDAR union F1 | RGB union F1 | RGB agreement F1 | RGB weighted F1 |
+|---|--:|--:|--:|--:|--:|--:|
+| native | 0.828 | 0.789 | 0.283 | 0.278 | 0.434 | 0.403 |
+| 8 | 0.866 | 0.832 | 0.353 | 0.350 | 0.466 | 0.429 |
+| 4 | 0.862 | 0.845 | 0.393 | 0.390 | 0.442 | 0.477 |
+| 2 | 0.815 | 0.815 | 0.438 | 0.419 | 0.460 | 0.476 |
+| 1 | 0.677 | 0.741 | 0.414 | 0.406 | 0.407 | 0.463 |
+
+### Understory and the NMS control
+
+| rung | LiDAR union R_under | RGB union R_under | LiDAR NMS R | RGB NMS R | LiDAR NMS R_under | RGB NMS R_under |
+|---|--:|--:|--:|--:|--:|--:|
+| native | 0.844 | 0.844 | 0.953 | 0.957 | 0.933 | 0.933 |
+| 8 | 0.844 | 0.778 | 0.901 | 0.914 | 0.844 | 0.844 |
+| 4 | 0.756 | 0.711 | 0.866 | 0.879 | 0.756 | 0.756 |
+| 2 | 0.689 | 0.644 | 0.836 | 0.862 | 0.689 | 0.689 |
+| 1 | 0.556 | 0.578 | 0.690 | 0.767 | 0.578 | 0.622 |
+
+At 1 pt/m2, RGB raises union recall by 0.065 and understory recall by 0.022.
+With the same NMS algorithm on both sides, gains are 0.078 and 0.044. Raw F1
+falls in both comparisons: more detections also increase the precision cost.
+RGB does not deliver the broad understory improvement initially hypothesized.
+
+### Calibration ablation
+
+| rung | weighted with raw RGB score F1 | weighted with calibrated RGB score F1 |
+|---|--:|--:|
+| native | 0.403 | 0.403 |
+| 8 | 0.429 | 0.429 |
+| 4 | 0.475 | 0.477 |
+| 2 | 0.475 | 0.476 |
+| 1 | 0.465 | 0.463 |
+
+Calibration changes F1 by at most 0.003 at this fixed threshold. At 1 pt/m2,
+weighted RGB F1 0.463 exceeds LiDAR `k2` F1 0.450, but the raw-score RGB
+control reaches 0.465: that gain cannot be attributed to calibration.
+
+### Implications for the pipeline and router
+
+The five-rung results support an optional optical recall contribution at the
+sparsest rung. They do **not** establish a universal optical-dominant rule
+below 2 pt/m2: at 2, union recall is unchanged and understory recall falls.
+Reclustering can reduce recall because a new optical point bridges two LiDAR
+clusters or changes their representative. NMS avoids that particular chaining
+effect, but its raw F1 still decreases when RGB joins.
+
+The summaries retain per-class counts and proxy Coverage/PQ for downstream
+policy analysis. For example, 1-rung RGB union raises proxy Coverage from
+0.402 to 0.422, while PQ falls from 0.118 to 0.112. These masks are
+apex-Voronoi proxies, not measured crown boundaries. Native CHM heights also
+mean this is not a wholly sparse-input experiment. The incomplete field map
+still affects precision; co-detection within this same ensemble must not be
+treated as independent confirmation of its detections. External validation
+remains the next gate before choosing final routing thresholds.
+
+## Detectree2 — a second optical detector
 
 A meta-pipeline ensemble is only as good as its member diversity. DeepForest is
 a RetinaNet box detector; **Detectree2** (Ball et al., MIT) is architecturally
@@ -120,7 +207,7 @@ Readings:
   `SITE=`-parameterized); a full three-site run is future work.
 - **Apex Z is sampled from the LiDAR CHM**, so a DeepForest box over a real gap
   with no LiDAR canopy gets the 2 m floor — a minor height-gate effect.
-- **Precision is a lower bound** (the #V4 field-map coverage gap), and DeepForest's
+- **Precision is a lower bound** (the field-map coverage gap), and DeepForest's
   own over-detection compounds it; recall / understory / the density crossover are
   the trustworthy signals.
 - **NEON is reprocessing DP3.30010 for RELEASE-2026**; this used the 2021
