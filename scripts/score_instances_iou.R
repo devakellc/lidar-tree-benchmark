@@ -96,6 +96,8 @@ SAT_ID_FIELD <- "PredInstance"
 # fusion scorer's FUSE_R apex-Voronoi radius.
 APEX_PROXY <- is.null(A$APEX_PROXY) || A$APEX_PROXY != "0"
 APEX_R     <- as.numeric(if (is.null(A$APEX_R)) 4.0 else A$APEX_R)
+SELECTION <- if (is.null(A$SELECTION))
+  file.path(d, "neon", "best_treetops_geojson", "best_treetop_selection.csv") else A$SELECTION
 APEX_CACHE_ARMS <- c("chm_vwf", "lmfauto", "multichm", "ptrees", "ams3d",
                      "li2012", "lidr_lmf_pc", "lidr_li2012", "lasr_lmax_pc",
                      "treeisonet", "segmentanytree", "forestformer3d")
@@ -174,7 +176,7 @@ frozen_norm_path <- function(nd, site, pid, rung)
 # Build the reference partition once per (plot, rung) from the frozen normalized
 # canopy substrate inside the plot core, then for every model with a persisted
 # cloud project its labels onto that substrate and emit one accumulator row.
-run_plot <- function(site, pid, pc, gt, nd) {
+run_plot <- function(site, pid, pc, gt, nd, selection = NULL) {
   ci <- pc[pc$plotID == pid, ][1, ]
   cx <- ci$easting; cy <- ci$northing
   ph <- plot_half(ci$plotType)
@@ -230,7 +232,7 @@ run_plot <- function(site, pid, pc, gt, nd) {
     if (APEX_PROXY) {
       cache_dir <- file.path(nd, "best_treetop_cache")
       for (arm in APEX_CACHE_ARMS) {
-        det <- suppressWarnings(read_arm_cache(cache_dir, arm, site, pid, rung))
+        det <- read_selected_cache(cache_dir, arm, site, pid, rung, selection)
         if (is.null(det)) next
         pred <- if (nrow(det))
           assign_points_to_stems(sx, sy, det$x, det$y, rep(APEX_R, nrow(det))) else
@@ -278,8 +280,9 @@ run_site <- function(site) {
               site, length(plots), paste(RUNGS, collapse = ",")))
   if (!length(plots)) return(NULL)
 
+  selection <- read_selection(SELECTION, site)
   res_list <- mclapply(plots, function(p)
-    tryCatch(run_plot(site, p, pc, gt, nd),
+    tryCatch(run_plot(site, p, pc, gt, nd, selection),
              error = function(e) { message("  ", p, " failed: ",
                                             conditionMessage(e)); NULL }),
     mc.cores = CORES, mc.preschedule = FALSE)
