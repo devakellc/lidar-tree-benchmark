@@ -87,12 +87,6 @@ if (length(bad_methods))
   stop("unknown METHODS: ", paste(bad_methods, collapse = ", "), call. = FALSE)
 
 ## ---- helpers -------------------------------------------------------------
-zone_epsg <- function(z) {
-  num <- as.integer(sub("[NnSs]$", "", z))
-  hemi <- toupper(sub("^[0-9]+", "", z))
-  (if (hemi == "S") 32700L else 32600L) + num
-}
-
 sanitize <- function(x) gsub("[^A-Za-z0-9_.-]+", "_", as.character(x))
 empty_det <- function() data.frame(x = numeric(), y = numeric(), z = numeric())
 
@@ -239,12 +233,13 @@ site_context <- function(site) {
   if (exists(site, .site_cache, inherits = FALSE)) return(get(site, .site_cache))
   nd <- file.path(d, "neon", site)
   pc <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
+  gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
                     recursive = TRUE, full.names = TRUE)
   if (!length(laz)) stop("no LAZ files under ", file.path(nd, "lidar"), call. = FALSE)
-  ctg <- lidR::readLAScatalog(laz, progress = FALSE)
+  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
   ctx <- list(site = site, nd = nd, pc = pc, ctg = ctg,
-              epsg = zone_epsg(pc$utmZone[1]))
+              epsg = neon_field_epsg(pc))
   assign(site, ctx, .site_cache)
   ctx
 }

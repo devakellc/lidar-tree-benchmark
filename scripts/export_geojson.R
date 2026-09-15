@@ -49,12 +49,6 @@ dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 
 # Cross-site structure gradient (docs/CLAUDE.md: SJER -> SOAP -> TEAK).
 STRUCT_RANK <- c(SJER = 1L, SOAP = 2L, TEAK = 3L)
-# NEON UTM zone string ("11N") -> EPSG. D17 sites are all UTM 11N (EPSG:32611).
-zone_epsg <- function(z) {
-  num <- as.integer(sub("[NnSs]$", "", z))
-  hemi <- toupper(sub("^[0-9]+", "", z))
-  (if (hemi == "S") 32700L else 32600L) + num
-}
 
 ## ---- per-site assembly ---------------------------------------------------
 plot_rows <- list(); stem_rows <- list(); site_rows <- list()
@@ -68,7 +62,7 @@ for (site in SITES) {
           data.frame(plot = character(), rung = character(),
                      frdens = numeric(), pdens = numeric())
 
-  epsg <- zone_epsg(pc$utmZone[1])
+  epsg <- neon_validate_inputs(gt, pc)
   domain <- {                                  # parse D17 from an individualID
     m <- regmatches(gt$individualID, regexpr("D[0-9]+", gt$individualID))
     if (length(m)) m[1] else NA_character_

@@ -52,7 +52,7 @@ collect_site <- function(site) {
                 site, MEAS_YEAR, nrow(gt), nb))
   }
   laz <- list.files(file.path(nd, "lidar"), pattern="\\.laz$", recursive=TRUE, full.names=TRUE)
-  ctg <- readLAScatalog(laz, progress = FALSE)
+  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
   keep <- names(table(gt$plotID))[table(gt$plotID) >= 6]
   keep <- intersect(keep, pc$plotID)
   tmp  <- file.path(tempdir(), "hv"); dir.create(tmp, showWarnings = FALSE)

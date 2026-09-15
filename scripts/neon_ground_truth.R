@@ -12,9 +12,8 @@ bs <- Find(file.exists, c(
 if (!length(bs)) stop("bootstrap.R not found", call. = FALSE)
 source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 
-# Build field-stem ground truth for NEON SOAP woody-vegetation structure
-# (DP1.10098.001), geolocated to UTM 11N, paired with the 2021 high-density
-# LiDAR (DP1.30003.001, ~20 pts/m^2).
+# Build field-stem ground truth for NEON woody-vegetation structure
+# (DP1.10098.001), geolocated in the site's declared WGS84 UTM frame.
 #
 # Reimplements the relevant part of geoNEON::getLocTOS() using the public NEON
 # locations API (no untrusted code): each mapped stem records a (pointID,
@@ -22,22 +21,21 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # plot; we fetch each unique point's UTM coordinate from the API and apply the
 # polar offset. Output: ground_truth_stems.csv + tiles_needed.csv.
 #
-# Ground truth pairs each stem with the apparentindividual measurement nearest
-# the 2021 LiDAR acquisition (within +/-4 yr). Two columns support the
-# exact-year temporal-sensitivity filter consumed by run_sweep.R /
-# validate_heights.R (issue #5): `meas_year` = calendar year of that chosen
-# measurement, and `dist21` = |meas_year - 2021|. Selecting meas_year==2021
-# re-scores against only stems measured in the LiDAR year. These columns already
-# exist in the cached ground_truth_stems.csv -- do NOT re-run this script for the
-# temporal cut; it would overwrite the shared ground truth.
+# YEAR defaults to 2021; MAX_YEAR_GAP defaults to 4. Use a separate job directory
+# when changing either. dist_aop follows YEAR; dist21 retains its literal legacy
+# meaning. Existing unversioned reference outputs are never overwritten.
 #
 # Env: CLAUDE_JOB_DIR (working dir; default ./work)
 suppressMessages({ library(neonUtilities); library(jsonlite) })
+source(.find("neon_spatial_lib.R"))
 
 ## args: SITE=SOAP (default), used for both veg + tile-assignment
 args <- strsplit(commandArgs(TRUE), "=")
 A    <- setNames(lapply(args, `[`, 2), sapply(args, `[`, 1))
 site <- if (is.null(A$SITE)) "SOAP" else A$SITE
+year <- neon_year(if (is.null(A$YEAR)) 2021 else A$YEAR)
+gap <- as.numeric(if (is.null(A$MAX_YEAR_GAP)) 4 else A$MAX_YEAR_GAP)
+if (!is.finite(gap) || gap < 0 || gap != floor(gap)) stop("Invalid MAX_YEAR_GAP")
 
 d   <- .job_dir()
 nd  <- file.path(d, "neon", site); dir.create(nd, showWarnings = FALSE, recursive = TRUE)
@@ -48,10 +46,18 @@ if (!file.exists(rds_all)) {
   options(timeout = 1200)
   dat <- loadByProduct(dpID = "DP1.10098.001", site = site,
                        package = "basic", release = "RELEASE-2026",
-                       check.size = FALSE, progress = FALSE)
+                       check.size = FALSE, progress = FALSE, token = neon_token())
   dir.create(dirname(rds_all), showWarnings = FALSE, recursive = TRUE)
   saveRDS(dat, rds_all)
 } else dat <- readRDS(rds_all)
+
+location <- fromJSON(paste0("https://data.neonscience.org/api/v0/locations/", site))$data
+frame <- neon_location_frame(location)
+neon_check_manifest(file.path(nd, "reference_manifest.json"),
+  list(site = site, acquisition_year = year, max_year_gap = gap,
+       release = "RELEASE-2026", epsg = frame$epsg,
+       vst_md5 = unname(tools::md5sum(rds_all))),
+  file.path(nd, c("ground_truth_stems.csv", "plot_centroids.csv")))
 
 mt <- dat$vst_mappingandtagging
 ai <- dat$vst_apparentindividual
@@ -60,12 +66,16 @@ cat(sprintf("[%s] mappingandtagging: %d rows; apparentindividual: %d rows (years
             site, nrow(mt), nrow(ai),
             paste(range(substr(ai$date, 1, 4), na.rm = TRUE), collapse = "-")))
 
-## plot centroids (most-recent row per plot)
-pp <- pp[!is.na(pp$easting), ]
-pp <- pp[order(pp$plotID, -as.integer(substr(pp$date, 1, 4))), ]
+## Plot centroids nearest the acquisition year; record the observation epoch.
+pp <- pp[is.finite(pp$easting) & is.finite(pp$northing), ]
+pp$plot_meas_year <- as.integer(substr(pp$date, 1, 4))
+pp <- pp[order(pp$plotID, abs(pp$plot_meas_year - year), -pp$plot_meas_year), ]
 pp1 <- pp[!duplicated(pp$plotID),
-          c("plotID", "plotType", "easting", "northing", "utmZone")]
-write.csv(pp1, file.path(nd, "plot_centroids.csv"), row.names = FALSE)
+          c("plotID", "plotType", "easting", "northing", "utmZone", "plot_meas_year")]
+pp1$epsg <- neon_zone_epsg(pp1$utmZone)
+pp1$datum <- frame$datum
+pp1$acquisition_year <- year
+if (neon_field_epsg(pp1) != frame$epsg) stop("Plot and site coordinate metadata disagree")
 
 ## ---- 2. Mappable stems: geolocate via NEON locations API ------------------
 map <- mt[!is.na(mt$stemDistance) & !is.na(mt$stemAzimuth) & !is.na(mt$pointID), ]
@@ -90,6 +100,8 @@ if (length(need)) {
     j <- tryCatch(fromJSON(url), error = function(e) NULL)
     if (is.null(j)) return(NULL)
     dd <- j$data
+    point_frame <- neon_location_frame(dd)
+    if (point_frame$epsg != frame$epsg) stop("Named point and site coordinate frames disagree")
     pr <- dd$locationProperties
     unc <- NA_real_
     if (!is.null(pr) && "locationPropertyValue" %in% names(pr)) {
@@ -98,7 +110,7 @@ if (length(need)) {
     }
     data.frame(ptloc = nm, easting = dd$locationUtmEasting,
                northing = dd$locationUtmNorthing,
-               zone = as.character(dd$locationUtmZone), unc = unc)
+               zone = paste0(dd$locationUtmZone, dd$locationUtmHemisphere), unc = unc)
   }
   add <- do.call(rbind, lapply(need, fetch_one))
   cache <- rbind(cache, add)
@@ -108,6 +120,10 @@ map <- merge(map, cache, by = "ptloc", all.x = TRUE)
 ok <- !is.na(map$easting)
 cat(sprintf("geolocated %d / %d stems\n", sum(ok), nrow(map)))
 map <- map[ok, ]
+if (!nrow(map)) stop("No geolocated stems; reference outputs not written")
+map$epsg <- neon_zone_epsg(map$zone)
+map$utmZone <- map$zone
+if (any(map$epsg != frame$epsg)) stop("Named-point cache disagrees with field CRS")
 
 # Polar offset: azimuth measured clockwise from grid north.
 az <- map$stemAzimuth * pi / 180
@@ -115,19 +131,16 @@ map$E <- map$easting  + map$stemDistance * sin(az)
 map$N <- map$northing + map$stemDistance * cos(az)
 map$pos_unc <- ifelse(is.na(map$unc), 0.3, map$unc) + 0.3  # point + rangefinder
 
-## ---- 3. Join nearest-to-2021 apparentindividual measurement ---------------
-ai$year <- as.integer(substr(ai$date, 1, 4))
-ai <- ai[!is.na(ai$year), ]
-ai$dist21 <- abs(ai$year - 2021)
-ai <- ai[order(ai$individualID, ai$dist21), ]
-ai1 <- ai[!duplicated(ai$individualID),
-          c("individualID", "year", "dist21", "height", "stemDiameter",
+## ---- 3. Join nearest-to-acquisition apparentindividual measurement --------
+ai <- neon_nearest_measurements(ai, year)
+ai1 <- ai[, c("individualID", "year", "dist21", "dist_aop", "height", "stemDiameter",
             "maxCrownDiameter", "ninetyCrownDiameter",
             "plantStatus", "canopyPosition", "growthForm")]
 g <- merge(map, ai1, by = "individualID", all.x = TRUE)
 
-# Live trees only for the recall denominator (nearest meas. within 4 yr).
-g$live <- grepl("Live", g$plantStatus) & (is.na(g$dist21) | g$dist21 <= 4)
+# Live trees only for the recall denominator, within the declared year gap.
+g$live <- grepl("Live", g$plantStatus) & !is.na(g$dist_aop) & g$dist_aop <= gap
+g$acquisition_year <- year
 # Trees only (drop shrubs/lianas where growthForm says so).
 g$is_tree <- is.na(g$growthForm) | grepl("tree", g$growthForm, ignore.case = TRUE)
 
@@ -158,14 +171,18 @@ out <- g[, c("individualID", "plotID", "tile", "tile_e", "tile_n", "E", "N",
              "pos_unc", "taxonID", "scientificName", "height", "stemDiameter",
              "maxCrownDiameter", "ninetyCrownDiameter",
              "plantStatus", "canopyPosition", "crown_class", "live", "is_tree",
-             "year", "dist21")]
+             "year", "dist21", "dist_aop", "acquisition_year", "utmZone", "epsg")]
 names(out)[names(out) == "year"] <- "meas_year"
+neon_validate_inputs(out, pp1)
+write.csv(pp1, file.path(nd, "plot_centroids.csv"), row.names = FALSE)
 write.csv(out, file.path(nd, "ground_truth_stems.csv"), row.names = FALSE)
 
 live_tree <- out[out$live & out$is_tree, ]
-tiles <- aggregate(individualID ~ tile + tile_e + tile_n, data = live_tree,
-                   FUN = length)
-names(tiles)[4] <- "n_live_stems"
+tiles <- if (nrow(live_tree)) {
+  counts <- aggregate(individualID ~ tile + tile_e + tile_n, data = live_tree, FUN = length)
+  names(counts)[4] <- "n_live_stems"
+  counts
+} else data.frame(tile = character(), tile_e = numeric(), tile_n = numeric(), n_live_stems = integer())
 tiles <- tiles[order(-tiles$n_live_stems), ]
 write.csv(tiles, file.path(nd, "tiles_needed.csv"), row.names = FALSE)
 
