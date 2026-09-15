@@ -120,18 +120,10 @@ run_plot <- function(site, pid, pc, gt, nd, df_boxes, sel) {
   cache_dir <- file.path(nd, "best_treetop_cache")
   cells <- list()
   for (arm in LIDAR_ARMS) {
-    in_sel <- !is.null(sel) && arm %in% sel$method
-    rungs <- if (in_sel) sel$rung[sel$method == arm] else
+    rungs <- if (!is.null(sel)) sel$rung[sel$method == arm] else
       cached_rungs(cache_dir, arm, site, pid)$rung
-    # exact parameter pinning where the manifest carries it (chm_vwf)
-    pr <- NULL
-    if (in_sel && all(c("chm_res", "vwf_a") %in% names(sel))) {
-      sr <- sel[sel$method == arm, ][1, ]
-      if (is.finite(sr$chm_res) && is.finite(sr$vwf_a))
-        pr <- c(sprintf("res%s", sr$chm_res), sprintf("a%s", sr$vwf_a))
-    }
     for (rung in rungs) {
-      det <- read_arm_cache(cache_dir, arm, site, pid, rung, params = pr)
+      det <- read_selected_cache(cache_dir, arm, site, pid, rung, sel)
       if (!is.null(det))
         cells[[length(cells) + 1]] <- list(arm = arm, rung = rung, det = det)
     }

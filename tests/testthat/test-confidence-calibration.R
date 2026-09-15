@@ -60,6 +60,53 @@ test_that("isotonic_calibrate handles a single class without error", {
   expect_true(all(cal(c(0.2, 0.5, 0.6)) == 0))     # no positives -> calibrates to 0
 })
 
+test_that("constant mixed-label scores calibrate to the base rate", {
+  cal <- isotonic_calibrate(c(0.5, 0.5, 0.5, NA), c(0, 1, 1, 0))
+  expect_equal(cal(c(-1, 0.5, 10, NA)), c(2 / 3, 2 / 3, 2 / 3, NA))
+})
+
+test_that("tied calibration scores retain sample weights without label-order bias", {
+  score <- c(0, 0, 1)
+  expected <- rep(1 / 3, 2)
+  expect_equal(isotonic_calibrate(score, c(0, 1, 0))(c(0, 1)), expected)
+  expect_equal(isotonic_calibrate(score, c(1, 0, 0))(c(0, 1)), expected)
+  expect_equal(isotonic_calibrate(c(0, 0, 1, 1), c(0, 1, 1, 1))(c(0, 1)),
+               c(0.5, 1))
+})
+
+test_that("saved confidence lookups reproduce predictions on the raw scale", {
+  raw <- c(10, 20, 30, 40); label <- c(0, 0, 1, 1)
+  lookup <- confidence_lookup(raw, label)
+  path <- tempfile(fileext = ".csv")
+  on.exit(unlink(path), add = TRUE)
+  write.csv(lookup, path, row.names = FALSE)
+  restored <- read.csv(path)
+  expect_equal(apply_confidence_lookup(c(0, 25, 100, NA), restored), c(0, 0.5, 1, NA))
+  expect_equal(apply_confidence_lookup(c(3, 8, NA),
+               confidence_lookup(c(5, 5), c(0, 1))), c(0.5, 0.5, NA))
+  expect_error(apply_confidence_lookup(1, restored[, c("raw_prob", "calibrated")]),
+               "normalization metadata")
+  mixed <- rbind(transform(restored, arm = "a"), transform(restored, arm = "b"))
+  expect_error(apply_confidence_lookup(1, mixed), "multiple arms")
+  mixed$arm <- "a"; mixed$rung <- rep(c("native", "1"), each = nrow(restored))
+  expect_error(apply_confidence_lookup(1, mixed), "multiple arms")
+})
+
+test_that("calibration holds out whole plots and their labels and score ranges", {
+  dat <- data.frame(site = "S", plot = rep(c("a", "b", "c"), each = 2),
+                     arm = "x", raw = c(100, 200, 0, 1, 0, 1),
+                     label = c(1, 1, 0, 0, 0, 0))
+  cv <- oos_calibrated(dat)
+  expect_equal(cv$cal[1:2], c(0, 0))
+  expect_equal(cv$prob_cv[1:2], c(1, 1))  # held-out extremes do not set the scale
+  changed <- dat; changed$label[1:2] <- 0
+  expect_equal(oos_calibrated(changed)$cal[1:2], cv$cal[1:2])
+  second <- dat; second$arm <- "y"; second$rung <- "1"; dat$rung <- "native"
+  both <- oos_calibrated(rbind(dat, second))
+  expect_equal(both$fold[1:6], both$fold[7:12])
+  expect_true(all(is.na(oos_calibrated(dat[1:2, ])$cal)))
+})
+
 ## ---- precision_at_recall --------------------------------------------------
 # scores 0.9,0.8,0.7,0.6,0.5 ; labels 1,0,1,1,0 (3 positives). Sorted desc,
 # cumulative recall hits 2/3 at the 3rd item (precision 2/3) and 3/3 at the 4th
@@ -74,6 +121,11 @@ test_that("precision_at_recall thresholds the ranking to a target recall", {
 
 test_that("precision_at_recall returns NA when there are no positives", {
   expect_true(is.na(precision_at_recall(c(0.9, 0.1), c(0L, 0L), 0.5)))
+})
+
+test_that("precision at recall includes complete tied confidence groups", {
+  expect_equal(precision_at_recall(c(0.5, 0.5), c(1, 0), 0.5), 0.5)
+  expect_equal(precision_at_recall(c(0.5, 0.5), c(0, 1), 0.5), 0.5)
 })
 
 test_that("calibrated cross-arm ranking can beat raw ranking at fixed recall", {

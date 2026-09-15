@@ -33,6 +33,7 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #                     field), a size proxy: bigger masks are more often real.
 #   chm_vwf/multichm/li2012 -- apex CHM height (AGL): taller apices are more
 #                     often real dominant trees (the classical-arm proxy).
+#   deepforest    -- native RGB box score (SOAP coverage).
 # Each arm's raw score is min-max normalized per arm to a predicted probability
 # in [0,1] (the uncalibrated p); isotonic recalibration then maps it to precision.
 #
@@ -48,13 +49,15 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #   normalized clips + DTMs, and the persisted deep instance clouds.
 # Writes: work/neon/<SITE>/confidence_calibration.csv (one row per detection:
 #   site,plot,arm,raw,prob,label) and work/neon/<SITE>/confidence_lookup.csv (the
-#   per-arm isotonic knots fuse_detectors() consumes to weight votes).
+#   per-arm isotonic knots and raw-score scale for deployment). Fusion benchmarks
+#   must refit on other plots from confidence_calibration.csv to avoid leakage.
 suppressMessages({ library(lidR); library(data.table); library(parallel); library(sf) })
 options(lidR.progress = FALSE, lidR.verbose = FALSE)
 d <- .job_dir()
 source(.find("sweep_lib.R"))
 source(.find("model_bench_lib.R"))
 source(.find("io_bridge.R"))
+source(.find("coverage_lib.R"))
 
 args  <- strsplit(commandArgs(TRUE), "=")
 A     <- setNames(lapply(args, `[`, 2), sapply(args, `[`, 1))
@@ -65,9 +68,11 @@ RUNG  <- if (is.null(A$RUNG)) "native" else A$RUNG
 TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
 VWF_A <- as.numeric(if (is.null(A$VWF_A)) 0.10 else A$VWF_A)
 BINS  <- as.integer(if (is.null(A$BINS)) 10 else A$BINS)
+FROM_CACHE <- !is.null(A$FROM_CACHE) && A$FROM_CACHE != "0"
 MERGE_TOL <- as.numeric(if (is.null(A$MERGE_TOL)) 2.0 else A$MERGE_TOL)
 SAT_ID_FIELD <- "PredInstance"
-ARMS <- c("chm_vwf", "multichm", "li2012", "segmentanytree", "forestformer3d")
+ARMS <- c("chm_vwf", "multichm", "li2012", "segmentanytree", "forestformer3d", "deepforest")
+YEAR <- if (is.null(A$YEAR)) "2021" else A$YEAR
 
 fz <- function(nd, site, pid, f) file.path(nd, "frozen", site, pid, RUNG, f)
 inst_path <- function(idir, pid) {
@@ -166,7 +171,7 @@ label_dets <- function(det, stems, cx, cy, ph) {
 }
 
 ## ---- per-site driver ------------------------------------------------------
-run_site <- function(site) {
+run_site <- function(site, arms = ARMS) {
   nd <- file.path(d, "neon", site)
   gtf <- file.path(nd, "ground_truth_stems.csv"); pcf <- file.path(nd, "plot_centroids.csv")
   if (!file.exists(gtf) || !file.exists(pcf)) return(NULL)
@@ -188,13 +193,16 @@ run_site <- function(site) {
     res <- if (frdens >= 8) 0.25 else 0.5
     dtm <- fz(nd, site, pid, "ground_dtm.tif")
     out <- list()
-    for (arm in ARMS) {
-      det <- tryCatch(arm_dets(arm, las, clip, dtm, frdens, res, nd, pid),
+    for (arm in arms) {
+      det <- tryCatch(if (arm == "deepforest")
+        deepforest_plot_detections(nd, site, pid, cx, cy, ph + TOL, YEAR) else
+        arm_dets(arm, las, clip, dtm, frdens, res, nd, pid),
                       error = function(e) NULL)
       lab <- label_dets(det, stems, cx, cy, ph)
       if (!is.null(lab) && nrow(lab))
         out[[arm]] <- data.frame(site = site, plot = pid, arm = arm,
-                                 raw = lab$score, label = lab$label)
+                                 raw = lab$score, label = lab$label,
+                                 rgb_year = if (arm == "deepforest") YEAR else NA_character_)
     }
     if (!length(out)) return(NULL)
     rbindlist(out)
@@ -210,50 +218,34 @@ run_site <- function(site) {
   as.data.frame(res)
 }
 
-## ---- out-of-sample calibrated probs via k-fold CV ------------------------
-# Isotonic is in-sample-perfect (trained ECE -> 0), so report HELD-OUT
-# calibration: assign each arm's detections to k folds, fit the calibrator on
-# the other folds, predict the held-out fold. Returns res with an added `cal`
-# column = out-of-sample calibrated prob (per arm). Deterministic (seeded folds).
-oos_calibrated <- function(res, k = 5, seed = 42L) {
-  res <- as.data.table(res); res[, cal := NA_real_]
-  for (arm in unique(res$arm)) {
-    ix <- which(res$arm == arm); n <- length(ix)
-    if (n < k) { res$cal[ix] <- mean(res$label[ix]); next }   # too few -> base rate
-    set.seed(seed); fold <- sample(rep_len(seq_len(k), n))
-    for (f in seq_len(k)) {
-      te <- ix[fold == f]; tr <- ix[fold != f]
-      cal <- isotonic_calibrate(res$prob[tr], res$label[tr])
-      res$cal[te] <- cal(res$prob[te])
-    }
-  }
-  as.data.frame(res)
-}
-
 ## ---- calibrate + report ---------------------------------------------------
-report <- function(res) {
-  oos <- oos_calibrated(res)
-  cat("\n===== CONFIDENCE CALIBRATION (per arm, native equal-set) =====\n")
-  cat("ECE_cal is 5-fold CROSS-VALIDATED (held-out), not in-sample.\n")
+report <- function(res, oos = oos_calibrated(res)) {
+  cat(sprintf("\n===== CONFIDENCE CALIBRATION (per arm, rung %s) =====\n", RUNG))
+  cat("ECE uses leave-one-PLOT-out predictions and training-only normalization.\n")
   cat(sprintf("%-16s %6s %7s %9s %9s %8s\n",
               "arm", "n", "base_P", "ECE_raw", "ECE_cal_cv", "dECE"))
   lookups <- list()
   for (arm in ARMS) {
     s <- res[res$arm == arm, , drop = FALSE]; if (!nrow(s)) next
-    so <- oos[oos$arm == arm, , drop = FALSE]
+    so <- oos[oos$arm == arm & is.finite(oos$cal) & is.finite(oos$prob_cv), , drop = FALSE]
     baseP <- mean(s$label)
-    er <- expected_calibration_error(s$prob, s$label, bins = BINS)
+    er <- expected_calibration_error(so$prob_cv, so$label, bins = BINS)
     ec <- expected_calibration_error(so$cal, so$label, bins = BINS)   # held-out
     cat(sprintf("%-16s %6d %7.3f %9.3f %9.3f %+8.3f\n",
                 arm, nrow(s), baseP, er, ec, ec - er))
     # the SHIPPED lookup is fit on ALL of this arm's data (max data for #P1)
-    cal <- isotonic_calibrate(s$prob, s$label); kx <- sort(unique(s$prob))
-    lookups[[arm]] <- data.frame(arm = arm, raw_prob = kx, calibrated = cal(kx))
+    lookups[[arm]] <- data.frame(arm = arm, rung = RUNG,
+                                rgb_year = if (arm == "deepforest") YEAR else NA_character_,
+                                confidence_lookup(s$raw, s$label))
   }
+  valid <- is.finite(oos$prob_cv) & is.finite(oos$cal)
+  cat(sprintf("Held-out support: %d/%d detections (%d plots).\n", sum(valid),
+              nrow(oos), length(unique(oos$fold))))
+  oos <- oos[valid, , drop = FALSE]
   cat("\n--- ensemble precision @ fixed recall (pooled multi-arm, held-out) ---\n")
   cat(sprintf("%8s %10s %10s %8s\n", "recall", "P_raw", "P_calib", "gain"))
   for (tr in c(0.5, 0.6, 0.7, 0.8, 0.9)) {
-    pr <- precision_at_recall(oos$prob, oos$label, tr)        # raw normalized
+    pr <- precision_at_recall(oos$prob_cv, oos$label, tr)
     pc <- precision_at_recall(oos$cal,  oos$label, tr)        # held-out calibrated
     cat(sprintf("%8.2f %10.3f %10.3f %+8.3f\n", tr, pr, pc, pc - pr))
   }
@@ -263,7 +255,19 @@ report <- function(res) {
 run_main <- function() {
   t0 <- Sys.time(); all_res <- list()
   for (site in SITES) {
-    r <- tryCatch(run_site(site), error = function(e) {
+    r <- tryCatch(if (FROM_CACHE) {
+      path <- file.path(d, "neon", site, "confidence_calibration.csv")
+      cached <- read.csv(path, stringsAsFactors = FALSE)
+      if (!"rung" %in% names(cached)) cached$rung <- "native"
+      if (!"rgb_year" %in% names(cached)) cached$rgb_year <- NA_character_
+      keep <- cached$rung == RUNG & (cached$arm != "deepforest" | cached$rgb_year == YEAR)
+      cached <- cached[which(keep), c("site", "plot", "arm", "raw", "label", "rgb_year"), drop = FALSE]
+      if (!"deepforest" %in% cached$arm) {
+        optical <- run_site(site, arms = "deepforest")
+        if (!is.null(optical)) cached <- rbind(cached, optical)
+      }
+      cached
+    } else run_site(site), error = function(e) {
       message("site ", site, " failed: ", conditionMessage(e)); NULL })
     if (!is.null(r)) all_res[[site]] <- r
   }
@@ -273,14 +277,16 @@ run_main <- function() {
   # per-arm min-max -> predicted prob, POOLED across all sites (not per-site), so
   # the lookup's raw_prob axis is site-independent and reusable by fuse_detectors().
   res <- as.data.table(res)
-  res[, prob := { r <- range(raw); if (diff(r) > 0) (raw - r[1]) / diff(r) else 0.5 }, by = arm]
+  res[, prob := normalize_confidence(raw, min(raw), max(raw)), by = arm]
+  res$rung <- RUNG
   res <- as.data.frame(res)
+  oos <- oos_calibrated(res)
   # write per-site confidence_calibration.csv carrying the pooled prob
   for (site in names(all_res))
-    write.csv(res[res$site == site, , drop = FALSE],
+    write.csv(oos[oos$site == site, , drop = FALSE],
               file.path(d, "neon", site, "confidence_calibration.csv"), row.names = FALSE)
-  lk <- report(res)
-  # write per-arm calibrated lookup to each site dir (fuse_detectors consumes it)
+  lk <- report(res, oos)
+  # The full-data lookup is for new plots, not the held-out benchmark rows.
   for (site in names(all_res))
     write.csv(lk, file.path(d, "neon", site, "confidence_lookup.csv"), row.names = FALSE)
   cat(sprintf("\nDONE: %d labelled detections across %d sites in %.1f min\n",

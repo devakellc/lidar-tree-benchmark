@@ -236,12 +236,12 @@ stamp. The default (r=2, f=2) is the conservative middle.
   the classical arms persist masks and the IoU/PQ board covers all arms.
 - SJER/TEAK lack the rgb family, so `MIN_FAM=2` there means chm/pc/deep
   agreement only; SOAP's numbers are the strongest-evidence configuration.
-- **Cache pinning is exact only for CHM-VWF.** `best_treetop_selection.csv`
-  records `chm_res`/`vwf_a` but not the GPU arms' `conf`/`voxel`/`image`/
-  `spacing`/`merge` suffixes, so `treeisonet`/`segmentanytree`/`forestformer3d`
-  cells still resolve by glob. That is exact whenever only one variant was ever
-  cached (the committed state) and warns whenever more than one exists, but
-  pinning those arms properly needs the selection writer to record their knobs.
-  A pinned-but-missing CHM-VWF variant also warns and falls back to the glob
-  rather than dropping the cell, so a re-parameterized re-run is loud, not
-  silent.
+- **Cache configurations are pinned by the selection manifest (#98).** Its
+  `cache_suffix` records CHM parameters and the GPU `conf`/`voxel`/`image`/
+  `spacing`/`merge` suffixes using the same builder as the cache writer. Both
+  coverage scoring and instance-proxy scoring honor this selection. A missing
+  pin or ambiguous legacy cache warns and skips the cell; it never substitutes
+  another configuration. Refresh metadata without rerunning detectors with
+  `Rscript scripts/export_best_treetops_geojson.R SELECTION_ONLY=1`, passing the
+  same GPU configuration arguments used for the export. The 2026-09-15 refresh
+  resolved 198 SOAP, 78 SJER, and 197 TEAK cached cells without ambiguity.

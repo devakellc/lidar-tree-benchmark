@@ -6,6 +6,27 @@ source(file.path("..", "..", "scripts", "sweep_lib.R"), local = TRUE)
 source(file.path("..", "..", "scripts", "model_bench_lib.R"), local = TRUE)
 source(file.path("..", "..", "scripts", "coverage_lib.R"), local = TRUE)
 
+test_that("optical cache loading distinguishes an empty run from missing coverage", {
+  tmp <- tempfile(); dir.create(tmp)
+  on.exit(unlink(tmp, recursive = TRUE), add = TRUE)
+  dir.create(file.path(tmp, "rgb")); dir.create(file.path(tmp, "deepforest_boxes"))
+  raster <- terra::rast(ncols = 2, nrows = 2, xmin = 0, xmax = 1000,
+                         ymin = 0, ymax = 1000, vals = 1)
+  terra::writeRaster(raster, file.path(tmp, "rgb", "2021_SOAP_5_0_0_image.tif"))
+  expect_null(deepforest_plot_boxes(tmp, "SOAP", 500, 500, 20))
+  file <- file.path(tmp, "deepforest_boxes", "2021_SOAP_5_0_0_image.csv")
+  write.csv(data.frame(x = numeric(), y = numeric(), score = numeric()), file,
+             row.names = FALSE)
+  expect_equal(nrow(deepforest_plot_boxes(tmp, "SOAP", 500, 500, 20)), 0L)
+  expect_null(deepforest_plot_boxes(tmp, "SOAP", 500, 500, 20, year = "2020"))
+  expect_null(deepforest_plot_boxes(tmp, "SOAP", 0, 0, 20))
+  write.csv(data.frame(x = c(500, 600), y = 500, score = c(0.8, 0.9)), file,
+             row.names = FALSE)
+  b <- deepforest_plot_boxes(tmp, "SOAP", 500, 500, 20)
+  expect_equal(b$score, 0.8)
+  expect_equal(boxes_to_dets(b, raster, keep_score = TRUE)$score, 0.8)
+})
+
 ## ---- co_detect_credit ------------------------------------------------------
 # An isolated FP is credited as probable-real only when witness detections from
 # >= min_fam DISTINCT families sit within r of it.
@@ -203,12 +224,37 @@ test_that("read_arm_cache prefers the exact param-pinned variant over the glob",
   det <- read_arm_cache(tmp, "chm_vwf", "SOAP", "SOAP_001", "4",
                         params = c("res0.5", "a0.05"))
   expect_equal(det$z, 99)                    # pinned, not glob-first (res0.25)
-  # pinned variant absent -> warning fallback to the glob
+  # A missing pin must not score a different parameter variant.
   expect_warning(
     d2 <- read_arm_cache(tmp, "chm_vwf", "SOAP", "SOAP_001", "4",
                          params = c("res9", "a9")),
     "variant")
-  expect_equal(nrow(d2), 1L)
+  expect_null(d2)
+  write.csv(data.frame(x = 1, y = 2, z = -1),
+            file.path(tmp, "chm_vwf__SOAP__SOAP_001__4.csv"), row.names = FALSE)
+  expect_equal(read_arm_cache(tmp, "chm_vwf", "SOAP", "SOAP_001", "4",
+                              params = c("res0.5", "a0.05"))$z, 99)
+  expect_warning(ambiguous <- read_arm_cache(tmp, "chm_vwf", "SOAP", "SOAP_001", "4"),
+                 "ambiguous")
+  expect_null(ambiguous)
+})
+
+test_that("selection pins GPU suffixes and excludes non-selected rungs and arms", {
+  tmp <- tempfile(); dir.create(tmp)
+  on.exit(unlink(tmp, recursive = TRUE), add = TRUE)
+  sel <- data.frame(site = "SOAP", method = "segmentanytree", rung = "native",
+                     cache_suffix = "imagesat-v2")
+  write.csv(sel, file.path(tmp, "selection.csv"), row.names = FALSE)
+  sel <- read_selection(file.path(tmp, "selection.csv"), "SOAP")
+  for (suffix in c("imagesat-v1", "imagesat-v2"))
+    write.csv(data.frame(x = 1, y = 2, z = if (suffix == "imagesat-v2") 20 else 10),
+      file.path(tmp, paste0("segmentanytree__SOAP__P__native__", suffix, ".csv")),
+      row.names = FALSE)
+  expect_equal(read_selected_cache(tmp, "segmentanytree", "SOAP", "P", "native", sel)$z, 20)
+  expect_null(read_selected_cache(tmp, "segmentanytree", "SOAP", "P", "8", sel))
+  expect_null(read_selected_cache(tmp, "ams3d", "SOAP", "P", "native", sel))
+  expect_identical(selection_cache_params(data.frame(method = "ams3d", cache_suffix = "")),
+                    character(0))
 })
 
 ## ---- credit_isolated --------------------------------------------------------
@@ -257,10 +303,10 @@ test_that("read_selection maps each arm to its selected best rung for a site", {
   expect_equal(nrow(sel), 2L)
   expect_equal(sel$rung[sel$method == "ams3d"], "2")
   expect_null(read_selection(file.path(tempdir(), "nonexistent.csv"), "SOAP"))
-  expect_null(read_selection(tmp, "TEAK"))
+  expect_equal(nrow(read_selection(tmp, "TEAK")), 0L)
 })
 
-test_that("read_arm_cache warns when multiple parameter variants match one rung", {
+test_that("read_arm_cache rejects multiple unpinned parameter variants", {
   tmp <- file.path(tempdir(), "btc_multi"); dir.create(tmp, showWarnings = FALSE)
   on.exit(unlink(tmp, recursive = TRUE), add = TRUE)
   det <- data.frame(x = 1, y = 2, z = 3)
@@ -270,7 +316,7 @@ test_that("read_arm_cache warns when multiple parameter variants match one rung"
             row.names = FALSE)
   expect_warning(r <- read_arm_cache(tmp, "chm_vwf", "SOAP", "SOAP_001", "4"),
                  "variant")
-  expect_equal(nrow(r), 1L)
+  expect_null(r)
 })
 
 ## ---- cached_rungs ----------------------------------------------------------

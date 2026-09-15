@@ -56,6 +56,7 @@ if (!EXTENT %in% c("core", "recall", "all"))
   stop("EXTENT must be one of core, recall, all", call. = FALSE)
 FORCE <- !is.null(A$FORCE) && A$FORCE != "0"
 SKIP_GPU <- !is.null(A$SKIP_GPU) && A$SKIP_GPU != "0"
+SELECTION_ONLY <- !is.null(A$SELECTION_ONLY) && A$SELECTION_ONLY != "0"
 TOL <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
 A_VWF <- as.numeric(if (is.null(A$A)) 0.10 else A$A)
 TREEISONET_CONF <- if (is.null(A$TREEISONET_CONF)) "0.22" else A$TREEISONET_CONF
@@ -218,7 +219,9 @@ best_selection <- function(site, method) {
   for (nm in c("chm_res", "vwf_a")) if (!nm %in% names(pooled)) pooled[[nm]] <- NA_real_
   pooled <- pooled[order(-pooled$F1, -pooled$recall, -pooled$precision,
                          pooled$rung), , drop = FALSE]
-  pooled[1, , drop = FALSE]
+  selected <- pooled[1, , drop = FALSE]
+  selected$cache_suffix <- cache_suffix(method, selected)
+  selected
 }
 
 rows_for_selection <- function(sel) {
@@ -250,9 +253,8 @@ rung_value <- function(rung) {
   if (length(rung) != 1 || is.na(rung) || rung == "native") NA_real_ else as.numeric(rung)
 }
 
-cell_cache_path <- function(ctx, method, row) {
-  rung <- as.character(row$rung)
-  parts <- c(method, ctx$site, row$plot, rung)
+cache_suffix <- function(method, row) {
+  parts <- character(0)
   if (method == "chm_vwf")
     parts <- c(parts, sprintf("res%s", row$chm_res), sprintf("a%s", row$vwf_a))
   if (method == "treeisonet")
@@ -262,6 +264,13 @@ cell_cache_path <- function(ctx, method, row) {
   if (method == "forestformer3d")
     parts <- c(parts, sprintf("image%s", FF3D_IMAGE), sprintf("spacing%s", FF3D_SPACING),
                sprintf("merge%s", FF3D_MERGE_TOL))
+  sanitize(paste(parts, collapse = "__"))
+}
+
+cell_cache_path <- function(ctx, method, row) {
+  parts <- c(method, ctx$site, row$plot, as.character(row$rung))
+  suffix <- cache_suffix(method, row)
+  if (nzchar(suffix)) parts <- c(parts, suffix)
   dir.create(file.path(ctx$nd, "best_treetop_cache"), recursive = TRUE, showWarnings = FALSE)
   file.path(ctx$nd, "best_treetop_cache", paste0(sanitize(paste(parts, collapse = "__")), ".csv"))
 }
@@ -640,6 +649,7 @@ run_main <- function() {
   write.csv(selections, file.path(OUT, "best_treetop_selection.csv"), row.names = FALSE)
   cat(sprintf("Selected %d method/site configurations -> %s\n",
               nrow(selections), file.path(OUT, "best_treetop_selection.csv")))
+  if (SELECTION_ONLY) return(invisible(selections))
 
   manifest <- selections
   manifest$features_written <- 0L

@@ -740,9 +740,9 @@ expected_calibration_error <- function(prob, label, bins = 10) {
 ## ---- isotonic (monotone) post-hoc calibrator ------------------------------
 # Fits a non-decreasing step mapping raw score -> P(TP) via stats::isoreg (PAVA),
 # then returns a function that interpolates it to arbitrary new scores (constant
-# extrapolation past the trained range). Monotone, so it NEVER changes a single
-# arm's detection RANKING (precision-recall is rank-based) -- its value is making
-# scores COMPARABLE across arms. With no positives it calibrates everything to 0
+# extrapolation past the trained range). Monotone, so it never reverses a single
+# arm's score ordering, but may introduce ties. Its value is making scores
+# COMPARABLE across arms. With no positives it calibrates everything to 0
 # (and to 1 with no negatives). NA scores map to NA.
 isotonic_calibrate <- function(score, label) {
   score <- as.numeric(score); label <- as.numeric(label)
@@ -756,6 +756,10 @@ isotonic_calibrate <- function(score, label) {
   # collapse ties in ss to the last fitted value, then linear-interpolate
   ux <- !duplicated(ss, fromLast = TRUE)
   kx <- ss[ux]; ky <- yf[ux]
+  if (length(kx) == 1L) {
+    base <- mean(y)
+    return(function(z) ifelse(is.na(z), NA_real_, base))
+  }
   function(z) {
     z <- as.numeric(z)
     out <- approx(kx, ky, xout = z, rule = 2, ties = "ordered")$y
@@ -764,22 +768,87 @@ isotonic_calibrate <- function(score, label) {
   }
 }
 
+normalize_confidence <- function(raw, raw_min, raw_max) {
+  if (!is.finite(raw_min) || !is.finite(raw_max) || raw_max < raw_min)
+    stop("invalid confidence normalization range", call. = FALSE)
+  if (raw_max == raw_min) return(ifelse(is.finite(raw), 0.5, NA_real_))
+  out <- pmin(pmax((raw - raw_min) / (raw_max - raw_min), 0), 1)
+  out[!is.finite(raw)] <- NA_real_
+  out
+}
+
+# Persist both the fitted knots and their raw-score scale for deployment.
+confidence_lookup <- function(raw, label) {
+  keep <- is.finite(raw) & is.finite(label)
+  raw <- raw[keep]; label <- label[keep]
+  if (!length(raw)) stop("no finite confidence training data", call. = FALSE)
+  lo <- min(raw); hi <- max(raw)
+  prob <- normalize_confidence(raw, lo, hi)
+  cal <- isotonic_calibrate(prob, label)
+  knots <- sort(unique(prob))
+  data.frame(raw_min = lo, raw_max = hi, raw_prob = knots,
+             calibrated = cal(knots))
+}
+
+apply_confidence_lookup <- function(raw, lookup) {
+  required <- c("raw_min", "raw_max", "raw_prob", "calibrated")
+  if (!all(required %in% names(lookup)) || !nrow(lookup))
+    stop("confidence lookup lacks normalization metadata; regenerate it", call. = FALSE)
+  if (length(unique(lookup$raw_min)) != 1L || length(unique(lookup$raw_max)) != 1L)
+    stop("confidence lookup must contain one arm and density rung", call. = FALSE)
+  groups <- intersect(c("arm", "rung", "rgb_year"), names(lookup))
+  if (any(vapply(lookup[groups], function(x) length(unique(x)) != 1L, logical(1))))
+    stop("confidence lookup contains multiple arms, rungs, or RGB years", call. = FALSE)
+  prob <- normalize_confidence(raw, lookup$raw_min[1], lookup$raw_max[1])
+  if (nrow(lookup) == 1L)
+    return(ifelse(is.na(prob), NA_real_, lookup$calibrated[1]))
+  approx(lookup$raw_prob, lookup$calibrated, xout = prob, rule = 2)$y
+}
+
+# A plot's detections from every arm and density rung share one held-out fold.
+# Arms present only in the held-out plot have no training data and stay NA.
+oos_calibrated <- function(res) {
+  res <- as.data.frame(res)
+  required <- c("site", "plot", "arm", "raw", "label")
+  if (!all(required %in% names(res))) stop("calibration requires site/plot groups")
+  key <- paste(res$site, res$plot, sep = "::")
+  res$fold <- match(key, sort(unique(key)))
+  res$prob_cv <- res$cal <- NA_real_
+  group <- if ("rung" %in% names(res)) paste(res$arm, res$rung, sep = "::") else res$arm
+  for (arm in unique(group)) {
+    ix <- which(group == arm)
+    for (f in unique(res$fold[ix])) {
+      te <- ix[res$fold[ix] == f]
+      tr <- ix[res$fold[ix] != f & is.finite(res$raw[ix]) & is.finite(res$label[ix])]
+      if (!length(tr)) next
+      lookup <- confidence_lookup(res$raw[tr], res$label[tr])
+      res$prob_cv[te] <- normalize_confidence(res$raw[te], lookup$raw_min[1],
+                                            lookup$raw_max[1])
+      res$cal[te] <- apply_confidence_lookup(res$raw[te], lookup)
+    }
+  }
+  res
+}
+
 ## ---- precision at a fixed recall over a scored detection set --------------
 # Rank detections by DESCENDING score, walk the threshold down, and return the
 # precision at the first point where cumulative recall (TP_kept / total_TP)
 # reaches target_recall. This is the ensemble calibration payoff: comparing the
 # pooled multi-arm ranking under raw vs calibrated scores. NA if no positives.
-# Ties in score are broken stably (label order preserved) -- callers compare
-# the SAME detections under two scorings, so the comparison is fair.
+# A threshold includes the entire tied-score group. Isotonic fits often have
+# plateaus, so stopping partway through a tie gives an unattainable precision.
 precision_at_recall <- function(score, label, target_recall = 0.8) {
   score <- as.numeric(score); label <- as.numeric(label)
+  keep <- is.finite(score) & is.finite(label)
+  score <- score[keep]; label <- label[keep]
   P <- sum(label == 1)
   if (!P) return(NA_real_)
   o <- order(-score)
   y <- label[o]
   tp <- cumsum(y == 1); kept <- seq_along(y)
   recall <- tp / P; precision <- tp / kept
-  hit <- which(recall >= target_recall)
+  thresholds <- c(which(diff(score[o]) != 0), length(o))
+  hit <- thresholds[recall[thresholds] >= target_recall]
   if (!length(hit)) return(NA_real_)
   precision[hit[1]]
 }
