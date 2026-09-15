@@ -4,14 +4,15 @@ scene, run FF3D once over all of them, and write ONE merged UTM LAZ <out_laz>
 (point_source_id = per-cylinder instance id, user_data = cylinder/block index,
 instance score in an extra dim). Run from the FF3D repo root.
 
-Usage: python ff3d_arm.py <in_dir> <out_laz> <ckpt>
+Pass one LAZ file instead of a cylinder directory for a native whole scene.
+Usage: python ff3d_arm.py <input_laz_or_directory> <out_laz> <ckpt>
 """
-import os, sys, glob, shutil, json
+import os, sys, glob, shutil, json, resource
 import numpy as np
 import laspy
 from plyfile import PlyData
 from ff3d_export import (native_scene_name, restore_native, validate_las_ids,
-                         EMPTY_SAMPLE_ERROR, validate_empty_sample_error)
+                         EMPTY_SAMPLE_ERROR, validate_empty_sample_error, scene_output)
 
 _orig = __import__("torch").load
 def _load(*a, **k):
@@ -19,6 +20,7 @@ def _load(*a, **k):
 __import__("torch").load = _load
 
 IN_DIR, OUT_LAZ, CKPT = sys.argv[1], sys.argv[2], sys.argv[3]
+whole_scene = os.path.isfile(IN_DIR)
 # This driver is mounted from outside the repo, so sys.path[0] is its own dir,
 # not the repo root. Add the repo root (cwd, set by ff3d_entry.sh `cd $repo`) so
 # the repo-local `oneformer3d` package + tools/ helpers import.
@@ -30,13 +32,19 @@ for d in (INST, META):
     shutil.rmtree(d, ignore_errors=True); os.makedirs(d, exist_ok=True)
 
 # 1. stage each cylinder as a scene; remember its centering offset for UTM restore
-clips = sorted(glob.glob(os.path.join(IN_DIR, "cyl_*.laz")))
+clips = [IN_DIR] if whole_scene else sorted(glob.glob(os.path.join(IN_DIR, "cyl_*.laz")))
 offsets, scans = {}, []
 for clip in clips:
     scan = native_scene_name(clip)
     las = laspy.read(clip)
     xyz = np.vstack([las.x, las.y, las.z]).T.astype(np.float64)
-    if xyz.shape[0] < 50:                                     # too sparse -> skip
+    if whole_scene and not len(xyz):
+        scene_output(las, np.zeros(0, dtype=int), np.zeros(0)).write(OUT_LAZ)
+        with open(OUT_LAZ + ".json", "w") as stream:
+            json.dump([dict(scene=scan, layout="whole_scene", points=0,
+                            route="empty_input", source_rows=0)], stream)
+        print("ARM_DONE"); sys.exit(0)
+    if not whole_scene and xyz.shape[0] < 50:                  # legacy cylinder filter
         continue
     off = np.array([xyz[:, 0].mean(), xyz[:, 1].mean(), xyz[:, 2].min()])
     offsets[scan] = off
@@ -95,6 +103,7 @@ for block_i, data in enumerate(runner.test_dataloader):
     if os.path.exists(full_scene):
         os.remove(full_scene)
     empty_sample_error = None
+    torch.cuda.reset_peak_memory_stats()
     try:
         with torch.no_grad():
             model.test_step(data, epoch=0)
@@ -121,8 +130,12 @@ for block_i, data in enumerate(runner.test_dataloader):
     BLK.append(np.full(n, block_i, np.int64))
     SCORE.append(sc)
     receipts.append(dict(scene=scan, lidar_path=lidar_path, points=n,
+                         layout="whole_scene" if whole_scene else "outer_cylinders",
                          route="upstream_test", nn_chunk=cfg.model.chunk,
                          empty_sample_return=empty_sample_error is not None,
+                         peak_cuda_allocated_bytes=torch.cuda.max_memory_allocated(),
+                         peak_cuda_reserved_bytes=torch.cuda.max_memory_reserved(),
+                         peak_host_rss_kib=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
                          offset=offsets[scan].tolist(),
                          background=int((per_point == 0).sum()),
                          instances=int(len(np.unique(per_point[per_point > 0])))))
@@ -131,17 +144,26 @@ for block_i, data in enumerate(runner.test_dataloader):
 X = np.concatenate(XS); Y = np.concatenate(YS); Z = np.concatenate(ZS)
 inst = np.concatenate(INST_ID); blk = np.concatenate(BLK); score = np.concatenate(SCORE)
 
-# 4. write the merged UTM LAZ
-h = laspy.LasHeader(point_format=3, version="1.2")
-h.offsets = np.array([X.min(), Y.min(), Z.min()]); h.scales = [0.001, 0.001, 0.001]
-las = laspy.LasData(h)
-las.x, las.y, las.z = X, Y, Z
-validate_las_ids(inst, blk)
-las.point_source_id = inst.astype(np.uint16)
-las.user_data = blk.astype(np.uint8)
-las.add_extra_dim(laspy.ExtraBytesParams(name="ff3d_score", type=np.float32))
-las.ff3d_score = score
+# 4. A single scene keeps the exact original LAS rows, not rounded PLY positions.
+if whole_scene:
+    source = laspy.read(IN_DIR)
+    original = np.column_stack([source.x, source.y, source.z])
+    expected = (original - offsets[scans[0]]).astype(np.float32)
+    if not np.array_equal(expected, np.load(f"{INST}/{scans[0]}_vert.npy")):
+        raise ValueError("Whole-scene source changed during inference")
+    las = scene_output(source, inst, score)
+    receipts[0]["source_rows"] = len(source.points)
+else:
+    h = laspy.LasHeader(point_format=3, version="1.2")
+    h.offsets = np.array([X.min(), Y.min(), Z.min()]); h.scales = [0.001, 0.001, 0.001]
+    las = laspy.LasData(h)
+    las.x, las.y, las.z = X, Y, Z
+    validate_las_ids(inst, blk)
+    las.point_source_id = inst.astype(np.uint16)
+    las.user_data = blk.astype(np.uint8)
+    las.add_extra_dim(laspy.ExtraBytesParams(name="ff3d_score", type=np.float32))
+    las.ff3d_score = score
 las.write(OUT_LAZ)
 with open(OUT_LAZ + ".json", "w") as stream:
     json.dump(receipts, stream, indent=2)
-print(f"wrote {OUT_LAZ}: {len(X)} pts from {len(scans)} cylinders"); print("ARM_DONE")
+print(f"wrote {OUT_LAZ}: {len(X)} pts from {len(scans)} scenes"); print("ARM_DONE")
