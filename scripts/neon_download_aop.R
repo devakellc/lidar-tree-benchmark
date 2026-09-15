@@ -22,6 +22,7 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # Reads work/neon/<SITE>/ground_truth_stems.csv; writes work/neon/<SITE>/rgb/.
 suppressMessages(library(neonUtilities))
 source(.find("neon_spatial_lib.R"))
+source(.find("neon_acquisition_lib.R"))
 args <- strsplit(commandArgs(TRUE), "=")
 A    <- setNames(lapply(args, `[`, 2), sapply(args, `[`, 1))
 site <- if (is.null(A$SITE)) "SOAP" else A$SITE
@@ -42,7 +43,7 @@ cat(sprintf("[%s] live trees: %d (RGB DP3.30010 %s, provisional=%s)\n",
 savep <- file.path(nd, "rgb"); dir.create(savep, showWarnings = FALSE, recursive = TRUE)
 neon_acquisition_manifest(savep, "DP3.30010.001", year, epsg, prov)
 options(timeout = 7200)
-byTileAOP(dpID = "DP3.30010.001", site = site, year = year,
+neon_by_tile_aop(dpID = "DP3.30010.001", site = site, year = year,
           easting = centres$easting, northing = centres$northing, buffer = 50,
           check.size = FALSE, savepath = savep, include.provisional = prov, token = token)
 tif <- list.files(savep, pattern = "\\.tif$", recursive = TRUE, full.names = TRUE)

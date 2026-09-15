@@ -109,9 +109,11 @@ Sweep invariants — get these wrong and the metrics are silently misleading:
 - **Pool by summing counts, not averaging rates**: site/rung recall is
   `sum(TP) / sum(n_ref)`, never `mean(per-plot recall)` (small plots would
   dominate). Per-class TP is recovered as `round(rec_class * n_class)`.
-- **Plot core tracks plot type**: tower base plots map ±20 m, distributed plots
-  only ±10 m (`plot_half()` in sweep_lib). Scoring the full box over a
-  distributed plot counts the unmapped ring as false commission.
+- **Nominal bounds are not census support**: historical `plot_half()` uses
+  tower ±20 m and distributed ±10 m. Eastern census metadata samples only
+  800 m² of each candidate 1600 m² tower box. Preserve historical outputs,
+  but require event-specific sampled-subplot and growth-form support before
+  new evaluation. Do not count detections in unmapped areas as commission.
 - **Two density units**: first-return/pulse density (`frdens`) gates CHM
   resolution and the <8 pts/m² smoothing branch; all-return density (`pdens`)
   is the decimation/no-upsampling guard. Don't conflate them.
@@ -128,6 +130,11 @@ The [eastern preflight protocol](docs/eastern-preflight-protocol.md) reserves
 HARV for development and BART for held-out validation. Public metadata is not
 proof of reference coverage, native density or leaf-on status. Do not run
 detectors or freeze eligible plots before the remaining data checks pass.
+Authenticated field and file inventories plus a HARV-only spatial smoke test
+are now complete; all ten count/tile candidates have partial census support.
+See the [preflight findings](results/eastern-broadleaf-results.md). Matching
+headers do not independently establish field-to-AOP datum accuracy, and no
+BART spatial tile or detector result has been inspected.
 `neon_spatial_lib.R` derives site frames from metadata and checks LiDAR/RGB
 headers. HARV and BART are not UTM 11N. New reference, acquisition, frozen-clip
 and RGB-box runs reject unversioned or incompatible caches; use fresh output

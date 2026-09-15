@@ -17,12 +17,12 @@ fusion, calibration fitting or BART performance inspection is authorized here.
   smoke test, require an exact-year live-tree measurement, finite mapped
   coordinates and height, and a known tower/distributed plot type. Report
   missing observations and exclusions; do not treat them as absent trees.
-- Require at least six eligible mapped trees inside the plot core. The core
-  is 40 m square for tower plots and 20 m square for distributed plots.
+- Require at least six candidate mapped trees inside the nominal plot box,
+  historically 40 m square for tower and 20 m square for distributed plots.
   Require complete LiDAR tile coverage through the existing 25 m clip buffer.
-- Choose the lexicographically first eligible HARV plot for the smoke test,
+- Choose the lexicographically first count/tile candidate for the HARV smoke,
   before inspecting point-cloud density or detector scores. Enumerate and
-  freeze all eligible plot IDs and the site split after data coverage checks.
+  freeze eligible plot IDs and the site split only after all support checks.
   Public named locations alone do not establish eligible reference coverage.
 - Record native all-return and first-return densities separately. Candidate
   rungs are native, 8, 4, 2 and 1 points/m2; admit numeric rungs only when below
@@ -31,6 +31,23 @@ fusion, calibration fitting or BART performance inspection is authorized here.
 - Verify actual acquisition dates and leaf-on status from acquisition metadata
   and imagery/phenology evidence. An August listing and peak-greenness flight
   policy are supportive context, not proof for the selected plot and flight.
+
+### Sampled-Area Gate
+
+The initial smoke selection used nominal boxes. The subsequent score-blind
+field audit on 2026-09-15 found only two measured 400 m2 subplots per candidate
+tower plot. Preserve that initial selection and its diagnostic outputs;
+do not reinterpret the smoke as proof of full-box reference support.
+
+Before calibration, scoring or split freezing, join measurements to the
+matching plot/census event, construct the sampled-subplot footprint from
+documented named points, and declare the growth-form/diameter population.
+Audit missing coordinates, sampling exclusions and boundary uncertainty.
+`totalSampledAreaTrees` can disprove a full-box census; matching the nominal
+area alone cannot establish spatial coverage or reference completeness.
+Use the [vegetation structure guide](https://data.neonscience.org/api/v0/documents/NEON_vegStructure_userGuide_vE.1)
+and the protocol version recorded with each census. Do not retune detection
+or silently overwrite/regrade the historical California experiments.
 
 ## Coordinate and Cache Contracts
 
@@ -46,6 +63,14 @@ complete files and consistent spatial headers. Unversioned or incompatible
 caches require a separate output root; never overwrite the old benchmark.
 Use `CLAUDE_JOB_DIR=.../eastern_preflight` for this stage, keeping all original
 California and external benchmark artifacts untouched.
+
+Matching EPSG headers are necessary but not a positional-accuracy audit.
+The LiDAR product specification describes ITRF00 horizontal coordinates and
+NAVD88/Geoid12A elevations; reconcile that specification with the WGS84 field
+and file declarations before interpreting metre-scale matching residuals.
+Keep absolute elevations separate from TIN-normalized above-ground heights.
+Use a fresh output directory after a protocol/code revision: old declarations
+remain immutable evidence of their original selection, not current eligibility.
 
 ## Access and Completion
 

@@ -54,3 +54,28 @@ test_that("field candidates require exact-year trees in known plot cores", {
   gt$height[9] <- NA
   expect_false(any(eastern_field_candidates(gt, pc, 2022)$field_candidate))
 })
+
+test_that("census metadata prevents full-box coverage assumptions", {
+  pc <- data.frame(plotID = "HARV_033", plotType = "tower")
+  p <- data.frame(plotID = "HARV_033", date = "2022-07-14", eventID = "vst_HARV_2022",
+    eventType = "towerSubset", subplotsSampled = "21_400|23_400",
+    totalSampledAreaTrees = 800, samplingProtocolVersion = "NEON.DOC.000987vK")
+  audit <- eastern_sampling_support(pc, p, 2022)
+  expect_equal(audit$nominal_area_m2, 1600)
+  expect_equal(audit$sampled_tree_area_m2, 800)
+  expect_equal(audit$reference_coverage_status, "partial_nominal_area")
+  expect_false(audit$reference_support_verified)
+  expect_equal(audit$subplots_sampled, p$subplotsSampled)
+  expect_equal(eastern_sampling_support(pc, p, 2021)$reference_coverage_status, "missing_event")
+  expect_equal(eastern_sampling_support(pc, rbind(p, p), 2022), audit)
+  other <- p; other$eventID <- "another_event"
+  expect_equal(eastern_sampling_support(pc, rbind(p, other), 2022)$reference_coverage_status, "ambiguous_event")
+  p$totalSampledAreaTrees <- 1600
+  expect_equal(eastern_sampling_support(pc, p, 2022)$reference_coverage_status, "footprint_audit_required")
+  expect_false(eastern_sampling_support(pc, p, 2022)$reference_support_verified)
+  p$totalSampledAreaTrees <- 1700
+  expect_equal(eastern_sampling_support(pc, p, 2022)$reference_coverage_status, "inconsistent_sampled_area")
+  p$subplotsSampled <- NA_character_
+  expect_equal(eastern_sampling_support(pc, p, 2022)$reference_coverage_status, "missing_sampling_metadata")
+  expect_error(eastern_sampling_support(pc, p[, -4], 2022), "Missing census")
+})
