@@ -53,6 +53,8 @@ pipelines.
   **PDAL ≥ 2.9** CLI for EPT extraction (`scripts/extract*.json`).
 - Markdown is linted with **rumdl** ([.rumdl.toml](.rumdl.toml)): 80-char prose
   line limit, tables and code blocks exempt. Keep result docs within it.
+  Run `rumdl check --no-cache .` on the final worktree and fix all findings
+  before creating or updating a PR; linting only changed documents is not enough.
 - Reports and user-facing documentation must stand alone: use descriptive study
   names and document links instead of issue numbers, PR numbers, or internal
   tracker IDs. Keep tracking references in GitHub discussions and commit messages.

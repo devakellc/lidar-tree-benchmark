@@ -6,9 +6,12 @@ instance score in an extra dim). Run from the FF3D repo root.
 
 Usage: python ff3d_arm.py <in_dir> <out_laz> <ckpt>
 """
-import os, sys, glob, shutil
+import os, sys, glob, shutil, json
 import numpy as np
 import laspy
+from plyfile import PlyData
+from ff3d_export import (native_scene_name, restore_native, validate_las_ids,
+                         EMPTY_SAMPLE_ERROR, validate_empty_sample_error)
 
 _orig = __import__("torch").load
 def _load(*a, **k):
@@ -30,7 +33,7 @@ for d in (INST, META):
 clips = sorted(glob.glob(os.path.join(IN_DIR, "cyl_*.laz")))
 offsets, scans = {}, []
 for clip in clips:
-    scan = os.path.splitext(os.path.basename(clip))[0]        # cyl_000
+    scan = native_scene_name(clip)
     las = laspy.read(clip)
     xyz = np.vstack([las.x, las.y, las.z]).T.astype(np.float64)
     if xyz.shape[0] < 50:                                     # too sparse -> skip
@@ -55,8 +58,8 @@ if not scans:
 
 # 2. build points/*.bin + the test pkl IN-PROCESS, updating ONLY the test pkl.
 # The stock tools/create_data_forainetv2.py also runs update_pkl_infos on the
-# train/val pkls, which UnboundLocalErrors on our empty train/val splits (#27
-# note). Replicate just create_info_file + the test-pkl update.
+# train/val pkls, which fail on our empty train/val splits. Replicate just
+# create_info_file + the test-pkl update.
 from mmdet3d.utils import register_all_modules
 register_all_modules()
 from converter_forainetv2 import create_info_file
@@ -71,6 +74,9 @@ from mmengine.runner import Runner
 import oneformer3d  # noqa: F401
 cfg = Config.fromfile("configs/oneformer3d_qs_radius16_qp300_2many.py")
 cfg.work_dir = "./work_dirs/arm"; cfg.load_from = CKPT
+# Bound the row batch of the same exact nearest-neighbor calculation. The
+# upstream 20,000-row cdist allocation can exceed 28 GiB on native-density ALS.
+cfg.model.chunk = 2048
 if cfg.model.get("test_cfg") is None:
     cfg.model.test_cfg = ConfigDict()
 cfg.model.test_cfg["output_dir"] = cfg.work_dir
@@ -79,25 +85,47 @@ import torch
 def npy(x): return x.detach().cpu().numpy() if torch.is_tensor(x) else np.asarray(x)
 
 XS, YS, ZS, INST_ID, BLK, SCORE = [], [], [], [], [], []
+receipts = []
 for block_i, data in enumerate(runner.test_dataloader):
     scan = scans[block_i]                                     # dataloader is ordered
-    with torch.no_grad():
-        res = model.test_step(data, epoch=0)
-    seg = res[0].pred_pts_seg
-    per_point = npy(seg.pts_instance_mask[1]).astype(np.int64)  # (N,)
+    lidar_path = data["data_samples"][0].lidar_path
+    if os.path.splitext(os.path.basename(lidar_path))[0] != scan or "test" not in lidar_path:
+        raise ValueError("Unexpected input order or upstream inference route")
+    full_scene = os.path.join(cfg.work_dir, scan + ".ply")
+    if os.path.exists(full_scene):
+        os.remove(full_scene)
+    empty_sample_error = None
+    try:
+        with torch.no_grad():
+            model.test_step(data, epoch=0)
+    except AssertionError as error:
+        if str(error) != EMPTY_SAMPLE_ERROR or not os.path.exists(full_scene):
+            raise
+        empty_sample_error = error
+    # The returned sample describes only the last inner region. The saved PLY
+    # is the complete scene, including background, with aligned point scores.
     pts = npy(data["inputs"]["points"][0] if isinstance(
         data["inputs"]["points"], list) else data["inputs"]["points"])[:, :3]
-    n = min(len(pts), len(per_point))
-    off = offsets[scan]
-    XS.append(pts[:n, 0] + off[0]); YS.append(pts[:n, 1] + off[1])
-    ZS.append(pts[:n, 2] + off[2]); INST_ID.append(per_point[:n])
+    staged = np.load(f"{INST}/{scan}_vert.npy")
+    if not np.array_equal(staged, pts):
+        raise ValueError("Test pipeline changed staged point order or coordinates")
+    restored, per_point, sc = restore_native(
+        pts, PlyData.read(full_scene)["vertex"].data, offsets[scan])
+    if empty_sample_error is not None:
+        # Upstream saves the valid all-background scene before a typed setter
+        # rejects its None last-region return. All other failures remain fatal.
+        validate_empty_sample_error(empty_sample_error, per_point)
+    n = len(pts)
+    XS.append(restored[:, 0]); YS.append(restored[:, 1])
+    ZS.append(restored[:, 2]); INST_ID.append(per_point)
     BLK.append(np.full(n, block_i, np.int64))
-    # per-instance score broadcast to points (diagnostic only)
-    scores = npy(seg.instance_scores).astype(np.float32)
-    sc = np.zeros(n, np.float32)
-    for k, s in enumerate(scores):
-        sc[per_point[:n] == (k + 1)] = s                      # ids are 1-based
     SCORE.append(sc)
+    receipts.append(dict(scene=scan, lidar_path=lidar_path, points=n,
+                         route="upstream_test", nn_chunk=cfg.model.chunk,
+                         empty_sample_return=empty_sample_error is not None,
+                         offset=offsets[scan].tolist(),
+                         background=int((per_point == 0).sum()),
+                         instances=int(len(np.unique(per_point[per_point > 0])))))
     print(f"{scan}: {n} pts, {len(np.unique(per_point[per_point>0]))} instances")
 
 X = np.concatenate(XS); Y = np.concatenate(YS); Z = np.concatenate(ZS)
@@ -108,9 +136,12 @@ h = laspy.LasHeader(point_format=3, version="1.2")
 h.offsets = np.array([X.min(), Y.min(), Z.min()]); h.scales = [0.001, 0.001, 0.001]
 las = laspy.LasData(h)
 las.x, las.y, las.z = X, Y, Z
-las.point_source_id = np.clip(inst, 0, 65535).astype(np.uint16)
-las.user_data = np.clip(blk, 0, 255).astype(np.uint8)
+validate_las_ids(inst, blk)
+las.point_source_id = inst.astype(np.uint16)
+las.user_data = blk.astype(np.uint8)
 las.add_extra_dim(laspy.ExtraBytesParams(name="ff3d_score", type=np.float32))
 las.ff3d_score = score
 las.write(OUT_LAZ)
+with open(OUT_LAZ + ".json", "w") as stream:
+    json.dump(receipts, stream, indent=2)
 print(f"wrote {OUT_LAZ}: {len(X)} pts from {len(scans)} cylinders"); print("ARM_DONE")
