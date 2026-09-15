@@ -39,3 +39,29 @@ def validate_las_ids(ids, blocks):
         if np.any(~np.isfinite(values) | (values < 0) | (values > limit) |
                   (values != np.floor(values))):
             raise ValueError(f"{name} IDs cannot be represented losslessly in LAS")
+
+
+def scene_output(source, labels, scores):
+    """Attach native predictions without reconstructing or duplicating input rows."""
+    import laspy
+    n = len(source.points)
+    labels = np.asarray(labels)
+    scores = np.asarray(scores)
+    if labels.shape != (n,) or scores.shape != (n,):
+        raise ValueError("Whole-scene output requires one label and score per input row")
+    if n > np.iinfo(np.uint32).max:
+        raise ValueError("Source row IDs exceed the supported LAS range")
+    validate_las_ids(labels, np.zeros(n, dtype=np.uint8))
+    if (np.any(~np.isfinite(scores)) or np.any((labels > 0) &
+            ((scores < 0) | (scores > np.finfo(np.float32).max)))):
+        raise ValueError("Invalid whole-scene confidence")
+    for name in ("ff3d_score", "ff3d_row"):
+        if name in source.point_format.extra_dimension_names:
+            raise ValueError("Whole-scene input already contains prediction metadata")
+    source.point_source_id = labels.astype(np.uint16)
+    source.user_data = np.zeros(n, dtype=np.uint8)
+    source.add_extra_dim(laspy.ExtraBytesParams(name="ff3d_score", type=np.float32))
+    source.add_extra_dim(laspy.ExtraBytesParams(name="ff3d_row", type=np.uint32))
+    source.ff3d_score = np.where(labels > 0, scores, 0)
+    source.ff3d_row = np.arange(n, dtype=np.uint32)
+    return source

@@ -102,13 +102,22 @@ ForestFormer3D's inference route and exports raises pooled F1 from 0.089 to
 0.570, versus 0.629 for unchanged SegmentAnyTree. The original six-plot test
 results remain unchanged; corrected held-out transfer has not been measured.
 
-ForestFormer3D remains **experimental** because scene assembly still degrades
-instance identity. Regenerate confidence features from corrected outputs;
-do not reuse calibration based on its former score broadcast. TreeisoNet is
-**deferred** after export corrections leave substantial fragmentation. SAT and
-classical Treeiso remain candidates for controlled comparison, with Treeiso's
-annotation-assisted semantic exclusions disclosed. These findings do not
-establish architecture rankings, ensemble benefit, or final routing thresholds.
+The [whole-scene follow-up](results/forestformer-scene-assembly-results.md)
+removes the redundant outer merge and preserves all 6.71 million source rows
+on those same training plots. Pooled ForestFormer3D mask F1 rises to **0.754**;
+category-D matches rise from 1/20 to 7/20. This clears its adapter-assembly gate
+for **optional controlled comparison using whole-scene outputs**, not default
+ensemble admission or held-out transfer. Native assembly still has its own
+overlap policy and errors; larger-scene resource behavior remains untested.
+
+Fresh native confidence features are exported, but no calibrator is fitted on
+the audit labels. Do not reuse calibration based on the former score broadcast.
+TreeisoNet remains **deferred** after export corrections leave fragmentation.
+SAT and classical Treeiso remain comparators, with Treeiso's annotation-assisted
+semantic exclusions disclosed. These findings do not establish architecture
+rankings, fusion benefit, strong understory generalization, or final routing
+thresholds. HARV development and BART held-out work still require score-blind
+availability, CRS and acquisition-epoch preflight.
 
 ### Choosing a method
 
@@ -136,6 +145,7 @@ Detailed evidence:
 - [Detector-fusion results](results/detector-fusion-results.md)
 - [Frozen external instance validation](results/fgi-emit-external-results.md)
 - [Training-only transfer audit](results/frozen-transfer-audit-results.md)
+- [Whole-scene assembly comparison](results/forestformer-scene-assembly-results.md)
 - [lasR versus lidR implementation comparison](results/treetop-lasr-vs-lidr-comparison.md)
 
 ## Benchmark design
@@ -297,6 +307,15 @@ two predeclared training plots, after its declaration and frozen preparation.
 Generated artifacts live under `work/external/fgiemit/`, with audit outputs
 under `audit/`.
 
+The [scene-assembly protocol](docs/forestformer-scene-assembly-protocol.md)
+and [results](results/forestformer-scene-assembly-results.md) describe the
+whole-scene follow-up. `audit_scene_assembly.R` reuses the two prepared training
+plots and archived outer-cylinder outputs, writing only under `scene_assembly/`.
+It requires its own sealed declaration before `MODE=infer` or `MODE=analyze`.
+`FF_LAYOUT=whole_scene` selects indexed native export in the external driver;
+the historical cylinder layout remains its default. Neither mode authorizes
+a fresh test-set evaluation or reuse of incompatible calibration artifacts.
+
 Current adapters include the audit corrections and will not reproduce the
 historical frozen baseline unchanged. Use the documented frozen checkout for
 that baseline, and a distinct `OUT_DIR` for a separately declared experiment.
@@ -386,6 +405,7 @@ workflows.
 | detect_segmentanytree_sweep.R / detect_forestformer3d_sweep.R | GPU point/instance segmentation arms |
 | download_external_fgiemit.R / detect_external_fgiemit.R | Checksum-pinned external dataset and frozen detector transfer evaluation |
 | audit_frozen_transfer.R | Declared training-only adapter inference and official-metric, export, and scene-assembly diagnostics |
+| audit_scene_assembly.R | Bounded native whole-scene inference, protected-output checks and archived outer-cylinder comparison |
 | detect_deepforest_sweep.R / detect_detectree2_sweep.R | RGB detector and crown-width arms |
 | detect_sam2point_sweep.R | Promptable seed-to-refine point-cloud arm |
 | analyze_model_benchmark.R / compare_model_sites.R | Equal-set-guarded model synthesis and cross-site results |
@@ -425,6 +445,8 @@ workflows.
 | [RGB-LiDAR fusion](results/rgb-lidar-fusion-results.md) | Standalone optical results and paired, calibrated five-rung SOAP fusion |
 | [Frozen external transfer](results/fgi-emit-external-results.md) | Six-plot FGI-EMIT historical baseline with manual instance labels |
 | [Frozen transfer audit](results/frozen-transfer-audit-results.md) | Training-only adapter corrections, scene-assembly diagnostics, and arm eligibility |
+| [Scene-assembly results](results/forestformer-scene-assembly-results.md) | Whole-scene identity, resource use, common-support metrics and eligibility |
+| [Scene-assembly protocol](docs/forestformer-scene-assembly-protocol.md) | Fixed training comparison and row-identity acceptance contracts |
 | [Audit protocol](docs/frozen-transfer-audit-protocol.md) | Predeclared comparisons, protected test artifacts, and follow-on validation split |
 | [Audit runtime note](docs/frozen-transfer-audit-runtime-note.md) | Bounded memory and empty-output handling exceptions |
 | [Agent guidance](AGENTS.md) / [Detailed repository guidance](CLAUDE.md) | Working conventions, methodology invariants, and completion checks |
