@@ -1,7 +1,7 @@
-# Per-detection confidence calibration (#P4)
+# Per-detection confidence calibration
 
 This study maps detector scores to empirical field-match precision using
-isotonic calibration. Results were regenerated on 2026-09-15 for #98 and #95:
+isotonic calibration. Results were regenerated on 2026-09-15:
 validation now holds out whole plots, and DeepForest's native detector score
 joins the five LiDAR arms. These numbers supersede the earlier experiment
 that split individual detections across folds.
@@ -14,18 +14,18 @@ Rscript scripts/calibrate_confidence.R SITES=SOAP,SJER,TEAK
 # Reuse existing labelled detections; materialize DeepForest if absent:
 Rscript scripts/calibrate_confidence.R SITES=SOAP,SJER,TEAK FROM_CACHE=1
 # -> work/neon/<SITE>/confidence_calibration.csv (one row per labelled detection)
-#    work/neon/<SITE>/confidence_lookup.csv      (per-arm isotonic knots for #P1)
+#    work/neon/<SITE>/confidence_lookup.csv      (per-arm isotonic knots)
 ```
 
 ## What this is
 
-Per-arm raw confidence, materialized on the same native frozen cells as #P1 and
-labelled TP/FP with `greedy_match` restricted to the plot core (mirroring
-`score_plot`'s precision denominator):
+Per-arm raw confidence is materialized on the same native frozen cells used by
+detector fusion and labelled TP/FP with `greedy_match` restricted to the plot
+core (mirroring `score_plot`'s precision denominator):
 
 - **forestformer3d** — the **native** per-instance mask score: mean `ff3d_score`
-  over the instance's points. `ff3d_arm.py` writes this extra dim and the R
-  loaders ignored it; this exposes it (the issue's explicit ask).
+  over the instance's points. `ff3d_arm.py` writes this extra dimension, which
+  the calibration loader uses as the learned confidence score.
 - **segmentanytree** — crown point count (`run_segmentanytree.py` writes no score
   field): a size proxy.
 - **chm_vwf / multichm / li2012** — apex CHM height (AGL): the classical-arm
@@ -47,7 +47,7 @@ The deployment lookup carries `arm`, `rung`, `raw_min`, `raw_max`, `raw_prob`,
 and `calibrated`; `apply_confidence_lookup()` can reproduce predictions without
 the training table. The full-data deployment fit must not score the same plots
 used to train it. Fusion benchmarks must refit DeepForest excluding each target
-plot, using its cached labelled detections; integration is tracked in #95.
+plot, using its cached labelled detections.
 
 ## Generated tables
 

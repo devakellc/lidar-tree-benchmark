@@ -1,16 +1,16 @@
-# Coverage-gap crediting: de-biased precision/F1 (#V5)
+# Coverage-gap crediting: de-biased precision/F1
 
-The #V4 study (`matcher_robustness.R`) found that ~94% of the benchmark's core
-false positives are **isolated** — not over-segmentation of a matched crown but
-detections with no mapped stem anywhere near them, i.e. almost certainly real
+The matcher-robustness study (`matcher_robustness.R`) found that ~94% of the
+benchmark's core false positives are **isolated**: not over-segmentation of a
+matched crown but detections with no mapped stem nearby, i.e. almost certainly real
 trees the NEON woody-veg map never recorded (the field protocol maps a subset
 of stems, not every tree). That makes **every precision, F1, and PQ number in
 the benchmark a biased lower bound**, and the bias is not uniform across arms:
 an arm that finds more real-but-unmapped trees is punished harder. This study
 makes the bias measurable and re-grades the leaderboard on de-biased metrics.
 
-The crediting rule (issue #93, option a — co-detection): an isolated core FP
-of a target arm is reclassified **probable-real** when arms from ≥ `MIN_FAM`
+The co-detection crediting rule: an isolated core FP of a target arm is
+reclassified **probable-real** when arms from ≥ `MIN_FAM`
 **other modality families** also leave an isolated FP within `CRED_R` m of it
 — several independent systems all see a tree exactly where the map has
 nothing. Families (`coverage_lib.R::FAMILY_MAP`): `chm` (CHM-VWF, lmfauto,
@@ -40,10 +40,10 @@ New, unit-tested pieces (`tests/testthat/test-coverage-gap.R`):
 - `sweep_lib.R::co_detect_credit()` — the ≥ `min_fam`-distinct-families-within-
   `r` test.
 - `coverage_lib.R` — `FAMILY_MAP`/`arm_family`, `best_treetop_cache` readers
-  (rung **and** `chm_res`/`vwf_a` pinned from `best_treetop_selection.csv` so a
-  stale parameter variant can never shadow the selected leaderboard cell; glob
-  fallback warns), optical-box → detection conversion (apex z from the native
-  frozen CHM, floor 2 m, mirroring `detect_deepforest_sweep.R`),
+  (rung and CHM/GPU parameter suffixes pinned by `best_treetop_selection.csv`;
+  missing pins and ambiguous legacy variants are skipped), optical-box →
+  detection conversion (apex z from the native frozen CHM, floor 2 m, mirroring
+  `detect_deepforest_sweep.R`),
   `credit_isolated` (family strike + eligibility + one-credit-per-tree dedup),
   `read_selection`.
 - `model_bench_lib.R::pool()` — pools `fp_credited` by SUM and emits
@@ -184,13 +184,13 @@ stamp. The default (r=2, f=2) is the conservative middle.
 - **The coverage gap is the dominant precision error.** 46–96% of
   credit-eligible core FPs are co-detected by ≥2 independent modality
   families. Corrected pooled precision rises by +0.09 (AMS3D SJER) to +0.45
-  (chm_vwf SJER) absolute; every arm's F1 was a lower bound, exactly as #V4
-  predicted.
+  (chm_vwf SJER) absolute; every arm's F1 was a lower bound, as predicted by
+  the matcher-robustness study.
 - **The leaderboard reorders on two of three sites** (equal-set confirmed).
-  SOAP: multichm holds #1 but the gap to SegmentAnyTree/DeepForest collapses
+  SOAP: multichm retains the lead but the gap to SegmentAnyTree/DeepForest falls
   to 0.009–0.018, and chm_vwf drops 5th → 10th. SJER: multichm/ptrees lead and
   AMS3D falls to last — its savanna FPs are genuinely uncorroborated. TEAK is
-  stable: SegmentAnyTree's #1 is confirmed and only TreeisoNet moves (past the
+  stable: SegmentAnyTree's lead is confirmed and only TreeisoNet moves (past the
   LM twins) on the equal set.
 - **The crediting discriminates rather than inflates**: credit rates range
   from 32/70 (AMS3D SJER) and 114/230 (ForestFormer3D SOAP) to 66/69
@@ -199,11 +199,10 @@ stamp. The default (r=2, f=2) is the conservative middle.
   13 credits and ForestFormer3D 33 on SOAP versus the naive rule.
 - **Optical co-detection matters on SOAP**: DeepForest's credited F1' 0.590
   puts an RGB-only detector level with the best LiDAR arms, and the rgb family
-  testifies for LiDAR arms where chm/pc/deep thin out — the #P7
-  fusion-membership argument. Detectree2, honestly scored over all 18 plots
-  (zero-box plots kept), sits at recall 0.168 — fine-tuning (#92 checklist)
-  remains its gate.
-- **Router/fusion consequences (#P2/#P1/#92)**: k-of-N and router thresholds
+  testifies for LiDAR arms where chm/pc/deep thin out, supporting its inclusion
+  in fusion. Detectree2, scored over all 18 plots with zero-box plots retained,
+  has recall 0.168; fine-tuning remains its next step.
+- **Router/fusion consequences**: k-of-N and router thresholds
   were tuned on raw F1; with corrected metrics the precision cost of the union
   mode shrinks substantially (most union-only detections are credited), so the
   fusion Pareto and the router's per-cell argmax should be re-derived on F1'.
@@ -213,9 +212,9 @@ stamp. The default (r=2, f=2) is the conservative middle.
 - **Crediting is evidence-based reclassification, not ground truth.** A
   correlated cross-family artefact (e.g. a boulder tall enough for the CHM and
   textured enough for RGB) can still slip through; the rigorous close-outs
-  remain hand-delineated crowns (#93 option b) and an externally-complete
-  benchmark (FGI-EMIT, #D1). Treat `F1'` as a de-biased estimate bracketed by
-  the sensitivity grid, not a replacement truth.
+  remain hand-delineated crowns and an externally complete benchmark such as
+  FGI-EMIT. Treat `F1'` as a de-biased estimate bracketed by the sensitivity
+  grid, not a replacement truth.
 - **Eligibility spans the plot's whole mapped stem set, scoring does not.**
   `score_plot`/`n_ref` stay on the core box (±10 m distributed, ±20 m tower),
   but a stem whose reconstructed position lands outside that box is still
@@ -230,13 +229,12 @@ stamp. The default (r=2, f=2) is the conservative middle.
 - Raw chm_vwf here (SOAP F1 0.416) differs from the historical sweep number
   (0.426) by regeneration variance: the cache regenerates from the frozen
   clips, the original sweep drew its own decimation.
-- **PQ correction is deferred to #V6/#94**: this study credits at the apex
-  level; the instance-level analogue (drop credited FP instances from RQ's
-  denominator via a `pool_pq` hook mirroring `pool()`) becomes worthwhile once
-  the classical arms persist masks and the IoU/PQ board covers all arms.
+- **PQ correction is not included in this study**: crediting operates at the
+  apex level. An instance-level adjustment would remove credited FP instances
+  from RQ's denominator before pooling and requires validated masks for each arm.
 - SJER/TEAK lack the rgb family, so `MIN_FAM=2` there means chm/pc/deep
   agreement only; SOAP's numbers are the strongest-evidence configuration.
-- **Cache configurations are pinned by the selection manifest (#98).** Its
+- **Cache configurations are pinned by the selection manifest.** Its
   `cache_suffix` records CHM parameters and the GPU `conf`/`voxel`/`image`/
   `spacing`/`merge` suffixes using the same builder as the cache writer. Both
   coverage scoring and instance-proxy scoring honor this selection. A missing
