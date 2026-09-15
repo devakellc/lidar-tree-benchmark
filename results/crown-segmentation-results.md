@@ -789,7 +789,7 @@ only against `ninetyCrownDiameter` and `d_caliper` only against
 
 ### Results — deep instance segmenters (SOAP-native)
 
-*Results pending regeneration (run the command above on a data-equipped machine).*
+_Results pending regeneration (run the command above on a data-equipped machine)._
 
 The numbers require the persisted GPU instance clouds under
 `work/neon/SOAP/{segmentanytree,forestformer3d}_instances/`. Those clouds are

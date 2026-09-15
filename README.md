@@ -1,5 +1,8 @@
 # LiDAR Tree Benchmarks
 
+<!-- HTML preserves the centered header and explicit image width. -->
+<!-- rumdl-disable MD033 -->
+
 <p align="center">
   <img src="assets/intelifore-promo-lidar.gif"
        alt="Animated LiDAR point-cloud forest scene"
@@ -16,9 +19,10 @@
   <a href="#methods-and-results">Methods &amp; results</a> ·
   <a href="#start-here">Quick start</a> ·
   <a href="#reproduce-a-workflow">Reproduce</a> ·
-  <a href="paper.tex">Paper</a> ·
   <a href="#script-reference">Scripts</a>
 </p>
+
+<!-- rumdl-enable MD033 -->
 
 ---
 
@@ -319,7 +323,6 @@ workflows.
 | [Point-cloud detector results](results/pointcloud-detector-results.md) | Native-density CHM and point-cloud detector comparison |
 | [Instance IoU, Coverage, and PQ](results/instance-iou-pq-results.md) | Mask-aware proxy evaluation |
 | [RGB–LiDAR fusion](results/rgb-lidar-fusion-results.md) | DeepForest and Detectree2 results |
-| [Overleaf manuscript](paper.tex) | Research-paper draft and reproducible method summary |
 
 Additional targeted analyses:
 
