@@ -53,6 +53,9 @@ pipelines.
   **PDAL ≥ 2.9** CLI for EPT extraction (`scripts/extract*.json`).
 - Markdown is linted with **rumdl** ([.rumdl.toml](.rumdl.toml)): 80-char prose
   line limit, tables and code blocks exempt. Keep result docs within it.
+- Reports and user-facing documentation must stand alone: use descriptive study
+  names and document links instead of issue numbers, PR numbers, or internal
+  tracker IDs. Keep tracking references in GitHub discussions and commit messages.
 - Unit tests are run with `Rscript tests/run_tests.R`; they cover the benchmark
   bridge, extractors, I/O helpers, pooling guards, and synthesis helpers.
 
@@ -104,39 +107,40 @@ Sweep invariants — get these wrong and the metrics are silently misleading:
   is the decimation/no-upsampling guard. Don't conflate them.
 - **Matching** is global nearest-distance greedy 1:1 with a height-consistency
   gate (`greedy_match`), so a short understory stem can't steal a tall
-  neighbour's apex. #V4 (`matcher_robustness.R`) adds hardened drop-ins in
-  `sweep_lib.R` — `match_tol` (per-stem size/uncertainty-scaled tolerance),
+  neighbour's apex. The matcher-robustness study (`matcher_robustness.R`) adds
+  hardened drop-ins in `sweep_lib.R`: `match_tol` (per-stem size/uncertainty-scaled
+  tolerance),
   `optimal_match` (Hungarian optimal assignment), and a soft 3-D cost, all
   threaded through `score_plot` with the flat-4 m greedy path as the back-compat
   default.
 
 ## Analyses that branch off the sweep
 
-Five follow-on studies (issues #3–#7) reuse the sweep's ground truth and
-scoring; each is one script + one result doc under [`results/`](results/). The
+Five follow-on studies reuse the sweep's ground truth and scoring; each is one
+script + one result doc under [`results/`](results/). The
 README script table stays canonical — these are the non-obvious invariants
 worth knowing before touching them:
 
 - **Calibration/validation split** ([scripts/calval_split.R](scripts/calval_split.R)
-  → [calibration-validation-results.md](results/calibration-validation-results.md), #3):
+  → [calibration-validation-results.md](results/calibration-validation-results.md)):
   tune `(chm_res, vwf_a)` per rung on a stratified calibration subset, then
   report **held-out** F1 — never tune and score on the same plots.
 - **Native QL2 cross-check** ([scripts/native_ql2_crosscheck.R](scripts/native_ql2_crosscheck.R)
-  → [native-ql2-crosscheck-results.md](results/native-ql2-crosscheck-results.md), #4):
+  → [native-ql2-crosscheck-results.md](results/native-ql2-crosscheck-results.md)):
   pulls the *native* 3DEP cloud per plot (PDAL, 3857 → UTM 11N) to test whether
   decimation-as-simulation holds; [scripts/ept_discovery.R](scripts/ept_discovery.R)
   finds the covering EPT.
 - **Temporal sensitivity** ([scripts/temporal_sensitivity.R](scripts/temporal_sensitivity.R) +
   [scripts/validate_heights.R](scripts/validate_heights.R)
-  → [temporal-sensitivity-results.md](results/temporal-sensitivity-results.md), #5):
+  → [temporal-sensitivity-results.md](results/temporal-sensitivity-results.md)):
   `MEAS_YEAR=2021` restricts ground truth to exact-year stems; run it into a
   **distinct `OUT=`** so the ±4 yr baseline survives for the delta.
 - **Point-cloud detector arm** ([scripts/detect_pc_sweep.R](scripts/detect_pc_sweep.R)
-  → [pointcloud-detector-results.md](results/pointcloud-detector-results.md), #6):
+  → [pointcloud-detector-results.md](results/pointcloud-detector-results.md)):
   lidR lmf-on-points, Li 2012, and lasR point `local_maximum` vs the CHM-VWF
   baseline at native density, scored by crown class for understory recall.
 - **Crown-diameter RMSE** ([scripts/crown_metrics_sweep.R](scripts/crown_metrics_sweep.R)
-  → [crown-segmentation-results.md](results/crown-segmentation-results.md), #7):
+  → [crown-segmentation-results.md](results/crown-segmentation-results.md)):
   five segmenters seeded from shared tree-tops, scored against NEON field
   `maxCrownDiameter`/`ninetyCrownDiameter` (both now carried in
   `ground_truth_stems.csv`).
