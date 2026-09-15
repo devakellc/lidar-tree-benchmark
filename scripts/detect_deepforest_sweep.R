@@ -48,7 +48,7 @@ RUNNER <- Find(file.exists, c("gpu/run_deepforest.py", file.path(getwd(), "gpu/r
 nd <- file.path(d, "neon", SITE)
 
 ## ---- run DeepForest on every RGB tile (cached) -> all crown centroids -----
-all_boxes <- function() {
+all_boxes <- function(gt, pc) {
   rdir <- file.path(nd, "rgb")
   tifs <- list.files(rdir, pattern = "\\.tif$", recursive = TRUE, full.names = TRUE)
   # byTileAOP writes into <savepath>/DP3.30010.001/neon-aop-products/<year>/...;
@@ -56,11 +56,17 @@ all_boxes <- function() {
   # mixed into one DeepForest run (the benchmark matches the 2021 LiDAR/GT epoch).
   yr_pat <- paste0("/", YEAR, "/")
   in_year <- grepl(yr_pat, tifs, fixed = TRUE)
-  if (any(in_year)) tifs <- tifs[in_year] else
-    cat(sprintf("WARNING: no RGB tiles under year %s in %s; using all %d tiles\n",
-                YEAR, rdir, length(tifs)))
+  if (any(in_year)) tifs <- tifs[in_year] else if (any(grepl("/20[0-9]{2}/", tifs)))
+    stop("No RGB tiles from the requested YEAR")
   if (!length(tifs)) { cat("no RGB tiles under", rdir, "\n"); return(NULL) }
+  epsg <- neon_validate_inputs(gt, pc)
+  neon_reference_epoch(gt, YEAR)
+  neon_validate_acquisition(rdir, gt, pc, "DP3.30010.001")
+  neon_validate_files(tifs, epsg)
   bdir <- file.path(nd, "deepforest_boxes"); dir.create(bdir, showWarnings = FALSE, recursive = TRUE)
+  neon_check_manifest(file.path(bdir, "coordinate_manifest.json"),
+    list(year = neon_year(YEAR), epsg = epsg, sources = neon_file_signature(tifs)),
+    list.files(bdir, "[.]csv$", full.names = TRUE))
   rows <- list()
   for (tif in tifs) {
     ocsv <- file.path(bdir, paste0(tools::file_path_sans_ext(basename(tif)), ".csv"))
@@ -79,11 +85,12 @@ all_boxes <- function() {
 }
 
 ## ---- per-plot CHM (from frozen normalized clip) to give boxes an apex z ----
-plot_chm <- function(pid) {
+plot_chm <- function(pid, epsg) {
   clip <- file.path(nd, "frozen", SITE, pid, "native", "clip_normalized.laz")
   if (!file.exists(clip)) return(NULL)
   las <- tryCatch(suppressWarnings(lidR::readLAS(clip)), error = function(e) NULL)
   if (is.null(las) || lidR::is.empty(las)) return(NULL)
+  neon_assert_crs(las, epsg, "Frozen CHM source")
   tryCatch(suppressWarnings(lidR::rasterize_canopy(las, res = CHM_RES, algorithm = lidR::p2r())),
            error = function(e) NULL)
 }
@@ -94,7 +101,8 @@ run_main <- function() {
   gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
   gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), , drop = FALSE]
-  boxes <- all_boxes(); if (is.null(boxes)) { cat("no DeepForest boxes\n"); return(invisible()) }
+  epsg <- neon_validate_inputs(gt, pc)
+  boxes <- all_boxes(gt, pc); if (is.null(boxes)) { cat("no DeepForest boxes\n"); return(invisible()) }
   cat(sprintf("[%s] DeepForest crown boxes (all tiles, score>=%.2f): %d\n",
               SITE, SCORE_THRESH, nrow(boxes)))
   keep <- intersect(unique(gt$plotID), pc$plotID)
@@ -104,7 +112,7 @@ run_main <- function() {
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, , drop = FALSE]
     if (!nrow(stems)) next
     bp <- boxes[abs(boxes$x - cx) <= ph + TOL & abs(boxes$y - cy) <= ph + TOL, , drop = FALSE]
-    chm <- plot_chm(pid)
+    chm <- plot_chm(pid, epsg)
     if (is.null(chm)) {                                 # frozen clip missing/empty
       # Without a CHM every box would be floored to z=2.0, which score_plot's
       # greedy_match height gate (bz >= 0.5*az) then rejects for normal-height

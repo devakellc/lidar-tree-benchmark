@@ -1,8 +1,9 @@
 # NEON benchmark sites — field data & LiDAR acquisitions
 
 Reference for the three **Domain D17 (Pacific Southwest)** sites used in the
-density-ladder sweep and follow-on analyses. All sites share **UTM zone 11N /
-EPSG:32611** for NEON woody-vegetation and AOP LiDAR products.
+density-ladder sweep and follow-on analyses, plus the eastern preflight.
+The three D17 sites share **UTM zone 11N / EPSG:32611** for NEON woody-vegetation
+and AOP LiDAR products. That frame does not apply to HARV or BART.
 
 **Field ground truth:** NEON Woody Plant Vegetation Structure `DP1.10098.001`
 (mapped stems >10 cm DBH in 20×20 m distributed and 40×40 m tower plots).
@@ -78,6 +79,35 @@ field coverage:
 
 SJER field stems were mostly measured in **2022 and 2024**, not 2021; treat its
 sweep metrics as carrying the full ±4 yr temporal slack.
+
+## Eastern broadleaf preflight
+
+The score-blind inventory retrieved public metadata on 2026-09-15. These are
+availability and coordinate facts, not detection results or verified plot
+coverage. Sources: [HARV metadata](https://data.neonscience.org/api/v0/sites/HARV),
+[BART metadata](https://data.neonscience.org/api/v0/sites/BART), and the
+[HARV](https://data.neonscience.org/api/v0/locations/HARV) /
+[BART](https://data.neonscience.org/api/v0/locations/BART) location records.
+
+| Site | Declared role | WGS84 UTM frame | Selected LiDAR/RGB month | Native density / eligible plots |
+| --- | --- | --- | --- | --- |
+| HARV, Harvard Forest | Development and pilot | 18N, EPSG:32618 | 2022-08 | Pending data checks |
+| BART, Bartlett Experimental Forest | Held-out site validation | 19N, EPSG:32619 | 2022-08 | Pending data checks |
+
+Neither site lists 2021 LiDAR or RGB data. The earliest common acquisition year
+at or after 2021 is 2022. Both list AOP months in 2014, 2016, 2017, 2018, 2019,
+2022, 2024 and 2025. Field-product listings include July-October 2022 at HARV
+and July-September at BART, but these months do not establish exact-year mapped
+live-tree coverage. August timing does not independently establish leaf-on
+status for a particular tile or flight.
+
+Downloads need `NEON_TOKEN`; public site/location metadata does not. Use a
+separate job directory and `YEAR=2022 MAX_YEAR_GAP=0` for exact-year reference
+preparation. Do not use the 2021 D17 caches or assign their CRS to eastern
+coordinates. The native-QL2 cross-check is still D17-only. See the
+[protocol](eastern-preflight-protocol.md) and
+[preflight findings](../results/eastern-broadleaf-results.md) for access,
+coverage and split-freezing gates.
 
 ## FGI-EMIT external instance benchmark
 

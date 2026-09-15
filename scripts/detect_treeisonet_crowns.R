@@ -69,11 +69,12 @@ run_main <- function() {
   pc <- read.csv(file.path(nd, "plot_centroids.csv"),     stringsAsFactors = FALSE)
   gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
   gt <- gt[, setdiff(names(gt), c("maxCrownDiameter", "ninetyCrownDiameter")), drop = FALSE]
+  neon_reference_epoch(gt, 2021) # This historical crown join is still nearest-to-2021.
   gt <- merge(gt, field_crowns(SITE), by = "individualID", all.x = TRUE)
   gt <- gt[!is.na(gt$maxCrownDiameter) | !is.na(gt$ninetyCrownDiameter), ]
   laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
                     recursive = TRUE, full.names = TRUE)
-  ctg <- readLAScatalog(laz, progress = FALSE)
+  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
   counts <- table(gt$plotID); keep <- names(counts)[counts >= MINTREES]
   if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   keep <- intersect(keep, pc$plotID)

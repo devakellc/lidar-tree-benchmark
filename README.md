@@ -241,8 +241,10 @@ selection. See the [AOI comparison](results/treetop-lasr-vs-lidr-comparison.md).
 This is the primary field-ground-truth benchmark. It downloads the needed NEON
 field and LiDAR data, evaluates the CHM-VWF detector over density rungs, and
 creates the data products consumed by the other method arms. A full three-site
-run needs network access, several GB of working storage, and meaningful
-compute time.
+run needs network access, a configured `NEON_TOKEN`, several GB of working
+storage, and meaningful compute time. Keep the token in the environment or
+user-managed `~/.Renviron`, never in the repository. See
+[NEON's token setup](https://www.neonscience.org/resources/learning-hub/tutorials/api-token-setup).
 
 ~~~sh
 for SITE in SJER SOAP TEAK; do
@@ -261,6 +263,42 @@ does not replace the default ±4-year ground-truth baseline:
 Rscript scripts/run_sweep.R SITE=SOAP MEAS_YEAR=2021 \
   OUT="$CLAUDE_JOB_DIR/neon/SOAP/sweep_results_2021.csv"
 ~~~
+
+New reference and download runs record acquisition-year/CRS manifests. The
+ground-truth defaults remain `YEAR=2021 MAX_YEAR_GAP=4`; `dist_aop` follows the
+chosen year, while `dist21` retains its historical meaning. New runs reject
+unversioned or incompatible reference, acquisition, frozen-clip and RGB-box
+caches. Use a fresh `CLAUDE_JOB_DIR` for regeneration; do not delete or relabel
+the historical artifacts. Read-only analysis of existing results is unchanged.
+
+### Eastern-site preflight
+
+HARV development and BART held-out validation are declared, but **no eastern
+detector results or eligible plot split are available yet**. Public metadata
+selects August 2022, not 2021; HARV uses EPSG:32618 and BART EPSG:32619. Native
+density, actual leaf-on status and field/tile coverage still need verification.
+See the [preflight findings](results/eastern-broadleaf-results.md) and
+[score-blind protocol](docs/eastern-preflight-protocol.md).
+
+~~~sh
+export CLAUDE_JOB_DIR="$PWD/work/eastern-study-2022"
+Rscript scripts/preflight_eastern_sites.R
+~~~
+
+The command archives public metadata without a token or detector run. With
+`NEON_TOKEN` configured, build exact-year references in that separate directory:
+
+~~~sh
+for SITE in HARV BART; do
+  Rscript scripts/neon_ground_truth.R SITE="$SITE" YEAR=2022 MAX_YEAR_GAP=0
+done
+Rscript scripts/preflight_eastern_sites.R MODE=references
+~~~
+
+`MODE=references` lists field-only candidates, not a validated or frozen split.
+Complete coverage and HARV smoke checks before inference. Downloaders accept
+`PLOTS=` for a bounded acquisition. The historical native-QL2 cross-check stays
+D17-only; crown-reference joins fixed to 2021 reject other acquisition years.
 
 ### Paired RGB-LiDAR fusion
 
@@ -308,7 +346,7 @@ Do not overwrite archived test predictions or tune on their labels.
 | --- | --- |
 | Core toy and AOI workflows | R with lasR, lidR, terra, sf, and data.table |
 | Required lasR build | r-lidar/lasR pre-devel; the released 0.21.0 build rejects the variable-window function used by the detection scripts |
-| NEON workflows | neonUtilities and jsonlite, plus network access for public NEON products |
+| NEON workflows | neonUtilities and jsonlite; public metadata is open, data downloads need network access and `NEON_TOKEN` |
 | EPT extraction | PDAL 2.9 or later |
 | Optional analyses | clue, rpart, crownsegmentr, and lidRplugins as required by the corresponding arm |
 | GPU/vision arms | The documented container, conda environment, or virtualenv under [gpu](gpu/) for that specific model |
@@ -366,8 +404,9 @@ workflows.
 
 | Scripts | Purpose |
 | --- | --- |
-| neon_ground_truth.R / verify_geolocation.R | Build and audit field-stem ground truth |
-| neon_download_lidar.R / neon_download_aop.R | Download the NEON LiDAR and RGB inputs needed by a selected arm |
+| neon_ground_truth.R / verify_geolocation.R | Build acquisition-year-aware field references and audit stem geolocation |
+| neon_download_lidar.R / neon_download_aop.R | Token-authenticated, year/CRS-checked NEON LiDAR and RGB downloads; optional `PLOTS=` subset |
+| preflight_eastern_sites.R | Archive score-blind HARV/BART metadata and inventory local exact-year field candidates |
 | run_sweep.R / analyze_sweep.R / compare_sites.R | Run, pool, and compare the core CHM-VWF field benchmark |
 | calval_split.R / calval_multichm.R | Held-out parameter calibration/validation |
 | ept_discovery.R / native_ql2_crosscheck.R | Find covering 3DEP projects and test native-versus-decimated performance |
@@ -401,6 +440,7 @@ workflows.
 | --- | --- |
 | export_geojson.R / export_stems_ground_truth_geojson.R / export_best_treetops_geojson.R | Export benchmark geography, field stems, and best detections as GeoJSON |
 | bootstrap.R / repo_paths.R | Locate the repository and working directory consistently |
+| neon_spatial_lib.R / eastern_preflight_lib.R | NEON CRS, epoch and cache guards; score-blind availability and field eligibility |
 | sweep_lib.R / calval_lib.R / pc_detect_lib.R | Shared density-ladder, split, and point-cloud detection helpers |
 | model_bench_lib.R / model_runner.R / io_bridge.R | Shared model scoring, runtime, and point-instance I/O helpers |
 | route_lib.R / coverage_lib.R / allometry_lib.R | Pure helpers for routing, coverage credit, and allometry |
@@ -415,6 +455,8 @@ workflows.
 | --- | --- |
 | [Tree-top detection approach](docs/treetop-detection-approach.md) | Method, parameter rules, tooling, and pitfalls |
 | [NEON LiDAR sites](docs/neon-lidar-sites.md) | Site, field-stem, LiDAR, and 3DEP context |
+| [Eastern preflight findings](results/eastern-broadleaf-results.md) | HARV/BART availability, coordinate audit, access blocker and unfinished validation |
+| [Eastern preflight protocol](docs/eastern-preflight-protocol.md) | Score-blind acquisition, coverage, smoke-plot and held-out split rules |
 | [Dataset and sweep plan](docs/dataset-research-and-sweep-plan.md) | Benchmark design and evaluation rationale |
 | [lasR vs lidR comparison](results/treetop-lasr-vs-lidr-comparison.md) | Toy tile, AOI, same-CHM, crowns, and streaming results |
 | [Density-ladder results](results/density-ladder-sweep-results.md) | Cross-density, crown-class, and site results |

@@ -642,13 +642,14 @@ run_site <- function(site) {
   ## downstream !is.na() filter and the column select).
   gt  <- gt[, setdiff(names(gt),
                       c("maxCrownDiameter", "ninetyCrownDiameter")), drop = FALSE]
+  neon_reference_epoch(gt, 2021) # This historical crown join is still nearest-to-2021.
   fc  <- field_crowns(site)
   gt  <- merge(gt, fc, by = "individualID", all.x = TRUE)
   gt  <- gt[!is.na(gt$maxCrownDiameter) | !is.na(gt$ninetyCrownDiameter), ]
 
   laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
                     recursive = TRUE, full.names = TRUE)
-  ctg <- readLAScatalog(laz, progress = FALSE)
+  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
 
   counts <- table(gt$plotID)
   keep <- names(counts)[counts >= MINTREES]

@@ -6,6 +6,14 @@
 # pooling), assert_detection_contract (scorer-contract conformance harness).
 suppressMessages({ library(data.table); library(lidR); library(terra)
                    library(jsonlite) })
+.spatial_ofile <- tryCatch(sys.frame(1)$ofile, error = function(e) NULL)
+.spatial_source <- Find(file.exists, c(
+  if (!is.null(.spatial_ofile)) file.path(dirname(.spatial_ofile), "neon_spatial_lib.R"),
+  file.path("scripts", "neon_spatial_lib.R"),
+  file.path("..", "..", "scripts", "neon_spatial_lib.R")))
+if (!length(.spatial_source)) stop("neon_spatial_lib.R not found")
+source(.spatial_source[1], local = TRUE)
+rm(.spatial_source, .spatial_ofile)
 
 ## ---- universal reducer: labelled points -> data.frame(x,y,z) -------------
 # pts: data.frame/data.table with coordinate columns (default X,Y,Z) and an
@@ -218,6 +226,7 @@ frozen_dir <- function(out_root, site, plot, rung) {
 # densities, or NULL if the clip is unusable.
 frozen_clip <- function(ctg, site, plot, rung, cx, cy, core_half, out_root,
                         buffer = 25) {
+  contract <- neon_clip_contract(ctg, site, plot, rung, cx, cy, core_half, buffer)
   rdir <- frozen_dir(out_root, site, plot, rung)
   fp <- list(rawground   = file.path(rdir, "clip_rawground.laz"),
              normalized  = file.path(rdir, "clip_normalized.laz"),
@@ -225,8 +234,10 @@ frozen_clip <- function(ctg, site, plot, rung, cx, cy, core_half, out_root,
              manifest    = file.path(rdir, "manifest.json"))
   if (file.exists(fp$manifest)) {                    # cached -> reuse verbatim
     mf <- jsonlite::read_json(fp$manifest, simplifyVector = TRUE)
+    neon_verify_clip(mf, contract, unlist(fp[c("rawground", "normalized", "dtm")]))
     return(c(fp, list(pdens = mf$pdens, frdens = mf$frdens, seed = mf$seed)))
   }
+  if (any(file.exists(unlist(fp)))) stop("Incomplete frozen cache; use a separate output root")
   dir.create(rdir, showWarnings = FALSE, recursive = TRUE)
   half <- core_half + buffer
   las  <- lidR::clip_rectangle(ctg, cx - half, cy - half, cx + half, cy + half)
@@ -249,8 +260,9 @@ frozen_clip <- function(ctg, site, plot, rung, cx, cy, core_half, out_root,
                             seed = seed, n_raw = lidR::npoints(las),
                             n_norm = lidR::npoints(nrm),
                             pdens = round(pdens, 3), frdens = round(frdens, 3),
-                            buffer = buffer, core_half = core_half),
-                       fp$manifest, auto_unbox = TRUE, pretty = TRUE)
+                            buffer = buffer, core_half = core_half,
+                            coordinate_contract = contract),
+                       fp$manifest, auto_unbox = TRUE, pretty = TRUE, digits = NA)
   c(fp, list(pdens = pdens, frdens = frdens, seed = seed))
 }
 
