@@ -639,11 +639,16 @@ pool_pq <- function(df, classes = POOL_CLASSES) {
 # Per cluster: representative = the max-Z member; votes = number of DISTINCT arms;
 # arms = sorted comma string. Returns data.frame(cluster,x,y,z,votes,arms); 0-row
 # when empty.
-fuse_apexes <- function(arm, x, y, z, merge_tol = 2.0, z_tol = 5.0) {
+fuse_apexes <- function(arm, x, y, z, merge_tol = 2.0, z_tol = 5.0, weights = NULL) {
   empty <- data.frame(cluster = integer(), x = numeric(), y = numeric(),
                       z = numeric(), votes = integer(), arms = character(),
                       stringsAsFactors = FALSE)
   n <- length(x)
+  if (!is.null(weights)) {
+    if (length(weights) != n || any(!is.finite(weights)) || any(weights < 0))
+      stop("fusion weights must be finite, non-negative, and match the detections")
+    empty$weight <- numeric()
+  }
   if (!n) return(empty)
   arm <- as.character(arm)
   parent <- seq_len(n)
@@ -664,6 +669,12 @@ fuse_apexes <- function(arm, x, y, z, merge_tol = 2.0, z_tol = 5.0) {
                   votes = length(unique(arm)),
                   arms = paste(sort(unique(arm)), collapse = ",")) },
             by = cluster][order(cluster)]
+  if (!is.null(weights)) {
+    dt[, weight := weights]
+    by_arm <- dt[, .(weight = max(weight)), by = .(cluster, arm)]
+    sw <- by_arm[, .(weight = sum(weight)), by = cluster]
+    agg$weight <- sw$weight[match(agg$cluster, sw$cluster)]
+  }
   as.data.frame(agg)
 }
 
@@ -691,6 +702,44 @@ fusion_points <- function(arm, x, y, z, n_arms, merge_tol = 2.0, z_tol = 5.0,
     cols(fuse_apexes(arm[keep], x[keep], y[keep], z[keep], merge_tol, z_tol))
   }
   list(union = union, majority = majority, layered = layered)
+}
+
+# Greedy detection-level NMS suppresses neighbors of a retained apex only,
+# avoiding the transitive chaining of the union operating point.
+apex_nms <- function(x, y, z, score, merge_tol = 2, z_tol = 5) {
+  order <- order(-score, -z, x, y)
+  kept <- integer()
+  for (i in order) {
+    overlap <- (x[kept] - x[i])^2 + (y[kept] - y[i])^2 <= merge_tol^2 &
+      abs(z[kept] - z[i]) <= z_tol
+    if (!any(overlap)) kept <- c(kept, i)
+  }
+  data.frame(x = x[kept], y = y[kept], z = z[kept])
+}
+
+# Optical ablation: LiDAR votes stay at one; DeepForest contributes its
+# held-out calibrated probability. Full per-arm weighting is deferred.
+rgb_fusion_points <- function(lidar, optical, probability = NULL,
+                              merge_tol = 2, z_tol = 5, weight_min = 1.5) {
+  if (is.null(optical)) return(list())
+  stack <- rbind(lidar[, c("arm", "x", "y", "z")],
+    data.frame(arm = rep("deepforest", nrow(optical)), optical[, c("x", "y", "z")]))
+  fused <- fuse_apexes(stack$arm, stack$x, stack$y, stack$z, merge_tol, z_tol)
+  rgb <- grepl("(^|,)deepforest(,|$)", fused$arms)
+  xyz <- c("x", "y", "z")
+  out <- list(deepforest = optical[, xyz], rgb_union = fused[, xyz],
+              rgb_agreement = fused[rgb & fused$votes >= 2, xyz])
+  if (is.null(probability)) return(out)
+  if (length(probability) != nrow(optical) || any(!is.finite(probability)))
+    stop("RGB fusion requires one held-out probability per optical detection")
+  weights <- c(rep(1, nrow(lidar)), probability)
+  weighted <- fuse_apexes(stack$arm, stack$x, stack$y, stack$z, merge_tol, z_tol, weights)
+  raw <- c(rep(1, nrow(lidar)), optical$score)
+  uncal <- fuse_apexes(stack$arm, stack$x, stack$y, stack$z, merge_tol, z_tol, raw)
+  out$rgb_weighted <- weighted[weighted$weight >= weight_min, xyz]
+  out$rgb_weighted_raw <- uncal[uncal$weight >= weight_min, xyz]
+  out$rgb_nms <- apex_nms(stack$x, stack$y, stack$z, weights, merge_tol, z_tol)
+  out
 }
 
 ## ==========================================================================
