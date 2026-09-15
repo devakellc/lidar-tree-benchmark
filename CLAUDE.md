@@ -58,6 +58,11 @@ pipelines.
 - Reports and user-facing documentation must stand alone: use descriptive study
   names and document links instead of issue numbers, PR numbers, or internal
   tracker IDs. Keep tracking references in GitHub discussions and commit messages.
+- Before finalizing any issue or implementation, review `README.md` against the
+  completed changes and results. Update affected method summaries, eligibility
+  limits, commands, requirements, script entries, and report links. If no update
+  is needed, record that in the completion summary. Keep historical,
+  training-only, and held-out results distinct.
 - Unit tests are run with `Rscript tests/run_tests.R`; they cover the benchmark
   bridge, extractors, I/O helpers, pooling guards, and synthesis helpers.
 

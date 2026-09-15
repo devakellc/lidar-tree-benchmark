@@ -96,6 +96,12 @@ to resolve code and working-data paths.
 
 ## Verification and Publication
 
+Before finalizing any issue or implementation, review [README.md](README.md)
+against the completed changes and results. Update affected method summaries,
+eligibility limits, workflow commands, requirements, script entries, and report
+links. If no update is needed, say so in the completion summary. Keep historical,
+training-only, and held-out results distinct; do not add tracking IDs to README.
+
 For R code changes, run the repository test suite:
 
 ```sh
