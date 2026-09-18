@@ -68,6 +68,9 @@ to resolve code and working-data paths.
 - Treat bole-family resolution as explanatory, not evaluation admission. Do not
   copy another bole's height/location, treat break height as canopy height, or
   collapse multiple records without a declared individual-level policy.
+- The declared individual-reference policy writes separate diagnostic rows with
+  explicit location/height donors and unchanged geometry. Preserve original
+  bole records, distinct population identities and all admission blockers.
 - Keep one-to-one matching and the height-consistency gate. Changes to matching
   require explicit comparison with the existing default and regression tests.
 - Tune only on the declared calibration or training subset. Preserve held-out

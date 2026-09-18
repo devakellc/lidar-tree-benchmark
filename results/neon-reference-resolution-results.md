@@ -13,6 +13,10 @@ Do not fill missing values or silently drop additional boles. No coordinates,
 heights, boundaries, selected references or support identities were changed.
 No detector, calibration or historical rescore ran.
 
+The subsequent [individual-level comparison](neon-individual-reference-results.md)
+now implements a declared policy in separate diagnostic outputs. It preserves
+this audit and its source records; it does not admit evaluation.
+
 ## Record-Level Findings
 
 Evidence joins use exact plot/event/identity and retain related records outside
