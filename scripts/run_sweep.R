@@ -73,7 +73,7 @@ if (!is.na(MEAS_YEAR)) {
 }
 laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
                   recursive = TRUE, full.names = TRUE)
-ctg <- readLAScatalog(laz, progress = FALSE)
+ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
 
 ## plots to run: those with >= MINTREES live trees, intersected with PLOTS arg
 MINTREES <- 6

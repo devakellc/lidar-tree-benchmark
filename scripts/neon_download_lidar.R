@@ -17,24 +17,35 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #   Rscript scripts/neon_download_lidar.R SITE=TEAK YEAR=2021
 # Reads work/neon/<SITE>/ground_truth_stems.csv (built by neon_ground_truth.R).
 suppressMessages(library(neonUtilities))
+source(.find("neon_spatial_lib.R"))
+source(.find("neon_acquisition_lib.R"))
 args <- strsplit(commandArgs(TRUE), "=")
 A    <- setNames(lapply(args, `[`, 2), sapply(args, `[`, 1))
 site <- if (is.null(A$SITE)) "SOAP" else A$SITE
-year <- if (is.null(A$YEAR)) "2021" else A$YEAR
+year <- neon_year(if (is.null(A$YEAR)) 2021 else A$YEAR)
 d  <- .job_dir()
 nd <- file.path(d, "neon", site)
 
 gt <- read.csv(file.path(nd, "ground_truth_stems.csv"))
-lt <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
+pc <- read.csv(file.path(nd, "plot_centroids.csv"))
+epsg <- neon_validate_inputs(gt, pc)
+neon_reference_epoch(gt, year)
+lt <- gt[gt$live & gt$is_tree & is.finite(gt$E) & is.finite(gt$N), ]
+if (!is.null(A$PLOTS)) lt <- lt[lt$plotID %in% strsplit(A$PLOTS, ",")[[1]], ]
+if (!nrow(lt)) stop("No live mapped trees in requested plots")
+centres <- pc[pc$plotID %in% lt$plotID, ]
+token <- neon_token()
 cat(sprintf("[%s] live trees: %d  unique 1km tiles: %d\n",
             site, nrow(lt), length(unique(lt$tile))))
 savep <- file.path(nd, "lidar"); dir.create(savep, showWarnings = FALSE, recursive = TRUE)
+neon_acquisition_manifest(savep, "DP1.30003.001", year, epsg)
 options(timeout = 3600)
 # buffer >= the per-plot clip reach (core_half + BUF = 45 m for tower plots in
 # sweep_lib.R), so a plot whose clip box crosses a 1 km tile boundary always has
 # the neighbouring tile present and the clip is never silently truncated.
-byTileAOP(dpID = "DP1.30003.001", site = site, year = year,
-          easting = lt$E, northing = lt$N, buffer = 50,
-          check.size = FALSE, savepath = savep, include.provisional = FALSE)
-laz <- list.files(savep, pattern = "\\.laz$", recursive = TRUE)
+neon_by_tile_aop(dpID = "DP1.30003.001", site = site, year = year,
+          easting = centres$easting, northing = centres$northing, buffer = 50,
+          check.size = FALSE, savepath = savep, include.provisional = FALSE, token = token)
+laz <- list.files(savep, pattern = "\\.laz$", recursive = TRUE, full.names = TRUE)
+neon_validate_files(laz, epsg)
 cat(sprintf("[%s] downloaded %d laz tiles\n", site, length(laz)))

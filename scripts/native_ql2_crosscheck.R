@@ -80,6 +80,8 @@ A <- setNames(lapply(args, function(z) paste(z[-1], collapse = "=")),
               sapply(args, `[`, 1))
 SITES <- if (is.null(A$SITES)) c("SOAP", "SJER", "TEAK") else
   strsplit(A$SITES, ",")[[1]]
+if (any(!SITES %in% c("SOAP", "SJER", "TEAK")))
+  stop("Native QL2 cross-check is restricted to the historical D17 sites")
 OUTCRS <- if (is.null(A$OUTCRS)) "EPSG:32611" else A$OUTCRS
 OUT_EPSG <- as.integer(sub("EPSG:", "", OUTCRS))
 TOL  <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
@@ -288,6 +290,8 @@ run_site <- function(site) {
   nd  <- file.path(JOB, "neon", site)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"))
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"))
+  if (neon_validate_inputs(gt, pc) != NEON_EPSG)
+    stop("Historical D17 field CRS must be EPSG:32611")
   gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
   MINTREES <- 6
   ql2 <- file.path(nd, "ql2")

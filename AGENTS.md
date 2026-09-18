@@ -56,8 +56,11 @@ to resolve code and working-data paths.
   `lidR::pitfree()` and must not be described as the same algorithm.
 - Pool counts before calculating detection rates, not per-plot rates. Pool
   crown errors using their sums and sample counts, not per-plot RMSE values.
-- Respect plot cores: tower plots use a 20 m half-width and distributed plots
-  use 10 m through `plot_half()`. Do not score the unmapped surrounding ring.
+- Preserve historical `plot_half()` bounds (tower 20 m, distributed 10 m), but
+  do not treat these nominal boxes as fully censused scoring footprints.
+  Eastern field metadata shows sampled subplots covering only half the tower
+  box. Resolve event-specific subplot and growth-form support before new
+  calibration/evaluation; do not silently regrade historical results.
 - Keep one-to-one matching and the height-consistency gate. Changes to matching
   require explicit comparison with the existing default and regression tests.
 - Tune only on the declared calibration or training subset. Preserve held-out

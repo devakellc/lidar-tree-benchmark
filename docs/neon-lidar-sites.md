@@ -1,11 +1,16 @@
 # NEON benchmark sites — field data & LiDAR acquisitions
 
 Reference for the three **Domain D17 (Pacific Southwest)** sites used in the
-density-ladder sweep and follow-on analyses. All sites share **UTM zone 11N /
-EPSG:32611** for NEON woody-vegetation and AOP LiDAR products.
+density-ladder sweep and follow-on analyses, plus the eastern preflight.
+The three D17 sites share **UTM zone 11N / EPSG:32611** for NEON woody-vegetation
+and AOP LiDAR products. That frame does not apply to HARV or BART.
 
-**Field ground truth:** NEON Woody Plant Vegetation Structure `DP1.10098.001`
-(mapped stems >10 cm DBH in 20×20 m distributed and 40×40 m tower plots).
+**Field ground truth:** NEON Woody Plant Vegetation Structure `DP1.10098.001`.
+Nominal plot dimensions do not establish census coverage: forest tower plots
+can sample only two 20×20 m subplots within a 40×40 m box. Sampling and mapping
+depend on growth form, diameter and census event. Audit those supports before
+interpreting full-box precision; historical D17 metrics are not regraded here.
+See the [vegetation structure guide](https://data.neonscience.org/api/v0/documents/NEON_vegStructure_userGuide_vE.1).
 **Airborne LiDAR (primary):** NEON discrete-return point cloud `DP1.30003.001`
 (AOP tiles via `neon_download_lidar.R`, restricted to 1 km tiles overlapping
 field plots). **Cross-check LiDAR:** USGS 3DEP public EPT projects
@@ -78,6 +83,42 @@ field coverage:
 
 SJER field stems were mostly measured in **2022 and 2024**, not 2021; treat its
 sweep metrics as carrying the full ±4 yr temporal slack.
+
+## Eastern broadleaf preflight
+
+The score-blind inventory retrieved public and authenticated data on
+2026-09-15. These are preflight facts, not detection results or a validated
+scoring footprint. Sources: [HARV metadata](https://data.neonscience.org/api/v0/sites/HARV),
+[BART metadata](https://data.neonscience.org/api/v0/sites/BART), and the
+[HARV](https://data.neonscience.org/api/v0/locations/HARV) /
+[BART](https://data.neonscience.org/api/v0/locations/BART) location records.
+
+| Site | Declared role | WGS84 UTM frame | Selected LiDAR/RGB month | Native density / eligible plots |
+| --- | --- | --- | --- | --- |
+| HARV, Harvard Forest | Development and pilot | 18N, EPSG:32618 | 2022-08 | HARV_033: 12.825 all / 4.864 first returns per m2; no frozen plots |
+| BART, Bartlett Experimental Forest | Held-out site validation | 19N, EPSG:32619 | 2022-08 | Density unmeasured; no frozen plots |
+
+Neither site lists 2021 LiDAR or RGB data. The earliest common acquisition year
+at or after 2021 is 2022. Both list AOP months in 2014, 2016, 2017, 2018, 2019,
+2022, 2024 and 2025. Field-product listings include July-October 2022 at HARV
+and July-September at BART, but these months do not establish exact-year mapped
+live-tree coverage. August timing does not independently establish leaf-on
+status for a particular tile or flight. The HARV_033 RGB smoke was visually
+reviewed and shows leaf-on canopy. No BART spatial tiles were downloaded.
+
+Five count/tile candidates per site contain 227 HARV and 257 BART mapped,
+live, finite-height exact-2022 trees inside the historical nominal boxes.
+Every candidate records only 800 m² of sampled tree area. None is approved
+for full-box scoring: reconstruct event-specific subplot support first.
+Matching headers also need a field/AOP datum and positional-accuracy audit.
+
+Downloads need `NEON_TOKEN`; public site/location metadata does not. Use a
+separate job directory and `YEAR=2022 MAX_YEAR_GAP=0` for exact-year reference
+preparation. Do not use the 2021 D17 caches or assign their CRS to eastern
+coordinates. The native-QL2 cross-check is still D17-only. See the
+[protocol](eastern-preflight-protocol.md) and
+[preflight findings](../results/eastern-broadleaf-results.md) for access,
+coverage and split-freezing gates.
 
 ## FGI-EMIT external instance benchmark
 

@@ -14,7 +14,7 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 
 # EPT discovery helper for the native-QL2 cross-check (issue #4).
 # Fetches the entwine/USGS 3DEP public boundaries (resources.geojson), reprojects
-# each NEON site centroid (UTM 11N / EPSG:32611) into the index CRS (EPSG:4326),
+# each NEON site centroid (its declared UTM frame) into the index CRS (EPSG:4326),
 # and finds every public EPT project footprint that covers the site. Candidates
 # are written to work/neon/<SITE>/ql2/ept_candidates.csv, ranked with CA QL2
 # projects preferred. Run standalone or source()'d for `discover_ept()`.
@@ -22,6 +22,7 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # Usage:
 #   Rscript scripts/ept_discovery.R SITES=SOAP,SJER,TEAK [INDEX=/path/resources.geojson]
 suppressMessages({ library(sf); library(jsonlite) })
+source(.find("neon_spatial_lib.R"))
 
 # Public 3DEP/entwine boundary index. usgs.entwine.io/data/boundaries.json is
 # gone (404 as of 2026-06); the hobuinc mirror is the live source. We also accept
@@ -61,7 +62,7 @@ score_candidate <- function(name) {
 }
 
 discover_ept <- function(sites, job_dir, index_local = NULL,
-                          site_epsg = 32611) {
+                          site_epsg = NULL) {
   idx_path <- fetch_index(index_local)
   bnd <- st_read(idx_path, quiet = TRUE)
   if (is.na(st_crs(bnd))) st_crs(bnd) <- 4326           # resources.geojson = WGS84
@@ -71,11 +72,14 @@ discover_ept <- function(sites, job_dir, index_local = NULL,
     pc_path <- file.path(job_dir, "neon", site, "plot_centroids.csv")
     if (!file.exists(pc_path)) { message("no centroids for ", site); next }
     pc <- read.csv(pc_path)
+    epsg <- neon_field_epsg(pc)
+    if (!is.null(site_epsg) && !isTRUE(sf::st_crs(site_epsg) == sf::st_crs(epsg)))
+      stop("Configured EPT source CRS disagrees with plot metadata")
     # site footprint = all plot centroids (UTM), buffered 1 km then unioned, so a
     # project covering the plot margins (not just the exact centroid) still
     # registers as a candidate. Buffer in the metric site CRS (km is meaningless
     # in degrees), then reproject the buffered hull to the WGS84 index CRS.
-    pts <- st_as_sf(pc, coords = c("easting", "northing"), crs = site_epsg)
+    pts <- st_as_sf(pc, coords = c("easting", "northing"), crs = epsg)
     site_union <- st_transform(st_union(st_buffer(pts, 1000)), 4326)
     pts4326 <- st_transform(pts, 4326)            # raw points for per-project cov
     # candidate projects: those whose footprint intersects the site point cloud

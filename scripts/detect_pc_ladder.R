@@ -167,7 +167,7 @@ run_site <- function(SITE) {
   gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
   laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
                     recursive = TRUE, full.names = TRUE)
-  ctg <- readLAScatalog(laz, progress = FALSE)
+  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
   froot <- file.path(nd, "frozen")
 
   counts <- table(gt$plotID)
