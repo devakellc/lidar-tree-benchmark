@@ -296,7 +296,7 @@ field/LiDAR/RGB headers and leaf-on RGB; its buffered normalized clip measures
 12.825 all-return and 4.864 first-return points/m2. BART uses EPSG:32619 and has
 not had spatial tiles downloaded. All ten count/tile candidates sample only
 800 m2 of their nominal 1600 m2 tower boxes. Their measured footprints are now
-reconstructed, but missing target references, subplot conflicts and unresolved
+reconstructed, but reference-unit policy, spatial uncertainty and unresolved
 datum/flight provenance still block calibration, scoring and split freezing.
 See the [preflight findings](results/eastern-broadleaf-results.md) and
 [score-blind protocol](docs/eastern-preflight-protocol.md).
@@ -337,11 +337,25 @@ cross-check stays D17-only; fixed-2021 crown joins reject other reference years.
 
 The [support audit](results/neon-reference-support-results.md) joins exact census
 events and exports measured-corner polygons, conservative interiors and every
-reference exclusion. HARV/BART diagnostics contain 204/226 selected interior
-references, but **no real support bundle is evaluation-ready**. The optional
-polygon scorer and support-aware pooling are tested synthetically; historical
+reference exclusion. The original HARV/BART bole-level diagnostics contain
+204/226 selected interior references, but **no real support bundle is
+evaluation-ready**. The optional polygon scorer and support-aware pooling are
+tested synthetically; historical
 rectangular scoring remains unchanged. Existing model runners are not migrated
 automatically. See the [support protocol](docs/neon-reference-support-protocol.md).
+
+The [record-resolution audit](results/neon-reference-resolution-results.md)
+explains 42 of 43 per-bole exclusions through multi-bole/broken-bole measurement
+rules, without filling values or admitting support. HARV time/schedule evidence
+points to August 4, 2022, but exact source-flight attribution and field-marker
+accuracy remain unresolved.
+
+The separate [individual-level policy comparison](results/neon-individual-reference-results.md)
+produces 206 HARV and 226 BART diagnostic references on unchanged interiors.
+It records explicit location/height donors, retains all previously selected
+individuals and adds two height-resolved HARV individuals. Four target
+individuals remain unresolved; the [declared policy](docs/neon-individual-reference-protocol.md)
+does not clear admission blockers or define crown-instance ground truth.
 
 ~~~sh
 export CLAUDE_JOB_DIR="$PWD/work/reference-support-study"
@@ -358,6 +372,24 @@ Preparation downloads pinned field data and named-point metadata only. The
 review script fetches only the previously declared HARV RGB tile. API tokens
 stay outside the repository; signed URLs are never archived. Replay checks
 input/code hashes and output receipts; use a new output root after revisions.
+
+For the resolution follow-up, run `collect_neon_reference_evidence.R` with
+`OUT=` and explicit `HARV_LIDAR=TRUE` for the declared HARV tile, then
+`audit_neon_reference_resolution.R SOURCE=... SUPPORT=... EVIDENCE=... OUT=...`.
+The [resolution protocol](docs/neon-reference-resolution-protocol.md) and
+[results](results/neon-reference-resolution-results.md#reproduction-and-verification)
+define the read-only inputs, bounded downloads and reproducible commands.
+
+Prepare the separate individual-level comparison from pinned field snapshots:
+
+~~~sh
+Rscript scripts/prepare_neon_individual_references.R \
+  SOURCE="$CLAUDE_JOB_DIR" SUPPORT="$CLAUDE_JOB_DIR/reference_support_v2" \
+  OUT="$CLAUDE_JOB_DIR/individual_reference_v2"
+~~~
+
+This step makes no downloads and runs no detector. It preserves the old support,
+exports a complete source-to-individual crosswalk and verifies hashes on replay.
 
 ### Paired RGB-LiDAR fusion
 
@@ -479,6 +511,8 @@ workflows.
 | preflight_harv_smoke.R | Inspect the declared HARV-only LiDAR/RGB clip, density and normalization without detector inference |
 | neon_reference_support.R / review_neon_reference_support.R | Exact-event reference audit, measured sampled-subplot polygons and HARV-only RGB geometry review; no evaluation admission |
 | audit_neon_reference_history.R | Read-only census-support and artifact-integrity audit of archived D17 references |
+| collect_neon_reference_evidence.R / audit_neon_reference_resolution.R | Archive official field/flight evidence and explain bole-level exclusions without changing or admitting references |
+| prepare_neon_individual_references.R | Apply the declared individual-level policy to pinned field records; export source donors and compare diagnostic selection on unchanged support |
 | run_sweep.R / analyze_sweep.R / compare_sites.R | Run, pool, and compare the core CHM-VWF field benchmark |
 | calval_split.R / calval_multichm.R | Held-out parameter calibration/validation |
 | ept_discovery.R / native_ql2_crosscheck.R | Find covering 3DEP projects and test native-versus-decimated performance |
@@ -515,6 +549,8 @@ workflows.
 | bootstrap.R / repo_paths.R | Locate the repository and working directory consistently |
 | neon_spatial_lib.R / eastern_preflight_lib.R / neon_acquisition_lib.R | NEON CRS, epoch and cache guards; authenticated tile queries, availability and sampling-support audits |
 | neon_reference_support_lib.R | Census-event joins, surveyed footprints, reference exclusions, opt-in polygon scoring and support-aware pooling guards |
+| neon_reference_resolution_lib.R | Exact-event bole-family evidence, immutable receipts and conservative flight/time attribution checks |
+| neon_individual_reference_lib.R | Unique apparent-individual units, explicit measurement donors and separate diagnostic support identities |
 | sweep_lib.R / calval_lib.R / pc_detect_lib.R | Shared density-ladder, split, and point-cloud detection helpers |
 | model_bench_lib.R / model_runner.R / io_bridge.R | Shared model scoring, runtime, and point-instance I/O helpers |
 | route_lib.R / coverage_lib.R / allometry_lib.R | Pure helpers for routing, coverage credit, and allometry |
@@ -533,6 +569,10 @@ workflows.
 | [Eastern preflight protocol](docs/eastern-preflight-protocol.md) | Score-blind acquisition, coverage, smoke-plot and held-out split rules |
 | [Reference-support findings](results/neon-reference-support-results.md) | Measured eastern footprints, unresolved target references and read-only historical census audit |
 | [Reference-support protocol](docs/neon-reference-support-protocol.md) | Target population, exact events, geometry, uncertainty margins and evaluation-admission boundaries |
+| [Reference-resolution findings](results/neon-reference-resolution-results.md) | Multi-bole measurement explanations, marginal subplot discrepancies and unresolved datum/flight evidence |
+| [Reference-resolution protocol](docs/neon-reference-resolution-protocol.md) | Source-preserving record review, bounded HARV provenance checks and no automatic admission |
+| [Individual-reference comparison](results/neon-individual-reference-results.md) | Paired bole/individual counts, donor provenance and four unresolved target individuals |
+| [Individual-reference policy](docs/neon-individual-reference-protocol.md) | Declared population, family identity, location/height donors and unchanged spatial support |
 | [Dataset and sweep plan](docs/dataset-research-and-sweep-plan.md) | Benchmark design and evaluation rationale |
 | [lasR vs lidR comparison](results/treetop-lasr-vs-lidr-comparison.md) | Toy tile, AOI, same-CHM, crowns, and streaming results |
 | [Density-ladder results](results/density-ladder-sweep-results.md) | Cross-density, crown-class, and site results |
