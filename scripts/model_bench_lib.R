@@ -13,6 +13,7 @@ suppressMessages({ library(data.table); library(lidR); library(terra)
   file.path("..", "..", "scripts", "neon_spatial_lib.R")))
 if (!length(.spatial_source)) stop("neon_spatial_lib.R not found")
 source(.spatial_source[1], local = TRUE)
+source(file.path(dirname(.spatial_source[1]), "neon_reference_support_lib.R"), local = TRUE)
 rm(.spatial_source, .spatial_ofile)
 
 ## ---- universal reducer: labelled points -> data.frame(x,y,z) -------------
@@ -275,6 +276,7 @@ frozen_clip <- function(ctg, site, plot, rung, cx, cy, core_half, out_root,
 # by the same summed-count rule; absent, no rec_h_*/n_h_* columns are emitted.
 POOL_CLASSES <- c("dominant", "codominant", "intermediate", "suppressed")
 pool <- function(df, classes = POOL_CLASSES) {
+  neon_check_support_rows(df)
   if (is.null(df$tp_core)) df$tp_core <- round(df$precision * df$n_det)
   out <- data.frame(
     n_plots = length(unique(paste(df$site, df$plot, df$rung, sep = "::"))),
@@ -325,6 +327,11 @@ pool <- function(df, classes = POOL_CLASSES) {
     out[[paste0("rec_h_", b)]] <- if (nref) tp / nref else NA_real_
     out[[paste0("n_h_", b)]]   <- nref
   }
+  if ("support_id" %in% names(df)) {
+    out$support_policy <- unique(df$support_policy)
+    out$reference_population <- unique(df$reference_population)
+    out$support_set_id <- digest::digest(sort(unique(df$support_id)), algo = "sha256")
+  }
   out
 }
 
@@ -333,6 +340,7 @@ pool <- function(df, classes = POOL_CLASSES) {
 # cross-arm comparison uses an identical plot population. Returns the filtered
 # df with the dropped cell keys in attr(.,"dropped").
 equal_set_guard <- function(df, arms, key_cols = c("site", "plot", "rung")) {
+  neon_check_support_rows(df)
   k <- do.call(paste, c(df[key_cols], sep = "::"))
   df$.k <- k
   have_all <- tapply(df$detector, k, function(v) all(arms %in% v))

@@ -112,6 +112,13 @@ Every candidate records only 800 m² of sampled tree area. None is approved
 for full-box scoring: reconstruct event-specific subplot support first.
 Matching headers also need a field/AOP datum and positional-accuracy audit.
 
+The [event-specific follow-up](../results/neon-reference-support-results.md)
+now reconstructs measured polygons for those events. Conservative interiors
+contain 204 HARV and 226 BART references under a different declared population;
+they are not paired with the earlier counts. Missing target data and subplot
+conflicts keep every bundle diagnostic-only. The historical D17 audit also
+finds partial and dendrometer-only events; no historical metric was rescored.
+
 Downloads need `NEON_TOKEN`; public site/location metadata does not. Use a
 separate job directory and `YEAR=2022 MAX_YEAR_GAP=0` for exact-year reference
 preparation. Do not use the 2021 D17 caches or assign their CRS to eastern
