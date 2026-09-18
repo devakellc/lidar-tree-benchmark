@@ -181,11 +181,11 @@ tiling assessment if they exceed this path's contract. The retained native
 overlap policy, context effects and single-run GPU variability remain limits.
 TreeisoNet stays deferred; SAT and classical controls remain relevant.
 
-The next bounded task is score-blind data access, CRS and acquisition-epoch
-preflight for HARV development and BART held-out validation. Correct the shared
-California UTM default before eastern-site inference. Detection-only pipeline
-contracts and explicit-arm comparisons can then use whole-plot-grouped HARV
-development folds; freeze settings before BART evaluation. Never tune on the
+The proposed HARV/BART follow-on is [retired](../docs/harv-bart-closeout.md).
+The next implementation is synthetic detection-only pipeline contracts with
+explicit arms and compatibility guards, not an eastern-site comparison.
+New real-data work needs separately declared development data, eligible
+reference support, whole-plot folds and held-out evaluation. Never tune on the
 already observed FGI-EMIT test set. A simpler single-arm product remains valid
 if fusion adds no supported benefit. Crown promotion needs genuine crown or
 instance annotations and its own held-out evidence.

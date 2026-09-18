@@ -1,5 +1,9 @@
 # NEON Event-Specific Reference Support
 
+**Retired on 2026-09-18:** see the [HARV/BART closeout](../docs/harv-bart-closeout.md).
+Findings and reproduction notes below are historical diagnostics. No further
+eastern investigation or validation is planned; unresolved gates remain.
+
 ## Status
 
 The opt-in event/reference/geometry implementation and score-blind field audit
@@ -188,7 +192,7 @@ inference, an empty LAS writer fixture and optional Python `plyfile`
 interoperability. An optional
 R-universe index probe emits the existing network-access warning.
 
-## Next Gate
+## Historical Next Gate (Retired)
 
 Review the 43 incomplete target records and the two subplot conflicts under a
 declared missing-reference policy. Recover trustworthy source information where

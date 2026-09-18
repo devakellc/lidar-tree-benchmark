@@ -156,9 +156,10 @@ eligible arms. A focused ForestFormer3D scene-assembly follow-up should compare
 native whole-scene inference with any necessary outer tiling, preserve source
 point identity, and prevent transitive same-cylinder collisions. Do not reuse
 confidence calibration fitted to the former ForestFormer3D candidate-score
-broadcast. This follow-up gates that arm, not unrelated pipeline plumbing or
-the eastern-site data preflight. No new architecture sweep is warranted by
-these adapter findings alone.
+broadcast. This follow-up gates that arm, not unrelated pipeline plumbing.
+The formerly proposed eastern-site preflight follow-on is now
+[retired](../docs/harv-bart-closeout.md). No new architecture sweep is warranted
+by these adapter findings alone.
 
 ## Verified integration findings
 
@@ -297,14 +298,14 @@ truncated. Overlapping cylinder scores are not pooled as independent plots.
 
 ## Follow-on validation
 
-The protocol declares HARV for development/pilot and BART for held-out site
-validation, subject to score-blind availability/CRS/epoch preflight. Freeze
-eligible plot IDs, acquisition years, density rungs and reference coverage
-before inference. Fit choices only within whole-plot-grouped HARV development
-folds; evaluate BART only after freezing the pipeline. Lack of suitable BART
-coverage requires a predeclared replacement, not score-based site selection.
+The proposed HARV-development/BART-validation follow-on was
+[retired on 2026-09-18](../docs/harv-bart-closeout.md). No eastern validation
+claim or replacement site is implied. Synthetic detection-pipeline contracts
+can proceed independently. A future real-data comparison needs a separately
+declared development dataset, eligible reference support, whole-plot folds and
+held-out evaluation. The observed FGI-EMIT test set is not a fresh holdout.
 
-This validates field-stem detection transfer, not crown-mask quality. Crown
+Field-stem detection transfer would not validate crown-mask quality. Crown
 promotion needs genuine instance annotations and its own holdout. No standalone
 F1 improvement in this audit demonstrates complementary errors, fusion benefit,
 universal sparse/RGB routing, or production readiness.

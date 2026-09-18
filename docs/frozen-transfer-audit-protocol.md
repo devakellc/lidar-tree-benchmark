@@ -63,6 +63,10 @@ Treat the already observed FGI-EMIT test run as a fixed historical baseline,
 not a new untouched holdout for changes motivated by it. No test-label tuning
 or test rescore is part of this audit.
 
+The eastern follow-on declaration below was retired in the
+[HARV/BART closeout](harv-bart-closeout.md). It records the former plan, not
+an active dependency; the audit methods and holdout safeguards are unchanged.
+
 For eastern NEON follow-on work, predeclare **HARV as development/pilot and
 BART as held-out site validation**, subject to a score-blind data/CRS/epoch
 availability preflight. Freeze eligible plot IDs, acquisition years, density

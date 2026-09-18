@@ -93,8 +93,8 @@ This is the largest pipeline and spans several files. Flow:
    `geoNEON::getLocTOS()` against the public NEON locations API (polar offset
    from named grid points); classifies crown class; writes
    `ground_truth_stems.csv` + `plot_centroids.csv` under `work/neon/<SITE>/`.
-   `YEAR` defaults to 2021 and `MAX_YEAR_GAP` to 4; eastern preflight uses
-   2022 and exact-year references in a separate job directory. Downloads
+   `YEAR` defaults to 2021 and `MAX_YEAR_GAP` to 4; the retired eastern preflight
+   used 2022 and exact-year references in a separate job directory. Downloads
    require `NEON_TOKEN` from outside the repository.
 2. [scripts/run_sweep.R](scripts/run_sweep.R) + [scripts/sweep_lib.R](scripts/sweep_lib.R)
    — for each plot, decimates to a **density rung** (8/4/2/1 pts/m² + native),
@@ -126,10 +126,13 @@ Sweep invariants — get these wrong and the metrics are silently misleading:
   threaded through `score_plot` with the flat-4 m greedy path as the back-compat
   default.
 
-The [eastern preflight protocol](docs/eastern-preflight-protocol.md) reserves
-HARV for development and BART for held-out validation. Public metadata is not
-proof of reference coverage, native density or leaf-on status. Do not run
-detectors or freeze eligible plots before the remaining data checks pass.
+The [HARV/BART expansion is retired](docs/harv-bart-closeout.md), while the
+broader benchmark and pipeline remain active. Preserve existing artifacts and
+merged safeguards; do not resume acquisition, inquiries or evaluation without
+a new explicit decision. The [archived protocol](docs/eastern-preflight-protocol.md)
+proposed HARV development and BART held-out validation, but no eligible split
+or detector result was produced. Public metadata is not proof of reference
+coverage, native density or leaf-on status. Retirement does not clear blockers.
 Authenticated field and file inventories plus a HARV-only spatial smoke test
 are now complete; all ten count/tile candidates have partial census support.
 See the [preflight findings](results/eastern-broadleaf-results.md). Matching

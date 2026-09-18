@@ -1,5 +1,9 @@
 # Eastern-Site Preflight Protocol
 
+**Archived after the 2026-09-18 [HARV/BART closeout](harv-bart-closeout.md).**
+The declarations below document the retired study, not authorization to resume
+it. Existing safeguards and diagnostic-only status remain unchanged.
+
 This score-blind stage checks acquisition, reference coverage, coordinate
 systems and density before any detector run or model selection. HARV is
 reserved for development and BART for held-out site validation. No detection,
