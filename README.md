@@ -44,8 +44,10 @@ Historical three-site comparisons and the newer paired SOAP fusion study use
 different reference populations; their scores are not directly interchangeable.
 The eastern preflight also found partial tower-subplot sampling. Historical
 NEON scores below are unchanged; their event-specific scoring footprints need
-an audit before being treated as complete-census precision estimates. See the
-[reference-support finding](results/eastern-broadleaf-results.md#reference-support-blocker).
+an audit before being treated as complete-census precision estimates. The
+[event-specific support audit](results/neon-reference-support-results.md)
+also identifies dendrometer-only events and unresolved reference records;
+it does not regrade historical scores.
 
 | Method family | Implementations in this repository | Headline result | Best fit |
 | --- | --- | --- | --- |
@@ -293,8 +295,9 @@ and released-file inventories are complete. HARV_033 has matching EPSG:32618
 field/LiDAR/RGB headers and leaf-on RGB; its buffered normalized clip measures
 12.825 all-return and 4.864 first-return points/m2. BART uses EPSG:32619 and has
 not had spatial tiles downloaded. All ten count/tile candidates sample only
-800 m2 of their nominal 1600 m2 tower boxes: sampled-subplot support is now the
-next gate before calibration, pilot scoring or split freezing.
+800 m2 of their nominal 1600 m2 tower boxes. Their measured footprints are now
+reconstructed, but missing target references, subplot conflicts and unresolved
+datum/flight provenance still block calibration, scoring and split freezing.
 See the [preflight findings](results/eastern-broadleaf-results.md) and
 [score-blind protocol](docs/eastern-preflight-protocol.md).
 
@@ -329,6 +332,32 @@ The smoke clips and normalizes data without a detector or scoring call. It does
 not approve the nominal box as a scoring footprint. Use new output roots after
 protocol/code changes; old manifests fail closed. The historical native-QL2
 cross-check stays D17-only; fixed-2021 crown joins reject other reference years.
+
+### Event-specific reference support
+
+The [support audit](results/neon-reference-support-results.md) joins exact census
+events and exports measured-corner polygons, conservative interiors and every
+reference exclusion. HARV/BART diagnostics contain 204/226 selected interior
+references, but **no real support bundle is evaluation-ready**. The optional
+polygon scorer and support-aware pooling are tested synthetically; historical
+rectangular scoring remains unchanged. Existing model runners are not migrated
+automatically. See the [support protocol](docs/neon-reference-support-protocol.md).
+
+~~~sh
+export CLAUDE_JOB_DIR="$PWD/work/reference-support-study"
+for SITE in HARV BART; do
+  Rscript scripts/neon_reference_support.R SITE="$SITE" YEAR=2022 \
+    OUT="$CLAUDE_JOB_DIR/reference_support_v2/$SITE"
+done
+Rscript scripts/review_neon_reference_support.R \
+  SUPPORT="$CLAUDE_JOB_DIR/reference_support_v2/HARV/support_bundles.rds"
+Rscript scripts/audit_neon_reference_history.R SOURCE=/path/to/historical/work
+~~~
+
+Preparation downloads pinned field data and named-point metadata only. The
+review script fetches only the previously declared HARV RGB tile. API tokens
+stay outside the repository; signed URLs are never archived. Replay checks
+input/code hashes and output receipts; use a new output root after revisions.
 
 ### Paired RGB-LiDAR fusion
 
@@ -385,7 +414,7 @@ Do not overwrite archived test predictions or tune on their labels.
 | --- | --- |
 | Core toy and AOI workflows | R with lasR, lidR, terra, sf, and data.table |
 | Required lasR build | r-lidar/lasR pre-devel; the released 0.21.0 build rejects the variable-window function used by the detection scripts |
-| NEON workflows | neonUtilities and jsonlite; public metadata is open, data downloads need network access and `NEON_TOKEN` |
+| NEON workflows | neonUtilities, jsonlite, curl and digest; public metadata is open, data downloads need network access and `NEON_TOKEN` |
 | EPT extraction | PDAL 2.9 or later |
 | Optional analyses | clue, rpart, crownsegmentr, and lidRplugins as required by the corresponding arm |
 | GPU/vision arms | The documented container, conda environment, or virtualenv under [gpu](gpu/) for that specific model |
@@ -448,6 +477,8 @@ workflows.
 | preflight_eastern_sites.R | Archive score-blind HARV/BART metadata and inventory local exact-year field candidates |
 | preflight_eastern_coverage.R | Archive released file identities, audit tile availability and census sampled areas; no split freeze |
 | preflight_harv_smoke.R | Inspect the declared HARV-only LiDAR/RGB clip, density and normalization without detector inference |
+| neon_reference_support.R / review_neon_reference_support.R | Exact-event reference audit, measured sampled-subplot polygons and HARV-only RGB geometry review; no evaluation admission |
+| audit_neon_reference_history.R | Read-only census-support and artifact-integrity audit of archived D17 references |
 | run_sweep.R / analyze_sweep.R / compare_sites.R | Run, pool, and compare the core CHM-VWF field benchmark |
 | calval_split.R / calval_multichm.R | Held-out parameter calibration/validation |
 | ept_discovery.R / native_ql2_crosscheck.R | Find covering 3DEP projects and test native-versus-decimated performance |
@@ -483,6 +514,7 @@ workflows.
 | export_geojson.R / export_stems_ground_truth_geojson.R / export_best_treetops_geojson.R | Export benchmark geography, field stems, and best detections as GeoJSON |
 | bootstrap.R / repo_paths.R | Locate the repository and working directory consistently |
 | neon_spatial_lib.R / eastern_preflight_lib.R / neon_acquisition_lib.R | NEON CRS, epoch and cache guards; authenticated tile queries, availability and sampling-support audits |
+| neon_reference_support_lib.R | Census-event joins, surveyed footprints, reference exclusions, opt-in polygon scoring and support-aware pooling guards |
 | sweep_lib.R / calval_lib.R / pc_detect_lib.R | Shared density-ladder, split, and point-cloud detection helpers |
 | model_bench_lib.R / model_runner.R / io_bridge.R | Shared model scoring, runtime, and point-instance I/O helpers |
 | route_lib.R / coverage_lib.R / allometry_lib.R | Pure helpers for routing, coverage credit, and allometry |
@@ -499,6 +531,8 @@ workflows.
 | [NEON LiDAR sites](docs/neon-lidar-sites.md) | Site, field-stem, LiDAR, and 3DEP context |
 | [Eastern preflight findings](results/eastern-broadleaf-results.md) | HARV/BART field and file inventories, HARV smoke measurements and sampled-subplot blocker |
 | [Eastern preflight protocol](docs/eastern-preflight-protocol.md) | Score-blind acquisition, coverage, smoke-plot and held-out split rules |
+| [Reference-support findings](results/neon-reference-support-results.md) | Measured eastern footprints, unresolved target references and read-only historical census audit |
+| [Reference-support protocol](docs/neon-reference-support-protocol.md) | Target population, exact events, geometry, uncertainty margins and evaluation-admission boundaries |
 | [Dataset and sweep plan](docs/dataset-research-and-sweep-plan.md) | Benchmark design and evaluation rationale |
 | [lasR vs lidR comparison](results/treetop-lasr-vs-lidr-comparison.md) | Toy tile, AOI, same-CHM, crowns, and streaming results |
 | [Density-ladder results](results/density-ladder-sweep-results.md) | Cross-density, crown-class, and site results |
