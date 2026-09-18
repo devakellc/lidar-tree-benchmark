@@ -357,6 +357,13 @@ individuals and adds two height-resolved HARV individuals. Four target
 individuals remain unresolved; the [declared policy](docs/neon-individual-reference-protocol.md)
 does not clear admission blockers or define crown-instance ground truth.
 
+The [positional follow-up](results/neon-positional-evidence-results.md) finds
+that a true-north offset hypothesis could explain the two marginal HARV subplot
+conflicts, but no correction is applied. Archived trajectory times corroborate
+the August 4 mission candidate, not exact flightline attribution. The
+[NEON evidence request](docs/neon-evidence-request.md) is prepared but unsent;
+all four individual cases and admission gates remain unresolved.
+
 ~~~sh
 export CLAUDE_JOB_DIR="$PWD/work/reference-support-study"
 for SITE in HARV BART; do
@@ -390,6 +397,17 @@ Rscript scripts/prepare_neon_individual_references.R \
 
 This step makes no downloads and runs no detector. It preserves the old support,
 exports a complete source-to-individual crosswalk and verifies hashes on replay.
+
+The bounded positional follow-up uses those archived snapshots and requires
+`pdftotext` plus the existing `sf`/PROJ installation; it makes no downloads:
+
+~~~sh
+Rscript scripts/audit_neon_positional_evidence.R \
+  SOURCE="$CLAUDE_JOB_DIR" OUT="$CLAUDE_JOB_DIR/positional_evidence_v1"
+~~~
+
+The [follow-up protocol](docs/neon-positional-evidence-protocol.md) fixes its
+scope and stop rule. Coordinate hypotheses do not update scoring references.
 
 ### Paired RGB-LiDAR fusion
 
@@ -513,6 +531,7 @@ workflows.
 | audit_neon_reference_history.R | Read-only census-support and artifact-integrity audit of archived D17 references |
 | collect_neon_reference_evidence.R / audit_neon_reference_resolution.R | Archive official field/flight evidence and explain bole-level exclusions without changing or admitting references |
 | prepare_neon_individual_references.R | Apply the declared individual-level policy to pinned field records; export source donors and compare diagnostic selection on unchanged support |
+| audit_neon_positional_evidence.R | Read-only case histories, anchor metadata, offset hypotheses and archived trajectory compatibility; no corrections or admission |
 | run_sweep.R / analyze_sweep.R / compare_sites.R | Run, pool, and compare the core CHM-VWF field benchmark |
 | calval_split.R / calval_multichm.R | Held-out parameter calibration/validation |
 | ept_discovery.R / native_ql2_crosscheck.R | Find covering 3DEP projects and test native-versus-decimated performance |
@@ -551,6 +570,7 @@ workflows.
 | neon_reference_support_lib.R | Census-event joins, surveyed footprints, reference exclusions, opt-in polygon scoring and support-aware pooling guards |
 | neon_reference_resolution_lib.R | Exact-event bole-family evidence, immutable receipts and conservative flight/time attribution checks |
 | neon_individual_reference_lib.R | Unique apparent-individual units, explicit measurement donors and separate diagnostic support identities |
+| neon_positional_evidence_lib.R | PROJ-based offset hypotheses, strict trajectory extraction and named-point evidence limits |
 | sweep_lib.R / calval_lib.R / pc_detect_lib.R | Shared density-ladder, split, and point-cloud detection helpers |
 | model_bench_lib.R / model_runner.R / io_bridge.R | Shared model scoring, runtime, and point-instance I/O helpers |
 | route_lib.R / coverage_lib.R / allometry_lib.R | Pure helpers for routing, coverage credit, and allometry |
@@ -573,6 +593,9 @@ workflows.
 | [Reference-resolution protocol](docs/neon-reference-resolution-protocol.md) | Source-preserving record review, bounded HARV provenance checks and no automatic admission |
 | [Individual-reference comparison](results/neon-individual-reference-results.md) | Paired bole/individual counts, donor provenance and four unresolved target individuals |
 | [Individual-reference policy](docs/neon-individual-reference-protocol.md) | Declared population, family identity, location/height donors and unchanged spatial support |
+| [Positional evidence findings](results/neon-positional-evidence-results.md) | Quantified coordinate-convention ambiguity and remaining source-evidence questions |
+| [Positional follow-up protocol](docs/neon-positional-evidence-protocol.md) | Bounded, read-only comparison and stop rule pending authoritative clarification |
+| [NEON evidence request](docs/neon-evidence-request.md) | Unsent inquiry with exact field and flight identifiers; no contact assumed |
 | [Dataset and sweep plan](docs/dataset-research-and-sweep-plan.md) | Benchmark design and evaluation rationale |
 | [lasR vs lidR comparison](results/treetop-lasr-vs-lidr-comparison.md) | Toy tile, AOI, same-CHM, crowns, and streaming results |
 | [Density-ladder results](results/density-ladder-sweep-results.md) | Cross-density, crown-class, and site results |
