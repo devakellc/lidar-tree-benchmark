@@ -148,6 +148,15 @@ CRS and admitted support; all prepared eastern bundles remain diagnostic-only.
 The optional polygon path preserves default rectangular scoring. Pooling and
 equal-set checks reject mixed support; do not strip provenance to bypass them.
 Historical D17 event auditing is read-only and does not regenerate metrics.
+The [record-resolution audit](results/neon-reference-resolution-results.md)
+explains expected per-bole gaps without changing support. Do not copy related
+height/location values, substitute break height, or collapse records without
+an explicit individual-level reference policy. Flight candidates are not
+verified point contributions when the source-ID crosswalk is unavailable.
+The [individual-reference comparison](results/neon-individual-reference-results.md)
+applies a declared policy to separate diagnostic rows with explicit measurement
+donors. It preserves original bole records and geometry; individual and bole
+populations must not be mixed in pooling. No admission blockers are cleared.
 
 ## Analyses that branch off the sweep
 
