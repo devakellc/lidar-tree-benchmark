@@ -1,5 +1,9 @@
 # NEON Reference-Support Protocol
 
+**Archived after the 2026-09-18 [HARV/BART closeout](harv-bart-closeout.md).**
+The declarations below document the retired study, not authorization to resume
+it. Existing safeguards and diagnostic-only status remain unchanged.
+
 This is a score-blind reference audit, not a detector comparison. Preserve all
 historical inputs and rectangular scores. HARV remains development; BART is
 held out. Do not freeze eligibility or run inference from these diagnostics.

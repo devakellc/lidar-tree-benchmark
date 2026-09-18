@@ -70,6 +70,7 @@ and valid empty/full-scene exports.
 Record whether assembly degradation is resolved, reduced or remains uncertain,
 and the resulting eligibility for controlled comparisons. Standalone training
 F1 does not demonstrate fusion benefit, strong understory transfer, crown
-quality on a fresh holdout, or production readiness. Keep HARV development and
-BART held-out validation subject to score-blind data/CRS/epoch preflight.
+quality on a fresh holdout, or production readiness. The originally proposed
+HARV development and BART validation follow-on is now
+[retired](harv-bart-closeout.md); it is not an active assembly dependency.
 Review README and run final full-repository Markdown lint before publication.
