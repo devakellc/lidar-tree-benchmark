@@ -7,6 +7,7 @@ import sys
 import tempfile
 import json
 import types
+import ast
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -89,6 +90,25 @@ class ExportTests(unittest.TestCase):
 
 
 class UpstreamSupportTests(unittest.TestCase):
+    def test_native_mask_policy_preserves_background_and_overwrites_accepted_overlap(self):
+        path = ROOT / "gpu/store/forestformer3d/ForestFormer3D/oneformer3d/oneformer3d.py"
+        if not path.exists():
+            self.skipTest("Optional pinned ForestFormer3D checkout is not installed")
+        tree = ast.parse(path.read_text())
+        cls = next(node for node in tree.body if isinstance(node, ast.ClassDef)
+                   and node.name == "ForAINetV2OneFormer3D_XAwarequery")
+        fn = next(node for node in cls.body if isinstance(node, ast.FunctionDef)
+                  and node.name == "merge_overlapping_instances_by_score_speedup")
+        fn.decorator_list = []
+        scope = dict(np=np)
+        exec(compile(ast.Module(body=[fn], type_ignores=[]), str(path), "exec"), scope)
+        merge = scope[fn.name]
+        labels, _, scores = merge(np.zeros(6), [([0, 1], 1, .9), ([1, 2, 3, 4], 2, .8)])
+        np.testing.assert_array_equal(labels, [1, 2, 2, 2, 2, -1])
+        np.testing.assert_allclose(scores, [.9, .8, .8, .8, .8, -1])
+        labels, _, _ = merge(np.zeros(4), [([0, 1], 1, .9), ([1, 2, 3], 2, .8)])
+        np.testing.assert_array_equal(labels, [1, 1, -1, -1])
+
     def test_nearest_neighbor_row_batch_preserves_indices_and_ties(self):
         try:
             import torch
@@ -138,6 +158,66 @@ class UpstreamSupportTests(unittest.TestCase):
         support = ti.prediction_support(points, [2]*3, [1]*3)
         np.testing.assert_array_equal(support, [True, True, False])
         np.testing.assert_array_equal(ti.canopy_labels(points, raw, support, 0), [1, 1, 0])
+
+
+class WholeSceneTests(unittest.TestCase):
+    def source(self, empty=False):
+        import laspy
+        header = laspy.LasHeader(point_format=3, version="1.2")
+        header.scales = [.001, .002, .003]
+        header.offsets = [600000, 5300000, 100]
+        source = laspy.LasData(header)
+        if not empty:
+            source.X = [123, 123, 123, 456]
+            source.Y = [12, 12, 12, 34]
+            source.Z = [0, 0, 6000, 3000]
+            source.classification = [2, 1, 1, 1]
+        return source
+
+    def test_exact_las_roundtrip_preserves_duplicates_vertical_rows_and_background(self):
+        import laspy
+        source = self.source()
+        xyz = np.column_stack([source.X, source.Y, source.Z])
+        out = ff.scene_output(source, [0, 1, 2, 3], [-1, .8, .7, .6])
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "scene.laz"
+            out.write(path)
+            restored = laspy.read(path)
+        np.testing.assert_array_equal(np.column_stack([restored.X, restored.Y, restored.Z]), xyz)
+        np.testing.assert_array_equal(restored.header.scales, [.001, .002, .003])
+        np.testing.assert_array_equal(restored.header.offsets, [600000, 5300000, 100])
+        np.testing.assert_array_equal(restored.classification, [2, 1, 1, 1])
+        np.testing.assert_array_equal(restored.ff3d_row, [0, 1, 2, 3])
+        np.testing.assert_array_equal(restored.point_source_id, [0, 1, 2, 3])
+        np.testing.assert_array_equal(restored.user_data, [0]*4)
+        np.testing.assert_allclose(restored.ff3d_score, [0, .8, .7, .6])
+
+    def test_incomplete_invalid_and_prelabelled_exports_fail(self):
+        for labels, scores in (([1]*3, [1]*4), ([1]*4, [1]*3),
+                               ([1, 2, 65536, 0], [1]*4),
+                               ([1]*4, [1, -1, 1, 1]),
+                               ([1]*4, [1, np.nan, 1, 1]),
+                               ([1]*4, [1, 1e40, 1, 1])):
+            with self.assertRaises(ValueError):
+                ff.scene_output(self.source(), labels, scores)
+        out = ff.scene_output(self.source(), [0]*4, [-1]*4)
+        with self.assertRaisesRegex(ValueError, "already contains"):
+            ff.scene_output(out, [0]*4, [0]*4)
+
+    def test_empty_scene_and_all_background_are_valid(self):
+        import laspy
+        out = ff.scene_output(self.source(empty=True), [], [])
+        self.assertEqual(len(out.points), 0)
+        self.assertIn("ff3d_row", out.point_format.extra_dimension_names)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "empty.laz"
+            out.write(path)
+            restored = laspy.read(path)
+            self.assertEqual(len(restored.points), 0)
+            self.assertIn("ff3d_score", restored.point_format.extra_dimension_names)
+            self.assertIn("ff3d_row", restored.point_format.extra_dimension_names)
+        out = ff.scene_output(self.source(), [0]*4, [-1]*4)
+        np.testing.assert_array_equal(out.ff3d_score, [0]*4)
 
 
 if __name__ == "__main__":

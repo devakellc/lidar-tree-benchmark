@@ -3,6 +3,7 @@
 # Usage: Rscript scripts/detect_external_fgiemit.R [SPLIT=test] [PLOTS=ALL]
 #   [ARMS=segmentanytree,forestformer3d,treeisonet,treeiso] [OUT_DIR=...]
 #   [DATA_DIR=work/external/fgiemit/source] [EVAL_PYTHON=python3]
+#   [FF_LAYOUT=cylinders|whole_scene]
 .bs_ofile <- tryCatch(sys.frame(1)$ofile, error = function(e) NULL)
 .bs_file <- grep("^--file=", commandArgs(FALSE), value = TRUE)
 bs <- Find(file.exists, c(
@@ -23,10 +24,13 @@ fgi_options <- function(args = commandArgs(TRUE)) {
   get <- function(k, default) if (is.null(a[[k]])) default else a[[k]]
   root <- file.path(.job_dir(), "external", "fgiemit")
   split <- get("SPLIT", "test")
+  ff_layout <- get("FF_LAYOUT", "cylinders")
+  if (!ff_layout %in% c("cylinders", "whole_scene")) stop("Invalid FF_LAYOUT")
   list(data = normalizePath(get("DATA_DIR", file.path(root, "source")), mustWork = TRUE),
        out = normalizePath(get("OUT_DIR", if (split == "test") root else
          file.path(root, split)), mustWork = FALSE),
-       split = split, plots = if (get("PLOTS", "ALL") == "ALL") NULL else
+       split = split, ff_layout = ff_layout,
+       plots = if (get("PLOTS", "ALL") == "ALL") NULL else
          strsplit(a$PLOTS, ",", fixed = TRUE)[[1]],
        arms = strsplit(get("ARMS", "segmentanytree,forestformer3d,treeisonet,treeiso"),
                         ",", fixed = TRUE)[[1]],
@@ -102,7 +106,8 @@ fgi_provenance <- function(opt, resources) {
        package_versions = as.list(versions),
        parameters = list(transfer_xyz_m = 0.5, iou_gate = 0.5, min_points = 40L,
          min_vertical_extent_m = 1.5, treeisonet_conf = 0.22, treeisonet_hmin = 2,
-         treeisonet_voxel = 0, ff_radius_m = 16, ff_spacing_m = 24, ff_merge_m = 2,
+         treeisonet_voxel = 0, ff_layout = opt$ff_layout,
+         ff_radius_m = 16, ff_spacing_m = 24, ff_merge_m = 2,
          ground = "CSF defaults, then TIN normalization", input_features = "XYZ only"))
 }
 
@@ -132,6 +137,15 @@ fgi_ff_points <- function(path) {
   if (is.null(las) || !all(c("UserData", "PointSourceID") %in% names(las@data)))
     stop("Invalid ForestFormer3D instance cloud")
   d <- as.data.frame(las@data)
+  if ("ff3d_row" %in% names(d)) {
+    if (anyNA(d$UserData) || any(d$UserData != 0))
+      stop("Whole-scene output has multiple outer blocks")
+    if (!"ff3d_score" %in% names(d) || any(!is.finite(d$ff3d_score)) ||
+        any(d$ff3d_score < 0) || any(d$PointSourceID == 0 & d$ff3d_score != 0))
+      stop("Invalid whole-scene confidence")
+    return(data.frame(X = d$X, Y = d$Y, Z = d$Z, crown_id = d$PointSourceID,
+                      ff3d_row = d$ff3d_row, ff3d_score = d$ff3d_score))
+  }
   src <- data.frame(block = d$UserData, inst = d$PointSourceID, X = d$X, Y = d$Y, Z = d$Z)
   rel <- dedup_blocks(src, merge_tol = 2)
   mapping <- unique(rel[, c("block", "inst", "global_id")])
@@ -172,17 +186,21 @@ fgi_run_arm <- function(arm, prep, directory, opt, resources, images) {
     return(read_instance_points_laz(output, "PredInstance"))
   }
   if (arm != "forestformer3d") stop("Unknown detector arm: ", arm)
-  input <- file.path(directory, "cylinders"); dir.create(input, showWarnings = FALSE)
-  raw <- lidR::readLAS(prep$raw)
-  xs <- seq(min(raw$X), max(raw$X), length.out = ceiling(diff(range(raw$X)) / 24) + 1L)
-  ys <- seq(min(raw$Y), max(raw$Y), length.out = ceiling(diff(range(raw$Y)) / 24) + 1L)
-  centers <- expand.grid(x = xs, y = ys); nc <- 0L
-  for (i in seq_len(nrow(centers))) {
-    cyl <- lidR::clip_circle(raw, centers$x[i], centers$y[i], 16)
-    if (is.null(cyl) || lidR::npoints(cyl) < 50L) next
-    lidR::writeLAS(cyl, file.path(input, sprintf("cyl_%03d.laz", nc))); nc <- nc + 1L
+  if (identical(opt$ff_layout, "whole_scene")) {
+    input <- prep$raw
+  } else {
+    input <- file.path(directory, "cylinders"); dir.create(input, showWarnings = FALSE)
+    raw <- lidR::readLAS(prep$raw)
+    xs <- seq(min(raw$X), max(raw$X), length.out = ceiling(diff(range(raw$X)) / 24) + 1L)
+    ys <- seq(min(raw$Y), max(raw$Y), length.out = ceiling(diff(range(raw$Y)) / 24) + 1L)
+    centers <- expand.grid(x = xs, y = ys); nc <- 0L
+    for (i in seq_len(nrow(centers))) {
+      cyl <- lidR::clip_circle(raw, centers$x[i], centers$y[i], 16)
+      if (is.null(cyl) || lidR::npoints(cyl) < 50L) next
+      lidR::writeLAS(cyl, file.path(input, sprintf("cyl_%03d.laz", nc))); nc <- nc + 1L
+    }
+    if (!nc) stop("No usable ForestFormer3D cylinders")
   }
-  if (!nc) stop("No usable ForestFormer3D cylinders")
   # The upstream driver writes data/ and work_dirs/ inside its checkout.
   # Give this cell its own code copy so existing benchmark runs stay untouched.
   model_dir <- file.path(directory, "model")
@@ -271,7 +289,8 @@ run_main <- function() {
           src <- fgi_run_arm(arm, prep, directory, opt, resources, provenance$images)
           if (is.null(src)) stop("Inference failed or produced invalid instance output")
           query <- if (arm == "treeisonet") prep$query else points
-          transfer <- if (arm == "treeisonet") fgi_aligned_labels(src, query) else
+          transfer <- if (arm == "forestformer3d" && opt$ff_layout == "whole_scene")
+            fgi_indexed_labels(src, query) else if (arm == "treeisonet") fgi_aligned_labels(src, query) else
             fgi_transfer_labels(src, query)
           if (nrow(src) && !any(is.finite(transfer$distance) & transfer$distance <= 0.5))
             stop("Prediction coordinate frame does not overlap the reference")

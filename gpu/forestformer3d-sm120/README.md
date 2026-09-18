@@ -67,8 +67,23 @@ only the **test** pkl — `update_pkl_infos` crashes on the empty train/val pkls
 ## Run
 
 The supported benchmark entry point is `ff3d_entry.sh`, which invokes
-`ff3d_arm.py <cylinder_directory> <output.laz> <checkpoint>` inside an isolated
-copy of the model checkout. The commands below are historical port smoke tests;
+`ff3d_arm.py <input_laz_or_directory> <output.laz> <checkpoint>` inside an
+isolated copy of the model checkout. A single LAZ stages one native `test_*`
+scene; the model retains its own internal overlapping-region inference. The
+export preserves original integer coordinates, scales, offsets and input rows,
+with `ff3d_row` as the zero-based source index, `PointSourceID` as the instance
+label (zero background), and aligned `ff3d_score`. No outer deduplication or
+nearest-neighbor reference projection is applied to indexed scene outputs.
+
+The external driver exposes this path through `FF_LAYOUT=whole_scene`; its
+default `FF_LAYOUT=cylinders` remains available for historical reproduction.
+Use a new output directory because layout and adapter sources are part of the
+cache provenance. See the [scene protocol](../../docs/forestformer-scene-assembly-protocol.md)
+and [training comparison](../../results/forestformer-scene-assembly-results.md)
+for the bounded resource result, native conflict policy and eligibility limits.
+CPU export regressions run with `gpu/.venv/bin/python tests/test_transfer_exports.py`.
+
+The commands below are historical port smoke tests;
 `run_infer_save.py` is not the corrected full-scene benchmark adapter.
 
 ```sh
