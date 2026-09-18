@@ -1,5 +1,9 @@
 # NEON Reference Resolution and Flight Provenance
 
+**Retired on 2026-09-18:** see the [HARV/BART closeout](../docs/harv-bart-closeout.md).
+Findings and reproduction notes below are historical diagnostics. No further
+eastern investigation or validation is planned; unresolved gates remain.
+
 ## Decision
 
 The 2026-09-18 follow-up explains **42 of the 43 original per-bole exclusions**
@@ -142,7 +146,7 @@ KML interiors, ambiguous times/IDs and tamper rejection. The full R suite passes
 with three existing skips (live GPU, empty-LAS fixture, Python `plyfile`) and
 the existing optional R-universe index warning.
 
-## Following Decisions
+## Historical Following Decisions (Retired)
 
 1. Predeclare an individual-level reference policy with auditable bole links,
    unique denominators and explicit location/height selection. Do not interpret

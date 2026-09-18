@@ -19,6 +19,10 @@ Markdown reports, and generated benchmark artifacts.
 - Inspect the current branch, worktree, code, and results before choosing work.
   Verify live tracking state when it determines dependencies or implementation
   order; do not treat old plans or remembered status as current evidence.
+- The [HARV/BART expansion is retired](docs/harv-bart-closeout.md). Preserve its
+  artifacts and merged safeguards, but do not resume acquisition, inquiries or
+  evaluation without a new explicit decision. The broader pipeline stays active;
+  eastern diagnostics are neither validated support nor an active dependency.
 
 ## Setup and Commands
 

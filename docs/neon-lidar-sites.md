@@ -86,6 +86,11 @@ sweep metrics as carrying the full ±4 yr temporal slack.
 
 ## Eastern broadleaf preflight
 
+**Retired on 2026-09-18:** the HARV/BART expansion is abandoned. The
+[closeout](harv-bart-closeout.md) preserves these historical observations and
+merged safeguards; the former development/held-out roles are no longer an
+active plan. No HARV/BART evaluation or eastern-forest validation is claimed.
+
 The score-blind inventory retrieved public and authenticated data on
 2026-09-15. These are preflight facts, not detection results or a validated
 scoring footprint. Sources: [HARV metadata](https://data.neonscience.org/api/v0/sites/HARV),
@@ -93,7 +98,7 @@ scoring footprint. Sources: [HARV metadata](https://data.neonscience.org/api/v0/
 [HARV](https://data.neonscience.org/api/v0/locations/HARV) /
 [BART](https://data.neonscience.org/api/v0/locations/BART) location records.
 
-| Site | Declared role | WGS84 UTM frame | Selected LiDAR/RGB month | Native density / eligible plots |
+| Site | Former proposed role | WGS84 UTM frame | Selected LiDAR/RGB month | Native density / eligible plots |
 | --- | --- | --- | --- | --- |
 | HARV, Harvard Forest | Development and pilot | 18N, EPSG:32618 | 2022-08 | HARV_033: 12.825 all / 4.864 first returns per m2; no frozen plots |
 | BART, Bartlett Experimental Forest | Held-out site validation | 19N, EPSG:32619 | 2022-08 | Density unmeasured; no frozen plots |

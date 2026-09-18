@@ -1,5 +1,9 @@
 # NEON Individual-Level Reference Comparison
 
+**Retired on 2026-09-18:** see the [HARV/BART closeout](../docs/harv-bart-closeout.md).
+Findings and reproduction notes below are historical diagnostics. No further
+eastern investigation or validation is planned; unresolved gates remain.
+
 ## Decision
 
 The 2026-09-18 field-only comparison implements the predeclared
@@ -101,12 +105,12 @@ claim that the new table has the same number of unresolved individuals. They
 are not silently cleared. The scorer rejects every real bundle, and pooling
 rejects mixtures of individual-level and bole-level populations.
 
-Next, review the declared policy and resolve the four cases above alongside
-field-marker realization/epoch/accuracy and the missing point-to-flight
-crosswalk described in the [provenance audit](neon-reference-resolution-results.md).
-Only after remaining score-blind physical coverage and density checks can a
-separate admission decision permit a bounded HARV comparison. BART remains
-reserved for evaluation of a frozen pipeline.
+The retired follow-up proposed resolving the four cases, field-marker
+realization/epoch/accuracy and the missing point-to-flight crosswalk in the
+[provenance audit](neon-reference-resolution-results.md). Those steps and
+remaining score-blind coverage/density checks were prerequisites for a separate
+admission decision. Neither the bounded HARV comparison nor the proposed BART
+validation is now planned.
 
 ## Reproduction and Verification
 
