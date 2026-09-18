@@ -41,6 +41,7 @@ source(.find("sweep_lib.R")); source(.find("model_bench_lib.R"))
 args <- strsplit(commandArgs(TRUE), "=")
 A    <- setNames(lapply(args, `[`, 2), sapply(args, `[`, 1))
 SITE <- if (!is.null(A$SITE)) A$SITE else "SOAP"
+YEAR <- neon_year(if (!is.null(A$YEAR)) A$YEAR else 2021)
 PLOTS <- if (!is.null(A$PLOTS)) strsplit(A$PLOTS, ",")[[1]] else NULL
 TOL  <- as.numeric(if (is.null(A$TOL)) 4 else A$TOL)
 CHM_RES <- as.numeric(if (is.null(A$CHM_RES)) 0.5 else A$CHM_RES)
@@ -55,11 +56,12 @@ cover_tile <- function(cx, cy) {
     if (cx >= e[1] && cx <= e[2] && cy >= e[3] && cy <= e[4]) return(t) }
   NA_character_
 }
-plot_chm <- function(pid) {
+plot_chm <- function(pid, epsg) {
   clip <- file.path(nd, "frozen", SITE, pid, "native", "clip_normalized.laz")
   if (!file.exists(clip)) return(NULL)
   las <- tryCatch(suppressWarnings(lidR::readLAS(clip)), error = function(e) NULL)
   if (is.null(las) || lidR::is.empty(las)) return(NULL)
+  neon_assert_crs(las, epsg, "Frozen CHM source")
   tryCatch(suppressWarnings(lidR::rasterize_canopy(las, res = CHM_RES, algorithm = lidR::p2r())),
            error = function(e) NULL)
 }
@@ -71,9 +73,17 @@ run_main <- function() {
                 MODEL, file.exists(MODEL), RUNNER))
   gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
+  epsg <- neon_validate_inputs(gt, pc)
+  neon_reference_epoch(gt, YEAR)
+  neon_validate_acquisition(file.path(nd, "rgb"), gt, pc, "DP3.30010.001")
+  neon_validate_files(rgb_tiles, epsg)
   gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), , drop = FALSE]
   keep <- intersect(unique(gt$plotID), pc$plotID); if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   cdir <- file.path(nd, "detectree2_boxes"); dir.create(cdir, showWarnings = FALSE, recursive = TRUE)
+  neon_check_manifest(file.path(cdir, "coordinate_manifest.json"),
+    list(year = YEAR, epsg = epsg, sources = neon_file_signature(rgb_tiles),
+         plots = unname(tools::md5sum(file.path(nd, "plot_centroids.csv")))),
+    list.files(cdir, "[.]csv$", full.names = TRUE))
   rows <- list(); deq <- numeric(0); fcd <- numeric(0)
   for (pid in keep) {
     ci <- pc[pc$plotID == pid, ][1, ]; cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
@@ -99,7 +109,7 @@ run_main <- function() {
       cat(sprintf("[%s] %s: 0 crowns\n", SITE, pid))
     }
     bp <- b[abs(b$x - cx) <= ph + TOL & abs(b$y - cy) <= ph + TOL, , drop = FALSE]
-    chm <- plot_chm(pid)
+    chm <- plot_chm(pid, epsg)
     z <- if (!is.null(chm) && nrow(bp)) as.numeric(terra::extract(chm, cbind(bp$x, bp$y))[, 1]) else rep(NA_real_, nrow(bp))
     z[!is.finite(z)] <- 2.0
     det <- data.frame(x = bp$x, y = bp$y, z = z)

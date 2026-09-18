@@ -7,7 +7,15 @@
 # lidR for clip/decimate/normalize/segmentation.
 suppressMessages({ library(lidR); library(lasR); library(terra); library(sf) })
 
-NEON_EPSG <- 32611          # SOAP = UTM 11N
+.spatial_ofile <- tryCatch(sys.frame(1)$ofile, error = function(e) NULL)
+.spatial_source <- Find(file.exists, c(
+  if (!is.null(.spatial_ofile)) file.path(dirname(.spatial_ofile), "neon_spatial_lib.R"),
+  file.path("scripts", "neon_spatial_lib.R"),
+  file.path("..", "..", "scripts", "neon_spatial_lib.R")))
+if (!length(.spatial_source)) stop("neon_spatial_lib.R not found")
+source(.spatial_source[1], local = TRUE)
+rm(.spatial_source, .spatial_ofile)
+
 PLOT_HALF <- 20             # default half-extent; overridden per plot type below
 BUF       <- 25             # LiDAR clip buffer beyond the plot core (edge crowns)
 
@@ -323,6 +331,7 @@ seed_sets_have_match <- function(seed_sets) {
 # for the no-upsampling guard); frdens = first-return pts/m^2 (the QL/pulse unit,
 # used to gate CHM resolution & the density-tiered smoothing).
 prepare_clip <- function(ctg, cx, cy, rung, tmpdir, core_half = PLOT_HALF) {
+  neon_assert_crs(ctg, label = "LiDAR clip")
   half <- core_half + BUF
   las  <- clip_rectangle(ctg, cx - half, cy - half, cx + half, cy + half)
   if (is.empty(las) || npoints(las) < 100) return(NULL)

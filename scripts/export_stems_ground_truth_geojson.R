@@ -39,12 +39,6 @@ SITES <- if (is.null(A$SITES)) c("SJER", "SOAP", "TEAK") else strsplit(A$SITES, 
 OUT <- if (is.null(A$OUT)) file.path(d, "neon", "best_treetops_geojson") else A$OUT
 dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 
-zone_epsg <- function(z) {
-  num <- as.integer(sub("[NnSs]$", "", z))
-  hemi <- toupper(sub("^[0-9]+", "", z))
-  (if (hemi == "S") 32700L else 32600L) + num
-}
-
 add_reason <- function(reasons, idx, label) {
   if (!any(idx, na.rm = TRUE)) return(reasons)
   reasons[idx] <- Map(function(x) c(x, label), reasons[idx])
@@ -55,7 +49,7 @@ site_stems <- function(site) {
   nd <- file.path(d, "neon", site)
   gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
-  epsg <- zone_epsg(pc$utmZone[1])
+  epsg <- neon_validate_inputs(gt, pc)
 
   coord_ok <- !is.na(gt$E) & !is.na(gt$N)
   live_tree_coord <- (gt$live %in% TRUE) & (gt$is_tree %in% TRUE) & coord_ok

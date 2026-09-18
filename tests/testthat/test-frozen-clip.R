@@ -1,6 +1,37 @@
 source(file.path("..", "..", "scripts", "model_bench_lib.R"), local = TRUE)
 suppressMessages(library(lidR))
 
+test_that("frozen clips verify CRS, geometry, source identity and complete files", {
+  d <- tempfile(); dir.create(d)
+  on.exit(unlink(d, recursive = TRUE))
+  withr::local_options(lidR.progress = FALSE, lidR.verbose = FALSE)
+  grid <- expand.grid(X = seq(499950, 500050, by = 5), Y = seq(4699950, 4700050, by = 5))
+  pts <- rbind(transform(grid, Z = 100, Classification = 2L),
+               transform(grid, Z = 115, Classification = 5L))
+  pts$ReturnNumber <- 1L; pts$NumberOfReturns <- 1L
+  las <- LAS(pts); sf::st_crs(las) <- 32618
+  src <- file.path(d, "source.laz"); writeLAS(las, src)
+  ctg <- readLAScatalog(src, progress = FALSE)
+  call_clip <- function(cx = 500000, buffer = 25, catalog = ctg)
+    frozen_clip(catalog, "HARV", "HARV_001", NA, cx, 4700000, 20, file.path(d, "frozen"), buffer)
+  first <- call_clip()
+  expect_true(all(file.exists(unlist(first[c("rawground", "normalized", "dtm", "manifest")]))))
+  before <- tools::md5sum(unlist(first[c("rawground", "normalized", "dtm", "manifest")]))
+  again <- call_clip()
+  expect_equal(again$seed, first$seed)
+  expect_error(call_clip(cx = 500001), "coordinate cache differs")
+  expect_error(call_clip(buffer = 20), "coordinate cache differs")
+  wrong <- ctg; sf::st_crs(wrong) <- 32619
+  expect_error(call_clip(catalog = wrong), "coordinate cache differs")
+  Sys.setFileTime(src, Sys.time() + 60)
+  expect_error(call_clip(), "coordinate cache differs")
+  expect_identical(tools::md5sum(names(before)), before)
+  mf <- jsonlite::read_json(first$manifest, simplifyVector = TRUE)
+  expect_error(neon_verify_clip(list(), mf$coordinate_contract, first$rawground), "lacks provenance")
+  unlink(first$dtm)
+  expect_error(neon_verify_clip(mf, mf$coordinate_contract, c(first$rawground, first$dtm)), "Incomplete")
+})
+
 test_that("seed_for is deterministic and varies by key", {
   expect_equal(seed_for("SOAP", "SOAP_001", 8), seed_for("SOAP", "SOAP_001", 8))
   expect_false(seed_for("SOAP", "SOAP_001", 8) == seed_for("SOAP", "SOAP_001", 4))
