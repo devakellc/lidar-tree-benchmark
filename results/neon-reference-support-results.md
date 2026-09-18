@@ -8,6 +8,11 @@ references, subplot inconsistencies and unresolved field/AOP datum and flight
 provenance still prevent calibration, pilot scoring or eligible-split freezing.
 No detector inference, fitting or historical rescore was performed.
 
+The [record-resolution follow-up](neon-reference-resolution-results.md) now
+explains most per-bole exclusions through individual-level measurement rules.
+The 43 exclusions below are not 43 independently missing trees. Original
+outputs remain unchanged, and no support has been admitted for scoring.
+
 This follows the [eastern preflight](eastern-broadleaf-results.md) under the
 [reference-support protocol](../docs/neon-reference-support-protocol.md).
 HARV is development; BART remains held out. This run inspected BART field and
