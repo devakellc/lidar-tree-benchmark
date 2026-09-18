@@ -61,6 +61,10 @@ to resolve code and working-data paths.
   Eastern field metadata shows sampled subplots covering only half the tower
   box. Resolve event-specific subplot and growth-form support before new
   calibration/evaluation; do not silently regrade historical results.
+- The opt-in `neon_reference_support_lib.R` prepares event-specific geometry
+  and reference audits. Actual eastern bundles remain diagnostic-only. Preserve
+  support identities through scoring/pooling; do not clear admission blockers
+  or discard support metadata merely to make an evaluation run.
 - Keep one-to-one matching and the height-consistency gate. Changes to matching
   require explicit comparison with the existing default and regression tests.
 - Tune only on the declared calibration or training subset. Preserve held-out

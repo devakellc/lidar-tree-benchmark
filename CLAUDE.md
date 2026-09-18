@@ -141,6 +141,14 @@ and RGB-box runs reject unversioned or incompatible caches; use fresh output
 roots, preserving historical artifacts. The native QL2 workflow remains
 D17-only, and historical crown joins remain restricted to 2021 references.
 
+The [event-specific support audit](results/neon-reference-support-results.md)
+reconstructs measured subplot corners, joins exact census events and exposes
+target/boundary exclusions. `score_neon_support()` requires explicit detection
+CRS and admitted support; all prepared eastern bundles remain diagnostic-only.
+The optional polygon path preserves default rectangular scoring. Pooling and
+equal-set checks reject mixed support; do not strip provenance to bypass them.
+Historical D17 event auditing is read-only and does not regenerate metrics.
+
 ## Analyses that branch off the sweep
 
 Five follow-on studies reuse the sweep's ground truth and scoring; each is one

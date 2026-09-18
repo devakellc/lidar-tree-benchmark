@@ -14,16 +14,14 @@ suppressMessages({ library(lidR); library(lasR); library(terra); library(sf) })
   file.path("..", "..", "scripts", "neon_spatial_lib.R")))
 if (!length(.spatial_source)) stop("neon_spatial_lib.R not found")
 source(.spatial_source[1], local = TRUE)
+source(file.path(dirname(.spatial_source[1]), "neon_reference_support_lib.R"), local = TRUE)
 rm(.spatial_source, .spatial_ofile)
 
 PLOT_HALF <- 20             # default half-extent; overridden per plot type below
 BUF       <- 25             # LiDAR clip buffer beyond the plot core (edge crowns)
 
-# NEON woody-veg mapped extent differs by plot type: tower base plots map the
-# full 40x40 m (+/-20 m), distributed plots only the 20x20 m core (+/-10 m).
-# Scoring a 40x40 box over a distributed plot would count the unmapped ring as
-# false commission, so the core must track the plot type. (Verified empirically:
-# tower stems reach +/-20.9 m, distributed stems +/-11 m.)
+# Historical nominal boxes, not proof of a complete census. New evaluation
+# requires event-specific sampled-subplot support; retain these legacy bounds.
 plot_half <- function(plotType) ifelse(plotType == "tower", 20, 10)
 
 ## ---- variable-window allometry (Popescu & Wynne), clamped to [lo, hi] -----
@@ -359,15 +357,29 @@ prepare_clip <- function(ctg, cx, cy, rung, tmpdir, core_half = PLOT_HALF) {
 # false positives (over-segmentation vs isolated commission) via fp_structure().
 score_plot <- function(stems, det, tol_xy = 4.0, core_cx, core_cy,
                        core_half = PLOT_HALF, method = c("greedy", "optimal"),
-                       tol_z_up = 8, lambda = NULL, near_tol = 4.0) {
+                       tol_z_up = 8, lambda = NULL, near_tol = 4.0,
+                       core_geometry = NULL) {
   method  <- match.arg(method)
   reg_tol <- max(tol_xy)            # region uses the widest per-stem tol (safe)
   # Recall region: detections within the core expanded by tol, so a stem at the
   # core boundary can match its apex even if the apex sits just outside.
-  in_reg  <- abs(det$x - core_cx) <= core_half + reg_tol &
-             abs(det$y - core_cy) <= core_half + reg_tol
-  detr    <- det[in_reg, , drop = FALSE]
-  is_core <- abs(detr$x - core_cx) <= core_half & abs(detr$y - core_cy) <= core_half
+  if (is.null(core_geometry)) {
+    in_reg  <- abs(det$x - core_cx) <= core_half + reg_tol &
+               abs(det$y - core_cy) <= core_half + reg_tol
+    detr    <- det[in_reg, , drop = FALSE]
+    is_core <- abs(detr$x - core_cx) <= core_half & abs(detr$y - core_cy) <= core_half
+  } else {
+    neon_assert_crs(core_geometry)
+    if (length(core_geometry) != 1L || any(sf::st_is_empty(core_geometry)) ||
+        any(!sf::st_is_valid(core_geometry)) ||
+        !all(sf::st_geometry_type(core_geometry) %in% c("POLYGON", "MULTIPOLYGON")))
+      stop("Invalid scoring footprint")
+    if (!all(neon_support_inside(stems$E, stems$N, core_geometry)))
+      stop("Reference outside declared scoring footprint")
+    in_reg <- neon_support_inside(det$x, det$y, sf::st_buffer(core_geometry, reg_tol))
+    detr <- det[in_reg, , drop = FALSE]
+    is_core <- neon_support_inside(detr$x, detr$y, core_geometry)
+  }
   m <- if (method == "optimal")
     optimal_match(stems$E, stems$N, detr$x, detr$y, tol_xy,
                   az = stems$height, bz = detr$z, tol_z_up = tol_z_up, lambda = lambda)
@@ -412,6 +424,7 @@ score_plot <- function(stems, det, tol_xy = 4.0, core_cx, core_cy,
   fps <- fp_structure(detr$x[fp_idx], detr$y[fp_idx],
                       stems$E[matched], stems$N[matched], near_tol = near_tol)
   base$fp_near <- unname(fps["near"]); base$fp_isolated <- unname(fps["isolated"])
+  if (!is.null(core_geometry)) base$tp_core <- tp_core
   base
 }
 
