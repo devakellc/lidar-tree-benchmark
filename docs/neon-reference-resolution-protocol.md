@@ -1,5 +1,9 @@
 # NEON Reference-Resolution Protocol
 
+**Archived after the 2026-09-18 [HARV/BART closeout](harv-bart-closeout.md).**
+The declarations below document the retired study, not authorization to resume
+it. Existing safeguards and diagnostic-only status remain unchanged.
+
 This follow-up explains flagged records without changing the earlier
 [bole-level support](neon-reference-support-protocol.md). It is not an
 evaluation-admission declaration. Preserve all original records, support

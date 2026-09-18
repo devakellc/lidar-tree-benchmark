@@ -1,5 +1,9 @@
 # Eastern Broadleaf Preflight
 
+**Retired on 2026-09-18:** see the [HARV/BART closeout](../docs/harv-bart-closeout.md).
+Findings and reproduction notes below are historical diagnostics. No further
+eastern investigation or validation is planned; unresolved gates remain.
+
 ## Status and Scope
 
 Authentication, exact-year field preparation, released-file inventories and a
@@ -253,7 +257,7 @@ coverage, catalog gaps, partial/missing/ambiguous census metadata and refusal
 to infer complete support from sampled area alone. These tests and the actual
 HARV diagnostic do not complete the remaining reference and datum audit.
 
-## Following Work
+## Historical Following Work (Retired)
 
 The [event-specific support follow-up](neon-reference-support-results.md) now
 implements geometry/reference auditing and optional polygon scoring, with a

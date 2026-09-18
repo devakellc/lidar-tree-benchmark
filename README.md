@@ -122,8 +122,10 @@ TreeisoNet remains **deferred** after export corrections leave fragmentation.
 SAT and classical Treeiso remain comparators, with Treeiso's annotation-assisted
 semantic exclusions disclosed. These findings do not establish architecture
 rankings, fusion benefit, strong understory generalization, or final routing
-thresholds. HARV development and BART held-out work still require score-blind
-availability, CRS and acquisition-epoch preflight.
+thresholds. The [HARV/BART expansion is retired](docs/harv-bart-closeout.md);
+no eastern-forest validation is claimed. The broader pipeline continues with
+synthetic contracts; new real-data comparisons need a separately declared
+development dataset, eligible reference support and held-out evaluation.
 
 ### Choosing a method
 
@@ -289,15 +291,20 @@ the historical artifacts. Read-only analysis of existing results is unchanged.
 
 ### Eastern-site preflight
 
-HARV development and BART held-out validation are declared, but **no eastern
-detector results or eligible plot split are available yet**. August 2022 field
+**Retired on 2026-09-18:** the HARV/BART expansion is abandoned, not awaiting
+further investigation. The [closeout](docs/harv-bart-closeout.md) preserves the
+findings and safeguards; no more acquisition, NEON inquiry or evaluation is
+planned. Commands below are historical reproduction notes, not next steps.
+
+HARV development and BART held-out validation were proposed, but **no eastern
+detector results or eligible plot split were produced**. August 2022 field
 and released-file inventories are complete. HARV_033 has matching EPSG:32618
 field/LiDAR/RGB headers and leaf-on RGB; its buffered normalized clip measures
 12.825 all-return and 4.864 first-return points/m2. BART uses EPSG:32619 and has
 not had spatial tiles downloaded. All ten count/tile candidates sample only
 800 m2 of their nominal 1600 m2 tower boxes. Their measured footprints are now
-reconstructed, but reference-unit policy, spatial uncertainty and unresolved
-datum/flight provenance still block calibration, scoring and split freezing.
+reconstructed and a diagnostic individual policy implemented, but spatial
+uncertainty and unresolved datum/flight provenance were not cleared.
 See the [preflight findings](results/eastern-broadleaf-results.md) and
 [score-blind protocol](docs/eastern-preflight-protocol.md).
 
@@ -334,6 +341,10 @@ protocol/code changes; old manifests fail closed. The historical native-QL2
 cross-check stays D17-only; fixed-2021 crown joins reject other reference years.
 
 ### Event-specific reference support
+
+The HARV/BART investigation is [retired](docs/harv-bart-closeout.md). Its
+diagnostic results and reproduction commands remain below; the reusable
+support checks stay in place and no admission blocker is cleared.
 
 The [support audit](results/neon-reference-support-results.md) joins exact census
 events and exports measured-corner polygons, conservative interiors and every
@@ -565,6 +576,7 @@ workflows.
 | --- | --- |
 | [Tree-top detection approach](docs/treetop-detection-approach.md) | Method, parameter rules, tooling, and pitfalls |
 | [NEON LiDAR sites](docs/neon-lidar-sites.md) | Site, field-stem, LiDAR, and 3DEP context |
+| [HARV/BART closeout](docs/harv-bart-closeout.md) | Retired eastern expansion, preserved safeguards and continuing pipeline scope |
 | [Eastern preflight findings](results/eastern-broadleaf-results.md) | HARV/BART field and file inventories, HARV smoke measurements and sampled-subplot blocker |
 | [Eastern preflight protocol](docs/eastern-preflight-protocol.md) | Score-blind acquisition, coverage, smoke-plot and held-out split rules |
 | [Reference-support findings](results/neon-reference-support-results.md) | Measured eastern footprints, unresolved target references and read-only historical census audit |

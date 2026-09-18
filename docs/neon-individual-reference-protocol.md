@@ -1,5 +1,9 @@
 # NEON Individual-Level Reference Policy
 
+**Archived after the 2026-09-18 [HARV/BART closeout](harv-bart-closeout.md).**
+The declarations below document the retired study, not authorization to resume
+it. Existing safeguards and diagnostic-only status remain unchanged.
+
 ## Scope
 
 This declares `individual_reference_v1` before its field-data comparison.
