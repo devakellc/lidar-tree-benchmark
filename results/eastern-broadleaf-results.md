@@ -255,9 +255,13 @@ HARV diagnostic do not complete the remaining reference and datum audit.
 
 ## Following Work
 
-1. Implement event-specific sampled-subplot reference/scoring support, including
-   diameter/growth-form eligibility, missing data and boundary uncertainty.
-   Audit the historical D17 support separately without overwriting outputs.
+The [event-specific support follow-up](neon-reference-support-results.md) now
+implements geometry/reference auditing and optional polygon scoring, with a
+read-only D17 census audit. Its actual bundles remain diagnostic-only.
+
+1. Resolve the follow-up's missing target references and subplot conflicts under
+   a declared policy. Do not admit incomplete support or overwrite historical
+   results simply because a measured polygon is now available.
 2. Resolve field/AOP datum and exact contributing-flight provenance, then
    complete remaining physical coverage and per-plot density checks. Keep
    BART metadata-only until its declared data-preparation step.
