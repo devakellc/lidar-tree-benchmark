@@ -14,6 +14,10 @@ and field-marker, flight-provenance, physical-coverage and density gates remain.
 No detector, calibration, historical rescore or split freeze ran. No imagery,
 point clouds or new metadata were downloaded; BART remains spatially uninspected.
 
+The later [positional follow-up](neon-positional-evidence-results.md) quantifies
+a coordinate-convention hypothesis and prepares an unsent evidence request.
+It leaves this policy, its selections and all admission blockers unchanged.
+
 ## Policy Applied
 
 One apparent individual is formed per documented permanent bole family within

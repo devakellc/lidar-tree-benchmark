@@ -119,6 +119,13 @@ they are not paired with the earlier counts. Missing target data and subplot
 conflicts keep every bundle diagnostic-only. The historical D17 audit also
 finds partial and dendrometer-only events; no historical metric was rescored.
 
+The separate [individual-level policy](../results/neon-individual-reference-results.md)
+now selects 206 HARV and 226 BART diagnostic individuals on those unchanged
+interiors. Four cases remain unresolved. The
+[positional follow-up](../results/neon-positional-evidence-results.md) quantifies
+an offset-convention hypothesis but applies no correction; authoritative
+positional and flightline evidence is still needed before evaluation.
+
 Downloads need `NEON_TOKEN`; public site/location metadata does not. Use a
 separate job directory and `YEAR=2022 MAX_YEAR_GAP=0` for exact-year reference
 preparation. Do not use the 2021 D17 caches or assign their CRS to eastern
