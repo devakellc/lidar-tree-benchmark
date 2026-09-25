@@ -92,6 +92,13 @@ and native small-instance filter remain unchanged. The benchmark's separate
 source patch hashes and native memory statistics. Its CPU staging check runs
 inside the existing image with `gpu/check_fgiemit_sat_staging.py`; it needs no
 GPU and covers duplicate coordinates, background and missing reference inputs.
+The three auxiliary panoptic PLY writers use binary little-endian encoding.
+This avoids the ASCII `numpy.savetxt` path that crashed during a development
+run; native labels do not depend on reading these visualization files.
+The CPU check compares all three writers with their original ASCII outputs,
+injects an ASCII-writer failure, and roundtrips 3,759,456 synthetic rows.
+Only encoding changes: fields, row order, arrays and inference settings stay
+unchanged. The underlying intermittent Python failure is not diagnosed.
 See the [pilot report](../../results/fgiemit-development-pilot-results.md) for
 real-data acceptance and resource limits.
 

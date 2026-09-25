@@ -8,9 +8,10 @@ import numpy as np
 
 
 def patch_sources(home):
-    """Change only row bookkeeping and an output hook in an ephemeral container."""
+    """Patch export bookkeeping and visualization encoding in an ephemeral container."""
     dataset = home / "torch_points3d/datasets/segmentation/treeins.py"
     tracker = home / "torch_points3d/metrics/panoptic_tracker_pointgroup_treeins.py"
+    writers = home / "torch_points3d/datasets/panoptic/treeins.py"
     marker = "                data = Data(pos=xyz, y=semantic_labels)"
     export_marker = "                    things_idx = full_ins_pred != -1"
     replacements = {
@@ -18,6 +19,11 @@ def patch_sources(home):
         tracker: (export_marker,
             "                    from fgiemit_sat_export import save_native\n"
             "                    save_native(test_area_i, full_ins_pred, i)\n" + export_marker, 1),
+        # These visualization files are never read by the native-label path.
+        # Keep their arrays/schema unchanged while avoiding numpy.savetxt's
+        # per-row ASCII writer, which crashed before export on plot 1019.
+        writers: ("PlyData([el], text=True).write(file)",
+                  "PlyData([el], text=False, byte_order='<').write(file)", 3),
     }
     hashes = {}
     for path, (old, new, count) in replacements.items():
