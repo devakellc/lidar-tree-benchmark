@@ -145,8 +145,9 @@ tables are sealed; this declaration stage runs no detectors or calibration.
 The [bounded pilot](results/fgiemit-development-pilot-results.md) implements
 the declared three-plot execution order, an isolated pinned lasR library and
 strict source-row exports for the instance arms. Its report distinguishes
-four accepted cells, a SAT export failure and four unrun pilot cells.
-Expansion is stopped pending investigation; calibration remains unfitted.
+the preserved earlier failures from a fresh nine-cell pilot that passed
+after changing SAT's auxiliary PLY writers to binary encoding. The remaining
+21 detector cells and all calibration cells remain planned.
 
 ### Choosing a method
 
@@ -547,7 +548,7 @@ ROOT="$CLAUDE_JOB_DIR/external/fgiemit"
 RUNTIME="$CLAUDE_JOB_DIR/fgiemit-pilot-runtime"
 "$PYTHON" scripts/prepare_fgiemit_pilot_runtime.py \
   --lasr-repo /path/to/lasR --out "$RUNTIME"
-OUT="$ROOT/development_pilot_v2"
+OUT="$ROOT/development_pilot_v3"
 "$PYTHON" scripts/run_fgiemit_pilot.py \
   --root "$ROOT" --out "$OUT" --runtime "$RUNTIME"
 "$PYTHON" scripts/run_fgiemit_pilot.py \

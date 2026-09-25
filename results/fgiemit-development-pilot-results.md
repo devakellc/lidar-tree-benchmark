@@ -8,8 +8,9 @@ ForestFormer3D order. The runner executes one cell at a time with a
 and reserve evaluation remain disabled. Upstream checkpoint overlap remains
 unknown; these are conditional development observations.
 
-The corrected attempt stopped after four accepted cells and a SAT export
-failure. Four pilot cells remain unrun; this is an incomplete comparison.
+The fresh attempt with binary exports completed all nine pilot cells. The full
+ten-plot comparison and calibration remain incomplete; the pilot establishes
+execution and output admission on the three declared development plots.
 
 ## Pilot Support
 
@@ -74,8 +75,9 @@ distance gate, semantic background assignment and native small-instance filter
 remain unchanged. The benchmark subsequently applies its frozen 40-point and
 1.5 m raw-Z-extent filter, identically for mask and apex scoring. No external
 nearest-neighbor projection or coordinate-string merge establishes support.
-The adapter records before/after hashes of its two export-only source patches;
-the immutable image and installed source checkout are preserved.
+The adapter records before/after hashes of its two export-bookkeeping patches
+and the auxiliary visualization-writer patch described below. The immutable
+image and installed source checkout are preserved.
 
 The CPU fixture reproduces the historical merge's duplicate-row problem: four
 input rows become six after coordinate-string outer joins. The new native
@@ -98,30 +100,11 @@ cell have distinct recorded states. Missing/planned cells are explicit.
 Upstream console metrics use dummy labels for inference-only scenes; reported
 benchmark metrics come exclusively from the external annotated scoring step.
 
-## Observed Pilot Outcomes
+## Earlier Export Failure and Correction
 
-Run on 2026-09-25 on one NVIDIA GeForce RTX 5090 (32,607 MiB,
-driver 595.84). Four cells passed output admission and external scoring.
-SAT on plot 1019 failed; the remaining four pilot cells stayed planned.
-There were no successful-empty cells. The pilot is incomplete and expansion
-is stopped. Both accepted instance exports preserve every source row and
-original integer coordinates, scales, offsets and return fields.
-
-| Plot | CHM-VWF | SAT | FF3D | References per arm |
-| --- | --- | --- | --- | ---: |
-| 1001 | Successful, nonempty | Successful, nonempty | Successful, nonempty | 133 |
-| 1019 | Successful, nonempty | Failed export | Planned, not run | 8 |
-| 1027 | Planned, not run | Planned, not run | Planned, not run | 96 |
-
-Independent receipt replay passed after the stop. The receipt seals
-43 cell files, including accepted predictions/scores and failure logs,
-eight execution-code files and 232 inventoried prior metadata files,
-plus comparison/runtime parents. The rejected first attempt remains intact.
-
-### Failure Investigation
-
-SAT completed all 69 inference batches on plot 1019, then crashed in the
-upstream semantic ASCII PLY writer before full instance interpolation and
+The `development_pilot_v2` attempt accepted four cells, failed on its fifth,
+and left four planned. SAT completed all 69 inference batches on plot 1019,
+then crashed in the upstream semantic ASCII PLY writer before interpolation and
 our native export hook. `numpy.savetxt` raised
 `TypeError: cannot create 'WriteWrap' instances`; Python subsequently failed
 its `type_traverse` assertion during shutdown. The model process exited 134,
@@ -134,14 +117,48 @@ A bounded CPU-only check in the unchanged image wrote a synthetic
 3,759,456-row PLY with the same XYZ/prediction/reference-field schema through
 the same ASCII writer. It completed in 37.3 seconds with NumPy 2.2.5.
 This did not reproduce the crash or establish its root cause. No package,
-checkpoint, inference parameter or export policy was changed to force a pass.
+checkpoint or inference parameter was changed.
 
-The next execution step is to isolate the writer failure in the inference
-context and validate any correction before declaring a fresh pilot attempt.
-This attempt is preserved without retry or mixing results from another run.
-Only plot 1001 has common completed support across all three arms; plot 1019
-has only a CHM result. The full matrix still has 26 cells without accepted
-results: one failed, four unrun pilot cells and 21 outside-pilot cells.
+The subsequent `development_pilot_v3` attempt changes only three auxiliary
+panoptic PLY writers from ASCII to binary little-endian encoding. Their arrays,
+schemas and row order are unchanged, and native inference does not read these
+visualization files back. This avoids the observed `numpy.savetxt` call path;
+it does not establish the underlying intermittent Python failure's root cause.
+The change was declared before inference, with no checkpoint or parameter
+change. Every pilot cell is run afresh; no cells from earlier attempts are
+reused or selected by score.
+
+The installed-image CPU fixture exercises the actual three upstream writer
+bodies. ASCII and binary outputs decode to identical coordinates, labels and
+colors, including coincident rows, background -1 and the int16 boundary 32767.
+Input arrays remain unchanged. An injected `savetxt` failure trips each original
+writer while each binary writer succeeds. A 3,759,456-row synthetic binary
+roundtrip also passes with the ASCII function disabled. These checks validate
+the serialization change; fault injection is not a reproduction of the native
+Python crash.
+
+On plot 1001, the new SAT output has exactly the same 2,946,895 native instance
+labels, source-row IDs and integer XYZ as the completed output from the
+previous attempt. This is a direct real-data serialization check, not a claim
+of bitwise repeatability for all stochastic model runs.
+
+The stopped attempt is preserved, including its eight sealed execution files.
+Its receipt was replayed independently from the historical code checkout.
+
+## Observed Pilot Outcomes
+
+Completed on 2026-09-25 on one NVIDIA GeForce RTX 5090 (32,607 MiB,
+driver 595.84). All nine cells in `development_pilot_v3` passed output admission
+and external scoring. There were nine successful-nonempty cells and no failed,
+empty or unrun pilot cells. All six instance exports preserve every source row
+and original integer coordinates, scales, offsets and return fields.
+No earlier attempt supplied any prediction or score below.
+
+Independent receipt replay passed after completion. The receipt seals
+90 accepted output/log files, eight execution-code files and
+273 inventoried prior metadata files, plus comparison/runtime parents.
+Both earlier attempts and their original code snapshots remain intact.
+The remaining 21 detector cells and all 50 calibration cells are still planned.
 
 ### Default Derived-AGL Apex Detection
 
@@ -152,8 +169,13 @@ development observations; there is no pooled primary ranking.
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | 1001 | CHM-VWF | 133 | 38 | 36 | 2 | 97 | 0.4211 |
 | 1001 | SAT | 133 | 109 | 96 | 13 | 37 | 0.7934 |
-| 1001 | FF3D | 133 | 126 | 113 | 13 | 20 | 0.8726 |
+| 1001 | FF3D | 133 | 128 | 113 | 15 | 20 | 0.8659 |
 | 1019 | CHM-VWF | 8 | 10 | 8 | 2 | 0 | 0.8889 |
+| 1019 | SAT | 8 | 17 | 8 | 9 | 0 | 0.6400 |
+| 1019 | FF3D | 8 | 14 | 8 | 6 | 0 | 0.7273 |
+| 1027 | CHM-VWF | 96 | 40 | 33 | 7 | 63 | 0.4853 |
+| 1027 | SAT | 96 | 85 | 73 | 12 | 23 | 0.8066 |
+| 1027 | FF3D | 96 | 93 | 83 | 10 | 13 | 0.8783 |
 
 ### Instance Masks
 
@@ -164,7 +186,11 @@ segmentation statistic. CHM supplies no instance masks.
 | Plot | Arm | TP | FP | FN | Precision | Recall | F1 | Coverage | PQ |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 1001 | SAT | 77 | 32 | 56 | 0.7064 | 0.5789 | 0.6364 | 0.5538 | 0.5305 |
-| 1001 | FF3D | 100 | 26 | 33 | 0.7937 | 0.7519 | 0.7722 | 0.7021 | 0.6683 |
+| 1001 | FF3D | 97 | 31 | 36 | 0.7578 | 0.7293 | 0.7433 | 0.7025 | 0.6510 |
+| 1019 | SAT | 8 | 9 | 0 | 0.4706 | 1.0000 | 0.6400 | 0.9332 | 0.5972 |
+| 1019 | FF3D | 8 | 6 | 0 | 0.5714 | 1.0000 | 0.7273 | 0.9951 | 0.7237 |
+| 1027 | SAT | 66 | 19 | 30 | 0.7765 | 0.6875 | 0.7293 | 0.6669 | 0.6367 |
+| 1027 | FF3D | 78 | 15 | 18 | 0.8387 | 0.8125 | 0.8254 | 0.7610 | 0.7289 |
 
 Original A–D category recalls are shown as matched/reference counts.
 Categories with no reference trees remain undefined.
@@ -172,7 +198,11 @@ Categories with no reference trees remain undefined.
 | Plot | Arm | A | B | C | D |
 | --- | --- | ---: | ---: | ---: | ---: |
 | 1001 | SAT | 35/38 | 18/23 | 22/52 | 2/20 |
-| 1001 | FF3D | 38/38 | 19/23 | 36/52 | 7/20 |
+| 1001 | FF3D | 36/38 | 20/23 | 34/52 | 7/20 |
+| 1019 | SAT | 8/8 | undefined (0 refs) | undefined (0 refs) | undefined (0 refs) |
+| 1019 | FF3D | 8/8 | undefined (0 refs) | undefined (0 refs) | undefined (0 refs) |
+| 1027 | SAT | 39/39 | 4/13 | 19/29 | 4/15 |
+| 1027 | FF3D | 39/39 | 9/13 | 24/29 | 6/15 |
 
 ### Paired Height Diagnostics
 
@@ -184,16 +214,25 @@ metrics above are unaffected by these height profiles.
 | Plot | Arm | Maximum AGL | Isolated-top AGL | Historical raw Z |
 | --- | --- | ---: | ---: | ---: |
 | 1001 | SAT | 96 / 0.7934 | 97 / 0.8017 (+1 / +0.0083) | 97 / 0.8017 (+1 / +0.0083) |
-| 1001 | FF3D | 113 / 0.8726 | 113 / 0.8726 (+0 / +0.0000) | 113 / 0.8726 (+0 / +0.0000) |
+| 1001 | FF3D | 113 / 0.8659 | 113 / 0.8659 (+0 / +0.0000) | 113 / 0.8659 (+0 / +0.0000) |
+| 1019 | SAT | 8 / 0.6400 | 8 / 0.6400 (+0 / +0.0000) | 8 / 0.6400 (+0 / +0.0000) |
+| 1019 | FF3D | 8 / 0.7273 | 8 / 0.7273 (+0 / +0.0000) | 8 / 0.7273 (+0 / +0.0000) |
+| 1027 | SAT | 73 / 0.8066 | 74 / 0.8177 (+1 / +0.0110) | 73 / 0.8066 (+0 / +0.0000) |
+| 1027 | FF3D | 83 / 0.8783 | 83 / 0.8783 (+0 / +0.0000) | 83 / 0.8783 (+0 / +0.0000) |
 
 ### Measured Resources
 
 | Plot | Arm | Detector wall (s) | Peak host RSS (MiB) | GPU allocated peak (MiB) | GPU reserved peak (MiB) |
 | --- | --- | ---: | ---: | ---: | ---: |
-| 1001 | CHM-VWF | 3.9 | 678.5 | not used | not used |
-| 1001 | SAT | 173.4 | 3141.0 | 605.9 | 888.0 |
-| 1001 | FF3D | 549.7 | 4634.2 | 9956.7 | 12314.0 |
-| 1019 | CHM-VWF | 4.7 | 945.6 | not used | not used |
+| 1001 | CHM-VWF | 3.9 | 678.8 | not used | not used |
+| 1001 | SAT | 110.2 | 3157.3 | 605.9 | 888.0 |
+| 1001 | FF3D | 548.5 | 4622.2 | 9954.4 | 13690.0 |
+| 1019 | CHM-VWF | 4.8 | 945.6 | not used | not used |
+| 1019 | SAT | 156.6 | 3216.5 | 383.4 | 406.0 |
+| 1019 | FF3D | 222.6 | 4747.9 | 1706.7 | 2298.0 |
+| 1027 | CHM-VWF | 4.8 | 920.2 | not used | not used |
+| 1027 | SAT | 141.2 | 3204.2 | 515.8 | 666.0 |
+| 1027 | FF3D | 473.5 | 5165.3 | 6180.1 | 7574.0 |
 
 ## Resource and Interpretation Limits
 
@@ -205,8 +244,8 @@ GPU peaks are PyTorch allocated/reserved memory, not total device use. Native
 settings and checkpoint identities are unchanged; stochastic upstream runs
 are not claimed to be bitwise reproducible.
 
-The pilot declares three of ten development plots; only plot 1001 completed
-all three arms. Primary pooled comparisons and calibration remain unavailable
+The pilot completed three of ten development plots across all three arms.
+Primary pooled comparisons and calibration remain unavailable
 until the full declared support is complete. Apex matching is an annotated
 point-cloud proxy using shared geometric AGL, whose independent accuracy is
 unverified. Unknown upstream training overlap prevents an unseen-data claim.
@@ -224,10 +263,14 @@ The three reserve plots remain closed.
   GPU smoke, unsupported empty-LAS fixture and default Python's missing
   `plyfile`. The existing package-index network warning remains.
 - The SAT CPU staging/merge reproduction passed in the installed model image.
+  Its three binary-writer comparisons, injected-failure checks and full-size
+  synthetic roundtrip passed. Real plot 1019 also produced binary visualization
+  headers and a complete 3,759,456-row native export.
 - The isolated lasR build and installed-file replay passed. Its source revision
   is pinned; the earlier manually installed library remains unchanged.
-- Independent pilot replay verified accepted outputs, the failed/planned state
-  sequence, unchanged execution code and protected prior artifacts.
+- Independent replay verified all nine fresh cells, unchanged execution code
+  and protected prior artifacts. The earlier stopped attempt also verified
+  independently from its frozen historical code checkout.
 - README workflow, requirements and indexes, and the SAT adapter documentation
   are updated. Repository-wide Markdown and whitespace checks passed on the
   final worktree before publication.
@@ -245,7 +288,7 @@ RUNTIME=/path/to/work/fgiemit-pilot-runtime
 "$PYTHON" scripts/prepare_fgiemit_pilot_runtime.py \
   --lasr-repo /path/to/lasR --out "$RUNTIME"
 "$PYTHON" scripts/prepare_fgiemit_pilot_runtime.py --out "$RUNTIME" --verify
-OUT="$ROOT/development_pilot_v2"
+OUT="$ROOT/development_pilot_v3"
 "$PYTHON" scripts/run_fgiemit_pilot.py \
   --root "$ROOT" --out "$OUT" --runtime "$RUNTIME"
 "$PYTHON" scripts/run_fgiemit_pilot.py \
