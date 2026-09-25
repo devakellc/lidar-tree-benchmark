@@ -74,6 +74,27 @@ Fixes 2, 3, 5 live in `gpu/sat_compat/usercustomize.py` (auto-applied via
 PYTHONPATH by the driver — upstream files stay unmodified); fix 1 + the output
 glob are in the driver; fix 4 is in the Dockerfile.
 
+## FGI-EMIT Development Export
+
+For the declared FGI-EMIT development comparison,
+[`run_fgiemit_segmentanytree.py`](../run_fgiemit_segmentanytree.py) accepts the
+prepared plot-local geometry LAS and preserves its original source rows. It
+adds row bookkeeping and a full-cloud output hook in the disposable container.
+The hook captures SAT's existing labels after its native interpolation and
+filters, before removing background for the visualization export. It then
+checks ordered row identity and exact float32 staged coordinates and writes
+labels onto the original LAS rows. No coordinate-string merge or external
+nearest-neighbor projection is used for this path.
+
+The checkpoint, inference configuration, native one-metre interpolation gate
+and native small-instance filter remain unchanged. The benchmark's separate
+40-point / 1.5 m extent filter is applied by the pilot runner. This path records
+source patch hashes and native memory statistics. Its CPU staging check runs
+inside the existing image with `gpu/check_fgiemit_sat_staging.py`; it needs no
+GPU and covers duplicate coordinates, background and missing reference inputs.
+See the [pilot report](../../results/fgiemit-development-pilot-results.md) for
+real-data acceptance and resource limits.
+
 ## Closeout
 
 - [x] Rebuild/import-smoke the `sat-sm120-test` image with torch 2.7 / cu128,
