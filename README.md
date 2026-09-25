@@ -123,7 +123,7 @@ SAT and classical Treeiso remain comparators, with Treeiso's annotation-assisted
 semantic exclusions disclosed. These findings do not establish architecture
 rankings, fusion benefit, strong understory generalization, or final routing
 thresholds. The [HARV/BART expansion is retired](docs/harv-bart-closeout.md);
-no eastern-forest validation is claimed. The broader pipeline continues with
+no eastern-forest validation is claimed. The broader pipeline retains its
 synthetic contracts; new real-data comparisons need a separately declared
 development dataset, eligible reference support and held-out evaluation.
 
@@ -146,8 +146,15 @@ The [bounded pilot](results/fgiemit-development-pilot-results.md) implements
 the declared three-plot execution order, an isolated pinned lasR library and
 strict source-row exports for the instance arms. Its report distinguishes
 the preserved earlier failures from a fresh nine-cell pilot that passed
-after changing SAT's auxiliary PLY writers to binary encoding. The remaining
-21 detector cells and all calibration cells remain planned.
+after changing SAT's auxiliary PLY writers to binary encoding. The subsequent
+[complete development comparison](results/fgiemit-development-comparison-results.md)
+reuses those nine cells exactly and completes the remaining 21 with unchanged
+code and settings. All 30 cells passed on the same 841-reference population.
+Separate apex and mask summaries pool counts and include paired whole-plot
+bootstrap intervals. Observed apex F1 is 0.513 for CHM-VWF, 0.732 for SAT
+and 0.809 for ForestFormer3D; mask F1 is 0.612 for SAT and 0.713 for
+ForestFormer3D. All 50 calibration cells remain planned; the reserve stays
+closed and unknown checkpoint overlap still limits the claims.
 
 ### Choosing a method
 
@@ -159,7 +166,7 @@ selecting members for a new ensemble.
 | --- | --- | --- |
 | Simple, inspectable tree-top baseline | CHM-VWF | The lasR/lidR same-CHM test shows the peak finder is not the material engine difference. |
 | Reliable classical detector at varied density | multichm | It is the strongest stable classical LiDAR arm in the benchmark. |
-| Maximum high-density detection F1 | SegmentAnyTree | Best pooled native F1 and understory recall among the evaluated single arms. |
+| Maximum high-density NEON detection F1 | SegmentAnyTree | Best pooled native F1 and understory recall among the single arms in the historical NEON comparison. |
 | More understory trees | SegmentAnyTree, Li 2012, or a fusion operating point | These methods raise coverage; choose the precision/recall point explicitly. |
 | Optical or sparse-LiDAR complement | Optional DeepForest support | Paired SOAP results support added recall at 1 pt/m2, with a precision cost; a universal threshold below 2 pt/m2 is not established. |
 | Best classical crown diameter | Random walker with the per-crown stop rule | It has the lowest pooled crown-diameter RMSE in the shared-seed test. |
@@ -176,6 +183,7 @@ Detailed evidence:
 - [Frozen external instance validation](results/fgi-emit-external-results.md)
 - [Training-only transfer audit](results/frozen-transfer-audit-results.md)
 - [Whole-scene assembly comparison](results/forestformer-scene-assembly-results.md)
+- [Complete development detector comparison](results/fgiemit-development-comparison-results.md)
 - [lasR versus lidR implementation comparison](results/treetop-lasr-vs-lidr-comparison.md)
 
 ## Benchmark design
@@ -563,6 +571,39 @@ plot's annotation-free geometry. Calibration and reserve evaluation remain
 disabled. See the [pilot report](results/fgiemit-development-pilot-results.md)
 for accepted outputs, resource measurements and reproduction limits.
 
+### FGI-EMIT complete development comparison
+
+After a complete admitted pilot, run the remaining 21 detector cells with the
+same sealed inputs, code and settings. The nine pilot cells are reused exactly.
+Each creation command requires a new output directory:
+
+~~~sh
+PYTHON=/path/to/lidar_tree_benchmarks/gpu/.venv/bin/python
+ROOT="$CLAUDE_JOB_DIR/external/fgiemit"
+RUNTIME="$CLAUDE_JOB_DIR/fgiemit-pilot-runtime"
+PILOT="$ROOT/development_pilot_v3"
+RUN="$ROOT/development_detector_run"
+SUMMARY="$ROOT/development_detector_summary"
+"$PYTHON" scripts/run_fgiemit_development.py \
+  --root "$ROOT" --out "$RUN" --pilot "$PILOT" --runtime "$RUNTIME"
+"$PYTHON" scripts/run_fgiemit_development.py \
+  --root "$ROOT" --out "$RUN" --pilot "$PILOT" --runtime "$RUNTIME" --verify
+"$PYTHON" scripts/summarize_fgiemit_development.py \
+  --root "$ROOT" --run "$RUN" --pilot "$PILOT" --runtime "$RUNTIME" \
+  --out "$SUMMARY"
+"$PYTHON" scripts/summarize_fgiemit_development.py \
+  --root "$ROOT" --run "$RUN" --pilot "$PILOT" --runtime "$RUNTIME" \
+  --out "$SUMMARY" --verify
+~~~
+
+Execution stops on the first failure. The summary emits explicit cell status
+and reference denominators; primary pooling and 1,000 paired whole-plot
+bootstrap draws require all 30 cells. Counts and mask accumulators are summed
+before rates. Neither stage fits calibration or opens the reserve. Unknown
+upstream training overlap still limits interpretation to development data.
+See the [completed results](results/fgiemit-development-comparison-results.md)
+for full support, both scoring tracks, paired diagnostics and resource limits.
+
 ## Requirements
 
 | Scope | Requirements |
@@ -576,7 +617,7 @@ for accepted outputs, resource measurements and reproduction limits.
 | External instance validation | Existing detector runtimes, R dbscan and yaml, and the pinned official Python evaluator described in the external report |
 | FGI-EMIT development preparation | Existing Python with laspy, numpy, scipy and PyYAML; R lidR, data.table and jsonlite; checkpoint audit uses Python 3.11+ and the installed Docker images without GPU execution |
 | FGI-EMIT comparison declaration | Same existing Python and Docker environments; R lasR, lidR, terra, sf, data.table and jsonlite; records installed lasR identity and variable-window capability before any detector execution |
-| FGI-EMIT development pilot | Pinned lasR source object and existing R build dependencies; existing SAT/FF3D GPU images and checkpoints, Docker GPU access, rsync and GNU time; the pilot builds an isolated R library |
+| FGI-EMIT development pilot and comparison | Pinned lasR source object and existing R build dependencies; existing SAT/FF3D GPU images and checkpoints, Docker GPU access, rsync and GNU time; the pilot builds an isolated R library; summaries use the existing R pooling helper |
 | Tests | testthat |
 | Markdown checks | rumdl with [.rumdl.toml](.rumdl.toml) |
 
@@ -662,6 +703,8 @@ workflows.
 | declare_fgiemit_comparison.py / fgiemit_comparison_lib.py | Fixed development detector/calibration matrix and symmetric source-row reference-height profiles; sealed outputs without inference |
 | prepare_fgiemit_pilot_runtime.py | Pinned lasR pre-devel build and replay in an isolated pilot library |
 | run_fgiemit_pilot.py / fgiemit_pilot_lib.py / fgiemit_pilot_cell.R | Bounded declared pilot, exact point-support admission, fixed filters and existing separate mask/apex scoring |
+| run_fgiemit_development.py | Remaining 21 detector cells, exact reuse of the nine admitted pilot cells and a sealed complete-matrix receipt |
+| summarize_fgiemit_development.py / summarize_fgiemit_development.R / fgiemit_development_summary_lib.R | Complete-support gate, separate apex/mask count pooling, paired whole-plot bootstrap intervals and height diagnostics |
 | gpu/run_fgiemit_segmentanytree.py / gpu/fgiemit_sat_export.py | Native full-cloud SAT export with explicit source-row bookkeeping, including background and coincident points |
 | audit_frozen_transfer.R | Declared training-only adapter inference and official-metric, export, and scene-assembly diagnostics |
 | audit_scene_assembly.R | Bounded native whole-scene inference, protected-output checks and archived outer-cylinder comparison |
@@ -723,6 +766,7 @@ workflows.
 | [FGI-EMIT comparison contract](results/fgiemit-comparison-contract-results.md) | Thirty planned detector cells, fifty calibration cells and verified height-reference exports |
 | [FGI-EMIT comparison protocol](docs/fgiemit-comparison-protocol.md) | Frozen method, matching, calibration, resource and conditional-development claim rules |
 | [FGI-EMIT development pilot](results/fgiemit-development-pilot-results.md) | Bounded runner, pinned runtime evidence, source-row export checks and observed cell outcomes |
+| [FGI-EMIT complete development comparison](results/fgiemit-development-comparison-results.md) | All thirty native detector cells, count-pooled apex/mask results, paired bootstrap intervals and height diagnostics; calibration and reserve remain closed |
 | [Frozen transfer audit](results/frozen-transfer-audit-results.md) | Training-only adapter corrections, scene-assembly diagnostics, and arm eligibility |
 | [Scene-assembly results](results/forestformer-scene-assembly-results.md) | Whole-scene identity, resource use, common-support metrics and eligibility |
 | [Scene-assembly protocol](docs/forestformer-scene-assembly-protocol.md) | Fixed training comparison and row-identity acceptance contracts |
