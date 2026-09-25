@@ -160,9 +160,10 @@ inference. Clouds, CSVs, knots and logs remain local ignored artifacts.
   links are updated. Full Markdown and whitespace checks precede publication.
   The original dirty checkout is preserved.
 
-The next decision is a frozen development policy and checkpoint-overlap
-assessment before any prospective evaluation. The stronger observed FF3D
-detector baseline remains a candidate without an assumed fusion benefit.
+The subsequent [frozen policy](../docs/fgiemit-frozen-policy.md) selects the
+FF3D detector baseline with fixed controls and the existing filters, following
+the [checkpoint-overlap review](fgiemit-checkpoint-overlap-results.md).
 This calibration stage selects no threshold, ensemble membership or reserve
 release. Independent AGL accuracy, dense-support generalization and unknown
-checkpoint training overlap remain unresolved.
+checkpoint training overlap remain unresolved. The new policy requires
+separate reserve input validation and an execution contract before inference.

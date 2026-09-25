@@ -162,6 +162,16 @@ uncalibrated. Baseline predictions are retained; no threshold or fusion policy
 is selected. The reserve stays closed, and unknown upstream checkpoint overlap
 still limits the claims.
 
+The [frozen development policy](docs/fgiemit-frozen-policy.md) selects
+ForestFormer3D for both products, retains the original filters and keeps
+CHM-VWF and SAT as fixed controls. The
+[checkpoint-overlap review](results/fgiemit-checkpoint-overlap-results.md)
+finds different documented source datasets but no exhaustive checkpoint
+training history. It preserves unknown overlap and limits future reserve
+claims to conditional within-dataset policy evaluation. Nine reserve detector
+cells are planned; input validation and a separate execution contract remain
+required. No reserve point records or predictions are read by the freeze.
+
 ### Choosing a method
 
 These starting points apply to the measured benchmark conditions, not a claim
@@ -638,6 +648,34 @@ or fusion rule is exported, and the reserve remains closed. See the
 [calibration report](results/fgiemit-development-calibration-results.md)
 for results, unavailable-score counts and uncertainty limits.
 
+### FGI-EMIT frozen development policy
+
+After completed calibration, freeze the development-selected FF3D policy and
+the original reserve comparison. Use the existing comparison/calibration paths
+and the archived primary-source files recorded in
+[`fgiemit-overlap-sources.json`](docs/fgiemit-overlap-sources.json):
+
+~~~sh
+EVIDENCE="$CLAUDE_JOB_DIR/fgiemit-policy-verification/sources"
+POLICY="$ROOT/development_policy"
+"$PYTHON" scripts/freeze_fgiemit_policy.py \
+  --root "$ROOT" --calibration "$CALIBRATION" --evidence "$EVIDENCE" \
+  --out "$POLICY"
+"$PYTHON" scripts/freeze_fgiemit_policy.py \
+  --root "$ROOT" --calibration "$CALIBRATION" --evidence "$EVIDENCE" \
+  --out "$POLICY" --verify
+~~~
+
+Creation requires a fresh directory and complete sealed parents. The tool
+checks archived source hashes, model identities and exact split metadata;
+it does not download evidence or infer models. Mutable web/API responses may
+differ from the archived review and cannot silently replace it. The freeze
+records the selected policy, nine planned detector cells and 257 reserve
+references, while keeping execution disabled. Reserve preparation belongs in
+a new job root outside the sealed development data root, with unchanged
+support/AGL rules and its own admission receipt. See the
+[policy and limits](docs/fgiemit-frozen-policy.md).
+
 ## Requirements
 
 | Scope | Requirements |
@@ -653,6 +691,7 @@ for results, unavailable-score counts and uncertainty limits.
 | FGI-EMIT comparison declaration | Same existing Python and Docker environments; R lasR, lidR, terra, sf, data.table and jsonlite; records installed lasR identity and variable-window capability before any detector execution |
 | FGI-EMIT development pilot and comparison | Pinned lasR source object and existing R build dependencies; existing SAT/FF3D GPU images and checkpoints, Docker GPU access, rsync and GNU time; the pilot builds an isolated R library; summaries use the existing R pooling helper |
 | FGI-EMIT development calibration | Complete sealed detector run and summary; existing Python and R with lidR, data.table and jsonlite; parent verification needs installed Docker checkpoint identities, but fitting uses CPU only |
+| FGI-EMIT policy freeze | Complete sealed calibration and archived primary-source files matching the overlap source manifest; existing parent-verification dependencies; no new model or reserve-point execution |
 | Tests | testthat |
 | Markdown checks | rumdl with [.rumdl.toml](.rumdl.toml) |
 
@@ -741,6 +780,7 @@ workflows.
 | run_fgiemit_development.py | Remaining 21 detector cells, exact reuse of the nine admitted pilot cells and a sealed complete-matrix receipt |
 | summarize_fgiemit_development.py / summarize_fgiemit_development.R / fgiemit_development_summary_lib.R | Complete-support gate, separate apex/mask count pooling, paired whole-plot bootstrap intervals and height diagnostics |
 | calibrate_fgiemit_development.py / calibrate_fgiemit_development.R / fgiemit_calibration_lib.R | Fifty whole-plot validation cells, target-specific TP/FP recovery, raw-score weighted isotonic fits, explicit unavailable probabilities and count-pooled Brier/ECE |
+| freeze_fgiemit_policy.py | Development-selected single-arm policy, fixed reserve controls, primary-source overlap checks and sealed metadata-only prospective plan |
 | gpu/run_fgiemit_segmentanytree.py / gpu/fgiemit_sat_export.py | Native full-cloud SAT export with explicit source-row bookkeeping, including background and coincident points |
 | audit_frozen_transfer.R | Declared training-only adapter inference and official-metric, export, and scene-assembly diagnostics |
 | audit_scene_assembly.R | Bounded native whole-scene inference, protected-output checks and archived outer-cylinder comparison |
@@ -804,6 +844,8 @@ workflows.
 | [FGI-EMIT development pilot](results/fgiemit-development-pilot-results.md) | Bounded runner, pinned runtime evidence, source-row export checks and observed cell outcomes |
 | [FGI-EMIT complete development comparison](results/fgiemit-development-comparison-results.md) | All thirty native detector cells, count-pooled apex/mask results, paired bootstrap intervals and height diagnostics; detector stage performs no calibration |
 | [FGI-EMIT whole-plot calibration](results/fgiemit-development-calibration-results.md) | All fifty validation cells, fold-specific raw-score fits, calibration coverage and conditional Brier/ECE intervals; reserve remains closed |
+| [FGI-EMIT frozen policy](docs/fgiemit-frozen-policy.md) | FF3D selection, fixed controls, original reserve, unchanged filters/scoring, resource and failure rules, and conditional claim limits |
+| [FGI-EMIT checkpoint overlap](results/fgiemit-checkpoint-overlap-results.md) | Verified artifact identities, archived primary-source evidence, unresolved training-history coverage and the policy decision |
 | [Frozen transfer audit](results/frozen-transfer-audit-results.md) | Training-only adapter corrections, scene-assembly diagnostics, and arm eligibility |
 | [Scene-assembly results](results/forestformer-scene-assembly-results.md) | Whole-scene identity, resource use, common-support metrics and eligibility |
 | [Scene-assembly protocol](docs/forestformer-scene-assembly-protocol.md) | Fixed training comparison and row-identity acceptance contracts |
