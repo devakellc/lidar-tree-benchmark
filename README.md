@@ -141,7 +141,12 @@ The [comparison contract](results/fgiemit-comparison-contract-results.md)
 now freezes three detector arms, 30 native-density cells and 50 whole-plot
 calibration cells. Maximum pointwise AGL defines the detection references;
 unchanged instance masks define the separate segmentation target. Reference
-tables are sealed, but detector execution and calibration have not started.
+tables are sealed; this declaration stage runs no detectors or calibration.
+The [bounded pilot](results/fgiemit-development-pilot-results.md) implements
+the declared three-plot execution order, an isolated pinned lasR library and
+strict source-row exports for the instance arms. Its report distinguishes
+four accepted cells, a SAT export failure and four unrun pilot cells.
+Expansion is stopped pending investigation; calibration remains unfitted.
 
 ### Choosing a method
 
@@ -531,6 +536,32 @@ height matching, mask scoring, calibration folds and failure handling. The
 actual reference export and the remaining runner checks. These commands do
 not run detectors or fit calibrators; reserve evaluation remains closed.
 
+### FGI-EMIT bounded development pilot
+
+Build the pinned lasR `pre-devel` source in a separate library, then run the
+declared nine-cell pilot using the existing GPU images and model environments:
+
+~~~sh
+PYTHON=/path/to/lidar_tree_benchmarks/gpu/.venv/bin/python
+ROOT="$CLAUDE_JOB_DIR/external/fgiemit"
+RUNTIME="$CLAUDE_JOB_DIR/fgiemit-pilot-runtime"
+"$PYTHON" scripts/prepare_fgiemit_pilot_runtime.py \
+  --lasr-repo /path/to/lasR --out "$RUNTIME"
+OUT="$ROOT/development_pilot_v2"
+"$PYTHON" scripts/run_fgiemit_pilot.py \
+  --root "$ROOT" --out "$OUT" --runtime "$RUNTIME"
+"$PYTHON" scripts/run_fgiemit_pilot.py \
+  --root "$ROOT" --out "$OUT" --runtime "$RUNTIME" --verify
+~~~
+
+Both creation paths must be new. The runner verifies the unchanged comparison
+receipt and executes plots 1001, 1019 and 1027 in that order, one detector at
+a time. The first failed cell stops expansion; there is no automatic retry,
+parameter change or fallback projection. Model containers receive only the
+plot's annotation-free geometry. Calibration and reserve evaluation remain
+disabled. See the [pilot report](results/fgiemit-development-pilot-results.md)
+for accepted outputs, resource measurements and reproduction limits.
+
 ## Requirements
 
 | Scope | Requirements |
@@ -544,6 +575,7 @@ not run detectors or fit calibrators; reserve evaluation remains closed.
 | External instance validation | Existing detector runtimes, R dbscan and yaml, and the pinned official Python evaluator described in the external report |
 | FGI-EMIT development preparation | Existing Python with laspy, numpy, scipy and PyYAML; R lidR, data.table and jsonlite; checkpoint audit uses Python 3.11+ and the installed Docker images without GPU execution |
 | FGI-EMIT comparison declaration | Same existing Python and Docker environments; R lasR, lidR, terra, sf, data.table and jsonlite; records installed lasR identity and variable-window capability before any detector execution |
+| FGI-EMIT development pilot | Pinned lasR source object and existing R build dependencies; existing SAT/FF3D GPU images and checkpoints, Docker GPU access, rsync and GNU time; the pilot builds an isolated R library |
 | Tests | testthat |
 | Markdown checks | rumdl with [.rumdl.toml](.rumdl.toml) |
 
@@ -627,6 +659,9 @@ workflows.
 | prepare_fgiemit_development.py / normalize_fgiemit_development.R | Development-only point/support validation, original-return densities, separate reference/model exports and geometric AGL diagnostics |
 | audit_fgiemit_checkpoints.py | Installed checkpoint and image identities, upstream weight checks and training-provenance limits; no model loading |
 | declare_fgiemit_comparison.py / fgiemit_comparison_lib.py | Fixed development detector/calibration matrix and symmetric source-row reference-height profiles; sealed outputs without inference |
+| prepare_fgiemit_pilot_runtime.py | Pinned lasR pre-devel build and replay in an isolated pilot library |
+| run_fgiemit_pilot.py / fgiemit_pilot_lib.py / fgiemit_pilot_cell.R | Bounded declared pilot, exact point-support admission, fixed filters and existing separate mask/apex scoring |
+| gpu/run_fgiemit_segmentanytree.py / gpu/fgiemit_sat_export.py | Native full-cloud SAT export with explicit source-row bookkeeping, including background and coincident points |
 | audit_frozen_transfer.R | Declared training-only adapter inference and official-metric, export, and scene-assembly diagnostics |
 | audit_scene_assembly.R | Bounded native whole-scene inference, protected-output checks and archived outer-cylinder comparison |
 | detect_deepforest_sweep.R / detect_detectree2_sweep.R | RGB detector and crown-width arms |
@@ -686,6 +721,7 @@ workflows.
 | [FGI-EMIT input protocol](docs/fgiemit-input-validation-protocol.md) | Development-only preparation, boundary/background support and normalization contracts |
 | [FGI-EMIT comparison contract](results/fgiemit-comparison-contract-results.md) | Thirty planned detector cells, fifty calibration cells and verified height-reference exports |
 | [FGI-EMIT comparison protocol](docs/fgiemit-comparison-protocol.md) | Frozen method, matching, calibration, resource and conditional-development claim rules |
+| [FGI-EMIT development pilot](results/fgiemit-development-pilot-results.md) | Bounded runner, pinned runtime evidence, source-row export checks and observed cell outcomes |
 | [Frozen transfer audit](results/frozen-transfer-audit-results.md) | Training-only adapter corrections, scene-assembly diagnostics, and arm eligibility |
 | [Scene-assembly results](results/forestformer-scene-assembly-results.md) | Whole-scene identity, resource use, common-support metrics and eligibility |
 | [Scene-assembly protocol](docs/forestformer-scene-assembly-protocol.md) | Fixed training comparison and row-identity acceptance contracts |
