@@ -1,0 +1,3 @@
+# Retain the terminal blank line in this byte-sealed execution adapter so the
+# single-attempt reserve receipts remain replayable without rerunning inference.
+scripts/fgiemit_reserve_cell.py whitespace=-blank-at-eof
