@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# Synthetic contracts only. INPUT is an optional trusted local RDS bundle.
+# Synthetic interfaces or the verified real FGI pipeline; modes stay separate.
 .mp_file <- grep("^--file=", commandArgs(FALSE), value = TRUE)
 .mp_bootstrap <- Find(file.exists, c(
   if (length(.mp_file)) file.path(dirname(sub("^--file=", "", .mp_file[1])), "bootstrap.R"),
@@ -14,9 +14,27 @@ metapipeline_main <- function(args = commandArgs(TRUE)) {
   # Split only at the first equals sign, including for paths containing '='.
   if (any(!grepl("^[A-Z_]+=.+$", args))) stop("Use KEY=VALUE arguments")
   keys <- sub("=.*$", "", args)
-  if (anyDuplicated(keys) || any(!keys %in% c("MODE", "INPUT", "OUT"))) stop("Unknown or duplicate argument")
+  if (anyDuplicated(keys)) stop("Unknown or duplicate argument")
   a <- setNames(as.list(sub("^[^=]+=", "", args)), keys)
-  if (!is.null(a$MODE) && a$MODE != "synthetic") stop("MODE must be synthetic")
+  if (identical(a$MODE, "fgiemit")) {
+    allowed <- c("MODE", "ROOT", "PREPARED", "RUN", "OUT", "PYTHON", "STAGE", "METHOD", "EXECUTE", "VERIFY")
+    if (any(!keys %in% allowed) || is.null(a$ROOT) || is.null(a$OUT))
+      stop("FGI mode requires ROOT and OUT with only documented arguments")
+    for (flag in c("EXECUTE", "VERIFY"))
+      if (!is.null(a[[flag]]) && !a[[flag]] %in% c("true", "false")) stop(flag, " must be true or false")
+    python <- if (!is.null(a$PYTHON)) a$PYTHON else Sys.getenv("FGIEMIT_PYTHON", file.path(.ROOT, "gpu/.venv/bin/python"))
+    if (!file.exists(python)) stop("Set PYTHON to the existing GPU Python environment")
+    command <- c(.find("run_ensemble_pipeline.py"), "--root", a$ROOT, "--out", a$OUT)
+    for (key in c("PREPARED", "RUN", "STAGE", "METHOD"))
+      if (!is.null(a[[key]])) command <- c(command, paste0("--", tolower(key)), a[[key]])
+    for (key in c("EXECUTE", "VERIFY"))
+      if (identical(a[[key]], "true")) command <- c(command, paste0("--", tolower(key)))
+    status <- system2(python, shQuote(command))
+    if (status != 0L) stop("FGI pipeline failed or remains incomplete; inspect preserved output")
+    return(invisible(status))
+  }
+  if (any(!keys %in% c("MODE", "INPUT", "OUT"))) stop("Unknown or duplicate argument")
+  if (!is.null(a$MODE) && a$MODE != "synthetic") stop("MODE must be synthetic or fgiemit")
   bundle <- if (is.null(a$INPUT)) metapipeline_synthetic() else readRDS(a$INPUT)
   result <- assemble_metapipeline(bundle)
   out <- if (is.null(a$OUT)) file.path(.job_dir(), "metapipeline-synthetic") else path.expand(a$OUT)
