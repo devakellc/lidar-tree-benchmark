@@ -37,7 +37,7 @@ omit `EXECUTE=true` when verifying. Direct Python invocation is available via
 ~~~sh
 Rscript scripts/assemble_metapipeline.R MODE=fgiemit STAGE=development \
   PYTHON="$PYTHON" ROOT="$CLAUDE_JOB_DIR/external/fgiemit" \
-  OUT="$CLAUDE_JOB_DIR/fgiemit-development-ensemble-v1"
+  OUT="$CLAUDE_JOB_DIR/fgiemit-development-ensemble-v2"
 ~~~
 
 This reuses the complete sealed development detector outputs and whole-plot

@@ -122,15 +122,17 @@ def export_instances(geometry_dir, source, directory):
 
 def assemble(root, stage, prepared, run, out, method="selected_policy", execute=False):
     prepared_inputs.check_location(root, out, creating=True)
+    if not out.parent.is_dir():
+        raise ValueError("Product output parent must already exist")
     if stage == "reserve":
         if method != "selected_policy":
             raise ValueError("Reserve policy is frozen; fusion is development-only")
         if prepared is None or run is None:
             raise ValueError("Reserve stage needs prepared inputs and a run directory")
-        if execute and not run.exists():
-            reserve.run(root, prepared, run)
         if out == prepared or out == run or out.is_relative_to(prepared) or out.is_relative_to(run):
             raise ValueError("Product output must not modify prepared inputs or the detector run")
+        if execute and not run.exists():
+            reserve.run(root, prepared, run)
     elif execute:
         raise ValueError("Development assembly reuses sealed outputs without inference")
     receipt, matrix, references, geometries, parents, calibration = get_inputs(root, stage, prepared, run)
