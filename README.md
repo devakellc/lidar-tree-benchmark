@@ -159,8 +159,8 @@ completes all 50 validation cells using only the other nine plots for each fit.
 Calibration covers 359/375 CHM predictions, 792/795 SAT predictions and 826/830
 ForestFormer3D predictions per applicable target. Out-of-range scores remain
 uncalibrated. Baseline predictions are retained; no threshold or fusion policy
-is selected. The reserve stays closed, and unknown upstream checkpoint overlap
-still limits the claims.
+is selected. The calibration stage keeps the reserve closed; unknown upstream
+checkpoint overlap still limits the claims.
 
 The [frozen development policy](docs/fgiemit-frozen-policy.md) selects
 ForestFormer3D for both products, retains the original filters and keeps
@@ -169,8 +169,13 @@ CHM-VWF and SAT as fixed controls. The
 finds different documented source datasets but no exhaustive checkpoint
 training history. It preserves unknown overlap and limits future reserve
 claims to conditional within-dataset policy evaluation. Nine reserve detector
-cells are planned; input validation and a separate execution contract remain
-required. No reserve point records or predictions are read by the freeze.
+cells are planned. No reserve point records or predictions are read by the
+freeze. The subsequent
+[reserve input validation](results/fgiemit-reserve-input-results.md) prepares
+the original three plots in a separate job root and seals their execution
+contract. It preserves all 257 references and runs no detector. A reserve
+runner and bounded execution remain the next stage; structural validation
+does not establish whole-scene GPU feasibility or performance.
 
 ### Choosing a method
 
@@ -676,6 +681,29 @@ a new job root outside the sealed development data root, with unchanged
 support/AGL rules and its own admission receipt. See the
 [policy and limits](docs/fgiemit-frozen-policy.md).
 
+### FGI-EMIT prospective reserve inputs
+
+After the policy freeze, validate exactly the original reserve plots and seal
+their nine-cell execution contract. Use the existing model environment and a
+fresh job root outside the sealed development data root:
+
+~~~sh
+PYTHON="/path/to/original/checkout/gpu/.venv/bin/python"
+ROOT="$CLAUDE_JOB_DIR/external/fgiemit"
+RESERVE="$CLAUDE_JOB_DIR/fgiemit-reserve-v1"
+"$PYTHON" scripts/prepare_fgiemit_reserve.py --root "$ROOT" --out "$RESERVE"
+"$PYTHON" scripts/prepare_fgiemit_reserve.py --root "$ROOT" --out "$RESERVE" --verify
+~~~
+
+Preparation performs CPU normalization with one thread and a 600-second limit
+per plot. Parent replay checks the installed model identities but loads no
+model. Preserve every attempt; failed inputs cannot produce an execution
+contract. Verification rechecks original rows, reference labels, return-based
+densities and height profiles against the prepared files. The sealed plan
+requires a scope-checked reserve runner before inference. See the
+[protocol](docs/fgiemit-reserve-input-protocol.md) and
+[observed input results](results/fgiemit-reserve-input-results.md).
+
 ## Requirements
 
 | Scope | Requirements |
@@ -692,6 +720,7 @@ support/AGL rules and its own admission receipt. See the
 | FGI-EMIT development pilot and comparison | Pinned lasR source object and existing R build dependencies; existing SAT/FF3D GPU images and checkpoints, Docker GPU access, rsync and GNU time; the pilot builds an isolated R library; summaries use the existing R pooling helper |
 | FGI-EMIT development calibration | Complete sealed detector run and summary; existing Python and R with lidR, data.table and jsonlite; parent verification needs installed Docker checkpoint identities, but fitting uses CPU only |
 | FGI-EMIT policy freeze | Complete sealed calibration and archived primary-source files matching the overlap source manifest; existing parent-verification dependencies; no new model or reserve-point execution |
+| FGI-EMIT prospective reserve preparation | Complete frozen policy and original reserve sources; existing Python and R normalization dependencies; read-only installed checkpoint verification; separate fresh data root and no detector inference |
 | Tests | testthat |
 | Markdown checks | rumdl with [.rumdl.toml](.rumdl.toml) |
 
@@ -781,6 +810,7 @@ workflows.
 | summarize_fgiemit_development.py / summarize_fgiemit_development.R / fgiemit_development_summary_lib.R | Complete-support gate, separate apex/mask count pooling, paired whole-plot bootstrap intervals and height diagnostics |
 | calibrate_fgiemit_development.py / calibrate_fgiemit_development.R / fgiemit_calibration_lib.R | Fifty whole-plot validation cells, target-specific TP/FP recovery, raw-score weighted isotonic fits, explicit unavailable probabilities and count-pooled Brier/ECE |
 | freeze_fgiemit_policy.py | Development-selected single-arm policy, fixed reserve controls, primary-source overlap checks and sealed metadata-only prospective plan |
+| prepare_fgiemit_reserve.py | Original three-plot reserve preparation, unchanged geometric normalization, source-row and density replay, and sealed nine-cell execution contract without inference |
 | gpu/run_fgiemit_segmentanytree.py / gpu/fgiemit_sat_export.py | Native full-cloud SAT export with explicit source-row bookkeeping, including background and coincident points |
 | audit_frozen_transfer.R | Declared training-only adapter inference and official-metric, export, and scene-assembly diagnostics |
 | audit_scene_assembly.R | Bounded native whole-scene inference, protected-output checks and archived outer-cylinder comparison |
@@ -846,6 +876,8 @@ workflows.
 | [FGI-EMIT whole-plot calibration](results/fgiemit-development-calibration-results.md) | All fifty validation cells, fold-specific raw-score fits, calibration coverage and conditional Brier/ECE intervals; reserve remains closed |
 | [FGI-EMIT frozen policy](docs/fgiemit-frozen-policy.md) | FF3D selection, fixed controls, original reserve, unchanged filters/scoring, resource and failure rules, and conditional claim limits |
 | [FGI-EMIT checkpoint overlap](results/fgiemit-checkpoint-overlap-results.md) | Verified artifact identities, archived primary-source evidence, unresolved training-history coverage and the policy decision |
+| [FGI-EMIT reserve inputs](results/fgiemit-reserve-input-results.md) | Original reserve support, measured return densities, normalization diagnostics and unexecuted nine-cell contract |
+| [FGI-EMIT reserve input protocol](docs/fgiemit-reserve-input-protocol.md) | Separate data root, frozen preparation rules, complete-support admission, execution order and replay gates |
 | [Frozen transfer audit](results/frozen-transfer-audit-results.md) | Training-only adapter corrections, scene-assembly diagnostics, and arm eligibility |
 | [Scene-assembly results](results/forestformer-scene-assembly-results.md) | Whole-scene identity, resource use, common-support metrics and eligibility |
 | [Scene-assembly protocol](docs/forestformer-scene-assembly-protocol.md) | Fixed training comparison and row-identity acceptance contracts |
