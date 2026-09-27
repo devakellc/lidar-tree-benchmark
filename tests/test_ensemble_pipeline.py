@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import laspy
 import numpy as np
@@ -12,6 +13,17 @@ import run_ensemble_pipeline as pipeline
 
 
 class PipelineTests(unittest.TestCase):
+    def test_invalid_output_locations_cannot_start_inference(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base=Path(tmp); root=base/'development'; root.mkdir()
+            prepared=base/'prepared'; prepared.mkdir()
+            run=base/'run'
+            for out in (prepared/'products', run, run/'products', base/'missing/products'):
+                with self.subTest(out=out), mock.patch.object(pipeline.reserve, 'run') as execute:
+                    with self.assertRaises(ValueError):
+                        pipeline.assemble(root, 'reserve', prepared, run, out, execute=True)
+                    execute.assert_not_called()
+
     def test_reserve_fusion_override_fails_before_any_parent_or_point_read(self):
         with tempfile.TemporaryDirectory() as tmp:
             base=Path(tmp); root=base/'development'; root.mkdir()

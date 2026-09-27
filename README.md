@@ -192,6 +192,14 @@ The frozen default remains FF3D. Explicit fusion exports are development
 research options; no universal density router or held-out fusion gain is
 claimed.
 
+All nine frozen reserve cells subsequently completed on their first attempts.
+On 257 references, FF3D apex F1 is 0.776, SAT 0.746 and CHM-VWF 0.488;
+separate mask F1 is 0.649 for FF3D and 0.576 for SAT. The final FF3D product
+contains 279 treetops and 279 predicted instances over 10,941,159 points.
+Per-plot rankings vary, upstream checkpoint overlap remains unknown, and
+independent AGL accuracy is unverified. These are conditional native
+FGI-EMIT results, not a general density-routing or crown-refinement claim.
+
 ### Choosing a method
 
 These starting points apply to the measured benchmark conditions, not a claim
@@ -975,8 +983,8 @@ Rscript tests/run_tests.R
 
 The tests cover the shared scoring, pooling, detector-extractor, instance-I/O,
 model-runner, routing, allometry, uncertainty, calibration, RGB fusion,
-synthetic detection assembly and external-transfer helpers. Unit fixtures do
-not require the large generated LiDAR working set; optional live tests report
+synthetic/native detection assembly and external-transfer helpers. Unit fixtures
+do not require the large generated LiDAR working set; optional live tests report
 their environment requirements.
 
 For the Python reference and export tests, use the configured model environment
