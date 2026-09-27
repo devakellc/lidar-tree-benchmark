@@ -177,6 +177,11 @@ contract. It preserves all 257 references and runs no detector. A reserve
 runner and bounded execution remain the next stage; structural validation
 does not establish whole-scene GPU feasibility or performance.
 
+The [synthetic detection assembly](docs/metapipeline-contracts.md) now exercises
+explicit detector states, fixed ensemble membership and provenance/calibration
+compatibility. Its invented fixtures run without model inference and provide
+no new benchmark scores or real-data admission.
+
 ### Choosing a method
 
 These starting points apply to the measured benchmark conditions, not a claim
@@ -471,6 +476,20 @@ Rscript scripts/fuse_detectors.R SITE=SOAP RUNGS=native,8,4,2,1 CORES=1
 Outputs include `fusion_results.csv` and the equal-set `fusion_rgb_summary.csv`.
 Full-data deployment lookups must not score their own training plots; the
 paired benchmark fits optical weights excluding each target plot.
+
+### Synthetic detection assembly
+
+Exercise the detection contracts with invented inputs in the core R environment:
+
+~~~sh
+Rscript scripts/assemble_metapipeline.R MODE=synthetic \
+  OUT="$CLAUDE_JOB_DIR/metapipeline-synthetic"
+~~~
+
+Use a fresh output directory. The [contract documentation](docs/metapipeline-contracts.md)
+describes the explicit cell/arm matrix, blocked and completed-empty products,
+optional synthetic input bundles, and artifact hashes. This command performs
+no detector inference, calibration fitting or benchmark scoring.
 
 ### External validation and audit
 
@@ -819,6 +838,7 @@ workflows.
 | analyze_model_benchmark.R / compare_model_sites.R | Equal-set-guarded model synthesis and cross-site results |
 | score_instances_iou.R / compare_matching_rules.R | Point-set IoU, Coverage, PQ, and metric-ranking sensitivity |
 | fuse_detectors.R / calibrate_confidence.R / route_detectors.R | LiDAR and paired RGB fusion, plot-held-out score calibration, and per-cell routing experiments |
+| assemble_metapipeline.R | Synthetic detection assembly with explicit states, ensemble members and provenance/calibration compatibility checks |
 | coverage_gap.R | Re-grade isolated likely-real false positives using cross-family agreement |
 | crown_metrics_sweep.R / analyze_crown_metrics.R | Field crown-diameter benchmark and analysis |
 | crown_allometry.R | Crown width and height to DBH/biomass analysis |
@@ -835,6 +855,7 @@ workflows.
 | neon_individual_reference_lib.R | Unique apparent-individual units, explicit measurement donors and separate diagnostic support identities |
 | sweep_lib.R / calval_lib.R / pc_detect_lib.R | Shared density-ladder, split, and point-cloud detection helpers |
 | model_bench_lib.R / model_runner.R / io_bridge.R | Shared model scoring, runtime, and point-instance I/O helpers |
+| metapipeline_lib.R / metapipeline_synthetic.R | Detection assembly contracts and invented example fixtures; no model execution or scoring |
 | route_lib.R / coverage_lib.R / allometry_lib.R | Pure helpers for routing, coverage credit, and allometry |
 | crown_metrics_3d.R / crown_metrics_deepmodel.R | Shared crown-metric helpers |
 | external_fgiemit_lib.R / transfer_audit_lib.R | External reference projection, official metrics, protected provenance, and transfer diagnostics |
@@ -881,6 +902,7 @@ workflows.
 | [Frozen transfer audit](results/frozen-transfer-audit-results.md) | Training-only adapter corrections, scene-assembly diagnostics, and arm eligibility |
 | [Scene-assembly results](results/forestformer-scene-assembly-results.md) | Whole-scene identity, resource use, common-support metrics and eligibility |
 | [Scene-assembly protocol](docs/forestformer-scene-assembly-protocol.md) | Fixed training comparison and row-identity acceptance contracts |
+| [Synthetic detection assembly](docs/metapipeline-contracts.md) | Cell/arm schemas, availability states, calibration gates and reproducible synthetic outputs |
 | [Audit protocol](docs/frozen-transfer-audit-protocol.md) | Predeclared comparisons, protected test artifacts, and follow-on validation split |
 | [Audit runtime note](docs/frozen-transfer-audit-runtime-note.md) | Bounded memory and empty-output handling exceptions |
 | [Agent guidance](AGENTS.md) / [Detailed repository guidance](CLAUDE.md) | Working conventions, methodology invariants, and completion checks |
@@ -908,9 +930,10 @@ Rscript tests/run_tests.R
 ~~~
 
 The tests cover the shared scoring, pooling, detector-extractor, instance-I/O,
-model-runner, routing, allometry, uncertainty, calibration, RGB fusion, and
-external-transfer helpers. Unit fixtures do not require the large generated
-LiDAR working set; optional live tests report their environment requirements.
+model-runner, routing, allometry, uncertainty, calibration, RGB fusion,
+synthetic detection assembly and external-transfer helpers. Unit fixtures do
+not require the large generated LiDAR working set; optional live tests report
+their environment requirements.
 
 For the Python reference and export tests, use the configured model environment
 with NumPy, laspy, and a LAZ backend. The optional upstream fixtures also need
