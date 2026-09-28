@@ -132,6 +132,13 @@ explicit detector states, fixed ensemble membership and provenance/calibration
 compatibility. Its invented fixtures run without model inference and provide
 no new benchmark scores or real-data admission.
 
+The [FGI-EMIT metadata audit](results/fgiemit-development-audit-results.md)
+declares ten development plots and reserves three previously unprocessed
+training plots, containing 257 annotated trees, for prospective evaluation.
+The six observed test plots remain historical. This native-only declaration
+adds no detector scores; support, local-frame, density and checkpoint-overlap
+checks still gate real-data admission.
+
 ### Choosing a method
 
 These starting points apply to the measured benchmark conditions, not a claim
@@ -470,6 +477,24 @@ historical frozen baseline unchanged. Use the documented frozen checkout for
 that baseline, and a distinct `OUT_DIR` for a separately declared experiment.
 Do not overwrite archived test predictions or tune on their labels.
 
+### FGI-EMIT development declaration
+
+Audit the existing release with the configured Python environment (`laspy` and
+`PyYAML`), without model execution or score inspection:
+
+~~~sh
+PYTHON=/path/to/lidar_tree_benchmarks/gpu/.venv/bin/python
+ROOT="$CLAUDE_JOB_DIR/external/fgiemit"
+OUT="$ROOT/development_declaration"
+"$PYTHON" scripts/audit_fgiemit_development.py --root "$ROOT" --out "$OUT"
+"$PYTHON" scripts/audit_fgiemit_development.py --root "$ROOT" --out "$OUT" --verify
+~~~
+
+Use a fresh output directory. The [protocol](docs/fgiemit-development-protocol.md)
+declares the metadata-based reserve and whole-plot folds; the
+[audit report](results/fgiemit-development-audit-results.md) records the verified
+source inventory and remaining admission gates.
+
 ## Requirements
 
 | Scope | Requirements |
@@ -560,6 +585,7 @@ workflows.
 | detect_treeisonet_sweep.R / detect_treeisonet_crowns.R | TreeisoNet apex and tree-offset crown arms |
 | detect_segmentanytree_sweep.R / detect_forestformer3d_sweep.R | GPU point/instance segmentation arms |
 | download_external_fgiemit.R / detect_external_fgiemit.R | Checksum-pinned external dataset and frozen detector transfer evaluation |
+| audit_fgiemit_development.py | Metadata-only source audit, prospective plot reserve and whole-plot development folds; no real-data admission |
 | audit_frozen_transfer.R | Declared training-only adapter inference and official-metric, export, and scene-assembly diagnostics |
 | audit_scene_assembly.R | Bounded native whole-scene inference, protected-output checks and archived outer-cylinder comparison |
 | detect_deepforest_sweep.R / detect_detectree2_sweep.R | RGB detector and crown-width arms |
@@ -615,6 +641,8 @@ workflows.
 | [Instance IoU, Coverage, and PQ](results/instance-iou-pq-results.md) | Mask-aware proxy evaluation |
 | [RGB-LiDAR fusion](results/rgb-lidar-fusion-results.md) | Standalone optical results and paired, calibrated five-rung SOAP fusion |
 | [Frozen external transfer](results/fgi-emit-external-results.md) | Six-plot FGI-EMIT historical baseline with manual instance labels |
+| [FGI-EMIT development audit](results/fgiemit-development-audit-results.md) | Source/header checks, metadata-based plot reserve and development-fold inventory |
+| [FGI-EMIT development protocol](docs/fgiemit-development-protocol.md) | Native-only scope, deterministic reserve selection and gates before real-data use |
 | [Frozen transfer audit](results/frozen-transfer-audit-results.md) | Training-only adapter corrections, scene-assembly diagnostics, and arm eligibility |
 | [Scene-assembly results](results/forestformer-scene-assembly-results.md) | Whole-scene identity, resource use, common-support metrics and eligibility |
 | [Scene-assembly protocol](docs/forestformer-scene-assembly-protocol.md) | Fixed training comparison and row-identity acceptance contracts |
