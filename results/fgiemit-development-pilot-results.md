@@ -1,5 +1,9 @@
 # FGI-EMIT Bounded Development Pilot
 
+This report records the three-plot pilot stage. The subsequent
+[complete development comparison](fgiemit-development-comparison-results.md)
+reuses its nine accepted cells unchanged and adds the remaining seven plots.
+
 This pilot follows the frozen
 [comparison contract](../docs/fgiemit-comparison-protocol.md), using development
 plots 1001, 1019 and 1027 and the declared CHM-VWF, SegmentAnyTree and
@@ -8,9 +12,9 @@ ForestFormer3D order. The runner executes one cell at a time with a
 and reserve evaluation remain disabled. Upstream checkpoint overlap remains
 unknown; these are conditional development observations.
 
-The fresh attempt with binary exports completed all nine pilot cells. The full
-ten-plot comparison and calibration remain incomplete; the pilot establishes
-execution and output admission on the three declared development plots.
+The fresh attempt with binary exports completed all nine pilot cells. At that
+stage, the ten-plot comparison and calibration were incomplete. The pilot
+established execution and output admission on the three declared plots.
 
 ## Pilot Support
 
