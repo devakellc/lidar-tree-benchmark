@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-09-28",
+  "scope": "Metadata and documentation only; no point records, models, inference, calibration or scoring",
+  "archive_relative_to_work": "validation-dataset-audit/sources",
+  "independent_evaluation_admitted": false,
+  "checkpoint_sha256": {
+    "forestformer3d": "01037a648596832238ac72ea2f5eef87ceaf5aeb399e56ff4b760ba1ed1c777e",
+    "segmentanytree": "0b4d74b4644e37a16f59008ad0f5c62894fc4d2d906f3abd803bbfc5b5dd803a"
+  },
+  "checkpoint_identity_basis": "Carried forward from the sealed checkpoint overlap audit; weights were not loaded or rehashed in this metadata audit",
+  "sources": {
+    "als-benchmark-paper-ugent.pdf": {
+      "url": "https://backoffice.biblio.ugent.be/download/01HAPNQ9V6Q6G4PKNW4DT69H3R/01HAPNT26TW77E6GK27GNSHSPG",
+      "resolved_url": "https://backoffice.biblio.ugent.be/download/01HAPNQ9V6Q6G4PKNW4DT69H3R/01HAPNT26TW77E6GK27GNSHSPG",
+      "retrieved_utc": "2026-09-28T06:08:00.225172+00:00",
+      "bytes": 17516804,
+      "sha256": "a2822c2c36ab0c6738ef54af544cce098d80ddc2261749f765d35f00dfcd1653",
+      "content_type": "application/pdf"
+    },
+    "als-benchmark-readme.md": {
+      "url": "https://zenodo.org/api/records/7181101/files/README.md/content",
+      "resolved_url": "https://zenodo.org/api/records/7181101/files/README.md/content",
+      "retrieved_utc": "2026-09-28T06:07:58.822880+00:00",
+      "bytes": 990,
+      "sha256": "c98c1914642ac3fadf092effeb7346e92d2595a95a65ccaa509fc23146a96911",
+      "content_type": "application/octet-stream"
+    },
+    "als-benchmark-release.json": {
+      "url": "https://zenodo.org/api/records/7181101",
+      "resolved_url": "https://zenodo.org/api/records/7181101",
+      "retrieved_utc": "2026-09-28T06:06:55.274036+00:00",
+      "bytes": 7598,
+      "sha256": "e671bcebf3437ae7b1dee12845d48768e13a9304a583cf154e76952d362b5b24",
+      "content_type": "application/json"
+    },
+    "boreal3d-page.html": {
+      "url": "https://boreal3d.github.io/",
+      "resolved_url": "https://boreal3d.github.io/",
+      "retrieved_utc": "2026-09-28T06:06:56.701789+00:00",
+      "bytes": 6391,
+      "sha256": "97b4157a577a54c253db8f0146378da785e83540017087fe2d5dc454e946c5c6",
+      "content_type": "text/html; charset=utf-8"
+    },
+    "borfit-guide.pdf": {
+      "url": "https://download.pangaea.de/reference/133868/attachments/Product%20Guide.pdf",
+      "resolved_url": "https://download.pangaea.de/reference/133868/attachments/Product%20Guide.pdf",
+      "retrieved_utc": "2026-09-28T06:07:59.330791+00:00",
+      "bytes": 531226,
+      "sha256": "bd061fa10cb6e45d7e29aa0827b00406cf68ab83c5807e71a84031a084c40b55",
+      "content_type": "application/pdf"
+    },
+    "borfit-record.html": {
+      "url": "https://doi.pangaea.de/10.1594/PANGAEA.980505",
+      "resolved_url": "https://doi.pangaea.de/10.1594/PANGAEA.980505",
+      "retrieved_utc": "2026-09-28T06:06:55.923703+00:00",
+      "bytes": 175959,
+      "sha256": "05e0f36a4d67f6bcdb9d73968002a01caab07fb505cf2d2cda09562b9ed210e3",
+      "content_type": "text/html;charset=utf-8"
+    },
+    "cedar-paper.html": {
+      "url": "https://arxiv.org/html/2608.30149v1",
+      "resolved_url": "https://arxiv.org/html/2608.30149v1",
+      "retrieved_utc": "2026-09-28T06:06:54.864586+00:00",
+      "bytes": 184957,
+      "sha256": "defdbde4aff14ba7a10a384c7315ce3832c05eafda31ef49aa39c15cbc3bfdd5",
+      "content_type": "text/html; charset=utf-8"
+    },
+    "cedar-release.json": {
+      "url": "https://zenodo.org/api/records/22168721",
+      "resolved_url": "https://zenodo.org/api/records/22168721",
+      "retrieved_utc": "2026-09-28T06:06:55.211097+00:00",
+      "bytes": 6275,
+      "sha256": "ebd3cdd75fecda5d156118bd5d1e1c5b14f72e348ac208172f67f16ef885f778",
+      "content_type": "application/json"
+    },
+    "digiforests-page.html": {
+      "url": "https://www.ipb.uni-bonn.de/data/digiforest-dataset/",
+      "resolved_url": "https://www.ipb.uni-bonn.de/data/digiforest-dataset/",
+      "retrieved_utc": "2026-09-28T06:06:56.862711+00:00",
+      "bytes": 23197,
+      "sha256": "29cf24edda0ff666a5650bc00959a855dc390543186852e2d75140e5a8e56f86",
+      "content_type": "text/html"
+    },
+    "ff3d-paper.pdf": {
+      "url": "https://openaccess.thecvf.com/content/ICCV2025/papers/Xiang_ForestFormer3D_A_Unified_Framework_for_End-to-End_Segmentation_of_Forest_LiDAR_ICCV_2025_paper.pdf",
+      "sha256": "7d15c2e90b5feff6b8b4c182449318ab3a2cc099e5c0ae5867a2f8351ec724a0",
+      "bytes": 6644918,
+      "retrieved_utc": "2026-09-25T12:50:27.536742+00:00",
+      "provenance": "Reused unchanged from the 2026-09-25 checkpoint evidence archive"
+    },
+    "ff3d-supplement.pdf": {
+      "url": "https://openaccess.thecvf.com/content/ICCV2025/supplemental/Xiang_ForestFormer3D_A_Unified_ICCV_2025_supplemental.pdf",
+      "sha256": "7e3358676292ee13d594029f7d419a25a31cedee1a1bb4e3961196698ff5f8d4",
+      "bytes": 19759331,
+      "retrieved_utc": "2026-09-25T12:51:08.578033+00:00",
+      "provenance": "Reused unchanged from the 2026-09-25 checkpoint evidence archive"
+    },
+    "ff3d-test.txt": {
+      "url": "https://raw.githubusercontent.com/SmartForest-no/ForestFormer3D/6a75c3735e4a4108d02ee944a8b93177f2360a4f/data/ForAINetV2/meta_data/test_list.txt",
+      "sha256": "222dd86b1c7ff93eb3cf5b0e885837b58f679780f8557918f2064c3902348c32",
+      "bytes": 974,
+      "retrieved_utc": "2026-09-25T12:50:24.447353+00:00",
+      "provenance": "Reused unchanged from the 2026-09-25 checkpoint evidence archive"
+    },
+    "ff3d-train.txt": {
+      "url": "https://raw.githubusercontent.com/SmartForest-no/ForestFormer3D/6a75c3735e4a4108d02ee944a8b93177f2360a4f/data/ForAINetV2/meta_data/train_list.txt",
+      "sha256": "fc5201c9e3dde7a084cb0888f8885eea8d5c8c5078fff66b1e7df865d63f35c3",
+      "bytes": 1700,
+      "retrieved_utc": "2026-09-25T12:50:24.226072+00:00",
+      "provenance": "Reused unchanged from the 2026-09-25 checkpoint evidence archive"
+    },
+    "ff3d-val.txt": {
+      "url": "https://raw.githubusercontent.com/SmartForest-no/ForestFormer3D/6a75c3735e4a4108d02ee944a8b93177f2360a4f/data/ForAINetV2/meta_data/val_list.txt",
+      "sha256": "f54cd72175cd0fa75f77bdc0bd9e0aed9a4241c8d7559bd405be4badf7ad7856",
+      "bytes": 557,
+      "retrieved_utc": "2026-09-25T12:50:24.430525+00:00",
+      "provenance": "Reused unchanged from the 2026-09-25 checkpoint evidence archive"
+    },
+    "for-instance-release.json": {
+      "url": "https://zenodo.org/api/records/8287792",
+      "resolved_url": "https://zenodo.org/api/records/8287792",
+      "retrieved_utc": "2026-09-28T06:06:56.441100+00:00",
+      "bytes": 6777,
+      "sha256": "b4c283986efe677453c01c8337288788c7786116b6facd5317da41779dc9b197",
+      "content_type": "application/json"
+    },
+    "forestscan-paper.html": {
+      "url": "https://essd.copernicus.org/articles/18/1243/2026/",
+      "resolved_url": "https://essd.copernicus.org/articles/18/1243/2026/",
+      "retrieved_utc": "2026-09-28T06:06:56.695319+00:00",
+      "bytes": 434842,
+      "sha256": "cb6a911d59d672358089c379bb9c3cc344e700b5c430042b2ae1583f7aa3039b",
+      "content_type": "text/html"
+    },
+    "lapalma-paper.pdf": {
+      "url": "https://mdpi-res.com/d_attachment/drones/drones-08-00772/article_deploy/drones-08-00772.pdf",
+      "resolved_url": "https://mdpi-res.com/d_attachment/drones/drones-08-00772/article_deploy/drones-08-00772.pdf",
+      "retrieved_utc": "2026-09-28T06:07:59.488326+00:00",
+      "bytes": 2171021,
+      "sha256": "cfe3d746ef6a43b5905e319f7e26b77e626f65166db4fad9c5909e14c776a0b1",
+      "content_type": "application/pdf"
+    },
+    "lapalma-release.json": {
+      "url": "https://zenodo.org/api/records/14051046",
+      "resolved_url": "https://zenodo.org/api/records/14051046",
+      "retrieved_utc": "2026-09-28T06:06:56.444862+00:00",
+      "bytes": 5168,
+      "sha256": "4abece57b2371cf76424205525b77ee14d9f2cd2543ff398aac08659a8e57fe3",
+      "content_type": "application/json"
+    },
+    "lautx-release.json": {
+      "url": "https://zenodo.org/api/records/6560112",
+      "resolved_url": "https://zenodo.org/api/records/6560112",
+      "retrieved_utc": "2026-09-28T06:06:56.991353+00:00",
+      "bytes": 6868,
+      "sha256": "1ba5521c499fa3648614d0cfad1cd3802000ed007e0693d66ad6488fd2fc49f6",
+      "content_type": "application/json"
+    },
+    "lin3d-readme.md": {
+      "url": "https://raw.githubusercontent.com/bjfu-lidar/Lin3D-Large-scale-forest-scene-INterpretation-3D-point-cloud-dataset/main/README.md",
+      "resolved_url": "https://raw.githubusercontent.com/bjfu-lidar/Lin3D-Large-scale-forest-scene-INterpretation-3D-point-cloud-dataset/main/README.md",
+      "retrieved_utc": "2026-09-28T06:06:55.616568+00:00",
+      "bytes": 2785,
+      "sha256": "a28b30bc1e25f49372c37e5ff93afc18e15b12999f89de7e9d1a067ff213b60a",
+      "content_type": "text/plain; charset=utf-8"
+    },
+    "sat-paper.pdf": {
+      "url": "https://arxiv.org/pdf/2401.15739",
+      "sha256": "8adca68cfc7e5f453f88ed6db843f43731aa9e8ff5100aea402ba1d715e43e37",
+      "bytes": 2143754,
+      "retrieved_utc": "2026-09-25T12:50:23.896297+00:00",
+      "provenance": "Reused unchanged from the 2026-09-25 checkpoint evidence archive"
+    }
+  },
+  "unsuccessful_fetches": {
+    "borfit-paper.pdf": {
+      "url": "https://essd.copernicus.org/preprints/essd-2025-340/essd-2025-340.pdf",
+      "error": "Metadata size cap exceeded"
+    },
+    "als-benchmark-paper.pdf": {
+      "url": "https://www.openagrar.de/servlets/MCRFileNodeServlet/openagrar_derivate_00054952/dn066895.pdf",
+      "error": ""
+    },
+    "lapalma-paper.html": {
+      "url": "https://www.mdpi.com/2504-446X/8/12/772",
+      "error": "HTTP Error 403: Forbidden"
+    }
+  },
+  "candidate_priority": [
+    "CedarCypress3D",
+    "BorFIT",
+    "Sepilok ALS benchmark",
+    "La Palma"
+  ],
+  "priority_meaning": "Order for resolving structural metadata and admission blockers, not a benchmark performance ranking"
+}
