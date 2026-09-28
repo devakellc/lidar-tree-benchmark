@@ -202,11 +202,13 @@ FGI-EMIT results, not a general density-routing or crown-refinement claim.
 
 The [TEAK-focused validation audit](results/teak-validation-audit.md)
 prioritizes native ALS in mixed-conifer forests for USGS-like deployment.
-Seven locally unscored distributed plots have 2022 full-growth-form census
-metadata; only five contain positive target bole records (29 before support
-checks). None is admitted: geometry, mapping, timing, density and checkpoint
-exposure remain unresolved. The covering USGS project is QL1, and its density
-must not be assumed to match the intended deployment.
+The [candidate reconstruction](results/teak-reference-support-results.md)
+retains all seven locally unscored plots but admits none. Mapping-quality
+flags and structural secondary-bole height gaps leave only 12 preliminarily
+usable boles across three plots. Historical location queries cannot supply
+four required subplot grid points per plot, so verified interiors and final
+reference counts remain unavailable. The covering USGS project is QL1; its
+density is not a measurement of the intended deployment.
 
 The [external dataset eligibility audit](results/validation-dataset-eligibility.md)
 retains CedarCypress3D, BorFIT and Sepilok as supplementary instance-reference
@@ -865,6 +867,7 @@ workflows.
 | preflight_eastern_sites.R | Archive score-blind HARV/BART metadata and inventory local exact-year field candidates |
 | preflight_eastern_coverage.R | Archive released file identities, audit tile availability and census sampled areas; no split freeze |
 | preflight_harv_smoke.R | Inspect the declared HARV-only LiDAR/RGB clip, density and normalization without detector inference |
+| prepare_teak_reference_support.R | Reconstruct seven declared TEAK candidate events using archived location histories; preserve missing corners, quality exclusions and diagnostic-only status |
 | audit_teak_validation.R | Offline TEAK plot-use, census-event, reference-record, historical-density and EPT metadata inventory; no evaluation admission |
 | neon_reference_support.R / review_neon_reference_support.R | Exact-event reference audit, measured sampled-subplot polygons and HARV-only RGB geometry review; no evaluation admission |
 | audit_neon_reference_history.R | Read-only census-support and artifact-integrity audit of archived D17 references |
@@ -922,6 +925,7 @@ workflows.
 | export_geojson.R / export_stems_ground_truth_geojson.R / export_best_treetops_geojson.R | Export benchmark geography, field stems, and best detections as GeoJSON |
 | bootstrap.R / repo_paths.R | Locate the repository and working directory consistently |
 | neon_spatial_lib.R / eastern_preflight_lib.R / neon_acquisition_lib.R | NEON CRS, epoch and cache guards; authenticated tile queries, availability and sampling-support audits |
+| teak_reference_lib.R | Fixed TEAK event scope, verified historical named points and explicit per-plot reconstruction failures |
 | neon_reference_support_lib.R | Census-event joins, surveyed footprints, reference exclusions, opt-in polygon scoring and support-aware pooling guards |
 | neon_reference_resolution_lib.R | Exact-event bole-family evidence, immutable receipts and conservative flight/time attribution checks |
 | neon_individual_reference_lib.R | Unique apparent-individual units, explicit measurement donors and separate diagnostic support identities |
@@ -978,6 +982,8 @@ workflows.
 | [Current native pipeline execution](docs/final-ensemble-pipeline-v2.md) | Versioned execution guards, historical replay and unchanged scientific scope |
 | [Native ensemble pipeline](docs/final-ensemble-pipeline.md) | One-command real workflow, explicit fusion options, separate predicted masks, calibration limits and readiness boundary |
 | [Native pipeline results](results/final-ensemble-pipeline-results.md) | Completed development comparisons, reserve evaluation, exported products and exact verification |
+| [TEAK candidate reconstruction](results/teak-reference-support-results.md) | Historical named-point evidence, structural reference gaps and seven failed measured-subplot reconstructions; no admission |
+| [TEAK reference protocol](docs/teak-reference-protocol.md) | Fixed seven-plot scope, bole population, epoch-aware locations and preserved evaluation gates |
 | [TEAK-focused validation audit](results/teak-validation-audit.md) | Deployment-focused native ALS acquisition, prior plot use, exact-event census candidates and unresolved admission gates |
 | [External dataset eligibility](results/validation-dataset-eligibility.md) | Supplementary instance datasets, source provenance, annotation and checkpoint-exposure blockers; no new evaluation admission |
 | [Reserve execution protocol](docs/fgiemit-reserve-execution.md) | Fixed sequential inference, unchanged method identities, resource limits and failure handling |

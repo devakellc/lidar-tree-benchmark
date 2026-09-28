@@ -1,0 +1,473 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-09-28",
+  "evaluation_admitted": false,
+  "parent_audit_receipt_sha256": "8734ef39e58e3e7c4c13c07395fc8998977bcd0ca24263c752d7511ffccdb210",
+  "location_archive_relative_to_work": "teak-reference-support/history-locations",
+  "location_url_template": "https://data.neonscience.org/api/v0/locations/{locationName}?history=true",
+  "location_records": {
+    "TEAK_004.basePlot.vst.31.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:07:58.583843+00:00",
+      "bytes": 6003,
+      "sha256": "4a2b109a65724e7e55607c3c14fbdd9ca213226e19e1ec290bf02cc3dccca304",
+      "response_sha256": "96f71300590948526cfdeec44adce2fb5e33db5b25a7286f89ec01923ca23f02"
+    },
+    "TEAK_004.basePlot.vst.32.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:07:58.584243+00:00",
+      "bytes": 402,
+      "sha256": "74d3994692578a6c7352228ef876da68066d63e8816d53f6a8cf46436495a2dd",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_004.basePlot.vst.33.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:07:58.584682+00:00",
+      "bytes": 5991,
+      "sha256": "cc086330c05f453cda89c9639ddd4bcd53b9fe81f404f71189cb8a6c933f2dbc",
+      "response_sha256": "76eb1e529682f440715412f1237bb13e8bafd3cf226c6b7344e161cc20edb723"
+    },
+    "TEAK_004.basePlot.vst.40.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:07:58.585107+00:00",
+      "bytes": 402,
+      "sha256": "c760a3bc3ac7eb81ec4aca47d431e2c55cb2dd884bca28790536bd32a9573da3",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_004.basePlot.vst.41.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:07:59.358133+00:00",
+      "bytes": 6023,
+      "sha256": "6b786df3aac2642348f0b745a1bcca4e1a9d58e5878eb03fef4d291035c59bee",
+      "response_sha256": "ea8025c69719f416c5a7710cd13b4e6cb716cfc22553d2356033ebbbb9887a05"
+    },
+    "TEAK_004.basePlot.vst.42.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:07:59.476172+00:00",
+      "bytes": 402,
+      "sha256": "8d404cc10fb8a2828d38e19c503cdb76a132e0ba9dcf33949700be4cf1d3814c",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_004.basePlot.vst.49.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:00.208245+00:00",
+      "bytes": 6003,
+      "sha256": "de56a3bcdc7132478bb381d06e0a9df7b8f772817f3e3848efcecf3c06f42a85",
+      "response_sha256": "76dc3db6b8ec77d6c2246c207c68630437ecc840b8bd6fe43336ad44141f3a1a"
+    },
+    "TEAK_004.basePlot.vst.50.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:01.062213+00:00",
+      "bytes": 402,
+      "sha256": "5d74e88b1008777a3a7b0e99b52c86ee34cb9672b0d256ce19d9ad2d92156fc8",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_004.basePlot.vst.51.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:05.976843+00:00",
+      "bytes": 6023,
+      "sha256": "c5363d904a087f91b1528d1186944d13df3fad81aa4519ccddf29117342a5ec1",
+      "response_sha256": "b2e9f6f3624f485e9b8c8fb413627d7797241de7e0f1696e8aba53faa3910107"
+    },
+    "TEAK_005.basePlot.vst.31.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:05.977273+00:00",
+      "bytes": 6003,
+      "sha256": "fb9153c20bf01b109990bbf273f948a7b7b2fea39526c5dd199ee7543b61957e",
+      "response_sha256": "86e227d968278e0c9f661568fe0b4d44aeecf6f5c9cc14beea92c3abccc24c15"
+    },
+    "TEAK_005.basePlot.vst.32.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:06.690010+00:00",
+      "bytes": 402,
+      "sha256": "f213f8cc2eae85512d0e72c1c0655bb8aec86449ce166abe6e2183602c9027b3",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_005.basePlot.vst.33.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:06.794930+00:00",
+      "bytes": 6019,
+      "sha256": "8bbbf0576e152feda9a0fb1ff82033266e376c838ce470690d750e6b3e34f791",
+      "response_sha256": "07fc0d9d5632139a931d9aa75129900411827e20b383ddbe51385a8aaaf223ee"
+    },
+    "TEAK_005.basePlot.vst.40.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:06.819195+00:00",
+      "bytes": 402,
+      "sha256": "20d133f783272e28f0a06ec13bbdf98f5b4e369b6977c24bafac6d08ff33c1ba",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_005.basePlot.vst.41.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:07.637659+00:00",
+      "bytes": 6003,
+      "sha256": "05b5f897be8951b52596e4bfc8407042bb17aa15b74f984f2a4a51a138344b06",
+      "response_sha256": "127deb44fb0789119434c28dfc6101176526c0a5e4af6d9510ac62c8a453fb4a"
+    },
+    "TEAK_005.basePlot.vst.42.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:08.477021+00:00",
+      "bytes": 402,
+      "sha256": "70361c17198183a06ecf9e12f5d12b3b2fff27d66992983ff9adebd2c38e83f7",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_005.basePlot.vst.49.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:08.668729+00:00",
+      "bytes": 6019,
+      "sha256": "f0c22ad39e9122a1c9df2ca392089c82898ce660cd97778e89b57bbed0ccf1f5",
+      "response_sha256": "23f93c64594d289184718c95af94a6f280e8dd8ce37f9e4f4b96cf026e706d96"
+    },
+    "TEAK_005.basePlot.vst.50.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:09.509961+00:00",
+      "bytes": 402,
+      "sha256": "bff69317d306ced88ed5798a7085926c634acde9252c298d0cf295b3e486996b",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_005.basePlot.vst.51.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:13.980140+00:00",
+      "bytes": 5999,
+      "sha256": "aca30a33f4acdbc28fe0f0ed7fa6505050c95f98a1345cef6790a5f404a3c7c7",
+      "response_sha256": "6bf93362cc70c6b098b74c2946bcb850c4e02f38369d12d5f07e1138a8cc6025"
+    },
+    "TEAK_010.basePlot.vst.25.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:14.003358+00:00",
+      "bytes": 6023,
+      "sha256": "870bba6090558e0ed3c4710b9af3bfa9282d50de57546d1e6376ff004edaa1f0",
+      "response_sha256": "9ddf87cfbc2ec56efe047865aeb2358a2ed62e7efd12f7634bbf703eab1d6146"
+    },
+    "TEAK_010.basePlot.vst.31.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:14.823008+00:00",
+      "bytes": 6003,
+      "sha256": "b9f74f4eaf430cdedc48af3579c2a688be4ab66eaa9ea4f764297b2ff0dc1e98",
+      "response_sha256": "2af4612c67d747af3953f75146694f5bbf0a9aee7336e37c9b30698d3dbb2509"
+    },
+    "TEAK_010.basePlot.vst.32.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:14.845087+00:00",
+      "bytes": 402,
+      "sha256": "27f37b63cda87b63a6d20ebcb325d1e24686ba33894ada2417295f4651c9a042",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_010.basePlot.vst.33.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:15.667271+00:00",
+      "bytes": 6019,
+      "sha256": "862a7fe1a1ccfaecf93bc2cfc197e7ef25ddf279626d8e25d7c0389328afb833",
+      "response_sha256": "c21139b929c93149923c33ffdb23615a28adc07232616e15376439a8a8aa85ed"
+    },
+    "TEAK_010.basePlot.vst.40.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:15.878718+00:00",
+      "bytes": 402,
+      "sha256": "7f4cab6d1cdc5f42dc9b4421dfabd0b39b41b7bd8695704e24f2768665e31b6c",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_010.basePlot.vst.41.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:16.508150+00:00",
+      "bytes": 6019,
+      "sha256": "c87aac3933930dca99bf27020b003f99cd1016901451148d548abd04355a003d",
+      "response_sha256": "10f8065c3b66b022274b68d974faa030a0eabe529d1d2b466dd0623f4c494956"
+    },
+    "TEAK_010.basePlot.vst.42.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:16.750630+00:00",
+      "bytes": 402,
+      "sha256": "3739573dd128c806090fdb2235733dfbd2287ec75f8b956bcd3ae5eb64788655",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_010.basePlot.vst.49.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:17.238268+00:00",
+      "bytes": 6003,
+      "sha256": "fa6e757e3418e8570452e2d00ad75aea501141a0df3814e0964208524faa8d8d",
+      "response_sha256": "038a7d161250e2335b14f142193372dbbc652bc5ea280443e64f53b7c5d5cebc"
+    },
+    "TEAK_010.basePlot.vst.50.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:18.081273+00:00",
+      "bytes": 402,
+      "sha256": "0471a5eb1baf3d5300b3b85e7c122a8134c9aa53277390e0b0b6a7ca28d33a77",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_010.basePlot.vst.51.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:22.233257+00:00",
+      "bytes": 5999,
+      "sha256": "e49bf4c90cc1ab5c74560f26cd27e1371ca6e565fe1d89536c628ecf551f400b",
+      "response_sha256": "b1a507f0ff3aa6f029ef96fbfe259d6a972dda091b18fd0b3e68b4f5f01a937d"
+    },
+    "TEAK_016.basePlot.vst.31.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:23.084390+00:00",
+      "bytes": 6003,
+      "sha256": "58f1deca8ec845496478ed09aa3be36180a7710408e888a9d2d32868d2ea7b77",
+      "response_sha256": "5219985bade1d9c0bf8681c4fb15bdf09d42723094717c7a3fe41f0b8244d2f5"
+    },
+    "TEAK_016.basePlot.vst.32.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:23.088427+00:00",
+      "bytes": 402,
+      "sha256": "8a4981e3ec4898f1bdf3ce43a2251bf9a35a4e876d8b9e318394d33b08f3ca0a",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_016.basePlot.vst.33.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:23.931236+00:00",
+      "bytes": 5999,
+      "sha256": "7760935f6dc3723a0d9047fa4628058dded03d7e6026e39e5b8516f1956dc995",
+      "response_sha256": "4f23301ab8d486e6eae3af29941db1a9d144d5c57c9fc68140569ae000149edb"
+    },
+    "TEAK_016.basePlot.vst.40.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:24.279228+00:00",
+      "bytes": 402,
+      "sha256": "50da833e9073120aafada26103dbffc06e74589863b6faf4729cb642afc1d8ec",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_016.basePlot.vst.41.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:24.645247+00:00",
+      "bytes": 6023,
+      "sha256": "5a1ffe59d24d03dce3a16c7c054f9a4304cbb3f4e70f208a0946575535cf0745",
+      "response_sha256": "20c8cae16faa28e763693a3bae476eb8fa64ad31a9ae9dd3b819dbd5c3c33378"
+    },
+    "TEAK_016.basePlot.vst.42.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:25.487806+00:00",
+      "bytes": 402,
+      "sha256": "8bc5e3084c851da4d02d951710f3c29e0fdeaf453c315b104d847850e7d5d6cc",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_016.basePlot.vst.49.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:25.720082+00:00",
+      "bytes": 6003,
+      "sha256": "622241c0df32330c8f291967551e4093f71963e3797ec64a32ba1416da708952",
+      "response_sha256": "c0b06f7decc9978a1484f52877d8c70281cc69952b5362bb9c972d87779e3560"
+    },
+    "TEAK_016.basePlot.vst.50.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:26.560705+00:00",
+      "bytes": 402,
+      "sha256": "8b80b31e3cf227f0a87414527bd7e12659cc686032ed6881d137d28647ce4adc",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_016.basePlot.vst.51.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:30.510819+00:00",
+      "bytes": 6003,
+      "sha256": "3600176455bfbf32b3949202cd9f5ed0d2cdfb22d3270cf9752f9477056de255",
+      "response_sha256": "96f37f853bbb689508def326a0992499ca34d3470005e06013fd67d2b09a58b2"
+    },
+    "TEAK_018.basePlot.vst.31.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:31.348744+00:00",
+      "bytes": 6003,
+      "sha256": "26514d69886a502cb444219ff4c6eda9b59d0fee1cd1000c7ffbc73a65b3b5d5",
+      "response_sha256": "851aa63b81036396fd96d478410653035e392a90fb820e9725a55b9312109aaa"
+    },
+    "TEAK_018.basePlot.vst.32.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:31.471621+00:00",
+      "bytes": 402,
+      "sha256": "b26affc14a635910e19ab36a610e11ec903b1c0e270cfd622074117af40ebd5d",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_018.basePlot.vst.33.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:32.188948+00:00",
+      "bytes": 6023,
+      "sha256": "0ef968151abcd4d86a6066e09c447b43232ee26be92b05c320592ae87558c345",
+      "response_sha256": "b9b4044a5d4a00693887c66e2b2c3f3a2d89d9e4d67000a4abf06ff989d5b343"
+    },
+    "TEAK_018.basePlot.vst.40.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:32.900803+00:00",
+      "bytes": 402,
+      "sha256": "d78468f0b313f0519f8f0bd58f02f7d035195eeae29912ebef4ad143d4990ab8",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_018.basePlot.vst.41.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:32.920863+00:00",
+      "bytes": 6003,
+      "sha256": "61df889e4a75decdb1ca2e16f62c71f7997e6a765cd8caa3f5759a2a34b1b239",
+      "response_sha256": "d4dd2a89e69066b7e9fd748ae99a8a551646e2503e9e709dc14316ff996c8bc9"
+    },
+    "TEAK_018.basePlot.vst.42.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:33.760832+00:00",
+      "bytes": 402,
+      "sha256": "9d20ca3766e7d65b68ad189a0ce69959e3ef51938be517bf8f9a093fbab7bd74",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_018.basePlot.vst.49.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:33.976815+00:00",
+      "bytes": 5999,
+      "sha256": "71c7fdeb74d0dea0b757b61c4b4f0b14405a7f3155f325e0002bb6d792e36b65",
+      "response_sha256": "5c58c748b235e18848409a5e80997390aeaa14cdcdcec8d5894cfc561575aec8"
+    },
+    "TEAK_018.basePlot.vst.50.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:34.702371+00:00",
+      "bytes": 402,
+      "sha256": "684a3b43b3be0784889222f458a7b1668c6ca00481c689b2a842a9ae1151977a",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_018.basePlot.vst.51.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:39.157379+00:00",
+      "bytes": 6003,
+      "sha256": "58645e4b89cfed932888ea503ce8bf9b19c3191db8c122ebf87387868ff012f3",
+      "response_sha256": "97fa6fb004882941905a209215e9316769d8bcfdf724e5e54eb5bd6b5f77c548"
+    },
+    "TEAK_024.basePlot.vst.31.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:40.009458+00:00",
+      "bytes": 5985,
+      "sha256": "595f689f32bd58c0870f2bd58792d80f166be2f1d4cebfad6157fcd0ee346a98",
+      "response_sha256": "0e5e0b96aba664b1ad179d419bdcfd8e8d1c4cb3a6444d62d585a6a124c9659c"
+    },
+    "TEAK_024.basePlot.vst.32.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:40.468235+00:00",
+      "bytes": 402,
+      "sha256": "787cb5797395f23d2ad2e929988d11f14c1c6c88363e64ed1148b49b498452ad",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_024.basePlot.vst.33.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:40.850322+00:00",
+      "bytes": 6005,
+      "sha256": "ce3bc05a96aeaee361a8039416c5eb5a728139ef42455931aaa11b0874151624",
+      "response_sha256": "6d021572378e4c683d0017a4c6241240ed839dbc2191f7253e6a7c3d1d372850"
+    },
+    "TEAK_024.basePlot.vst.40.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:41.212039+00:00",
+      "bytes": 402,
+      "sha256": "5799a6d3d9a37b519ab0093673bae9b1eb031eb8dead8afa184730dd72fb8cc5",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_024.basePlot.vst.41.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:41.695929+00:00",
+      "bytes": 6005,
+      "sha256": "50575a8a80c74facb9a4019c8dd5ac48ffca46d473c7b715286801ccb9a5b64d",
+      "response_sha256": "e94b5a52331c4d368919ae2dff4db166492a50ef4c496cb273b35e9f74779a47"
+    },
+    "TEAK_024.basePlot.vst.42.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:41.937654+00:00",
+      "bytes": 402,
+      "sha256": "562d44868a72bd054e10e551f5f312e65d0f6c98e1631ec94ef28c9deeb0036e",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_024.basePlot.vst.49.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:42.540733+00:00",
+      "bytes": 5981,
+      "sha256": "4c18c157c34e42f149dab203f8edf96ebef1aed2086f50bc8512ccbf9f18ca61",
+      "response_sha256": "bd299ba1a69262ce9f70a98efa85fab17e82f7c3043bf6218380214eae9c1c51"
+    },
+    "TEAK_024.basePlot.vst.50.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:43.250205+00:00",
+      "bytes": 402,
+      "sha256": "ed29dadbe7799b89dde366e056db6adf1df9823fa9f8d124182eaafc570a0238",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_024.basePlot.vst.51.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:47.763670+00:00",
+      "bytes": 5985,
+      "sha256": "4de20f002792a8f2843d7660bff1b119dc23f84b6469bca3cec52f05a1813649",
+      "response_sha256": "443d6308e764aeb999b55d666265597a16d7a1a9bb093c555ed8309bb10748ff"
+    },
+    "TEAK_025.basePlot.vst.31.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:48.475658+00:00",
+      "bytes": 6005,
+      "sha256": "1f4efbf92927742b2e8267ddda96dea14d8348212fbb1d5fa1ebe931bbbee97d",
+      "response_sha256": "7cee9a492c35ebc76cab286badb54b3b85ad58f195bdcc6641f35d09c1219813"
+    },
+    "TEAK_025.basePlot.vst.32.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:48.573696+00:00",
+      "bytes": 402,
+      "sha256": "5a755ffbfe414bba21902432a106896a3f9ba03e6e6153bea81e8bb3ebfee52d",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_025.basePlot.vst.33.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:49.177147+00:00",
+      "bytes": 6013,
+      "sha256": "abe133e892bec13ca61a8c1a72e448a4373624ee9205a3378a3512a18b98f51e",
+      "response_sha256": "8eea9338722e97b1ad9c17870d179dee7d5a648c7cc9df410ab89b7ecc1413ae"
+    },
+    "TEAK_025.basePlot.vst.40.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:49.197355+00:00",
+      "bytes": 402,
+      "sha256": "3d12f6d171daa79d7b23541044521a51229fba08bf0b1473bc1db1049ba838b4",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_025.basePlot.vst.41.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:50.031380+00:00",
+      "bytes": 6009,
+      "sha256": "c85d9272e2d7e8ec656340cabd17b272994b65b1822901e756ab0566fc5adbfe",
+      "response_sha256": "b61a9e15389dc57482f5b8e6b96788c7f548e1bb30c83843f9ec15e1678d3c43"
+    },
+    "TEAK_025.basePlot.vst.42.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:50.524367+00:00",
+      "bytes": 402,
+      "sha256": "8181c83c9f281bb69b533fe3ffc254efaa2f9dfa4efaaf5232a3c9108fca3882",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_025.basePlot.vst.49.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:50.868017+00:00",
+      "bytes": 6013,
+      "sha256": "83d2449338594a92df8e36b23ebf98fcf398df1c48c4b6a44b570246232f184b",
+      "response_sha256": "98495c2bc1200a627f018e3a36ff6cc8faa37ee290e00194c2598656e6aae643"
+    },
+    "TEAK_025.basePlot.vst.50.json": {
+      "status": 400,
+      "retrieved_utc": "2026-09-28T07:08:51.716127+00:00",
+      "bytes": 402,
+      "sha256": "a1fa10ecf3a808233f9658e172cad91dfb80ceed6797bab07eb229cff74c6e0b",
+      "response_sha256": "f1cc87cba795f8d7ee1c08a8142f0a4900ea5079116ca0e5e2228131407272d5"
+    },
+    "TEAK_025.basePlot.vst.51.json": {
+      "status": 200,
+      "retrieved_utc": "2026-09-28T07:08:56.045376+00:00",
+      "bytes": 5993,
+      "sha256": "f54246e2c8d2b21cea044436159082ec427ef41ab03311cebcd3fcc603af6ccb",
+      "response_sha256": "3c4e0ee00f3280b87080f1bb723664498bbbf95c549084f30d1857cf66849b4e"
+    }
+  },
+  "guide": {
+    "url": "https://data.neonscience.org/api/v0/documents/NEON_vegStructure_userGuide_vG?inline=true",
+    "archive_relative_to_work": "teak-reference-support/sources/NEON_vegStructure_userGuide_vG.pdf",
+    "retrieved_on_utc": "2026-09-28",
+    "bytes": 1297133,
+    "sha256": "e3152c9a7ea0f905499b555e63f405973eb56ba464226271c9759d4912653a68"
+  },
+  "accepted_preparation": {
+    "output_relative_to_work": "teak-reference-support/run-v2-history",
+    "receipt_sha256": "d7476379c900a517975bfc6acac3f6f27561b4f9c63964270b781682881bde61",
+    "input_count": 145,
+    "output_count": 9,
+    "diagnostic_status": "All seven sampled-subplot geometries failed; selected reference counts unknown"
+  },
+  "offline_replay_relative_to_work": "teak-reference-support/run-v2-history-replay"
+}
