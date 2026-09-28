@@ -158,8 +158,14 @@ code and settings. All 30 cells passed on the same 841-reference population.
 Separate apex and mask summaries pool counts and include paired whole-plot
 bootstrap intervals. Observed apex F1 is 0.513 for CHM-VWF, 0.732 for SAT
 and 0.809 for ForestFormer3D; mask F1 is 0.612 for SAT and 0.713 for
-ForestFormer3D. All 50 calibration cells remain planned; the reserve stays
-closed and unknown checkpoint overlap still limits the claims.
+ForestFormer3D. The subsequent
+[whole-plot calibration](results/fgiemit-development-calibration-results.md)
+completes all 50 validation cells using only the other nine plots for each fit.
+Calibration covers 359/375 CHM predictions, 792/795 SAT predictions and 826/830
+ForestFormer3D predictions per applicable target. Out-of-range scores remain
+uncalibrated. Baseline predictions are retained; no threshold or fusion policy
+is selected. The reserve stays closed, and unknown upstream checkpoint overlap
+still limits the claims.
 
 ### Choosing a method
 
@@ -623,6 +629,34 @@ upstream training overlap still limits interpretation to development data.
 See the [completed results](results/fgiemit-development-comparison-results.md)
 for full support, both scoring tracks, paired diagnostics and resource limits.
 
+### FGI-EMIT development calibration
+
+After verifying the complete detector run and summary, fit the declared
+50 whole-plot validation cells. This CPU stage reads the sealed predictions
+and full reference labels; it runs no new detector inference. Creation requires
+a fresh output directory. Using the paths from the comparison workflow:
+
+~~~sh
+CALIBRATION="$ROOT/development_calibration"
+"$PYTHON" scripts/calibrate_fgiemit_development.py \
+  --root "$ROOT" --run "$RUN" --pilot "$PILOT" --runtime "$RUNTIME" \
+  --summary "$SUMMARY" --out "$CALIBRATION"
+"$PYTHON" scripts/calibrate_fgiemit_development.py \
+  --root "$ROOT" --run "$RUN" --pilot "$PILOT" --runtime "$RUNTIME" \
+  --summary "$SUMMARY" --out "$CALIBRATION" --verify
+~~~
+
+Each arm/target fit aggregates equal raw scores by count and TP sum before
+weighted isotonic regression. Linear interpolation uses training knots only;
+out-of-range validation scores remain unavailable. Apex and mask calibration
+remain separate. Outputs retain all 50 cell statuses, prediction identities,
+fold-specific knots, coverage, pooled Brier/ECE and paired whole-plot intervals
+conditional on the fixed out-of-fold predictions. Failed analysis preserves
+its log without a success receipt. No deployment lookup, probability threshold
+or fusion rule is exported, and the reserve remains closed. See the
+[calibration report](results/fgiemit-development-calibration-results.md)
+for results, unavailable-score counts and uncertainty limits.
+
 ## Requirements
 
 | Scope | Requirements |
@@ -637,6 +671,7 @@ for full support, both scoring tracks, paired diagnostics and resource limits.
 | FGI-EMIT development preparation | Existing Python with laspy, numpy, scipy and PyYAML; R lidR, data.table and jsonlite; checkpoint audit uses Python 3.11+ and the installed Docker images without GPU execution |
 | FGI-EMIT comparison declaration | Same existing Python and Docker environments; R lasR, lidR, terra, sf, data.table and jsonlite; records installed lasR identity and variable-window capability before any detector execution |
 | FGI-EMIT development pilot and comparison | Pinned lasR source object and existing R build dependencies; existing SAT/FF3D GPU images and checkpoints, Docker GPU access, rsync and GNU time; the pilot builds an isolated R library; summaries use the existing R pooling helper |
+| FGI-EMIT development calibration | Complete sealed detector run and summary; existing Python and R with lidR, data.table and jsonlite; parent verification needs installed Docker checkpoint identities, but fitting uses CPU only |
 | Tests | testthat |
 | Markdown checks | rumdl with [.rumdl.toml](.rumdl.toml) |
 
@@ -724,6 +759,7 @@ workflows.
 | run_fgiemit_pilot.py / fgiemit_pilot_lib.py / fgiemit_pilot_cell.R | Bounded declared pilot, exact point-support admission, fixed filters and existing separate mask/apex scoring |
 | run_fgiemit_development.py | Remaining 21 detector cells, exact reuse of the nine admitted pilot cells and a sealed complete-matrix receipt |
 | summarize_fgiemit_development.py / summarize_fgiemit_development.R / fgiemit_development_summary_lib.R | Complete-support gate, separate apex/mask count pooling, paired whole-plot bootstrap intervals and height diagnostics |
+| calibrate_fgiemit_development.py / calibrate_fgiemit_development.R / fgiemit_calibration_lib.R | Fifty whole-plot validation cells, target-specific TP/FP recovery, raw-score weighted isotonic fits, explicit unavailable probabilities and count-pooled Brier/ECE |
 | gpu/run_fgiemit_segmentanytree.py / gpu/fgiemit_sat_export.py | Native full-cloud SAT export with explicit source-row bookkeeping, including background and coincident points |
 | audit_frozen_transfer.R | Declared training-only adapter inference and official-metric, export, and scene-assembly diagnostics |
 | audit_scene_assembly.R | Bounded native whole-scene inference, protected-output checks and archived outer-cylinder comparison |
@@ -787,7 +823,8 @@ workflows.
 | [FGI-EMIT comparison contract](results/fgiemit-comparison-contract-results.md) | Thirty planned detector cells, fifty calibration cells and verified height-reference exports |
 | [FGI-EMIT comparison protocol](docs/fgiemit-comparison-protocol.md) | Frozen method, matching, calibration, resource and conditional-development claim rules |
 | [FGI-EMIT development pilot](results/fgiemit-development-pilot-results.md) | Bounded runner, pinned runtime evidence, source-row export checks and observed cell outcomes |
-| [FGI-EMIT complete development comparison](results/fgiemit-development-comparison-results.md) | All thirty native detector cells, count-pooled apex/mask results, paired bootstrap intervals and height diagnostics; calibration and reserve remain closed |
+| [FGI-EMIT complete development comparison](results/fgiemit-development-comparison-results.md) | All thirty native detector cells, count-pooled apex/mask results, paired bootstrap intervals and height diagnostics; detector stage performs no calibration |
+| [FGI-EMIT whole-plot calibration](results/fgiemit-development-calibration-results.md) | All fifty validation cells, fold-specific raw-score fits, calibration coverage and conditional Brier/ECE intervals; reserve remains closed |
 | [Frozen transfer audit](results/frozen-transfer-audit-results.md) | Training-only adapter corrections, scene-assembly diagnostics, and arm eligibility |
 | [Scene-assembly results](results/forestformer-scene-assembly-results.md) | Whole-scene identity, resource use, common-support metrics and eligibility |
 | [Scene-assembly protocol](docs/forestformer-scene-assembly-protocol.md) | Fixed training comparison and row-identity acceptance contracts |

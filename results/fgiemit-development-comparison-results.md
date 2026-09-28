@@ -4,8 +4,9 @@ Completed on 2026-09-25: all 30 declared native-density detector cells passed
 output admission and external scoring. Nine cells are reused from the admitted
 [three-plot pilot](fgiemit-development-pilot-results.md), and 21 are newly run
 with identical sealed execution code, inputs and settings. No earlier failed
-attempt contributes predictions. Calibration remains unfitted and the three
-reserve plots remain closed.
+attempt contributes predictions. This detector stage fits no calibration.
+The subsequent [whole-plot calibration](fgiemit-development-calibration-results.md)
+is reported separately; the three reserve plots remain closed.
 
 This is a conditional development comparison. Unknown upstream checkpoint
 training overlap prevents an unseen-data claim. The historical six-plot
@@ -213,11 +214,12 @@ native densities and unknown upstream training overlap limit generalization.
 These results do not establish a deployment threshold, calibration quality,
 fusion benefit, sparse-density performance or unseen-data accuracy.
 
-The next declared step is the 50 whole-plot calibration validation cells:
-three apex targets and two mask targets across ten folds, training each
-calibrator only on the other nine plots. Retain every fixed-filter prediction
-in baseline scoring and report unavailable/out-of-range calibration counts.
-No calibration is fitted here. Reserve evaluation requires a separate frozen
+The subsequent [whole-plot calibration](fgiemit-development-calibration-results.md)
+completes the 50 declared validation cells: three apex targets and two mask
+targets across ten folds, training each calibrator only on the other nine
+plots. It retains every fixed-filter prediction in baseline scoring and
+reports unavailable/out-of-range calibration counts. No calibration is fitted
+by this detector stage. Reserve evaluation requires a separate frozen
 development policy and overlap decision.
 
 ## Verification and Reproduction
