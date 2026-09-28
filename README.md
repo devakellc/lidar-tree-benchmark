@@ -174,7 +174,7 @@ freeze. The subsequent
 [reserve input validation](results/fgiemit-reserve-input-results.md) prepares
 the original three plots in a separate job root and seals their execution
 contract. It preserves all 257 references and runs no detector. The
-[native ensemble pipeline](docs/final-ensemble-pipeline.md) connects these
+[native ensemble pipeline](docs/final-ensemble-pipeline-v2.md) connects these
 inputs to bounded reserve execution, development fusion comparisons and
 separate treetop/instance exports. See its
 [observed results](results/final-ensemble-pipeline-results.md) for completed
@@ -748,21 +748,27 @@ declared reserve cells, pools separate detection/mask metrics and exports
 treetops plus complete-row predicted instance clouds:
 
 ~~~sh
-Rscript scripts/assemble_metapipeline.R MODE=fgiemit \
+Rscript scripts/assemble_metapipeline_v2.R MODE=fgiemit \
   PYTHON="$PYTHON" ROOT="$ROOT" PREPARED="$RESERVE" \
   RUN="$CLAUDE_JOB_DIR/fgiemit-reserve-run-v1" \
-  OUT="$CLAUDE_JOB_DIR/fgiemit-reserve-products-v1" EXECUTE=true
+  OUT="$CLAUDE_JOB_DIR/fgiemit-reserve-products-v2"
 ~~~
 
 An existing run is verified and reused; failed attempts are preserved and not
-retried. Use a fresh product directory. `VERIFY=true` replays the parent chain
-and checks all product hashes. For development-only fusion comparisons and
-exports, use `STAGE=development` and optionally `METHOD=consensus_point` or
-another documented method. The reserve rejects fusion overrides. The default
-detection and separate instance product use the frozen FF3D policy.
+retried. The current entry point reserves writable product output before any
+optional execution and enforces one attempt per sealed reserve contract,
+including prior sibling runs. Use a fresh product directory. `VERIFY=true`
+replays the parent chain and checks all product hashes. For development-only
+fusion comparisons and exports, use `STAGE=development` and optionally
+`METHOD=consensus_point` or another documented method. The reserve rejects
+fusion overrides. The default detection and separate instance product use the
+frozen FF3D policy.
 
-The [pipeline guide](docs/final-ensemble-pipeline.md) describes methods,
-calibration availability, files and readiness limits. The
+The [current execution guide](docs/final-ensemble-pipeline-v2.md) documents
+cleanup, attempt admission and explicit verification expectations. The original
+entry point and [pipeline guide](docs/final-ensemble-pipeline.md) remain for
+historical replay and describe methods, calibration availability, files and
+readiness limits. The
 [execution protocol](docs/fgiemit-reserve-execution.md) preserves one attempt
 per cell and the existing resource limits. The
 [pipeline report](results/final-ensemble-pipeline-results.md) distinguishes
@@ -877,7 +883,9 @@ workflows.
 | calibrate_fgiemit_development.py / calibrate_fgiemit_development.R / fgiemit_calibration_lib.R | Fifty whole-plot validation cells, target-specific TP/FP recovery, raw-score weighted isotonic fits, explicit unavailable probabilities and count-pooled Brier/ECE |
 | freeze_fgiemit_policy.py | Development-selected single-arm policy, fixed reserve controls, primary-source overlap checks and sealed metadata-only prospective plan |
 | prepare_fgiemit_reserve.py | Original three-plot reserve preparation, unchanged geometric normalization, source-row and density replay, and sealed nine-cell execution contract without inference |
+| run_fgiemit_reserve_v2.py / fgiemit_reserve_cell_v2.py / fgiemit_process_v2.py | Current one-attempt reserve execution, atomic contract admission and independent process cleanup; original runners remain for historical replay |
 | run_fgiemit_reserve.py / fgiemit_reserve_cell.py | One-attempt sequential reserve inference and scoring with explicit input paths, unchanged algorithms, complete-row admission and failure preservation |
+| run_ensemble_pipeline_v2.py / assemble_metapipeline_v2.R | Current pipeline entry points, writable output admission, explicit replay expectations and historical receipt dispatch |
 | run_ensemble_pipeline.py / analyze_fgiemit_pipeline.R / fgiemit_pipeline_lib.R | Verified detector reuse, fixed development fusion comparisons, target/density calibration gates, count pooling and separate treetop/instance exports |
 | gpu/run_fgiemit_segmentanytree.py / gpu/fgiemit_sat_export.py | Native full-cloud SAT export with explicit source-row bookkeeping, including background and coincident points |
 | audit_frozen_transfer.R | Declared training-only adapter inference and official-metric, export, and scene-assembly diagnostics |
@@ -952,6 +960,7 @@ workflows.
 | [Scene-assembly results](results/forestformer-scene-assembly-results.md) | Whole-scene identity, resource use, common-support metrics and eligibility |
 | [Scene-assembly protocol](docs/forestformer-scene-assembly-protocol.md) | Fixed training comparison and row-identity acceptance contracts |
 | [Synthetic detection assembly](docs/metapipeline-contracts.md) | Cell/arm schemas, availability states, calibration gates and reproducible synthetic outputs |
+| [Current native pipeline execution](docs/final-ensemble-pipeline-v2.md) | Versioned execution guards, historical replay and unchanged scientific scope |
 | [Native ensemble pipeline](docs/final-ensemble-pipeline.md) | One-command real workflow, explicit fusion options, separate predicted masks, calibration limits and readiness boundary |
 | [Native pipeline results](results/final-ensemble-pipeline-results.md) | Completed development comparisons, reserve evaluation, exported products and exact verification |
 | [Reserve execution protocol](docs/fgiemit-reserve-execution.md) | Fixed sequential inference, unchanged method identities, resource limits and failure handling |
