@@ -4,11 +4,11 @@ Reviewed 28 September 2026 using public metadata and primary documentation.
 This is a dataset selection report, not a detector experiment or a declaration
 of admitted evaluation support.
 
-**Prioritize CedarCypress3D for structural preflight. Retain BorFIT as the
-second candidate and Sepilok as a secondary ALS diagnostic. No candidate is
-currently cleared for independent evaluation with the installed checkpoints.**
-The recommendation concerns evidence quality and practical next steps; it does
-not predict which dataset will produce favorable detector scores.
+**Prioritize TEAK-like native ALS for the intended USGS-like deployment.**
+The [TEAK-focused audit](teak-validation-audit.md) identifies a small set of
+unscored reference candidates and the remaining admission gaps. The dense
+instance datasets below are supplementary; none is currently cleared for
+independent evaluation with the installed checkpoints.
 
 ## Decision basis
 
@@ -27,7 +27,8 @@ included `airborne lidar individual tree instance segmentation dataset`,
 `BorFIT`, `CedarCypress3D`, `International benchmark ALS individual tree
 segmentation`, `Lin3D` and `ForestScan`.
 
-Priority is qualitative, in this order: genuine instance-reference suitability,
+Within the supplementary instance track, priority is qualitative: genuine
+instance-reference suitability,
 annotation/support clarity, ability to separate sites and plots, documented
 input availability and compatibility, then relevant domain coverage. All
 candidates retain an unresolved exact-checkpoint exposure gate. Public release
@@ -42,7 +43,7 @@ Three statuses are distinct:
 - **Outside this comparison:** available labels or sensor conditions do not
   currently support the intended forest ALS/ULS instance comparison.
 
-## Ranked shortlist
+## Supplementary instance-dataset shortlist
 
 Published densities below are descriptive point-density figures. They are
 neither measured retained-support `pdens` nor first-return `frdens` for this
@@ -59,7 +60,7 @@ Archive sizes and license identifiers were read from release metadata; archive
 contents were not downloaded or inspected. Licenses require their stated
 attribution. An accessible metadata record is not a successful bulk download.
 
-## CedarCypress3D: first structural preflight
+## CedarCypress3D: supplementary structural preflight
 
 The [data paper](https://arxiv.org/html/2608.30149v1) documents 16 Saiki and
 18 Kokonoe plots. Annotation was reviewed across annotators; Kokonoe used
@@ -180,8 +181,8 @@ site-level test by subdividing its trees.
 ## Common admission gates and next deliverable
 
 The evidence supports **documentation-level prioritization only**. No split,
-detector run or calibration fit is declared by this report. A subsequent
-CedarCypress3D structural preflight should produce an admission matrix with:
+detector run or calibration fit is declared by this report. A later
+supplementary CedarCypress3D preflight should produce an admission matrix with:
 
 1. Versioned source inventory and checksums, physical plot/site grouping,
    overlap/buffer audit, and complete census inclusion and ignore rules.
@@ -206,10 +207,10 @@ validation. If scope must cover low-density ALS, these leading dense ULS
 candidates do not satisfy that requirement. Simulated thinning would require
 its own declared experiment and cannot stand in for native sparse acquisition.
 
-This report recommends preflight of CedarCypress3D first. It makes no request
-to authors, starts no acquisition, and leaves the installed models and frozen
-policy unchanged. A split and bounded benchmark protocol follow only after
-the relevant support and provenance decisions are resolved.
+The primary next step is the TEAK-focused support and acquisition work
+described in the linked audit. CedarCypress3D leads only the supplementary
+instance track. This report makes no request to authors, starts no acquisition
+and leaves installed models and the frozen FGI-EMIT policy unchanged.
 
 ## Evidence and verification
 
@@ -230,8 +231,11 @@ PDF endpoint. Failed attempts are retained in the manifest, not counted as
 reviewed evidence. Published file checksums were inventoried, not validated
 against undownloaded dataset payloads.
 
-No scientific script or generated benchmark artifact changed. README links
-and scope were updated. JSON/source hashes, local document links, the complete
-diff, full repository Markdown lint and whitespace checks were verified.
-R/Python suites and GPU smoke tests are not applicable to this documentation
-change; no inference, calibration fitting or scoring was performed.
+The original catalogue audit changed documentation only; it did not change
+scientific scripts or generated benchmark artifacts. The subsequent
+[TEAK-focused audit](teak-validation-audit.md) adds an offline metadata script
+and separate derived inventories, with its own reproduction and verification
+record. README links and scope were updated. JSON/source hashes, local
+document links, the complete diff, full repository Markdown lint and whitespace
+checks were verified. GPU smoke tests are not applicable; no inference,
+calibration fitting or scoring was performed.
