@@ -1,0 +1,610 @@
+{
+  "schema_version": 1,
+  "nte_revision": "96b29d566ca7ea9f604de3e1235c503ab101cb8a",
+  "hf_revision": "20662f1b6848032269f11360666d411037c79073",
+  "scope": "All named TEAK 2018 XML annotations in pinned repository; exclude tile-named crops from this bounded package",
+  "sources": [
+    {
+      "path": "hf_metadata.json",
+      "url": "https://huggingface.co/api/datasets/weecology/neon-tree-crowns-dta",
+      "sha256": "c40a28c6640f3929df6e630bbc2b009a9e5e7c3c2ea88c347c0d8407263f20df",
+      "retrieved_utc": "2026-09-28T07:19:34.073858+00:00",
+      "bytes": 1452
+    },
+    {
+      "path": "nte_commit.json",
+      "url": "https://api.github.com/repos/weecology/NeonTreeEvaluation/commits/master",
+      "sha256": "68d3236d0708206675fc5ad081661d6beaee21c6daf5c77c72121a0f666b4b0b",
+      "retrieved_utc": "2026-09-28T07:19:34.504086+00:00",
+      "bytes": 5820
+    },
+    {
+      "path": "zenodo_metadata.json",
+      "url": "https://zenodo.org/api/records/5914554",
+      "sha256": "724a99137fa0a019999bb70785cef70be7c07c924c53579fa6df4b678fd12287",
+      "retrieved_utc": "2026-09-28T07:19:34.993674+00:00",
+      "bytes": 5215
+    },
+    {
+      "path": "nte_tree.json",
+      "url": "https://api.github.com/repos/weecology/NeonTreeEvaluation/git/trees/96b29d566ca7ea9f604de3e1235c503ab101cb8a?recursive=1",
+      "sha256": "1f4d163f9df4435cbd7a38dba07663491fc929f988810409e530542fdcdac934",
+      "bytes": 2391051,
+      "retrieved_utc": "2026-09-28T07:20:01.130553+00:00"
+    },
+    {
+      "path": "nte_README.md",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/README.md",
+      "sha256": "23f9fc9095375ed06f4edefef1bff3b9dde5dbb1045761f3724413a10f1b66ca",
+      "bytes": 5233,
+      "retrieved_utc": "2026-09-28T07:20:01.437427+00:00"
+    },
+    {
+      "path": "hf_README.md",
+      "url": "https://huggingface.co/datasets/weecology/neon-tree-crowns-dta/resolve/20662f1b6848032269f11360666d411037c79073/README.md",
+      "sha256": "48eec528c141604e6a8efda4ef4a806ac4bb970acb8f0d3c162984ebeee0b440",
+      "bytes": 6644,
+      "retrieved_utc": "2026-09-28T07:20:01.938989+00:00"
+    },
+    {
+      "path": "neon_crowns_dta.gpkg",
+      "url": "https://huggingface.co/datasets/weecology/neon-tree-crowns-dta/resolve/20662f1b6848032269f11360666d411037c79073/neon_crowns_dta.gpkg",
+      "sha256": "eeffb0c06781b452a4a54eac5c80bfc257084cc467cc7339ce1e67d84543c61f",
+      "bytes": 27504640,
+      "retrieved_utc": "2026-09-28T07:20:04.551117+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_043_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_043_2018.xml",
+      "sha256": "98410b3a01d0d7bfd3fd55f2809935642a5701449665d04159ecba7994c11034",
+      "bytes": 8217,
+      "retrieved_utc": "2026-09-28T07:20:56.230703+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_044_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_044_2018.xml",
+      "sha256": "a73761259faeecd21d42153b8c508269fbbcf9dd72c30bbb1058cb3ea74f1e55",
+      "bytes": 12206,
+      "retrieved_utc": "2026-09-28T07:20:56.193992+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_045_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_045_2018.xml",
+      "sha256": "9fa42da3b44889e43f7937afa8f6cf84cf89f5c1466d2a472a89cf057717dfac",
+      "bytes": 13202,
+      "retrieved_utc": "2026-09-28T07:20:56.231627+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_046_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_046_2018.xml",
+      "sha256": "5600ba77bdbb8aed0d2bc23e81db9bd2a9add6dcb8e5b5c57b0d32080bb730cb",
+      "bytes": 13216,
+      "retrieved_utc": "2026-09-28T07:20:56.211117+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_047_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_047_2018.xml",
+      "sha256": "a91306eb3a429ab2e6199844e6946399af1b0b07ec8e69a2bcd4abf74f8a506e",
+      "bytes": 12206,
+      "retrieved_utc": "2026-09-28T07:20:56.190447+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_049_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_049_2018.xml",
+      "sha256": "8dc709682d9b64d56af7379e68252efb2c98615810accf0d51cdfadde8ade600",
+      "bytes": 8553,
+      "retrieved_utc": "2026-09-28T07:20:56.201849+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_050_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_050_2018.xml",
+      "sha256": "4d4db300ffb3007f6df6d37b31a480774b1d2f5988e5494eb2bdc4f8f8603311",
+      "bytes": 16193,
+      "retrieved_utc": "2026-09-28T07:20:56.489568+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_051_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_051_2018.xml",
+      "sha256": "dc132a2a070f809781839c73e6cd53f49d67f11dbd66f75d07d6294833554184",
+      "bytes": 17546,
+      "retrieved_utc": "2026-09-28T07:20:56.495669+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_052_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_052_2018.xml",
+      "sha256": "ae5bf9e0da3b335fae2d17b283f7dd87c9ac06092e76d3724f9b27ed21692bd6",
+      "bytes": 24537,
+      "retrieved_utc": "2026-09-28T07:20:56.494930+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_053_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_053_2018.xml",
+      "sha256": "705a9087547bd4ddca3b9a662883ac5f4d61ddcafd841b2f9b8c6b5fddab9d22",
+      "bytes": 6861,
+      "retrieved_utc": "2026-09-28T07:20:56.523657+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_054_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_054_2018.xml",
+      "sha256": "4de8ef41451d8e2e0a7d2ac80e6dd2cb4f28d9e5100a86bd14bcac088a88722a",
+      "bytes": 10559,
+      "retrieved_utc": "2026-09-28T07:20:56.513260+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_055_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_055_2018.xml",
+      "sha256": "33498c89d26997bd9e546c6076b7f5103a5d2c98dfe0bd482c4765cbe516c6c9",
+      "bytes": 6546,
+      "retrieved_utc": "2026-09-28T07:20:56.511697+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_057_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_057_2018.xml",
+      "sha256": "8744a0b1f03cd722315472ed6b215d4d88e733b60f3f4ec1114e5ef3f5833c31",
+      "bytes": 20205,
+      "retrieved_utc": "2026-09-28T07:20:56.803999+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_058_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_058_2018.xml",
+      "sha256": "c598ac8e2f0f0a67bb9a348a92b61b6d88a47332b5f8c78fcfb4531e7bedd396",
+      "bytes": 11860,
+      "retrieved_utc": "2026-09-28T07:20:56.778276+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_059_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_059_2018.xml",
+      "sha256": "210ed428cf254314a0739bfc168cde12319caa4c6492c9c9037e4856a036fae8",
+      "bytes": 24196,
+      "retrieved_utc": "2026-09-28T07:20:56.768989+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_060_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_060_2018.xml",
+      "sha256": "ba7296b11ad70e754ae0cb3aedb6a99895b4afb1e4e4f966d0f326f616e34b86",
+      "bytes": 15196,
+      "retrieved_utc": "2026-09-28T07:20:56.813695+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_061_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_061_2018.xml",
+      "sha256": "91494fc375e807eb812c08c89ea46c301766383f2c367576fdc7c0ce2e1d89f7",
+      "bytes": 13889,
+      "retrieved_utc": "2026-09-28T07:20:56.796465+00:00"
+    },
+    {
+      "path": "nte/annotations/TEAK_062_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_062_2018.xml",
+      "sha256": "11c7fac324c0f3ae3c731b775de52ea81cdad4575884c48a403e77deadd0c217",
+      "bytes": 13234,
+      "retrieved_utc": "2026-09-28T07:20:56.828399+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_043_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_043_2018_CHM.tif",
+      "sha256": "661e9b3725f17514f0c46ab4494cf566dce2b78502ebcadc287b7e51d52dec94",
+      "bytes": 2466,
+      "retrieved_utc": "2026-09-28T07:20:57.041812+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_044_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_044_2018_CHM.tif",
+      "sha256": "d4bb7d86836a206bf8e6a66cacf7dcc6de35613d1cbba95291998ee1d57121ec",
+      "bytes": 4616,
+      "retrieved_utc": "2026-09-28T07:20:57.055200+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_045_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_045_2018_CHM.tif",
+      "sha256": "0b5e8f066a4f1c4b2e7f062202bcfbfc46644c1ee48823298c780eb1cdb79c88",
+      "bytes": 5027,
+      "retrieved_utc": "2026-09-28T07:20:57.085522+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_046_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_046_2018_CHM.tif",
+      "sha256": "11164129def2fe11d000b2cc897a377f318c752b73587be4a61433d1655bb3e9",
+      "bytes": 4368,
+      "retrieved_utc": "2026-09-28T07:20:57.103012+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_047_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_047_2018_CHM.tif",
+      "sha256": "952a15125f4a6c32dc0a94582a9e7e261d2c749849e14f81bbcf39357f7801d1",
+      "bytes": 4317,
+      "retrieved_utc": "2026-09-28T07:20:57.131380+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_049_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_049_2018_CHM.tif",
+      "sha256": "e4260bad2c835040bd54dd5f9eac940fc42abfd1ae6afe8786ff2a974fc160f7",
+      "bytes": 3683,
+      "retrieved_utc": "2026-09-28T07:20:57.156462+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_050_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_050_2018_CHM.tif",
+      "sha256": "c4718cc5b9a5d882a5619dcfb21bfba148d9f2f475a2332b7fb9579508655a9e",
+      "bytes": 5735,
+      "retrieved_utc": "2026-09-28T07:20:57.365875+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_051_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_051_2018_CHM.tif",
+      "sha256": "6dd3498b50ee9860d6ea39d00473efc5d2758373c192900d20596ae827ae484d",
+      "bytes": 4575,
+      "retrieved_utc": "2026-09-28T07:20:57.350293+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_052_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_052_2018_CHM.tif",
+      "sha256": "b2471d2a59d89e5fc7f0beaf014faab4d9d3200dff7b6e01bd9dfbdfa0ccc570",
+      "bytes": 4700,
+      "retrieved_utc": "2026-09-28T07:20:57.378655+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_053_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_053_2018_CHM.tif",
+      "sha256": "bb96556542fc2826018207201415def6f80dd677a1fa484f7c6ae1475f5aa7ec",
+      "bytes": 3099,
+      "retrieved_utc": "2026-09-28T07:20:57.418565+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_054_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_054_2018_CHM.tif",
+      "sha256": "06b61736969df4c9839df255776afa6f6320dd941d4631d68193bbdb61a9a910",
+      "bytes": 4311,
+      "retrieved_utc": "2026-09-28T07:20:57.425500+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_055_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_055_2018_CHM.tif",
+      "sha256": "cabf32be18a1ad785f6b7580d5a280ae0ae48b0d78bb860154bc112b42a83d93",
+      "bytes": 3816,
+      "retrieved_utc": "2026-09-28T07:20:57.450100+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_057_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_057_2018_CHM.tif",
+      "sha256": "bc01ddea2eca69031c17b3d203c2b85d8dd253ce4d9a2d55aea3f32333c349c4",
+      "bytes": 4919,
+      "retrieved_utc": "2026-09-28T07:20:57.649858+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_058_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_058_2018_CHM.tif",
+      "sha256": "773c7122cc2c17ef3d1d02c698aa425439721a80122e7a588c71108ced293389",
+      "bytes": 3587,
+      "retrieved_utc": "2026-09-28T07:20:57.659982+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_059_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_059_2018_CHM.tif",
+      "sha256": "6de1625d8b2ec828560d56ab7debbf9f18b238cd09fc5318c8fce22897c01f93",
+      "bytes": 5169,
+      "retrieved_utc": "2026-09-28T07:20:57.672002+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_060_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_060_2018_CHM.tif",
+      "sha256": "f2c7a81896343e8cfde5f160ef7d9d1eba78ca0b42eb501f7c358afb17e77a0e",
+      "bytes": 4667,
+      "retrieved_utc": "2026-09-28T07:20:57.701314+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_061_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_061_2018_CHM.tif",
+      "sha256": "ec34dc16019cd3ce10480c2e7ecdcc2c7d1f2e0f6b4f5fce0cd139866f719233",
+      "bytes": 4205,
+      "retrieved_utc": "2026-09-28T07:20:57.710021+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_062_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_062_2018_CHM.tif",
+      "sha256": "7a6bcb16f3892515fb689b00aac9ac5742e83d5a87846dc899c24d18e6869258",
+      "bytes": 4206,
+      "retrieved_utc": "2026-09-28T07:20:57.741136+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_043_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_043_2018.laz",
+      "sha256": "3c5004d1c5f875bec125e6c04af21ad8e8c61bf0390eddb4f6243948327a1c21",
+      "bytes": 329561,
+      "retrieved_utc": "2026-09-28T07:20:57.995369+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_044_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_044_2018.laz",
+      "sha256": "12e0b41a4e925259341fc135d298c74d510e552731204c60c20edc475531f686",
+      "bytes": 421901,
+      "retrieved_utc": "2026-09-28T07:20:58.020473+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_045_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_045_2018.laz",
+      "sha256": "130a85aec8a21bf279ed1565e51c9cf7be7046c09b5e56ccac1d6b16c1988af1",
+      "bytes": 616537,
+      "retrieved_utc": "2026-09-28T07:20:58.041633+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_046_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_046_2018.laz",
+      "sha256": "52f4542a8ea15447fccd1104af02ac625d53aa7ce85c8638ccac8085ceec53f2",
+      "bytes": 457127,
+      "retrieved_utc": "2026-09-28T07:20:58.038055+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_047_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_047_2018.laz",
+      "sha256": "b2b20670eaa9226a2a116ce3fd1e326babdf54b8af82880b893bc4063f1623c8",
+      "bytes": 432047,
+      "retrieved_utc": "2026-09-28T07:20:58.047788+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_049_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_049_2018.laz",
+      "sha256": "462208f3ebca98e80c61dccf59a771b909e680b96f4e85b9b6838d42da7b0615",
+      "bytes": 437557,
+      "retrieved_utc": "2026-09-28T07:20:58.115208+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_050_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_050_2018.laz",
+      "sha256": "a36baebc2b98739cf2db106bad2f71080b3d6d3b7d0f56b65a936cff2dbfd5d5",
+      "bytes": 408259,
+      "retrieved_utc": "2026-09-28T07:20:58.323669+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_051_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_051_2018.laz",
+      "sha256": "c84592e7b63b3f987ccef460c9457cfa4773d78da0a6b3b38c074ab31b269575",
+      "bytes": 479813,
+      "retrieved_utc": "2026-09-28T07:20:58.365362+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_052_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_052_2018.laz",
+      "sha256": "127759c0a5751cfc4ec37301b37d3d1568cc813575d55870098c90343bf0e701",
+      "bytes": 251319,
+      "retrieved_utc": "2026-09-28T07:20:58.373285+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_053_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_053_2018.laz",
+      "sha256": "d831f4e30cda073f66217d75b6dff48747ef81019969c12fdf625220d14df68e",
+      "bytes": 351487,
+      "retrieved_utc": "2026-09-28T07:20:58.403040+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_054_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_054_2018.laz",
+      "sha256": "1aadd4f233d6a2aeee311cf12ca3432a94dc064a94225751a9bd4443897e1c0b",
+      "bytes": 364255,
+      "retrieved_utc": "2026-09-28T07:20:58.403102+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_055_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_055_2018.laz",
+      "sha256": "68d3af4aaa804287a3493eab1d4c859c4c17461a2a06e601b88ba5d4db42fa48",
+      "bytes": 266519,
+      "retrieved_utc": "2026-09-28T07:20:58.457497+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_057_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_057_2018.laz",
+      "sha256": "ae46d82819e839bb94c86d6f5356e4d18c18ecb75a7cd45e56a1a47c6a1c0b2f",
+      "bytes": 313639,
+      "retrieved_utc": "2026-09-28T07:20:58.675968+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_058_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_058_2018.laz",
+      "sha256": "5609052340ad88bf22921d2838bdfc6550162c0f5b32fd1d2f1309b36bad64ad",
+      "bytes": 330549,
+      "retrieved_utc": "2026-09-28T07:20:58.705741+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_059_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_059_2018.laz",
+      "sha256": "7e76b2c3a5eac6322e49c22eb6df7649ad7a22d11a8c52b2015a4cac04bcfd25",
+      "bytes": 268039,
+      "retrieved_utc": "2026-09-28T07:20:58.689869+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_060_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_060_2018.laz",
+      "sha256": "1fd4f7f83ae270187c422f9ea3da034dafb4f76253d2b997ba229107127146c3",
+      "bytes": 279629,
+      "retrieved_utc": "2026-09-28T07:20:58.738559+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_061_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_061_2018.laz",
+      "sha256": "32a108906b79a6121bfe42ae49f3ae057289a748535365e6e8cddf4ec770367f",
+      "bytes": 389525,
+      "retrieved_utc": "2026-09-28T07:20:58.730183+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_062_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_062_2018.laz",
+      "sha256": "5c845ce753bb929ba8bf2a3fa9c73cb99e237c3c148a7d5c6b5d9b48860ba42c",
+      "bytes": 278945,
+      "retrieved_utc": "2026-09-28T07:20:58.763899+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_043_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_043_2018.tif",
+      "sha256": "93b8469e8f6bc6d260400ea9d9e649d66f02d713c7207b1d80c734cda5c697f6",
+      "bytes": 540130,
+      "retrieved_utc": "2026-09-28T07:20:59.039222+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_044_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_044_2018.tif",
+      "sha256": "ccd82e89a343746ec6265e6eea5db4a24b0b32ecf2595ebd47ee20375fba853f",
+      "bytes": 565964,
+      "retrieved_utc": "2026-09-28T07:20:59.047264+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_045_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_045_2018.tif",
+      "sha256": "5256a581c84b2d93d8b3589ecbcba1e70686b41c7d2acd4f806c0263a969c1cb",
+      "bytes": 565508,
+      "retrieved_utc": "2026-09-28T07:20:59.081055+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_046_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_046_2018.tif",
+      "sha256": "dc2daef0622b194c30eb4bf3e6db766dbae992ec638061ea58d43cde1c82f0d4",
+      "bytes": 540938,
+      "retrieved_utc": "2026-09-28T07:20:59.082840+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_047_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_047_2018.tif",
+      "sha256": "3337a5fd490be03f288705c06b94d46167054c5d3a0c7c1455a4c429d1ccd7ab",
+      "bytes": 560826,
+      "retrieved_utc": "2026-09-28T07:20:59.102659+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_049_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_049_2018.tif",
+      "sha256": "ad05fc7d97216b85a4323b885e560d8ce0ec553be88335359a152888dcd08f6e",
+      "bytes": 552038,
+      "retrieved_utc": "2026-09-28T07:20:59.121528+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_050_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_050_2018.tif",
+      "sha256": "72432c02e7ddc13ef17ef54f4faa39fd51660cda7fa85baea8b9fae1e2a8774d",
+      "bytes": 547960,
+      "retrieved_utc": "2026-09-28T07:20:59.391885+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_051_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_051_2018.tif",
+      "sha256": "8a7d4f07abaa629d78bef6f56535539a6e9a597b9974d8a68065484aba334c26",
+      "bytes": 555199,
+      "retrieved_utc": "2026-09-28T07:20:59.414576+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_052_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_052_2018.tif",
+      "sha256": "e0ff3047ad67e70ba71fc60c96878ec4f51355a885c93e347933afe7d4c3371c",
+      "bytes": 565459,
+      "retrieved_utc": "2026-09-28T07:20:59.430556+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_053_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_053_2018.tif",
+      "sha256": "8ba12ae4411a674da1f893b10bb7e42af5c667a24426d308a5743453dcd338ba",
+      "bytes": 536098,
+      "retrieved_utc": "2026-09-28T07:20:59.456719+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_054_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_054_2018.tif",
+      "sha256": "e3d2c6d293d15e6d478d245a1135baf50f5fdf081677c04a7ce31d56e6261298",
+      "bytes": 567366,
+      "retrieved_utc": "2026-09-28T07:20:59.471738+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_055_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_055_2018.tif",
+      "sha256": "16fb8f74c1a3970bd0f164e814a30976746c5c9a1366ab79f8a4dd476cd5cac6",
+      "bytes": 567348,
+      "retrieved_utc": "2026-09-28T07:20:59.480888+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_057_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_057_2018.tif",
+      "sha256": "69be8abb58c6ff6279bd323b0ee06543e52756a35e90cf205da9a715a9bf0773",
+      "bytes": 560091,
+      "retrieved_utc": "2026-09-28T07:20:59.741766+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_058_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_058_2018.tif",
+      "sha256": "b559678f591a420fed5c4b7ca32ff73536c8e73865075f2015a1bb3042e95409",
+      "bytes": 569407,
+      "retrieved_utc": "2026-09-28T07:20:59.781972+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_059_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_059_2018.tif",
+      "sha256": "66a71e94ff7480f2e7924f3c63d2822217689e08ab89de0af26e46fb6830590b",
+      "bytes": 551626,
+      "retrieved_utc": "2026-09-28T07:20:59.796682+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_060_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_060_2018.tif",
+      "sha256": "070f3952d5fe441a913a7b2be92917dd1a61feb7312328852cd7a553fec2a412",
+      "bytes": 569691,
+      "retrieved_utc": "2026-09-28T07:20:59.845447+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_061_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_061_2018.tif",
+      "sha256": "590ed56485068c105ffa4ba336c5a3e47b6b93252bd01f7912969d226539c399",
+      "bytes": 546173,
+      "retrieved_utc": "2026-09-28T07:20:59.829981+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_062_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_062_2018.tif",
+      "sha256": "073b1bca4227593ca1a1fd01b9c74e3763faf666729b667643f7d941162d9a29",
+      "bytes": 544497,
+      "retrieved_utc": "2026-09-28T07:20:59.861793+00:00"
+    },
+    {
+      "path": "nte/LICENSE",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/LICENSE",
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "bytes": 7048,
+      "retrieved_utc": "2026-09-28T07:21:00.031351+00:00"
+    },
+    {
+      "path": "nte_package_tree.json",
+      "url": "https://api.github.com/repos/weecology/NeonTreeEvaluation_package/git/trees/master?recursive=1",
+      "sha256": "cf100dfdc7de12c11912c282772be435bfce4de752286177f26eeb373f586994",
+      "bytes": 33625,
+      "retrieved_utc": "2026-09-28T07:21:36.067776+00:00"
+    },
+    {
+      "path": "nte_paper.html",
+      "url": "https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1009180",
+      "sha256": "6b320b9cf8ef7e63ed06dabc7b538c334ff7e3fe602fb2de3bc1dbde0aa88903",
+      "bytes": 215196,
+      "retrieved_utc": "2026-09-28T07:21:38.631626+00:00"
+    },
+    {
+      "path": "boxes_to_spatial_polygons.R",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation_package/724bdb0a9a3ea6433450f62c69a8fadce9ccdb66/R/boxes_to_spatial_polygons.R",
+      "sha256": "9d2de8faf2dd285b11d62b7756bb27307bce966e8672b9aa3fc656a58800fa4e",
+      "bytes": 1701,
+      "retrieved_utc": "2026-09-28T07:21:58.049443+00:00"
+    },
+    {
+      "path": "project.R",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation_package/724bdb0a9a3ea6433450f62c69a8fadce9ccdb66/R/project.R",
+      "sha256": "746a9657d838243ccaa7e049d839734844ce39458c6c96e1c2beccb8071222d6",
+      "bytes": 1235,
+      "retrieved_utc": "2026-09-28T07:21:58.343027+00:00"
+    },
+    {
+      "path": "xml_parse.R",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation_package/724bdb0a9a3ea6433450f62c69a8fadce9ccdb66/R/xml_parse.R",
+      "sha256": "e1b110f74a80fd83bd41a7babb405d167b4b4564c2600c0afe44504ff9fa8c9a",
+      "bytes": 1617,
+      "retrieved_utc": "2026-09-28T07:21:58.721377+00:00"
+    },
+    {
+      "path": "local_plot_inventory.csv",
+      "url": null,
+      "origin": "/home/alex/projects/lidar_tree_benchmarks/work/teak-validation-audit/derived-v3/plot_inventory.csv",
+      "sha256": "f9dee19832da846ffe26e8af4ceee82936531e5a67401ac615b53194643f3bc6",
+      "bytes": 4010
+    }
+  ]
+}
