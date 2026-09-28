@@ -136,8 +136,12 @@ The [FGI-EMIT metadata audit](results/fgiemit-development-audit-results.md)
 declares ten development plots and reserves three previously unprocessed
 training plots, containing 257 annotated trees, for prospective evaluation.
 The six observed test plots remain historical. This native-only declaration
-adds no detector scores; support, local-frame, density and checkpoint-overlap
-checks still gate real-data admission.
+adds no detector scores. The
+[development-input validation](results/fgiemit-development-input-results.md)
+now verifies all ten plots' annotations, original row/return identity, local
+frames, measured footprint densities and finite geometric normalization.
+Installed candidate checkpoints match upstream artifacts, but training overlap
+and independent AGL accuracy remain unverified. The reserve stays unscored.
 
 ### Choosing a method
 
@@ -495,6 +499,31 @@ declares the metadata-based reserve and whole-plot folds; the
 [audit report](results/fgiemit-development-audit-results.md) records the verified
 source inventory and remaining admission gates.
 
+### FGI-EMIT development inputs
+
+After the declaration, validate and prepare its ten development plots with
+the existing Python and R environments. Use separate output paths:
+
+~~~sh
+GPU=/path/to/lidar_tree_benchmarks/gpu
+PYTHON="$GPU/.venv/bin/python"
+ROOT="$CLAUDE_JOB_DIR/external/fgiemit"
+OUT="$ROOT/development_inputs"
+"$PYTHON" scripts/prepare_fgiemit_development.py --root "$ROOT" --out "$OUT"
+"$PYTHON" scripts/prepare_fgiemit_development.py --root "$ROOT" --out "$OUT" --verify
+python3 scripts/audit_fgiemit_checkpoints.py --gpu-root "$GPU" \
+  --out "$ROOT/development_checkpoint_provenance_v2.json"
+python3 scripts/audit_fgiemit_checkpoints.py --gpu-root "$GPU" \
+  --out "$ROOT/development_checkpoint_provenance_v2.json" --verify
+~~~
+
+The [input protocol](docs/fgiemit-input-validation-protocol.md) preserves
+original point identity, separates annotations from model geometry, and keeps
+reserve/test point records unopened. The
+[results](results/fgiemit-development-input-results.md) describe height
+diagnostics, checkpoint evidence and the remaining comparison requirements.
+These commands run no model inference or calibration.
+
 ## Requirements
 
 | Scope | Requirements |
@@ -506,6 +535,7 @@ source inventory and remaining admission gates.
 | Optional analyses | clue, rpart, crownsegmentr, and lidRplugins as required by the corresponding arm |
 | GPU/vision arms | The documented container, conda environment, or virtualenv under [gpu](gpu/) for that specific model |
 | External instance validation | Existing detector runtimes, R dbscan and yaml, and the pinned official Python evaluator described in the external report |
+| FGI-EMIT development preparation | Existing Python with laspy, numpy, scipy and PyYAML; R lidR, data.table and jsonlite; checkpoint audit uses Python 3.11+ and the installed Docker images without GPU execution |
 | Tests | testthat |
 | Markdown checks | rumdl with [.rumdl.toml](.rumdl.toml) |
 
@@ -586,6 +616,8 @@ workflows.
 | detect_segmentanytree_sweep.R / detect_forestformer3d_sweep.R | GPU point/instance segmentation arms |
 | download_external_fgiemit.R / detect_external_fgiemit.R | Checksum-pinned external dataset and frozen detector transfer evaluation |
 | audit_fgiemit_development.py | Metadata-only source audit, prospective plot reserve and whole-plot development folds; no real-data admission |
+| prepare_fgiemit_development.py / normalize_fgiemit_development.R | Development-only point/support validation, original-return densities, separate reference/model exports and geometric AGL diagnostics |
+| audit_fgiemit_checkpoints.py | Installed checkpoint and image identities, upstream weight checks and training-provenance limits; no model loading |
 | audit_frozen_transfer.R | Declared training-only adapter inference and official-metric, export, and scene-assembly diagnostics |
 | audit_scene_assembly.R | Bounded native whole-scene inference, protected-output checks and archived outer-cylinder comparison |
 | detect_deepforest_sweep.R / detect_detectree2_sweep.R | RGB detector and crown-width arms |
@@ -643,6 +675,8 @@ workflows.
 | [Frozen external transfer](results/fgi-emit-external-results.md) | Six-plot FGI-EMIT historical baseline with manual instance labels |
 | [FGI-EMIT development audit](results/fgiemit-development-audit-results.md) | Source/header checks, metadata-based plot reserve and development-fold inventory |
 | [FGI-EMIT development protocol](docs/fgiemit-development-protocol.md) | Native-only scope, deterministic reserve selection and gates before real-data use |
+| [FGI-EMIT input validation](results/fgiemit-development-input-results.md) | Ten-plot source-row exports, measured return densities, height diagnostics and installed checkpoint provenance |
+| [FGI-EMIT input protocol](docs/fgiemit-input-validation-protocol.md) | Development-only preparation, boundary/background support and normalization contracts |
 | [Frozen transfer audit](results/frozen-transfer-audit-results.md) | Training-only adapter corrections, scene-assembly diagnostics, and arm eligibility |
 | [Scene-assembly results](results/forestformer-scene-assembly-results.md) | Whole-scene identity, resource use, common-support metrics and eligibility |
 | [Scene-assembly protocol](docs/forestformer-scene-assembly-protocol.md) | Fixed training comparison and row-identity acceptance contracts |
