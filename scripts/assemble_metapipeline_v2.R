@@ -24,7 +24,7 @@ metapipeline_main <- function(args = commandArgs(TRUE)) {
       if (!is.null(a[[flag]]) && !a[[flag]] %in% c("true", "false")) stop(flag, " must be true or false")
     python <- if (!is.null(a$PYTHON)) a$PYTHON else Sys.getenv("FGIEMIT_PYTHON", file.path(.ROOT, "gpu/.venv/bin/python"))
     if (!file.exists(python)) stop("Set PYTHON to the existing GPU Python environment")
-    command <- c(.find("run_ensemble_pipeline.py"), "--root", a$ROOT, "--out", a$OUT)
+    command <- c(.find("run_ensemble_pipeline_v2.py"), "--root", a$ROOT, "--out", a$OUT)
     for (key in c("PREPARED", "RUN", "STAGE", "METHOD"))
       if (!is.null(a[[key]])) command <- c(command, paste0("--", tolower(key)), a[[key]])
     for (key in c("EXECUTE", "VERIFY"))
@@ -46,7 +46,7 @@ metapipeline_main <- function(args = commandArgs(TRUE)) {
   write.csv(bundle$cells, file.path(out, "cells.csv"), row.names = FALSE)
   write.csv(bundle$arms, file.path(out, "arms.csv"), row.names = FALSE)
   outputs <- list.files(out, full.names = TRUE)
-  code <- c("assemble_metapipeline.R", "metapipeline_lib.R", "metapipeline_synthetic.R",
+  code <- c("assemble_metapipeline_v2.R", "assemble_metapipeline.R", "metapipeline_lib.R", "metapipeline_synthetic.R",
             "model_bench_lib.R", "neon_spatial_lib.R", "neon_reference_support_lib.R",
             "bootstrap.R", "repo_paths.R")
   hashes <- function(paths) setNames(lapply(paths, function(p)

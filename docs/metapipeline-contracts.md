@@ -30,10 +30,14 @@ another directory when invoked through its absolute script path.
 
 An optional `INPUT=/path/to/bundle.rds` accepts a trusted local synthetic bundle.
 Start from `metapipeline_synthetic()` in `scripts/metapipeline_synthetic.R` and
-save the modified list with `saveRDS()`. Only `MODE=synthetic` and schema version
-`1L` are accepted. The mode declaration is a caller assertion, not an audit of
-the origin of supplied coordinates. Historical caches and GPU runners are not
-read by this entry point.
+save the modified list with `saveRDS()`. Synthetic bundles require
+`MODE=synthetic` and schema version `1L`. The mode declaration is a caller
+assertion, not an audit of the origin of supplied coordinates. Historical
+caches and GPU runners are not read by synthetic mode.
+
+The separate `MODE=fgiemit` path connects verified real detector receipts to
+the [native ensemble pipeline](final-ensemble-pipeline.md). It does not restamp
+real outputs as synthetic bundles or reuse toy calibration fixtures.
 
 ## Input Contract
 

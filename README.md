@@ -127,11 +127,6 @@ no eastern-forest validation is claimed. The broader pipeline retains its
 synthetic contracts; new real-data comparisons need a separately declared
 development dataset, eligible reference support and held-out evaluation.
 
-The [synthetic detection assembly](docs/metapipeline-contracts.md) now exercises
-explicit detector states, fixed ensemble membership and provenance/calibration
-compatibility. Its invented fixtures run without model inference and provide
-no new benchmark scores or real-data admission.
-
 The [FGI-EMIT metadata audit](results/fgiemit-development-audit-results.md)
 declares ten development plots and reserves three previously unprocessed
 training plots, containing 257 annotated trees, for prospective evaluation.
@@ -178,9 +173,32 @@ cells are planned. No reserve point records or predictions are read by the
 freeze. The subsequent
 [reserve input validation](results/fgiemit-reserve-input-results.md) prepares
 the original three plots in a separate job root and seals their execution
-contract. It preserves all 257 references and runs no detector. A reserve
-runner and bounded execution remain the next stage; structural validation
-does not establish whole-scene GPU feasibility or performance.
+contract. It preserves all 257 references and runs no detector. The
+[native ensemble pipeline](docs/final-ensemble-pipeline-v2.md) connects these
+inputs to bounded reserve execution, development fusion comparisons and
+separate treetop/instance exports. See its
+[observed results](results/final-ensemble-pipeline-results.md) for completed
+runs and the limits of the available calibration and evaluation support.
+
+The [synthetic detection assembly](docs/metapipeline-contracts.md) now exercises
+explicit detector states, fixed ensemble membership and provenance/calibration
+compatibility. Its invented fixtures run without model inference and provide
+no new benchmark scores or real-data admission.
+
+On the complete development population, the pipeline reproduces FF3D apex
+F1 0.809. The four fixed unweighted fusion variants reach F1 0.675–0.705;
+weighted fusion has complete score/density support on only two of ten plots.
+The frozen default remains FF3D. Explicit fusion exports are development
+research options; no universal density router or held-out fusion gain is
+claimed.
+
+All nine frozen reserve cells subsequently completed on their first attempts.
+On 257 references, FF3D apex F1 is 0.776, SAT 0.746 and CHM-VWF 0.488;
+separate mask F1 is 0.649 for FF3D and 0.576 for SAT. The final FF3D product
+contains 279 treetops and 279 predicted instances over 10,941,159 points.
+Per-plot rankings vary, upstream checkpoint overlap remains unknown, and
+independent AGL accuracy is unverified. These are conditional native
+FGI-EMIT results, not a general density-routing or crown-refinement claim.
 
 ### Choosing a method
 
@@ -723,6 +741,40 @@ requires a scope-checked reserve runner before inference. See the
 [protocol](docs/fgiemit-reserve-input-protocol.md) and
 [observed input results](results/fgiemit-reserve-input-results.md).
 
+### End-to-end native ensemble pipeline
+
+After the frozen input preparation, one entry point verifies or executes the
+declared reserve cells, pools separate detection/mask metrics and exports
+treetops plus complete-row predicted instance clouds:
+
+~~~sh
+Rscript scripts/assemble_metapipeline_v2.R MODE=fgiemit \
+  PYTHON="$PYTHON" ROOT="$ROOT" PREPARED="$RESERVE" \
+  RUN="$CLAUDE_JOB_DIR/fgiemit-reserve-run-v1" \
+  OUT="$CLAUDE_JOB_DIR/fgiemit-reserve-products-v2"
+~~~
+
+An existing run is verified and reused; failed attempts are preserved and not
+retried. The current entry point reserves writable product output before any
+optional execution and enforces one attempt per sealed reserve contract,
+including prior sibling runs. Use a fresh product directory. `VERIFY=true`
+replays the parent chain and checks all product hashes. For development-only
+fusion comparisons and exports, use `STAGE=development` and optionally
+`METHOD=consensus_point` or another documented method. The reserve rejects
+fusion overrides. The default detection and separate instance product use the
+frozen FF3D policy.
+
+The [current execution guide](docs/final-ensemble-pipeline-v2.md) documents
+cleanup, attempt admission and explicit verification expectations. The original
+entry point and [pipeline guide](docs/final-ensemble-pipeline.md) remain for
+historical replay and describe methods, calibration availability, files and
+readiness limits. The
+[execution protocol](docs/fgiemit-reserve-execution.md) preserves one attempt
+per cell and the existing resource limits. The
+[pipeline report](results/final-ensemble-pipeline-results.md) distinguishes
+development comparisons from prospective reserve results. General site/density
+routing, crown refinement and downstream mensuration require their own evidence.
+
 ## Requirements
 
 | Scope | Requirements |
@@ -740,6 +792,7 @@ requires a scope-checked reserve runner before inference. See the
 | FGI-EMIT development calibration | Complete sealed detector run and summary; existing Python and R with lidR, data.table and jsonlite; parent verification needs installed Docker checkpoint identities, but fitting uses CPU only |
 | FGI-EMIT policy freeze | Complete sealed calibration and archived primary-source files matching the overlap source manifest; existing parent-verification dependencies; no new model or reserve-point execution |
 | FGI-EMIT prospective reserve preparation | Complete frozen policy and original reserve sources; existing Python and R normalization dependencies; read-only installed checkpoint verification; separate fresh data root and no detector inference |
+| Native ensemble pipeline and reserve execution | Complete sealed inputs/policy; existing Python, R, pinned lasR runtime and SAT/FF3D Docker images; GPU access only for a new detector run; separate fresh inference and product directories |
 | Tests | testthat |
 | Markdown checks | rumdl with [.rumdl.toml](.rumdl.toml) |
 
@@ -830,6 +883,10 @@ workflows.
 | calibrate_fgiemit_development.py / calibrate_fgiemit_development.R / fgiemit_calibration_lib.R | Fifty whole-plot validation cells, target-specific TP/FP recovery, raw-score weighted isotonic fits, explicit unavailable probabilities and count-pooled Brier/ECE |
 | freeze_fgiemit_policy.py | Development-selected single-arm policy, fixed reserve controls, primary-source overlap checks and sealed metadata-only prospective plan |
 | prepare_fgiemit_reserve.py | Original three-plot reserve preparation, unchanged geometric normalization, source-row and density replay, and sealed nine-cell execution contract without inference |
+| run_fgiemit_reserve_v2.py / fgiemit_reserve_cell_v2.py / fgiemit_process_v2.py | Current one-attempt reserve execution, atomic contract admission and independent process cleanup; original runners remain for historical replay |
+| run_fgiemit_reserve.py / fgiemit_reserve_cell.py | One-attempt sequential reserve inference and scoring with explicit input paths, unchanged algorithms, complete-row admission and failure preservation |
+| run_ensemble_pipeline_v2.py / assemble_metapipeline_v2.R | Current pipeline entry points, writable output admission, explicit replay expectations and historical receipt dispatch |
+| run_ensemble_pipeline.py / analyze_fgiemit_pipeline.R / fgiemit_pipeline_lib.R | Verified detector reuse, fixed development fusion comparisons, target/density calibration gates, count pooling and separate treetop/instance exports |
 | gpu/run_fgiemit_segmentanytree.py / gpu/fgiemit_sat_export.py | Native full-cloud SAT export with explicit source-row bookkeeping, including background and coincident points |
 | audit_frozen_transfer.R | Declared training-only adapter inference and official-metric, export, and scene-assembly diagnostics |
 | audit_scene_assembly.R | Bounded native whole-scene inference, protected-output checks and archived outer-cylinder comparison |
@@ -838,7 +895,7 @@ workflows.
 | analyze_model_benchmark.R / compare_model_sites.R | Equal-set-guarded model synthesis and cross-site results |
 | score_instances_iou.R / compare_matching_rules.R | Point-set IoU, Coverage, PQ, and metric-ranking sensitivity |
 | fuse_detectors.R / calibrate_confidence.R / route_detectors.R | LiDAR and paired RGB fusion, plot-held-out score calibration, and per-cell routing experiments |
-| assemble_metapipeline.R | Synthetic detection assembly with explicit states, ensemble members and provenance/calibration compatibility checks |
+| assemble_metapipeline.R | Unified entry point for synthetic interface checks and the verified real FGI pipeline, with explicit stage, method and execution choices |
 | coverage_gap.R | Re-grade isolated likely-real false positives using cross-family agreement |
 | crown_metrics_sweep.R / analyze_crown_metrics.R | Field crown-diameter benchmark and analysis |
 | crown_allometry.R | Crown width and height to DBH/biomass analysis |
@@ -903,6 +960,10 @@ workflows.
 | [Scene-assembly results](results/forestformer-scene-assembly-results.md) | Whole-scene identity, resource use, common-support metrics and eligibility |
 | [Scene-assembly protocol](docs/forestformer-scene-assembly-protocol.md) | Fixed training comparison and row-identity acceptance contracts |
 | [Synthetic detection assembly](docs/metapipeline-contracts.md) | Cell/arm schemas, availability states, calibration gates and reproducible synthetic outputs |
+| [Current native pipeline execution](docs/final-ensemble-pipeline-v2.md) | Versioned execution guards, historical replay and unchanged scientific scope |
+| [Native ensemble pipeline](docs/final-ensemble-pipeline.md) | One-command real workflow, explicit fusion options, separate predicted masks, calibration limits and readiness boundary |
+| [Native pipeline results](results/final-ensemble-pipeline-results.md) | Completed development comparisons, reserve evaluation, exported products and exact verification |
+| [Reserve execution protocol](docs/fgiemit-reserve-execution.md) | Fixed sequential inference, unchanged method identities, resource limits and failure handling |
 | [Audit protocol](docs/frozen-transfer-audit-protocol.md) | Predeclared comparisons, protected test artifacts, and follow-on validation split |
 | [Audit runtime note](docs/frozen-transfer-audit-runtime-note.md) | Bounded memory and empty-output handling exceptions |
 | [Agent guidance](AGENTS.md) / [Detailed repository guidance](CLAUDE.md) | Working conventions, methodology invariants, and completion checks |
@@ -931,8 +992,8 @@ Rscript tests/run_tests.R
 
 The tests cover the shared scoring, pooling, detector-extractor, instance-I/O,
 model-runner, routing, allometry, uncertainty, calibration, RGB fusion,
-synthetic detection assembly and external-transfer helpers. Unit fixtures do
-not require the large generated LiDAR working set; optional live tests report
+synthetic/native detection assembly and external-transfer helpers. Unit fixtures
+do not require the large generated LiDAR working set; optional live tests report
 their environment requirements.
 
 For the Python reference and export tests, use the configured model environment
