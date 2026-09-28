@@ -200,12 +200,19 @@ Per-plot rankings vary, upstream checkpoint overlap remains unknown, and
 independent AGL accuracy is unverified. These are conditional native
 FGI-EMIT results, not a general density-routing or crown-refinement claim.
 
+The [TEAK-focused validation audit](results/teak-validation-audit.md)
+prioritizes native ALS in mixed-conifer forests for USGS-like deployment.
+Seven locally unscored distributed plots have 2022 full-growth-form census
+metadata; only five contain positive target bole records (29 before support
+checks). None is admitted: geometry, mapping, timing, density and checkpoint
+exposure remain unresolved. The covering USGS project is QL1, and its density
+must not be assumed to match the intended deployment.
+
 The [external dataset eligibility audit](results/validation-dataset-eligibility.md)
-prioritizes CedarCypress3D for structural preflight, with BorFIT and Sepilok
-retained as alternatives with explicit limits. This metadata-only review
-admits no new evaluation: annotation support, input compatibility and exact
-checkpoint exposure still require resolution. Dense UAV candidates do not
-establish native sparse-ALS transfer.
+retains CedarCypress3D, BorFIT and Sepilok as supplementary instance-reference
+options. Their dense acquisitions do not establish native sparse-ALS transfer.
+Historical field-stem detection and genuine crown-mask validation remain
+separate tasks.
 
 ### Choosing a method
 
@@ -858,6 +865,7 @@ workflows.
 | preflight_eastern_sites.R | Archive score-blind HARV/BART metadata and inventory local exact-year field candidates |
 | preflight_eastern_coverage.R | Archive released file identities, audit tile availability and census sampled areas; no split freeze |
 | preflight_harv_smoke.R | Inspect the declared HARV-only LiDAR/RGB clip, density and normalization without detector inference |
+| audit_teak_validation.R | Offline TEAK plot-use, census-event, reference-record, historical-density and EPT metadata inventory; no evaluation admission |
 | neon_reference_support.R / review_neon_reference_support.R | Exact-event reference audit, measured sampled-subplot polygons and HARV-only RGB geometry review; no evaluation admission |
 | audit_neon_reference_history.R | Read-only census-support and artifact-integrity audit of archived D17 references |
 | collect_neon_reference_evidence.R / audit_neon_reference_resolution.R | Archive official field/flight evidence and explain bole-level exclusions without changing or admitting references |
@@ -970,7 +978,8 @@ workflows.
 | [Current native pipeline execution](docs/final-ensemble-pipeline-v2.md) | Versioned execution guards, historical replay and unchanged scientific scope |
 | [Native ensemble pipeline](docs/final-ensemble-pipeline.md) | One-command real workflow, explicit fusion options, separate predicted masks, calibration limits and readiness boundary |
 | [Native pipeline results](results/final-ensemble-pipeline-results.md) | Completed development comparisons, reserve evaluation, exported products and exact verification |
-| [External dataset eligibility](results/validation-dataset-eligibility.md) | Ranked metadata-only shortlist, source provenance, annotation and checkpoint-exposure blockers; no new evaluation admission |
+| [TEAK-focused validation audit](results/teak-validation-audit.md) | Deployment-focused native ALS acquisition, prior plot use, exact-event census candidates and unresolved admission gates |
+| [External dataset eligibility](results/validation-dataset-eligibility.md) | Supplementary instance datasets, source provenance, annotation and checkpoint-exposure blockers; no new evaluation admission |
 | [Reserve execution protocol](docs/fgiemit-reserve-execution.md) | Fixed sequential inference, unchanged method identities, resource limits and failure handling |
 | [Audit protocol](docs/frozen-transfer-audit-protocol.md) | Predeclared comparisons, protected test artifacts, and follow-on validation split |
 | [Audit runtime note](docs/frozen-transfer-audit-runtime-note.md) | Bounded memory and empty-output handling exceptions |

@@ -193,5 +193,6 @@
     "Sepilok ALS benchmark",
     "La Palma"
   ],
-  "priority_meaning": "Order for resolving structural metadata and admission blockers, not a benchmark performance ranking"
+  "priority_meaning": "Order within the supplementary instance-reference track, not deployment priority or benchmark performance",
+  "primary_deployment_track": "TEAK-like native ALS; see results/teak-validation-audit.md"
 }
