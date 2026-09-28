@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-09-25",
+  "sources": {
+    "ff3d-paper.pdf": {
+      "url": "https://openaccess.thecvf.com/content/ICCV2025/papers/Xiang_ForestFormer3D_A_Unified_Framework_for_End-to-End_Segmentation_of_Forest_LiDAR_ICCV_2025_paper.pdf",
+      "sha256": "7d15c2e90b5feff6b8b4c182449318ab3a2cc099e5c0ae5867a2f8351ec724a0",
+      "bytes": 6644918,
+      "retrieved_utc": "2026-09-25T12:50:27.536742+00:00"
+    },
+    "ff3d-supplement.pdf": {
+      "url": "https://openaccess.thecvf.com/content/ICCV2025/supplemental/Xiang_ForestFormer3D_A_Unified_ICCV_2025_supplemental.pdf",
+      "sha256": "7e3358676292ee13d594029f7d419a25a31cedee1a1bb4e3961196698ff5f8d4",
+      "bytes": 19759331,
+      "retrieved_utc": "2026-09-25T12:51:08.578033+00:00"
+    },
+    "sat-paper.pdf": {
+      "url": "https://arxiv.org/pdf/2401.15739",
+      "sha256": "8adca68cfc7e5f453f88ed6db843f43731aa9e8ff5100aea402ba1d715e43e37",
+      "bytes": 2143754,
+      "retrieved_utc": "2026-09-25T12:50:23.896297+00:00"
+    },
+    "ff3d-release.json": {
+      "url": "https://zenodo.org/api/records/16742708",
+      "sha256": "84dd7caedc2ef0163bbabfc20cbc634c2062859e459133bea0381fce2b7dadfe",
+      "bytes": 6345,
+      "retrieved_utc": "2026-09-25T12:50:24.141979+00:00"
+    },
+    "fgi-release.json": {
+      "url": "https://zenodo.org/api/records/19351234",
+      "sha256": "04d631a3565bf3888fe5055cbbf6e42d81b23569b8ea15c84f79087c0ba3158a",
+      "bytes": 25096,
+      "retrieved_utc": "2026-09-25T12:50:24.152313+00:00"
+    },
+    "ff3d-train.txt": {
+      "url": "https://raw.githubusercontent.com/SmartForest-no/ForestFormer3D/6a75c3735e4a4108d02ee944a8b93177f2360a4f/data/ForAINetV2/meta_data/train_list.txt",
+      "sha256": "fc5201c9e3dde7a084cb0888f8885eea8d5c8c5078fff66b1e7df865d63f35c3",
+      "bytes": 1700,
+      "retrieved_utc": "2026-09-25T12:50:24.226072+00:00"
+    },
+    "ff3d-val.txt": {
+      "url": "https://raw.githubusercontent.com/SmartForest-no/ForestFormer3D/6a75c3735e4a4108d02ee944a8b93177f2360a4f/data/ForAINetV2/meta_data/val_list.txt",
+      "sha256": "f54cd72175cd0fa75f77bdc0bd9e0aed9a4241c8d7559bd405be4badf7ad7856",
+      "bytes": 557,
+      "retrieved_utc": "2026-09-25T12:50:24.430525+00:00"
+    },
+    "ff3d-test.txt": {
+      "url": "https://raw.githubusercontent.com/SmartForest-no/ForestFormer3D/6a75c3735e4a4108d02ee944a8b93177f2360a4f/data/ForAINetV2/meta_data/test_list.txt",
+      "sha256": "222dd86b1c7ff93eb3cf5b0e885837b58f679780f8557918f2064c3902348c32",
+      "bytes": 974,
+      "retrieved_utc": "2026-09-25T12:50:24.447353+00:00"
+    },
+    "sat-lfs.txt": {
+      "url": "https://raw.githubusercontent.com/SmartForest-no/SegmentAnyTree/a3561ed8447bbb7938f059ba65a3e9c97d6e2ee9/model_file/PointGroup-PAPER.pt",
+      "sha256": "69c388c2b768e2e36add0d64a9e4251467ac146675e3e8f8543cbfa9432d3a6a",
+      "bytes": 134,
+      "retrieved_utc": "2026-09-25T12:50:24.582845+00:00"
+    },
+    "fgi-paper.html": {
+      "url": "https://arxiv.org/html/2511.00653v1",
+      "sha256": "ff15b8008fadee84ec7f645d7e93b07aa783f114e3d7168b6db2fb3d47f474a1",
+      "bytes": 903651,
+      "retrieved_utc": "2026-09-25T12:50:24.718340+00:00"
+    }
+  },
+  "checkpoint_sha256": {
+    "forestformer3d": "01037a648596832238ac72ea2f5eef87ceaf5aeb399e56ff4b760ba1ed1c777e",
+    "segmentanytree": "0b4d74b4644e37a16f59008ad0f5c62894fc4d2d906f3abd803bbfc5b5dd803a"
+  },
+  "assessment": {
+    "upstream_training_overlap": "unknown",
+    "exhaustive_checkpoint_training_manifest": false,
+    "documented_FGI_EMIT_membership_found": false,
+    "independent_unseen_data_claim_supported": false,
+    "ff3d_committed_split_counts": {
+      "train": 47,
+      "val": 16,
+      "test": 28
+    },
+    "ff3d_paper_region_absent_from_committed_lists": "BlueCat",
+    "rationale": "Published dataset geographies differ from Espoonlahti, Finland, but dataset descriptions and source lists do not authenticate every training exposure of these exact weights."
+  }
+}
