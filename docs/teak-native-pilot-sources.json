@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "plot": "TEAK_043",
+  "selection": "first sorted historical-use named plot in pinned canopy inventory",
+  "context_buffer_m": 25,
+  "candidate_month": "2018-06",
+  "native_tile_e": 321000,
+  "native_tile_n": 4096000,
+  "parent_manifest_sha256": "04352ccfc95813dbf75d5e8aac17de8ae11ece49894054d9309ad217bf884b53",
+  "sources": [
+    {
+      "path": "sources/2018_TEAK_3_321000_4096000_image.tif",
+      "bytes": 66339823,
+      "sha256": "c22f591c82fb8a080512a3b84f947c01c6c0273362e6b014b3f3ebe992b7d0c2",
+      "kind": "neon_file",
+      "product": "DP3.30010.001",
+      "site": "TEAK",
+      "month": "2018-06",
+      "release": "RELEASE-2026",
+      "name": "2018_TEAK_3_321000_4096000_image.tif",
+      "retrieved_utc": "2026-09-28 07:54:34 UTC"
+    },
+    {
+      "path": "sources/2018_TEAK_3_L1_discrete_lidar_processing.pdf",
+      "bytes": 1080257,
+      "sha256": "6db6370342026a691fc5cc57255703b7f7522e2552c80cb0f5a9beaa9f5f3311",
+      "kind": "neon_file",
+      "product": "DP1.30003.001",
+      "site": "TEAK",
+      "month": "2018-06",
+      "release": "RELEASE-2026",
+      "name": "2018_TEAK_3_L1_discrete_lidar_processing.pdf",
+      "retrieved_utc": "2026-09-28 07:54:22 UTC"
+    },
+    {
+      "path": "sources/2018_TEAK_3_L3_discrete_lidar_processing.pdf",
+      "bytes": 8639779,
+      "sha256": "29b83dbc4abb37812975cc9efafc9e3a60ba0ba98ac474dd52300e2287c1bba6",
+      "kind": "neon_file",
+      "product": "DP1.30003.001",
+      "site": "TEAK",
+      "month": "2018-06",
+      "release": "RELEASE-2026",
+      "name": "2018_TEAK_3_L3_discrete_lidar_processing.pdf",
+      "retrieved_utc": "2026-09-28 07:54:25 UTC"
+    },
+    {
+      "path": "sources/DP1.30003.001_TEAK_2018-06.json",
+      "bytes": 69275,
+      "sha256": "3e1db323d7212c0dafe31bee2f82e93fa2f9384e4f47a2ffca18bc2be8b42472",
+      "kind": "archived_metadata"
+    },
+    {
+      "path": "sources/DP3.30010.001_TEAK_2018-06.json",
+      "bytes": 24515,
+      "sha256": "734a19bd111e8071635edafed6416e29e9e02d525e273843be6c3ebf45ec81ec",
+      "kind": "archived_metadata"
+    },
+    {
+      "path": "sources/DP3.30015.001_TEAK_2018-06.json",
+      "bytes": 23951,
+      "sha256": "55bf03d83ae420216cdef3c44ebc23a09ac25489be1276a6d8393cbc22ac1129",
+      "kind": "archived_metadata"
+    },
+    {
+      "path": "sources/NEON_D17_DPQA_2018_TEAK_3_lidar_flightline_boundary.kml",
+      "bytes": 203181,
+      "sha256": "4ef6a1b65c2f8449a21378219fac1512521dad2c75c7e28b8932c6a2b4dea197",
+      "kind": "neon_file",
+      "product": "DP1.30003.001",
+      "site": "TEAK",
+      "month": "2018-06",
+      "release": "RELEASE-2026",
+      "name": "NEON_D17_DPQA_2018_TEAK_3_lidar_flightline_boundary.kml",
+      "retrieved_utc": "2026-09-28 07:54:26 UTC"
+    },
+    {
+      "path": "sources/NEON_D17_TEAK_DP1_321000_4096000_classified_point_cloud_colorized.laz",
+      "bytes": 48003356,
+      "sha256": "bea4bf2c1eb03f95b16ac5c0d560eab51339d4db8349a7bd2b19b70e796ea9bc",
+      "kind": "neon_file",
+      "product": "DP1.30003.001",
+      "site": "TEAK",
+      "month": "2018-06",
+      "release": "RELEASE-2026",
+      "name": "NEON_D17_TEAK_DP1_321000_4096000_classified_point_cloud_colorized.laz",
+      "retrieved_utc": "2026-09-28 07:54:20 UTC"
+    },
+    {
+      "path": "sources/NEON_D17_TEAK_DP3_321000_4096000_CHM.tif",
+      "bytes": 2045005,
+      "sha256": "cb8fb5eae90c577efd92f2d4cebd424cb46509b164d199a04725b116a7fe0493",
+      "kind": "neon_file",
+      "product": "DP3.30015.001",
+      "site": "TEAK",
+      "month": "2018-06",
+      "release": "RELEASE-2026",
+      "name": "NEON_D17_TEAK_DP3_321000_4096000_CHM.tif",
+      "retrieved_utc": "2026-09-28 07:54:37 UTC"
+    },
+    {
+      "path": "sources/native_retrieval.json",
+      "bytes": 1990,
+      "sha256": "d0bdb1fefe988e5c70e9b7f799d83ba4705dc2b8a2251578d547ef4cf015a405",
+      "kind": "archived_metadata"
+    },
+    {
+      "path": "checkpoint_identity.json",
+      "bytes": 2091,
+      "sha256": "77c28117b185ce90c38430183fd2b6aa1f929950abb43c83059cb1032033ee21",
+      "kind": "checkpoint_identity"
+    },
+    {
+      "path": "checkpoint-sources/ff3d-train.txt",
+      "bytes": 1700,
+      "sha256": "fc5201c9e3dde7a084cb0888f8885eea8d5c8c5078fff66b1e7df865d63f35c3",
+      "kind": "checkpoint_source",
+      "url": "https://raw.githubusercontent.com/SmartForest-no/ForestFormer3D/6a75c3735e4a4108d02ee944a8b93177f2360a4f/data/ForAINetV2/meta_data/train_list.txt"
+    },
+    {
+      "path": "checkpoint-sources/ff3d-val.txt",
+      "bytes": 557,
+      "sha256": "f54cd72175cd0fa75f77bdc0bd9e0aed9a4241c8d7559bd405be4badf7ad7856",
+      "kind": "checkpoint_source",
+      "url": "https://raw.githubusercontent.com/SmartForest-no/ForestFormer3D/6a75c3735e4a4108d02ee944a8b93177f2360a4f/data/ForAINetV2/meta_data/val_list.txt"
+    },
+    {
+      "path": "checkpoint-sources/ff3d-test.txt",
+      "bytes": 974,
+      "sha256": "222dd86b1c7ff93eb3cf5b0e885837b58f679780f8557918f2064c3902348c32",
+      "kind": "checkpoint_source",
+      "url": "https://raw.githubusercontent.com/SmartForest-no/ForestFormer3D/6a75c3735e4a4108d02ee944a8b93177f2360a4f/data/ForAINetV2/meta_data/test_list.txt"
+    },
+    {
+      "path": "checkpoint-sources/sat-lfs.txt",
+      "bytes": 134,
+      "sha256": "69c388c2b768e2e36add0d64a9e4251467ac146675e3e8f8543cbfa9432d3a6a",
+      "kind": "checkpoint_source",
+      "url": "https://raw.githubusercontent.com/SmartForest-no/SegmentAnyTree/a3561ed8447bbb7938f059ba65a3e9c97d6e2ee9/model_file/PointGroup-PAPER.pt"
+    },
+    {
+      "path": "checkpoint-sources/ff3d-release.json",
+      "bytes": 6345,
+      "sha256": "84dd7caedc2ef0163bbabfc20cbc634c2062859e459133bea0381fce2b7dadfe",
+      "kind": "checkpoint_source",
+      "url": "https://zenodo.org/api/records/16742708"
+    },
+    {
+      "path": "checkpoint-sources/ff3d-paper.pdf",
+      "bytes": 6644918,
+      "sha256": "7d15c2e90b5feff6b8b4c182449318ab3a2cc099e5c0ae5867a2f8351ec724a0",
+      "kind": "checkpoint_source",
+      "url": "https://openaccess.thecvf.com/content/ICCV2025/papers/Xiang_ForestFormer3D_A_Unified_Framework_for_End-to-End_Segmentation_of_Forest_LiDAR_ICCV_2025_paper.pdf"
+    },
+    {
+      "path": "checkpoint-sources/ff3d-supplement.pdf",
+      "bytes": 19759331,
+      "sha256": "7e3358676292ee13d594029f7d419a25a31cedee1a1bb4e3961196698ff5f8d4",
+      "kind": "checkpoint_source",
+      "url": "https://openaccess.thecvf.com/content/ICCV2025/supplemental/Xiang_ForestFormer3D_A_Unified_ICCV_2025_supplemental.pdf"
+    },
+    {
+      "path": "checkpoint-sources/sat-paper.pdf",
+      "bytes": 2143754,
+      "sha256": "8adca68cfc7e5f453f88ed6db843f43731aa9e8ff5100aea402ba1d715e43e37",
+      "kind": "checkpoint_source",
+      "url": "https://arxiv.org/pdf/2401.15739"
+    }
+  ],
+  "published": [
+    {
+      "path": "nte/annotations/TEAK_043_2018.xml",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/annotations/TEAK_043_2018.xml",
+      "sha256": "98410b3a01d0d7bfd3fd55f2809935642a5701449665d04159ecba7994c11034",
+      "bytes": 8217,
+      "retrieved_utc": "2026-09-28T07:20:56.230703+00:00"
+    },
+    {
+      "path": "nte/evaluation/CHM/TEAK_043_2018_CHM.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/CHM/TEAK_043_2018_CHM.tif",
+      "sha256": "661e9b3725f17514f0c46ab4494cf566dce2b78502ebcadc287b7e51d52dec94",
+      "bytes": 2466,
+      "retrieved_utc": "2026-09-28T07:20:57.041812+00:00"
+    },
+    {
+      "path": "nte/evaluation/LiDAR/TEAK_043_2018.laz",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/LiDAR/TEAK_043_2018.laz",
+      "sha256": "3c5004d1c5f875bec125e6c04af21ad8e8c61bf0390eddb4f6243948327a1c21",
+      "bytes": 329561,
+      "retrieved_utc": "2026-09-28T07:20:57.995369+00:00"
+    },
+    {
+      "path": "nte/evaluation/RGB/TEAK_043_2018.tif",
+      "url": "https://raw.githubusercontent.com/weecology/NeonTreeEvaluation/96b29d566ca7ea9f604de3e1235c503ab101cb8a/evaluation/RGB/TEAK_043_2018.tif",
+      "sha256": "93b8469e8f6bc6d260400ea9d9e649d66f02d713c7207b1d80c734cda5c697f6",
+      "bytes": 540130,
+      "retrieved_utc": "2026-09-28T07:20:59.039222+00:00"
+    },
+    {
+      "path": "local_plot_inventory.csv",
+      "url": null,
+      "origin": "/home/alex/projects/lidar_tree_benchmarks/work/teak-validation-audit/derived-v3/plot_inventory.csv",
+      "sha256": "f9dee19832da846ffe26e8af4ceee82936531e5a67401ac615b53194643f3bc6",
+      "bytes": 4010
+    }
+  ],
+  "evaluation_ready": false
+}
