@@ -229,8 +229,8 @@ provenance. Its 90 m context has 43,460 points, 3.753 first returns/m² and
 5.365 all returns/m². Published RGB samples match the native mosaic; the CHM
 differs and exact acquisition-day correspondence remains unresolved. Both
 installed model checkpoints were rehashed, but their exposure to the eleven
-candidate plots remains unknown. This is a historical input-processing
-pilot with no detector result or evaluation admission.
+candidate plots remains unknown. That historical input-processing pilot
+did not run detectors or admit evaluation.
 
 The [canopy comparison policy](results/teak-canopy-policy-results.md) audits
 all 734 published boxes and reserves whole plots before new predictions.
@@ -239,6 +239,16 @@ pooled counts, and groups overlapping inference contexts. Seven historical
 plots remain development plots; eleven candidates are reserved but
 unadmitted. Human reference review and acquisition/exposure checks remain
 pending. Synthetic matching tests establish software behavior only.
+
+The separate [detector compatibility smoke](results/teak-detector-smoke-results.md)
+completed CHM-VWF, SegmentAnyTree and ForestFormer3D once each on the native
+TEAK_043 context. All 43,460 points survive both neural exports with their
+original fields. The image core contains 9 CHM treetops, 14 SAT apexes and
+16 FF3D apexes after the fixed filters. These are output counts, not accuracy
+scores or a model ranking. Sparse point-extent boxes remain diagnostic
+proxies. TEAK_043 is model-observed; the eleven reserved candidates stay
+unprocessed and unadmitted. Reference review, temporal agreement and
+checkpoint exposure still gate a real canopy comparison.
 
 The [external dataset eligibility audit](results/validation-dataset-eligibility.md)
 retains CedarCypress3D, BorFIT and Sepilok as supplementary instance-reference
@@ -831,6 +841,7 @@ routing, crown refinement and downstream mensuration require their own evidence.
 | EPT extraction | PDAL 2.9 or later |
 | Optional analyses | clue, rpart, crownsegmentr, and lidRplugins as required by the corresponding arm |
 | TEAK canopy policy preparation | Pinned local canopy/native packages; R sf, terra, jsonlite, digest and clue 0.3.68; no model inference or new downloads |
+| TEAK detector compatibility smoke | Verified native pilot and canopy policy; existing Python with LAZ-enabled laspy, numpy, scipy, pyproj and PyYAML; pinned lasR runtime, installed SAT/FF3D images and checkpoints, Docker GPU access, rsync and GNU time |
 | GPU/vision arms | The documented container, conda environment, or virtualenv under [gpu](gpu/) for that specific model |
 | External instance validation | Existing detector runtimes, R dbscan and yaml, and the pinned official Python evaluator described in the external report |
 | FGI-EMIT development preparation | Existing Python with laspy, numpy, scipy and PyYAML; R lidR, data.table and jsonlite; checkpoint audit uses Python 3.11+ and the installed Docker images without GPU execution |
@@ -902,6 +913,7 @@ workflows.
 | prepare_teak_canopy_reference.R | Verify pinned public TEAK image boxes and paired clips; export review geometry, previews, overlap and cloud-quality inventories without admitting evaluation |
 | prepare_teak_native_pilot.R | Prepare the declared historical TEAK native cloud, preserving fields and point identity; verify image correspondence, measured density and unresolved admission gates |
 | prepare_teak_canopy_policy.R | Audit published box geometry, reserve spatial groups and render the historical pilot review panel under a pinned policy; no real prediction input or evaluation admission |
+| run_teak_detector_smoke.py | Prepare, execute once, or verify CHM-VWF, SAT and FF3D on the historical native TEAK pilot; preserve point fields and export diagnostic proxies without reference scoring |
 | compare_teak_rgb.py | Compare decoded unmasked RGB samples on identical declared grids, reporting nodata interpretation separately |
 | audit_teak_validation.R | Offline TEAK plot-use, census-event, reference-record, historical-density and EPT metadata inventory; no evaluation admission |
 | neon_reference_support.R / review_neon_reference_support.R | Exact-event reference audit, measured sampled-subplot polygons and HARV-only RGB geometry review; no evaluation admission |
@@ -964,6 +976,7 @@ workflows.
 | teak_canopy_lib.R | Published XML identity/geometry checks, projected image boxes, source-path guards and conservative cloud/exposure diagnostics |
 | teak_native_pilot_lib.R | Native return validation, point-preservation checks, ambiguity-aware coordinate correspondence and complete-footprint density diagnostics |
 | teak_canopy_policy_lib.R | Parent-package verification, edge/overlap audit, spatial reservations and synthetic box-clipping/assignment contracts |
+| teak_detector_smoke_lib.py | Sealed native transport, full-row adapter admission, original-field exports and sparse point-extent diagnostics for the historical TEAK smoke |
 | neon_reference_support_lib.R | Census-event joins, surveyed footprints, reference exclusions, opt-in polygon scoring and support-aware pooling guards |
 | neon_reference_resolution_lib.R | Exact-event bole-family evidence, immutable receipts and conservative flight/time attribution checks |
 | neon_individual_reference_lib.R | Unique apparent-individual units, explicit measurement donors and separate diagnostic support identities |
@@ -1026,6 +1039,8 @@ workflows.
 | [Native TEAK pilot protocol](docs/teak-native-pilot-protocol.md) | One historical plot, preserved native/normalized point fields, explicit source checks and no detector or split selection |
 | [TEAK canopy comparison policy results](results/teak-canopy-policy-results.md) | Geometry review of 734 boxes, whole-plot reservations and spatial dependence limits; no real accuracy scores |
 | [TEAK canopy scoring protocol](docs/teak-canopy-scoring-protocol.md) | Full-image edge policy, one-to-one box IoU, pooled counts and unresolved whole-plot admission gates |
+| [TEAK detector smoke protocol](docs/teak-detector-smoke-protocol.md) | Fixed native historical plot, three existing detector paths, one attempt and lossless exports; no real accuracy scoring |
+| [TEAK detector compatibility smoke](results/teak-detector-smoke-results.md) | Three successful native historical detector runs, preserved point fields and diagnostic proxy exports; no accuracy ranking or reserved-plot execution |
 | [TEAK canopy-reference protocol](docs/teak-canopy-reference-protocol.md) | Fixed public-annotation scope, pixel geometry, provenance checks and pending visible-canopy comparison gates |
 | [TEAK reference protocol](docs/teak-reference-protocol.md) | Fixed seven-plot scope, bole population, epoch-aware locations and preserved evaluation gates |
 | [TEAK-focused validation audit](results/teak-validation-audit.md) | Deployment-focused native ALS acquisition, prior plot use, exact-event census candidates and unresolved admission gates |
