@@ -142,6 +142,11 @@ now verifies all ten plots' annotations, original row/return identity, local
 frames, measured footprint densities and finite geometric normalization.
 Installed candidate checkpoints match upstream artifacts, but training overlap
 and independent AGL accuracy remain unverified. The reserve stays unscored.
+The [comparison contract](results/fgiemit-comparison-contract-results.md)
+now freezes three detector arms, 30 native-density cells and 50 whole-plot
+calibration cells. Maximum pointwise AGL defines the detection references;
+unchanged instance masks define the separate segmentation target. Reference
+tables are sealed, but detector execution and calibration have not started.
 
 ### Choosing a method
 
@@ -524,6 +529,27 @@ reserve/test point records unopened. The
 diagnostics, checkpoint evidence and the remaining comparison requirements.
 These commands run no model inference or calibration.
 
+### FGI-EMIT development comparison contract
+
+After input and checkpoint verification, seal the fixed comparison matrix and
+three reference-height profiles. This reads development point records only
+and checks installed checkpoint identities in read-only Docker containers:
+
+~~~sh
+PYTHON=/path/to/lidar_tree_benchmarks/gpu/.venv/bin/python
+ROOT="$CLAUDE_JOB_DIR/external/fgiemit"
+OUT="$ROOT/development_comparison"
+"$PYTHON" scripts/declare_fgiemit_comparison.py --root "$ROOT" --out "$OUT"
+"$PYTHON" scripts/declare_fgiemit_comparison.py --root "$ROOT" --out "$OUT" --verify
+~~~
+
+Use a new output directory and the unchanged parent receipts. The
+[comparison protocol](docs/fgiemit-comparison-protocol.md) fixes common support,
+height matching, mask scoring, calibration folds and failure handling. The
+[contract report](results/fgiemit-comparison-contract-results.md) records the
+actual reference export and the remaining runner checks. These commands do
+not run detectors or fit calibrators; reserve evaluation remains closed.
+
 ## Requirements
 
 | Scope | Requirements |
@@ -536,6 +562,7 @@ These commands run no model inference or calibration.
 | GPU/vision arms | The documented container, conda environment, or virtualenv under [gpu](gpu/) for that specific model |
 | External instance validation | Existing detector runtimes, R dbscan and yaml, and the pinned official Python evaluator described in the external report |
 | FGI-EMIT development preparation | Existing Python with laspy, numpy, scipy and PyYAML; R lidR, data.table and jsonlite; checkpoint audit uses Python 3.11+ and the installed Docker images without GPU execution |
+| FGI-EMIT comparison declaration | Same existing Python and Docker environments; R lasR, lidR, terra, sf, data.table and jsonlite; records installed lasR identity and variable-window capability before any detector execution |
 | Tests | testthat |
 | Markdown checks | rumdl with [.rumdl.toml](.rumdl.toml) |
 
@@ -618,6 +645,7 @@ workflows.
 | audit_fgiemit_development.py | Metadata-only source audit, prospective plot reserve and whole-plot development folds; no real-data admission |
 | prepare_fgiemit_development.py / normalize_fgiemit_development.R | Development-only point/support validation, original-return densities, separate reference/model exports and geometric AGL diagnostics |
 | audit_fgiemit_checkpoints.py | Installed checkpoint and image identities, upstream weight checks and training-provenance limits; no model loading |
+| declare_fgiemit_comparison.py / fgiemit_comparison_lib.py | Fixed development detector/calibration matrix and symmetric source-row reference-height profiles; sealed outputs without inference |
 | audit_frozen_transfer.R | Declared training-only adapter inference and official-metric, export, and scene-assembly diagnostics |
 | audit_scene_assembly.R | Bounded native whole-scene inference, protected-output checks and archived outer-cylinder comparison |
 | detect_deepforest_sweep.R / detect_detectree2_sweep.R | RGB detector and crown-width arms |
@@ -677,6 +705,8 @@ workflows.
 | [FGI-EMIT development protocol](docs/fgiemit-development-protocol.md) | Native-only scope, deterministic reserve selection and gates before real-data use |
 | [FGI-EMIT input validation](results/fgiemit-development-input-results.md) | Ten-plot source-row exports, measured return densities, height diagnostics and installed checkpoint provenance |
 | [FGI-EMIT input protocol](docs/fgiemit-input-validation-protocol.md) | Development-only preparation, boundary/background support and normalization contracts |
+| [FGI-EMIT comparison contract](results/fgiemit-comparison-contract-results.md) | Thirty planned detector cells, fifty calibration cells and verified height-reference exports |
+| [FGI-EMIT comparison protocol](docs/fgiemit-comparison-protocol.md) | Frozen method, matching, calibration, resource and conditional-development claim rules |
 | [Frozen transfer audit](results/frozen-transfer-audit-results.md) | Training-only adapter corrections, scene-assembly diagnostics, and arm eligibility |
 | [Scene-assembly results](results/forestformer-scene-assembly-results.md) | Whole-scene identity, resource use, common-support metrics and eligibility |
 | [Scene-assembly protocol](docs/forestformer-scene-assembly-protocol.md) | Fixed training comparison and row-identity acceptance contracts |
