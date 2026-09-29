@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-09-28",
+  "scope": "TEAK metadata and cached census-record audit; no new clouds, model execution, calibration or scoring",
+  "archive_relative_to_work": "teak-validation-audit/sources",
+  "evaluation_admitted": false,
+  "sources": {
+    "teak-site.json": {
+      "url": "https://data.neonscience.org/api/v0/sites/TEAK",
+      "resolved_url": "https://data.neonscience.org/api/v0/sites/TEAK",
+      "retrieved_utc": "2026-09-28T06:47:43.135310+00:00",
+      "bytes": 252699,
+      "sha256": "05e4a716ac0066194ceda2bc2b889484f2dcf309d05ba059b60391f436905c85",
+      "content_type": "application/json"
+    },
+    "teak-location.json": {
+      "url": "https://data.neonscience.org/api/v0/locations/TEAK",
+      "resolved_url": "https://data.neonscience.org/api/v0/locations/TEAK",
+      "retrieved_utc": "2026-09-28T06:47:42.652685+00:00",
+      "bytes": 49833,
+      "sha256": "ea48a231cbe169918dfc5268b9c35a294fe939df728d21f23582e92714ae0414",
+      "content_type": "application/json"
+    },
+    "teak-site.html": {
+      "url": "https://www.neonscience.org/field-sites/teak",
+      "resolved_url": "https://www.neonscience.org/field-sites/teak",
+      "retrieved_utc": "2026-09-28T06:47:43.625695+00:00",
+      "bytes": 107613,
+      "sha256": "67e5d84aee4850ea1bf2009c470eba6983212922dc90ec441a15e548cc58bed9",
+      "content_type": "text/html; charset=UTF-8"
+    },
+    "usgs-density-tables.html": {
+      "url": "https://www.usgs.gov/ngp-standards-and-specifications/lidar-base-specification-tables",
+      "resolved_url": "https://www.usgs.gov/ngp-standards-and-specifications/lidar-base-specification-tables",
+      "retrieved_utc": "2026-09-28T06:47:45.775040+00:00",
+      "bytes": 82191,
+      "sha256": "57583ad75d385e3c92ff81001de1cdb0c594acfd1bd58810ff5e9b26f07e7783",
+      "content_type": "text/html; charset=UTF-8"
+    },
+    "ept-resources.geojson": {
+      "url": "https://raw.githubusercontent.com/hobuinc/usgs-lidar/master/boundaries/resources.geojson",
+      "resolved_url": "https://raw.githubusercontent.com/hobuinc/usgs-lidar/master/boundaries/resources.geojson",
+      "retrieved_utc": "2026-09-28T06:47:43.440357+00:00",
+      "bytes": 8745395,
+      "sha256": "b067dfb03f17f54dc425fdc661c9924a7de1c59a62fbfdeb53d3e1789afb2f2a",
+      "content_type": "text/plain; charset=utf-8"
+    },
+    "sierra-ept.json": {
+      "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_SierraNevada_14_B22/ept.json",
+      "resolved_url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_SierraNevada_14_B22/ept.json",
+      "retrieved_utc": "2026-09-28T06:47:43.943028+00:00",
+      "bytes": 2533,
+      "sha256": "b5603654de240d3acac79be3cdc643ec50dc10e91957f7738d99a2ff826c41e0",
+      "content_type": "application/json"
+    },
+    "neon-lidar-product.json": {
+      "url": "https://data.neonscience.org/api/v0/products/DP1.30003.001",
+      "resolved_url": "https://data.neonscience.org/api/v0/products/DP1.30003.001",
+      "retrieved_utc": "2026-09-28T06:47:44.674036+00:00",
+      "bytes": 58581,
+      "sha256": "7b07ec114331817d32d5fde5ce68719ca322e2103fca38f9147f3cef8ebf94e0",
+      "content_type": "application/json"
+    },
+    "neon-woody-product.json": {
+      "url": "https://data.neonscience.org/api/v0/products/DP1.10098.001",
+      "resolved_url": "https://data.neonscience.org/api/v0/products/DP1.10098.001",
+      "retrieved_utc": "2026-09-28T06:47:45.127436+00:00",
+      "bytes": 158346,
+      "sha256": "6f74ec63c263d918b6f0a222c2329fa1e951c4cf6b8a2ea0366b8e467bc800db",
+      "content_type": "application/json"
+    },
+    "usgs-sierra-project-report.pdf": {
+      "url": "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/CA_SierraNevada_B22/USGS_CA_SierraNevada_B22_Project_Report.pdf",
+      "resolved_url": "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/CA_SierraNevada_B22/USGS_CA_SierraNevada_B22_Project_Report.pdf",
+      "retrieved_utc": "2026-09-28T06:50:49.270701+00:00",
+      "bytes": 62828,
+      "sha256": "f87ca0bc24447bbc150851ba6425c972ae1bc9b0701cc23bab13e45f13002b6b",
+      "content_type": "application/pdf"
+    },
+    "usgs-sierra-wu14-technical-report.pdf": {
+      "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/metadata/CA_SierraNevada_B22/CA_SierraNevada_14_B22/reports/140G0222F0176_CA_SierraNevada_2022_WU_300462_WU14_Report_Revision.pdf",
+      "resolved_url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/metadata/CA_SierraNevada_B22/CA_SierraNevada_14_B22/reports/140G0222F0176_CA_SierraNevada_2022_WU_300462_WU14_Report_Revision.pdf",
+      "retrieved_utc": "2026-09-28T06:50:52.215443+00:00",
+      "bytes": 5962528,
+      "sha256": "27f2560943747ece0e0a1914f51047c4f06c60b82e1e4397a7d52955ab87bd7c",
+      "content_type": "application/pdf"
+    }
+  },
+  "local_audit": {
+    "output_relative_to_work": "teak-validation-audit/derived-v3",
+    "receipt_sha256": "8734ef39e58e3e7c4c13c07395fc8998977bcd0ca24263c752d7511ffccdb210",
+    "input_count": 60,
+    "output_count": 12,
+    "scanned_csv_count": 48,
+    "scanned_artifact_path_count": 874,
+    "scope": "Bounded local membership inventory; absence is not proof of upstream or global non-exposure"
+  }
+}
