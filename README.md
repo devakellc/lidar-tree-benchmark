@@ -223,6 +223,15 @@ comparison. Verify flight dates and temporal agreement with the imagery; the
 These boxes support a potential visible-canopy study; they do not provide
 manual 3D masks, apices or heights. No plot is admitted.
 
+The [native TEAK pilot](results/teak-native-pilot-results.md) now recovers
+TEAK_043 from released NEON data with intact return fields and point
+provenance. Its 90 m context has 43,460 points, 3.753 first returns/m² and
+5.365 all returns/m². Published RGB samples match the native mosaic; the CHM
+differs and exact acquisition-day correspondence remains unresolved. Both
+installed model checkpoints were rehashed, but their exposure to the eleven
+candidate plots remains unknown. This is a historical input-processing
+pilot with no detector result or evaluation admission.
+
 The [external dataset eligibility audit](results/validation-dataset-eligibility.md)
 retains CedarCypress3D, BorFIT and Sepilok as supplementary instance-reference
 options. Their dense acquisitions do not establish native sparse-ALS transfer.
@@ -882,6 +891,8 @@ workflows.
 | preflight_harv_smoke.R | Inspect the declared HARV-only LiDAR/RGB clip, density and normalization without detector inference |
 | prepare_teak_reference_support.R | Reconstruct seven declared TEAK candidate events using archived location histories; preserve missing corners, quality exclusions and diagnostic-only status |
 | prepare_teak_canopy_reference.R | Verify pinned public TEAK image boxes and paired clips; export review geometry, previews, overlap and cloud-quality inventories without admitting evaluation |
+| prepare_teak_native_pilot.R | Prepare the declared historical TEAK native cloud, preserving fields and point identity; verify image correspondence, measured density and unresolved admission gates |
+| compare_teak_rgb.py | Compare decoded unmasked RGB samples on identical declared grids, reporting nodata interpretation separately |
 | audit_teak_validation.R | Offline TEAK plot-use, census-event, reference-record, historical-density and EPT metadata inventory; no evaluation admission |
 | neon_reference_support.R / review_neon_reference_support.R | Exact-event reference audit, measured sampled-subplot polygons and HARV-only RGB geometry review; no evaluation admission |
 | audit_neon_reference_history.R | Read-only census-support and artifact-integrity audit of archived D17 references |
@@ -941,6 +952,7 @@ workflows.
 | neon_spatial_lib.R / eastern_preflight_lib.R / neon_acquisition_lib.R | NEON CRS, epoch and cache guards; authenticated tile queries, availability and sampling-support audits |
 | teak_reference_lib.R | Fixed TEAK event scope, verified historical named points and explicit per-plot reconstruction failures |
 | teak_canopy_lib.R | Published XML identity/geometry checks, projected image boxes, source-path guards and conservative cloud/exposure diagnostics |
+| teak_native_pilot_lib.R | Native return validation, point-preservation checks, ambiguity-aware coordinate correspondence and complete-footprint density diagnostics |
 | neon_reference_support_lib.R | Census-event joins, surveyed footprints, reference exclusions, opt-in polygon scoring and support-aware pooling guards |
 | neon_reference_resolution_lib.R | Exact-event bole-family evidence, immutable receipts and conservative flight/time attribution checks |
 | neon_individual_reference_lib.R | Unique apparent-individual units, explicit measurement donors and separate diagnostic support identities |
@@ -999,6 +1011,8 @@ workflows.
 | [Native pipeline results](results/final-ensemble-pipeline-results.md) | Completed development comparisons, reserve evaluation, exported products and exact verification |
 | [TEAK candidate reconstruction](results/teak-reference-support-results.md) | Historical named-point evidence, structural reference gaps and seven failed measured-subplot reconstructions; no admission |
 | [TEAK canopy-reference package](results/teak-canopy-reference-results.md) | 734 published image boxes, paired-cloud defects and local-overlap inventory; reviewable inputs with no evaluation admission |
+| [Native TEAK pilot](results/teak-native-pilot-results.md) | Source-backed historical cloud, native density, RGB/point correspondence and checkpoint provenance; unresolved evaluation gates |
+| [Native TEAK pilot protocol](docs/teak-native-pilot-protocol.md) | One historical plot, preserved native/normalized point fields, explicit source checks and no detector or split selection |
 | [TEAK canopy-reference protocol](docs/teak-canopy-reference-protocol.md) | Fixed public-annotation scope, pixel geometry, provenance checks and pending visible-canopy comparison gates |
 | [TEAK reference protocol](docs/teak-reference-protocol.md) | Fixed seven-plot scope, bole population, epoch-aware locations and preserved evaluation gates |
 | [TEAK-focused validation audit](results/teak-validation-audit.md) | Deployment-focused native ALS acquisition, prior plot use, exact-event census candidates and unresolved admission gates |
