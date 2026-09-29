@@ -242,10 +242,32 @@ development policy and overlap decision.
   publication. The original dirty checkout remains untouched.
 
 Use the existing Python environment, pinned runtime and installed images. The
-[README workflow](../README.md#fgi-emit-complete-development-comparison)
-gives the creation and independent verification commands. Outputs live under
+commands below create and independently verify the complete comparison.
+Run them from the repository root after setting `CLAUDE_JOB_DIR`, with a
+complete admitted pilot and the same sealed inputs, code, and settings.
+
+Outputs live under
 `work/external/fgiemit/development_detector_run/` and
 `work/external/fgiemit/development_detector_summary/`. Creation requires fresh
 directories and never overwrites the admitted pilot or another attempt.
 Native inputs, clouds, logs, CSVs and runtime files remain local ignored
 artifacts; the committed report records the completed results.
+
+```sh
+PYTHON=/path/to/lidar_tree_benchmarks/gpu/.venv/bin/python
+ROOT="$CLAUDE_JOB_DIR/external/fgiemit"
+RUNTIME="$CLAUDE_JOB_DIR/fgiemit-pilot-runtime"
+PILOT="$ROOT/development_pilot_v3"
+RUN="$ROOT/development_detector_run"
+SUMMARY="$ROOT/development_detector_summary"
+"$PYTHON" scripts/run_fgiemit_development.py \
+  --root "$ROOT" --out "$RUN" --pilot "$PILOT" --runtime "$RUNTIME"
+"$PYTHON" scripts/run_fgiemit_development.py \
+  --root "$ROOT" --out "$RUN" --pilot "$PILOT" --runtime "$RUNTIME" --verify
+"$PYTHON" scripts/summarize_fgiemit_development.py \
+  --root "$ROOT" --run "$RUN" --pilot "$PILOT" --runtime "$RUNTIME" \
+  --out "$SUMMARY"
+"$PYTHON" scripts/summarize_fgiemit_development.py \
+  --root "$ROOT" --run "$RUN" --pilot "$PILOT" --runtime "$RUNTIME" \
+  --out "$SUMMARY" --verify
+```
