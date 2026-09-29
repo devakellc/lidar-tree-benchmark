@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "plot": "TEAK_043",
+  "scope": "metadata_only_historical_development_pilot",
+  "pilot_receipt_sha256": "ac1e50570d2b383e517ccd3c49ca7ae543068ffd6e88ad06b5339fe971c066af",
+  "native_manifest_sha256": "9af06d65b9ccc6b26ff925aad05426ac50cc9b6c5a2c8859c874f904500ed02d",
+  "parent_manifest_sha256": "04352ccfc95813dbf75d5e8aac17de8ae11ece49894054d9309ad217bf884b53",
+  "gps_week": 2005,
+  "gps_week_start": "2018-06-10",
+  "gps_minus_utc_seconds": 18,
+  "calendar_basis": "conditional_inference_from_report_mission_context_not_week_seconds_alone",
+  "camera_timestamp_basis": "parenthesized_filename_token_documented_as_UTC_collection_time",
+  "declaration_sources": [
+    {
+      "claim": "GPS-UTC offset",
+      "url": "https://www.cnmoc.usff.navy.mil/our-commands/united-states-naval-observatory/precise-time-department/global-positioning-system/usno-gps-time-transfer/"
+    },
+    {
+      "claim": "camera filename UTC time",
+      "url": "https://www.neonscience.org/sites/default/files/biblio-files/TM007-UserGuide_for_locating_NEON_Camera_Images_0.pdf"
+    }
+  ],
+  "sources": [
+    {
+      "path": "DP3.30010.001_23807048_2018_TEAK_3_mosaic.kmz",
+      "product": "DP3.30010.001",
+      "site": "TEAK",
+      "month": "2018-06",
+      "release": "RELEASE-2026",
+      "name": "2018_TEAK_3_mosaic.kmz",
+      "bytes": 23807048,
+      "sha256": "3a0979d42b8c6b51682bdec83a17262f29a5db0825be566f46742d36c0226b90",
+      "source_url": "https://storage.googleapis.com/neon-aop-products/2018/FullSite/D17/2018_TEAK_3/Metadata/Camera/Reports/2018_TEAK_3_mosaic.kmz",
+      "retrieved_utc": "2026-09-29 06:38:25 UTC"
+    },
+    {
+      "path": "DP3.30010.001_24120301_2018_TEAK_3_mosaic.kmz",
+      "product": "DP3.30010.001",
+      "site": "TEAK",
+      "month": "2018-06",
+      "release": "RELEASE-2026",
+      "name": "2018_TEAK_3_mosaic.kmz",
+      "bytes": 24120301,
+      "sha256": "5010ba699051b56caeeb4a9231d296b3c288940807f36b169afc637b076cd798",
+      "source_url": "https://storage.googleapis.com/neon-aop-products/2018/FullSite/D17/2018_TEAK_3/Metadata/Camera/kmz/2018_TEAK_3_mosaic.kmz",
+      "retrieved_utc": "2026-09-29 06:38:28 UTC"
+    },
+    {
+      "path": "DP1.30010.001_23807048_2018_TEAK_3_mosaic.kmz",
+      "product": "DP1.30010.001",
+      "site": "TEAK",
+      "month": "2018-06",
+      "release": "RELEASE-2026",
+      "name": "2018_TEAK_3_mosaic.kmz",
+      "bytes": 23807048,
+      "sha256": "3a0979d42b8c6b51682bdec83a17262f29a5db0825be566f46742d36c0226b90",
+      "source_url": "https://storage.googleapis.com/neon-aop-products/2018/FullSite/D17/2018_TEAK_3/Metadata/Camera/Reports/2018_TEAK_3_mosaic.kmz",
+      "retrieved_utc": "2026-09-29 06:38:39 UTC"
+    },
+    {
+      "path": "DP1.30010.001_24120301_2018_TEAK_3_mosaic.kmz",
+      "product": "DP1.30010.001",
+      "site": "TEAK",
+      "month": "2018-06",
+      "release": "RELEASE-2026",
+      "name": "2018_TEAK_3_mosaic.kmz",
+      "bytes": 24120301,
+      "sha256": "5010ba699051b56caeeb4a9231d296b3c288940807f36b169afc637b076cd798",
+      "source_url": "https://storage.googleapis.com/neon-aop-products/2018/FullSite/D17/2018_TEAK_3/Metadata/Camera/kmz/2018_TEAK_3_mosaic.kmz",
+      "retrieved_utc": "2026-09-29 06:38:43 UTC"
+    },
+    {
+      "path": "DP1.30010.001_TEAK_2018-06.json",
+      "bytes": 522016,
+      "sha256": "0fa14d9e0f69f2965213ac263923b538770a7c0068a2965d51a28e51930c1201",
+      "product": "DP1.30010.001",
+      "site": "TEAK",
+      "month": "2018-06",
+      "release": "RELEASE-2026",
+      "name": "DP1.30010.001_TEAK_2018-06.json",
+      "source_url": "https://data.neonscience.org/api/v0/data/DP1.30010.001/TEAK/2018-06?release=RELEASE-2026",
+      "retrieved_utc": "2026-09-29"
+    },
+    {
+      "path": "DP3.30010.001_TEAK_2018-06.json",
+      "bytes": 24515,
+      "sha256": "734a19bd111e8071635edafed6416e29e9e02d525e273843be6c3ebf45ec81ec",
+      "product": "DP3.30010.001",
+      "site": "TEAK",
+      "month": "2018-06",
+      "release": "RELEASE-2026",
+      "name": "DP3.30010.001_TEAK_2018-06.json",
+      "source_url": "https://data.neonscience.org/api/v0/data/DP3.30010.001/TEAK/2018-06?release=RELEASE-2026",
+      "retrieved_utc": "2026-09-29"
+    },
+    {
+      "path": "retrieval.json",
+      "bytes": 2051,
+      "sha256": "a7723631516616ffe212e349acd23991fd6696bad981cb7d7ca1726d07af84a2",
+      "product": "retrieval_receipt",
+      "site": "TEAK",
+      "month": "2018-06",
+      "release": "RELEASE-2026",
+      "name": "retrieval.json",
+      "source_url": "local retrieval receipt",
+      "retrieved_utc": "2026-09-29"
+    }
+  ],
+  "expected_l1_table_rows": 213,
+  "expected_l3_table_rows": 118,
+  "expected_l1_missions": [
+    "2018061416",
+    "2018061515",
+    "2018061517",
+    "2018061615",
+    "2018061617"
+  ]
+}
