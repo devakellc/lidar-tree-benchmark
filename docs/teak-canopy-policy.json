@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "policy_id": "teak-visible-canopy-box-v1",
+  "evaluation_ready": false,
+  "real_scores": false,
+  "target": "reviewed visible canopy 2D boxes in full published image",
+  "package_receipt_sha256": "79d71e4685e5c68947483fa880589ae6dbcfc1ef413f4175b945ddb6c6f9a079",
+  "pilot_receipt_sha256": "ac1e50570d2b383e517ccd3c49ca7ae543068ffd6e88ad06b5339fe971c066af",
+  "epsg": 32611,
+  "context_buffer_m": 25,
+  "group_rule": "closed context rectangles intersect; transitive components; lexicographic minimum plot ID",
+  "historical_group_rule": "any historical-use member demotes whole group to development",
+  "diagnostic_context_gaps_m": [
+    100,
+    200
+  ],
+  "independence_claim_supported": false,
+  "support": "full 40 m by 40 m image",
+  "coordinate_frame": "zero-origin pixel edges with top-left origin; affine mapped to EPSG:32611",
+  "edge_policy": "clip prediction boxes to image; include every positive-area intersection; no ignore regions or automatic reference exclusions",
+  "outside_predictions": "count separately; zero-area image intersections are outside",
+  "invalid_predictions": "nonfinite or nonpositive area before clipping is an error",
+  "admission": "all human box, completeness, ambiguity, timing, coregistration, native-input and checkpoint-exposure reviews remain open; no real scorer",
+  "matching": {
+    "primary_iou": 0.5,
+    "sensitivity_iou": 0.4,
+    "gate": "inclusive",
+    "objective": "maximum cardinality then maximum sum IoU",
+    "tie_rule": "stable sorted IDs and pinned clue solver",
+    "clue_version": "0.3.68"
+  },
+  "checkpoint_exposure": "unknown",
+  "checkpoint_hashes": {
+    "forestformer3d": "01037a648596832238ac72ea2f5eef87ceaf5aeb399e56ff4b760ba1ed1c777e",
+    "segmentanytree": "0b4d74b4644e37a16f59008ad0f5c62894fc4d2d906f3abd803bbfc5b5dd803a"
+  },
+  "plots": [
+    {
+      "plotID": "TEAK_043",
+      "spatial_group": "TEAK_043",
+      "role": "development",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_044",
+      "spatial_group": "TEAK_044",
+      "role": "development",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_045",
+      "spatial_group": "TEAK_045",
+      "role": "development",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_046",
+      "spatial_group": "TEAK_046",
+      "role": "development",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_047",
+      "spatial_group": "TEAK_047",
+      "role": "development",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_049",
+      "spatial_group": "TEAK_049",
+      "role": "reserved_unadmitted",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_050",
+      "spatial_group": "TEAK_050",
+      "role": "development",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_051",
+      "spatial_group": "TEAK_051",
+      "role": "reserved_unadmitted",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_052",
+      "spatial_group": "TEAK_052",
+      "role": "development",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_053",
+      "spatial_group": "TEAK_053",
+      "role": "reserved_unadmitted",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_054",
+      "spatial_group": "TEAK_054",
+      "role": "reserved_unadmitted",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_055",
+      "spatial_group": "TEAK_055",
+      "role": "reserved_unadmitted",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_057",
+      "spatial_group": "TEAK_057",
+      "role": "reserved_unadmitted",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_058",
+      "spatial_group": "TEAK_058",
+      "role": "reserved_unadmitted",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_059",
+      "spatial_group": "TEAK_059",
+      "role": "reserved_unadmitted",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_060",
+      "spatial_group": "TEAK_049",
+      "role": "reserved_unadmitted",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_061",
+      "spatial_group": "TEAK_061",
+      "role": "reserved_unadmitted",
+      "evaluation_ready": false
+    },
+    {
+      "plotID": "TEAK_062",
+      "spatial_group": "TEAK_062",
+      "role": "reserved_unadmitted",
+      "evaluation_ready": false
+    }
+  ]
+}
