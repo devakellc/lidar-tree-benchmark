@@ -265,6 +265,15 @@ some matches occur on both dates. JPEG encoding and ambiguous matches prevent
 source attribution from this test. Registration and reference review remain
 separate requirements before an accuracy comparison.
 
+The [historical comparison handoff](results/teak-comparison-workflow-results.md)
+provides the full TEAK_043 image, all 24 original boxes, blank human review
+forms and explicit admission checks. A separate comparison entry point
+implements the fixed box policy for a future reviewed development study;
+its end-to-end scoring checks use invented fixtures. Current real inputs
+remain blocked. Human review, independent registration evidence and validated
+crown-box adapters are still required, with timing and checkpoint limits
+declared explicitly. The eleven reserved plots remain unadmitted.
+
 The [external dataset eligibility audit](results/validation-dataset-eligibility.md)
 retains CedarCypress3D, BorFIT and Sepilok as supplementary instance-reference
 options. Their dense acquisitions do not establish native sparse-ALS transfer.
@@ -580,6 +589,31 @@ describes the explicit cell/arm matrix, blocked and completed-empty products,
 optional synthetic input bundles, and artifact hashes. This command performs
 no detector inference, calibration fitting or benchmark scoring.
 
+### Historical TEAK review and comparison
+
+Prepare the review handoff from the accepted local packages in the shared
+working directory. Choose fresh output directories:
+
+~~~sh
+Rscript scripts/run_teak_comparison_workflow.R MODE=packet \
+  BASE="$CLAUDE_JOB_DIR" OUT="$CLAUDE_JOB_DIR/teak-review-packet"
+Rscript scripts/run_teak_comparison_workflow.R MODE=preflight \
+  BASE="$CLAUDE_JOB_DIR" OUT="$CLAUDE_JOB_DIR/teak-review-preflight"
+Rscript scripts/run_teak_comparison_workflow.R MODE=packet \
+  BASE="$CLAUDE_JOB_DIR" OUT="$CLAUDE_JOB_DIR/teak-review-packet" VERIFY=1
+~~~
+
+The [workflow protocol](docs/teak-comparison-workflow-protocol.md) documents
+the human evidence bundle and separately frozen admission manifest required
+by `MODE=compare`. The current preflight is blocked and produces no scores.
+Generated templates cannot establish human inspection. TEAK_043 remains
+model-observed development data; this entry point cannot admit reserved
+plots or claim independent validation. It runs no detector inference.
+
+Use the [retained-code replay command](docs/teak-detector-smoke-protocol.md#reproduction-and-retained-code-verification)
+to verify the completed detector smoke from a current checkout. Its original
+code, absolute paths, model resources and accepted artifacts must be retained.
+
 ### External validation and audit
 
 Start with the [external protocol and results](results/fgi-emit-external-results.md)
@@ -859,6 +893,8 @@ routing, crown refinement and downstream mensuration require their own evidence.
 | TEAK detector compatibility smoke | Verified native pilot and canopy policy; existing Python with LAZ-enabled laspy, numpy, scipy, pyproj and PyYAML; pinned lasR runtime, installed SAT/FF3D images and checkpoints, Docker GPU access, rsync and GNU time |
 | TEAK acquisition-timing audit | Pinned native pilot and camera metadata archives; R sf, xml2, jsonlite and digest; Poppler pdftotext; offline metadata only |
 | TEAK mosaic compatibility audit | Pinned native/timing packages, original L3 tile and all 23 declared L1 TIFFs; existing Python with numpy and rasterio; no GPU |
+| TEAK review and comparison workflow | Six pinned local parent packages and original native RGB; R terra, sf, png, jsonlite, digest and clue 0.3.68; genuine reviewed evidence and crown-box adapters required for real comparison |
+| TEAK historical smoke replay | Existing smoke Python environment, retained original checkout and absolute resource paths, accepted run/ledger, pinned model images and Docker access for resource verification; no detector inference |
 | GPU/vision arms | The documented container, conda environment, or virtualenv under [gpu](gpu/) for that specific model |
 | External instance validation | Existing detector runtimes, R dbscan and yaml, and the pinned official Python evaluator described in the external report |
 | FGI-EMIT development preparation | Existing Python with laspy, numpy, scipy and PyYAML; R lidR, data.table and jsonlite; checkpoint audit uses Python 3.11+ and the installed Docker images without GPU execution |
@@ -933,6 +969,8 @@ workflows.
 | run_teak_detector_smoke.py | Prepare, execute once, or verify CHM-VWF, SAT and FF3D on the historical native TEAK pilot; preserve point fields and export diagnostic proxies without reference scoring |
 | audit_teak_acquisition_timing.R | Audit complete flight intervals and both camera-footprint variants for the historical TEAK pilot; preserve conditional dates and unknown mosaic attribution; VERIFY=1 recomputes without writes |
 | audit_teak_mosaic_provenance.py | Compare all declared historical TEAK L1 frame windows with the fixed L3 grid; preserve exact RGB compatibility sets and unknown source attribution; --verify recomputes without writes |
+| run_teak_comparison_workflow.R | Prepare the historical TEAK review packet, report admission gates or compare separately admitted crown boxes; current real inputs stay blocked and reserved plots are unsupported |
+| replay_teak_detector_smoke.py | Authenticate the accepted historical smoke and dispatch its unchanged retained-code verifier; no execution or retry mode |
 | compare_teak_rgb.py | Compare decoded unmasked RGB samples on identical declared grids, reporting nodata interpretation separately |
 | audit_teak_validation.R | Offline TEAK plot-use, census-event, reference-record, historical-density and EPT metadata inventory; no evaluation admission |
 | neon_reference_support.R / review_neon_reference_support.R | Exact-event reference audit, measured sampled-subplot polygons and HARV-only RGB geometry review; no evaluation admission |
@@ -995,6 +1033,7 @@ workflows.
 | teak_canopy_lib.R | Published XML identity/geometry checks, projected image boxes, source-path guards and conservative cloud/exposure diagnostics |
 | teak_native_pilot_lib.R | Native return validation, point-preservation checks, ambiguity-aware coordinate correspondence and complete-footprint density diagnostics |
 | teak_canopy_policy_lib.R | Parent-package verification, edge/overlap audit, spatial reservations and synthetic box-clipping/assignment contracts |
+| teak_comparison_workflow_lib.R | Historical review templates, evidence-bound admission and fixed-policy box comparison; human inspection authenticity remains outside software verification |
 | teak_detector_smoke_lib.py | Sealed native transport, full-row adapter admission, original-field exports and sparse point-extent diagnostics for the historical TEAK smoke |
 | teak_acquisition_timing_lib.R | Pinned metadata checks, complete flight-table parsing, conditional GPS-week conversion and projected camera-polygon intersections |
 | neon_reference_support_lib.R | Census-event joins, surveyed footprints, reference exclusions, opt-in polygon scoring and support-aware pooling guards |
@@ -1065,6 +1104,8 @@ workflows.
 | [TEAK acquisition-timing protocol](docs/teak-acquisition-timing-protocol.md) | Metadata-only historical pilot, complete interval/footprint inventories, pinned sources and offline recomputation |
 | [TEAK mosaic compatibility audit](results/teak-mosaic-compatibility-results.md) | Complete declared frame comparison with mostly unmatched or ambiguous JPEG-decoded pixels; exposure and registration remain unresolved |
 | [TEAK mosaic compatibility protocol](docs/teak-mosaic-compatibility-protocol.md) | Frozen historical pixel grid, complete source hashes, explicit validity and compatibility sets; no source-date or accuracy admission |
+| [TEAK comparison handoff](results/teak-comparison-workflow-results.md) | Historical review packet, current admission blockers, synthetic comparison verification and retained detector replay |
+| [TEAK comparison workflow](docs/teak-comparison-workflow-protocol.md) | Review/evidence schemas, frozen historical-development admission, fixed box matching and no-write replay |
 | [TEAK canopy-reference protocol](docs/teak-canopy-reference-protocol.md) | Fixed public-annotation scope, pixel geometry, provenance checks and pending visible-canopy comparison gates |
 | [TEAK reference protocol](docs/teak-reference-protocol.md) | Fixed seven-plot scope, bole population, epoch-aware locations and preserved evaluation gates |
 | [TEAK-focused validation audit](results/teak-validation-audit.md) | Deployment-focused native ALS acquisition, prior plot use, exact-event census candidates and unresolved admission gates |
