@@ -122,34 +122,50 @@ uses its predictions cannot be described as blind to those predictions.
 Keep the original annotation-review queue pending, and do not promote the
 historical pilot into an independent validation plot.
 
-## Reproduction
+## Reproduction and retained-code verification
 
 Use the existing host Python environment and installed model/runtime paths.
 The Python environment needs LAZ-enabled `laspy`, `numpy`, `scipy`, `pyproj`
 and `PyYAML`, including imports of the reused benchmark helpers. Existing
 Docker images supply the GPU dependencies; do not install another model
-version to reproduce this smoke.
+version to verify this smoke.
+
+The accepted attempt is complete. From the current checkout root, replay its
+verification with the dedicated read-only dispatcher:
 
 ```sh
-/home/alex/projects/lidar_tree_benchmarks/gpu/.venv/bin/python scripts/run_teak_detector_smoke.py --prepare \
-  --pilot /home/alex/projects/lidar_tree_benchmarks/work/teak-native-pilot-output/final-run \
-  --policy /home/alex/projects/lidar_tree_benchmarks/work/teak-canopy-policy-output/final-run \
-  --gpu /home/alex/projects/lidar_tree_benchmarks/gpu \
-  --runtime /home/alex/projects/lidar_tree_benchmarks/work/fgiemit-pilot-runtime \
-  --out /home/alex/projects/lidar_tree_benchmarks/work/teak-detector-smoke-output/run-new
+/home/alex/projects/lidar_tree_benchmarks/gpu/.venv/bin/python -B scripts/replay_teak_detector_smoke.py \
+  --out /home/alex/projects/lidar_tree_benchmarks/work/teak-detector-smoke-output/run-v1
 ```
 
-Run from the checkout root, using the absolute path to `gpu/.venv/bin/python`
-when its environment is in the original checkout. Execute and verify take only
-the sealed output path:
+The dispatcher accepts only this pinned historical receipt, preparation and
+attempt. It authenticates those bytes before deriving the original code
+location from the sealed CHM command. It checks every sealed implementation
+file, the complete original script/adapter inventory and the retained Git
+revision before invoking the unchanged historical runner with `--verify`.
+The dispatcher exposes no preparation, execution, retry or code-path override.
+It propagates verifier failures and checks that run artifacts, the shared
+attempt claim and sealed code remain unchanged. Python bytecode writes are
+disabled for the historical verifier.
 
-```sh
-/home/alex/projects/lidar_tree_benchmarks/gpu/.venv/bin/python scripts/run_teak_detector_smoke.py --execute \
-  --out /home/alex/projects/lidar_tree_benchmarks/work/teak-detector-smoke-output/run-new
-/home/alex/projects/lidar_tree_benchmarks/gpu/.venv/bin/python scripts/run_teak_detector_smoke.py --verify \
-  --out /home/alex/projects/lidar_tree_benchmarks/work/teak-detector-smoke-output/run-new
-```
+Retain the original `work/teak-detector-smoke-checkout` at revision
+`f628bd92a01c262133db180c2c86e5e1900a5c19`, its recorded absolute paths,
+the accepted output directory and shared attempt claim. Also retain the
+parent packages, existing Python environment, isolated lasR runtime,
+installed model sources, checkpoints and pinned Docker images. Verification
+needs Docker access for image inspection and a network-disabled, read-only
+checkpoint hashing container; it runs no detector inference. Missing or
+changed historical code/resources cause failure. This is local replay with
+retained dependencies, not a portable archive or a new scientific attempt.
 
-Verification checks accepted artifacts without rerunning detectors. Keep
-failed attempts and their records. Generated clouds, predictions and model
-workspaces remain ignored working data.
+The original runner binds all `scripts/*.R` and `scripts/*.py` files and its
+absolute checkout location into the preparation. Direct `--verify` from a
+newer checkout therefore fails after unrelated script additions. Keep the
+original runner and library sealed; adding this dispatcher does not rewrite
+the accepted receipt or relax its checks. The original preparation and
+execution modes remain historical implementation details; choosing a fresh
+output directory does not authorize another attempt.
+
+Verification compares recorded predictions and exports without rerunning
+detectors. Keep failed attempts and their records. Generated clouds,
+predictions and model workspaces remain ignored working data.
