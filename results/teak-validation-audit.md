@@ -12,6 +12,12 @@ within-site transfer opportunity, not enough evidence for a universal router
 or an independent crown-mask benchmark. Dense external instance datasets
 remain supplementary to this deployment-focused track.
 
+The subsequent [reference reconstruction](teak-reference-support-results.md)
+now resolves the next metadata step: four required subplot points per plot
+remain unavailable, and mapping flags plus structural height gaps leave only
+12 preliminarily usable boles before geometry. No candidate is admitted.
+The counts below remain the original metadata-audit snapshot.
+
 ## Acquisition evidence
 
 [Lower Teakettle](https://www.neonscience.org/field-sites/teak) is a mixed-conifer
