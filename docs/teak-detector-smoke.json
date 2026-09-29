@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "plot": "TEAK_043",
+  "role": "historical_development_diagnostic",
+  "evaluation_ready": false,
+  "real_scores": false,
+  "arms": ["chm_vwf", "segmentanytree", "forestformer3d"],
+  "timeout_seconds": 3600,
+  "concurrency": 1,
+  "attempts": 1,
+  "fail_stop": true,
+  "pilot_receipt_sha256": "ac1e50570d2b383e517ccd3c49ca7ae543068ffd6e88ad06b5339fe971c066af",
+  "policy_receipt_sha256": "3dcfd975bff6dc5492a6c3430fc0e8e5ef816c87e18145aa30b262cb8a694ff4",
+  "images": {
+    "forestformer3d": "sha256:fd60f5cdc5ae880af13b339f4aa1f1e891a3809c7f39fb15d2b5ff04978799f3",
+    "segmentanytree": "sha256:27ce258d8a5ab70bdc457523d373848d5065e7b8044d3ef7891ff9e53dee2bd2"
+  },
+  "checkpoints": {
+    "forestformer3d": "01037a648596832238ac72ea2f5eef87ceaf5aeb399e56ff4b760ba1ed1c777e",
+    "segmentanytree": "0b4d74b4644e37a16f59008ad0f5c62894fc4d2d906f3abd803bbfc5b5dd803a"
+  },
+  "installed_ff3d_patched_files": {
+    "configs/oneformer3d_qs_radius16_qp300_2many.py": "679c50e379459d932bc10b89d6bad66459e8673a8653b5784720a9622bfd18a6",
+    "tools/test.py": "c8a6ed031696501034c1f75e14e353b4ecb3547e65fa50663c3606233076ad99"
+  },
+  "geometry": "all 43460 native context rows; reversible local XYZ translation; no CRS on local transport; no class, height, density or reference filtering",
+  "normalization": "reuse pilot TIN AGL only; no independent AGL accuracy claim",
+  "filter": "existing fixed_filter: at least 40 points and 1.5 m native raw-Z extent; background zero; no added confidence cutoff or ID renumbering",
+  "products": "original native and normalized parents with raw_pred_instance and pred_instance appended; max-AGL apexes and clipped sparse point-extent proxy boxes; CHM treetops separately",
+  "claims": "compatibility only on one historical development plot; eleven reserved plots untouched; no real scoring, calibration, tuning, fusion, routing or independent-generalization claim"
+}
