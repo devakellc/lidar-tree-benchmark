@@ -258,6 +258,13 @@ Footprints do not establish which frames supplied final mosaic pixels.
 Exact timing and measured registration remain unresolved, and no evaluation
 plot is admitted.
 
+The [mosaic compatibility audit](results/teak-mosaic-compatibility-results.md)
+compares all 23 declared camera frames on the fixed historical pixel grid.
+Only 1.18% of core pixels match a candidate's decoded RGB triplet exactly;
+some matches occur on both dates. JPEG encoding and ambiguous matches prevent
+source attribution from this test. Registration and reference review remain
+separate requirements before an accuracy comparison.
+
 The [external dataset eligibility audit](results/validation-dataset-eligibility.md)
 retains CedarCypress3D, BorFIT and Sepilok as supplementary instance-reference
 options. Their dense acquisitions do not establish native sparse-ALS transfer.
@@ -851,6 +858,7 @@ routing, crown refinement and downstream mensuration require their own evidence.
 | TEAK canopy policy preparation | Pinned local canopy/native packages; R sf, terra, jsonlite, digest and clue 0.3.68; no model inference or new downloads |
 | TEAK detector compatibility smoke | Verified native pilot and canopy policy; existing Python with LAZ-enabled laspy, numpy, scipy, pyproj and PyYAML; pinned lasR runtime, installed SAT/FF3D images and checkpoints, Docker GPU access, rsync and GNU time |
 | TEAK acquisition-timing audit | Pinned native pilot and camera metadata archives; R sf, xml2, jsonlite and digest; Poppler pdftotext; offline metadata only |
+| TEAK mosaic compatibility audit | Pinned native/timing packages, original L3 tile and all 23 declared L1 TIFFs; existing Python with numpy and rasterio; no GPU |
 | GPU/vision arms | The documented container, conda environment, or virtualenv under [gpu](gpu/) for that specific model |
 | External instance validation | Existing detector runtimes, R dbscan and yaml, and the pinned official Python evaluator described in the external report |
 | FGI-EMIT development preparation | Existing Python with laspy, numpy, scipy and PyYAML; R lidR, data.table and jsonlite; checkpoint audit uses Python 3.11+ and the installed Docker images without GPU execution |
@@ -924,6 +932,7 @@ workflows.
 | prepare_teak_canopy_policy.R | Audit published box geometry, reserve spatial groups and render the historical pilot review panel under a pinned policy; no real prediction input or evaluation admission |
 | run_teak_detector_smoke.py | Prepare, execute once, or verify CHM-VWF, SAT and FF3D on the historical native TEAK pilot; preserve point fields and export diagnostic proxies without reference scoring |
 | audit_teak_acquisition_timing.R | Audit complete flight intervals and both camera-footprint variants for the historical TEAK pilot; preserve conditional dates and unknown mosaic attribution; VERIFY=1 recomputes without writes |
+| audit_teak_mosaic_provenance.py | Compare all declared historical TEAK L1 frame windows with the fixed L3 grid; preserve exact RGB compatibility sets and unknown source attribution; --verify recomputes without writes |
 | compare_teak_rgb.py | Compare decoded unmasked RGB samples on identical declared grids, reporting nodata interpretation separately |
 | audit_teak_validation.R | Offline TEAK plot-use, census-event, reference-record, historical-density and EPT metadata inventory; no evaluation admission |
 | neon_reference_support.R / review_neon_reference_support.R | Exact-event reference audit, measured sampled-subplot polygons and HARV-only RGB geometry review; no evaluation admission |
@@ -1054,6 +1063,8 @@ workflows.
 | [TEAK detector compatibility smoke](results/teak-detector-smoke-results.md) | Three successful native historical detector runs, preserved point fields and diagnostic proxy exports; no accuracy ranking or reserved-plot execution |
 | [TEAK acquisition-timing audit](results/teak-acquisition-timing-results.md) | Conditional June 14 LiDAR association and June 14–15 camera candidates; exact mosaic attribution, temporal agreement and registration remain unresolved |
 | [TEAK acquisition-timing protocol](docs/teak-acquisition-timing-protocol.md) | Metadata-only historical pilot, complete interval/footprint inventories, pinned sources and offline recomputation |
+| [TEAK mosaic compatibility audit](results/teak-mosaic-compatibility-results.md) | Complete declared frame comparison with mostly unmatched or ambiguous JPEG-decoded pixels; exposure and registration remain unresolved |
+| [TEAK mosaic compatibility protocol](docs/teak-mosaic-compatibility-protocol.md) | Frozen historical pixel grid, complete source hashes, explicit validity and compatibility sets; no source-date or accuracy admission |
 | [TEAK canopy-reference protocol](docs/teak-canopy-reference-protocol.md) | Fixed public-annotation scope, pixel geometry, provenance checks and pending visible-canopy comparison gates |
 | [TEAK reference protocol](docs/teak-reference-protocol.md) | Fixed seven-plot scope, bole population, epoch-aware locations and preserved evaluation gates |
 | [TEAK-focused validation audit](results/teak-validation-audit.md) | Deployment-focused native ALS acquisition, prior plot use, exact-event census candidates and unresolved admission gates |
