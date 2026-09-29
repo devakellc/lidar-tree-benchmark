@@ -129,8 +129,20 @@ artifacts; there is no all-development deployment lookup. `pooled.csv`,
 `reliability.csv`, `intervals.csv`, `bootstrap_indices.csv`, `analysis.json`
 and `analysis.log` complete the sealed output set.
 
-Use the existing Python environment and the
-[README calibration workflow](../README.md#fgi-emit-development-calibration).
+Use the existing Python environment and the paths from the
+[development comparison](fgiemit-development-comparison-results.md). After
+verifying the complete detector run and summary, run from the repository root:
+
+```sh
+CALIBRATION="$ROOT/development_calibration"
+"$PYTHON" scripts/calibrate_fgiemit_development.py \
+  --root "$ROOT" --run "$RUN" --pilot "$PILOT" --runtime "$RUNTIME" \
+  --summary "$SUMMARY" --out "$CALIBRATION"
+"$PYTHON" scripts/calibrate_fgiemit_development.py \
+  --root "$ROOT" --run "$RUN" --pilot "$PILOT" --runtime "$RUNTIME" \
+  --summary "$SUMMARY" --out "$CALIBRATION" --verify
+```
+
 Creation requires a new output directory and has a 3,600-second process limit.
 The completed artifacts live under
 `work/external/fgiemit/development_calibration/`. An error preserves its log

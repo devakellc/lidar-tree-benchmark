@@ -116,9 +116,24 @@ remain ignored artifacts under `work/fgiemit-policy-verification/sources/`.
 The source manifest identifies the exact bytes reviewed; regenerated mutable
 API responses may differ and require a new evidence review.
 
-Use the [README policy workflow](../README.md#fgi-emit-frozen-development-policy)
-to create and replay the freeze against these archived sources and the sealed
-calibration directory. The tool reads existing development metrics and source
+Use the existing Python environment and the paths from the
+[development calibration](fgiemit-development-calibration-results.md). Run
+these commands from the repository root to create and replay the freeze
+against the archived sources and sealed calibration directory:
+
+```sh
+EVIDENCE="$CLAUDE_JOB_DIR/fgiemit-policy-verification/sources"
+POLICY="$ROOT/development_policy"
+"$PYTHON" scripts/freeze_fgiemit_policy.py \
+  --root "$ROOT" --calibration "$CALIBRATION" --evidence "$EVIDENCE" \
+  --out "$POLICY"
+"$PYTHON" scripts/freeze_fgiemit_policy.py \
+  --root "$ROOT" --calibration "$CALIBRATION" --evidence "$EVIDENCE" \
+  --out "$POLICY" --verify
+```
+
+Creation requires a fresh directory and complete sealed parents. The tool
+reads existing development metrics and source
 metadata; it does not run models, fit calibration or parse reserve points.
 The original dirty checkout and all previous receipts remain preserved.
 
