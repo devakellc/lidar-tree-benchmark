@@ -232,6 +232,14 @@ installed model checkpoints were rehashed, but their exposure to the eleven
 candidate plots remains unknown. This is a historical input-processing
 pilot with no detector result or evaluation admission.
 
+The [canopy comparison policy](results/teak-canopy-policy-results.md) audits
+all 734 published boxes and reserves whole plots before new predictions.
+It retains partial edge crowns, declares one-to-one box-IoU matching and
+pooled counts, and groups overlapping inference contexts. Seven historical
+plots remain development plots; eleven candidates are reserved but
+unadmitted. Human reference review and acquisition/exposure checks remain
+pending. Synthetic matching tests establish software behavior only.
+
 The [external dataset eligibility audit](results/validation-dataset-eligibility.md)
 retains CedarCypress3D, BorFIT and Sepilok as supplementary instance-reference
 options. Their dense acquisitions do not establish native sparse-ALS transfer.
@@ -822,6 +830,7 @@ routing, crown refinement and downstream mensuration require their own evidence.
 | NEON workflows | neonUtilities, jsonlite, curl and digest; public metadata is open, data downloads need network access and `NEON_TOKEN` |
 | EPT extraction | PDAL 2.9 or later |
 | Optional analyses | clue, rpart, crownsegmentr, and lidRplugins as required by the corresponding arm |
+| TEAK canopy policy preparation | Pinned local canopy/native packages; R sf, terra, jsonlite, digest and clue 0.3.68; no model inference or new downloads |
 | GPU/vision arms | The documented container, conda environment, or virtualenv under [gpu](gpu/) for that specific model |
 | External instance validation | Existing detector runtimes, R dbscan and yaml, and the pinned official Python evaluator described in the external report |
 | FGI-EMIT development preparation | Existing Python with laspy, numpy, scipy and PyYAML; R lidR, data.table and jsonlite; checkpoint audit uses Python 3.11+ and the installed Docker images without GPU execution |
@@ -892,6 +901,7 @@ workflows.
 | prepare_teak_reference_support.R | Reconstruct seven declared TEAK candidate events using archived location histories; preserve missing corners, quality exclusions and diagnostic-only status |
 | prepare_teak_canopy_reference.R | Verify pinned public TEAK image boxes and paired clips; export review geometry, previews, overlap and cloud-quality inventories without admitting evaluation |
 | prepare_teak_native_pilot.R | Prepare the declared historical TEAK native cloud, preserving fields and point identity; verify image correspondence, measured density and unresolved admission gates |
+| prepare_teak_canopy_policy.R | Audit published box geometry, reserve spatial groups and render the historical pilot review panel under a pinned policy; no real prediction input or evaluation admission |
 | compare_teak_rgb.py | Compare decoded unmasked RGB samples on identical declared grids, reporting nodata interpretation separately |
 | audit_teak_validation.R | Offline TEAK plot-use, census-event, reference-record, historical-density and EPT metadata inventory; no evaluation admission |
 | neon_reference_support.R / review_neon_reference_support.R | Exact-event reference audit, measured sampled-subplot polygons and HARV-only RGB geometry review; no evaluation admission |
@@ -953,6 +963,7 @@ workflows.
 | teak_reference_lib.R | Fixed TEAK event scope, verified historical named points and explicit per-plot reconstruction failures |
 | teak_canopy_lib.R | Published XML identity/geometry checks, projected image boxes, source-path guards and conservative cloud/exposure diagnostics |
 | teak_native_pilot_lib.R | Native return validation, point-preservation checks, ambiguity-aware coordinate correspondence and complete-footprint density diagnostics |
+| teak_canopy_policy_lib.R | Parent-package verification, edge/overlap audit, spatial reservations and synthetic box-clipping/assignment contracts |
 | neon_reference_support_lib.R | Census-event joins, surveyed footprints, reference exclusions, opt-in polygon scoring and support-aware pooling guards |
 | neon_reference_resolution_lib.R | Exact-event bole-family evidence, immutable receipts and conservative flight/time attribution checks |
 | neon_individual_reference_lib.R | Unique apparent-individual units, explicit measurement donors and separate diagnostic support identities |
@@ -1013,6 +1024,8 @@ workflows.
 | [TEAK canopy-reference package](results/teak-canopy-reference-results.md) | 734 published image boxes, paired-cloud defects and local-overlap inventory; reviewable inputs with no evaluation admission |
 | [Native TEAK pilot](results/teak-native-pilot-results.md) | Source-backed historical cloud, native density, RGB/point correspondence and checkpoint provenance; unresolved evaluation gates |
 | [Native TEAK pilot protocol](docs/teak-native-pilot-protocol.md) | One historical plot, preserved native/normalized point fields, explicit source checks and no detector or split selection |
+| [TEAK canopy comparison policy results](results/teak-canopy-policy-results.md) | Geometry review of 734 boxes, whole-plot reservations and spatial dependence limits; no real accuracy scores |
+| [TEAK canopy scoring protocol](docs/teak-canopy-scoring-protocol.md) | Full-image edge policy, one-to-one box IoU, pooled counts and unresolved whole-plot admission gates |
 | [TEAK canopy-reference protocol](docs/teak-canopy-reference-protocol.md) | Fixed public-annotation scope, pixel geometry, provenance checks and pending visible-canopy comparison gates |
 | [TEAK reference protocol](docs/teak-reference-protocol.md) | Fixed seven-plot scope, bole population, epoch-aware locations and preserved evaluation gates |
 | [TEAK-focused validation audit](results/teak-validation-audit.md) | Deployment-focused native ALS acquisition, prior plot use, exact-event census candidates and unresolved admission gates |
