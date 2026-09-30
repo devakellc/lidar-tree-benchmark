@@ -174,31 +174,38 @@ temporal check go to the supplement.
 
 ## Work before submission
 
-The order below is the execution order. Each task is tracked as a GitHub issue
-labelled `pre-paper`.
+The order below is the execution order, revised on 2026-09-30 so that the
+plot population is decided and frozen before any arm re-runs. Each step is
+tracked as a GitHub issue labelled `pre-paper`.
 
-1. **Re-run ForestFormer3D and TreeisoNet on NEON with the corrected
-   adapters.** The
+1. **Decide on and prepare NEON WREF and ABBY.** Both Washington sites have
+   2021 LiDAR in the same tile-size class as SOAP, census bouts in 2021 and
+   2022, and about 1,150 and 840 live mapped stems with DBH of at least 10 cm
+   in 63 plots above the six-stem gate. The decision is cheap: one tile header
+   per site, the ground-truth build and a crown-class coverage check. If it is
+   a go, the extension roughly quadruples the field-stem reference, adds a
+   second region and two canopy structures, and every later step runs over
+   five sites. The same census-footprint audit applies.
+2. **Freeze the plot population and the frozen clips.** Decide on the six-stem
+   gate, which admits 40 small plots holding 88 core stems, and put every arm,
+   including the CHM-VWF ladder, on the seeded frozen-clip provider before any
+   arm re-runs.
+3. **Re-run ForestFormer3D and TreeisoNet with the corrected adapters** on
+   every admitted site. The
    [scene-assembly study](../results/forestformer-scene-assembly-results.md)
    and the [transfer audit](../results/frozen-transfer-audit-results.md) show
    the old cylinder route and export defects; the June NEON runs predate both
    fixes. Extend ForestFormer3D to the full ladder if compute allows.
-2. **Add SegmentAnyTreeV2 as an arm.** Released June 2026 and trained at 10 to
-   50,000 pts/m²; reviewers will ask for it. ITS-Net or ForPT are optional if
-   weights are public.
-3. **Compute precision only inside censused subplots.** Apply the
-   event-specific census-support tooling from the
-   [reference-support protocol](neon-reference-support-protocol.md) to the 2021
-   D17 events. Report credited F1 from the
+4. **Add SegmentAnyTreeV2 as an arm** on every admitted site. Released June
+   2026 and trained at 10 to 50,000 pts/m²; reviewers will ask for it. ITS-Net
+   or ForPT are optional if weights are public.
+5. **Compute precision only inside censused subplots**, for every site and
+   alongside steps 3 and 4. Apply the event-specific census-support tooling
+   from the [reference-support protocol](neon-reference-support-protocol.md)
+   to the 2021 events. Report credited F1 from the
    [coverage-gap study](../results/coverage-gap-results.md) as a bracket with
    its sensitivity grid.
-4. **Unify clips, populations and intervals.** Put every arm, including the
-   CHM-VWF ladder, on the seeded frozen-clip provider; publish one
-   reference-population table with exclusions; add paired plot-level bootstrap
-   intervals to every headline table, reusing the FGI-EMIT bootstrap code.
-   Relaxing the six-stem plot gate admits 40 small plots holding 88 core
-   stems; report that as a sensitivity, not a headline gain.
-5. **Native sparse validation.** NEON's 2017 and 2018 SOAP and TEAK flights
+6. **Native sparse validation.** NEON's 2017 and 2018 SOAP and TEAK flights
    have classified tiles about a third the size of the 2021 tiles, consistent
    with the 4 to 6 pts/m² Gemini era. Pair them with the 2015 tower census,
    which holds 291 SOAP and 499 TEAK stems never remeasured, under a declared
@@ -206,25 +213,23 @@ labelled `pre-paper`.
    matched first-return density. Check whether NeonTreeEvaluation's
    hand-annotated crowns cover any of the 46 plots, which would give a
    complete crown reference for precision.
-6. **Fill or drop pending items.** The SegmentAnyTree and ForestFormer3D
+7. **Fill or drop pending items.** The SegmentAnyTree and ForestFormer3D
    crown-diameter section is marked pending in the
    [crown benchmark](../results/crown-segmentation-results.md); the seven-arm
    cross-site fusion is unfinished in the
    [fusion study](../results/detector-fusion-results.md).
-7. **Publication hygiene.** Add a LICENSE; archive frozen clips, stems,
-   checkpoint hashes and result CSVs on Zenodo with a one-command
-   reproduction; rebuild the bibliography, since the
+8. **Master tables, reference-population table and bootstrap intervals.**
+   Publish one reference-population table with exclusions and add paired
+   plot-level bootstrap intervals to every headline table, reusing the
+   FGI-EMIT bootstrap code.
+9. **Publication hygiene.** Add a LICENSE on day one; archive frozen clips,
+   stems, checkpoint hashes and result CSVs on Zenodo with a one-command
+   reproduction as the last step; rebuild the bibliography, since the
    [deep-research report](deep-research-report.md) has unresolved citation
    placeholders; use pulses/m² on every density axis.
-8. **Optional: leave-one-site-out fine-tuning of SegmentAnyTree** with
-   sparsification augmentation, to pre-empt the objection that zero-shot
-   evaluation is unfair to learned models.
-9. **Extend the benchmark to NEON WREF and ABBY.** Both Washington sites have
-   2021 LiDAR in the same tile-size class as SOAP, census bouts in 2021 and
-   2022, and about 1,150 and 840 live mapped stems with DBH of at least 10 cm
-   in 63 plots above the six-stem gate. This roughly quadruples the field-stem
-   reference and adds a second region and two canopy structures. The same
-   census-footprint audit applies.
+10. **Optional: leave-one-site-out fine-tuning of SegmentAnyTree** with
+    sparsification augmentation, to pre-empt the objection that zero-shot
+    evaluation is unfair to learned models.
 
 ## Reference-count check
 
