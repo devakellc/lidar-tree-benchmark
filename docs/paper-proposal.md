@@ -196,11 +196,16 @@ labelled `pre-paper`.
    CHM-VWF ladder, on the seeded frozen-clip provider; publish one
    reference-population table with exclusions; add paired plot-level bootstrap
    intervals to every headline table, reusing the FGI-EMIT bootstrap code.
-5. **Native sparse validation.** Pull NEON's pre-2021 SJER and TEAK flights at
-   roughly 4 to 6 pts/m² over the same plots and compare with the decimated
-   2021 rungs; otherwise keep the cross-sensor check and state the limitation.
-   Check whether NeonTreeEvaluation's hand-annotated crowns cover any of the 46
-   plots, which would give a complete crown reference for precision.
+   Relaxing the six-stem plot gate admits 40 small plots holding 88 core
+   stems; report that as a sensitivity, not a headline gain.
+5. **Native sparse validation.** NEON's 2017 and 2018 SOAP and TEAK flights
+   have classified tiles about a third the size of the 2021 tiles, consistent
+   with the 4 to 6 pts/m² Gemini era. Pair them with the 2015 tower census,
+   which holds 291 SOAP and 499 TEAK stems never remeasured, under a declared
+   policy for those stems, and compare with the decimated 2021 rungs at
+   matched first-return density. Check whether NeonTreeEvaluation's
+   hand-annotated crowns cover any of the 46 plots, which would give a
+   complete crown reference for precision.
 6. **Fill or drop pending items.** The SegmentAnyTree and ForestFormer3D
    crown-diameter section is marked pending in the
    [crown benchmark](../results/crown-segmentation-results.md); the seven-arm
@@ -214,22 +219,52 @@ labelled `pre-paper`.
 8. **Optional: leave-one-site-out fine-tuning of SegmentAnyTree** with
    sparsification augmentation, to pre-empt the objection that zero-shot
    evaluation is unfair to learned models.
+9. **Extend the benchmark to NEON WREF and ABBY.** Both Washington sites have
+   2021 LiDAR in the same tile-size class as SOAP, census bouts in 2021 and
+   2022, and about 1,150 and 840 live mapped stems with DBH of at least 10 cm
+   in 63 plots above the six-stem gate. This roughly quadruples the field-stem
+   reference and adds a second region and two canopy structures. The same
+   census-footprint audit applies.
+
+## Reference-count check
+
+Checked on 2026-09-30 against the tracked GeoJSON and the NEON data API. The
+D17 ground truth holds 864 live, mapped stems measured within four years of
+2021, and the 46 swept plots use 699 of them; the unswept plots hold one to
+five stems each. Tile sizes below are a density proxy from the classified
+point-cloud listings and need one header check per site.
+
+| Lever | Live mapped stems added | Cost | Caveat |
+| --- | --- | --- | --- |
+| Relax the six-stem plot gate in D17 | 88 core stems in 40 plots | Trivial | Marginal gain, more tiny plots |
+| Add NEON WREF and ABBY | about 1,150 and 840 stems in 63 plots; 2021 tiles 161 and 145 MB against SOAP's 165 MB | Two sites through the full ladder | Same census-footprint audit as D17 |
+| 2017 or 2018 epoch at SOAP and TEAK with the 2015 census | 291 and 499 stems last seen alive in 2015; tiles 50 to 70 MB against 157 to 165 MB in 2021 | Old tiles, all arms at native sparse density | Fate after 2015 unknown; needs a declared policy |
+| Standing-dead stems as a stratum | 291 with a measurement within four years | Scoring only | Different target; supplementary |
+
+NEON per-plot census records list 800 m² sampled in tower plots and 400 m² in
+distributed plots in every year checked, at D17 and at WREF and ABBY alike. No
+plot is a complete census, so precision inside sampled subplots stays
+necessary whichever way the reference grows.
 
 ## Reviewer risks and mitigations
 
 - Zero-shot unfairness: the dense-domain control and the optional fine-tuning.
 - Incomplete stems: censused subplots, credited F1 and a crown reference.
 - Decimation versus native: the cross-sensor check and the pre-2021 flights.
-- One region: three canopy structures plus the boreal control, stated as scope.
+- One region: three canopy structures plus the boreal control, stated as scope;
+  the WREF and ABBY extension adds a second region.
 - A generous 4 m tolerance: the tolerance grid and the jitter bands.
-- Modest stem count against FGI-EMIT's 1,561 trees: admit more 2021-mapped
-  plots if any exist.
+- Modest stem count against FGI-EMIT's 1,561 trees: the D17 pool is exhausted,
+  so extend to WREF and ABBY and, optionally, add the 2018 epoch at SOAP and
+  TEAK, as in the reference-count check above.
 
 ## Timeline
 
 Reruns and SegmentAnyTreeV2 need three to four weeks of GPU and wall time.
-Reference support and intervals need about two weeks. Writing needs four to
-six weeks. Submission in about three months is realistic.
+Reference support and intervals need about two weeks. The WREF and ABBY
+extension adds roughly three to four weeks of acquisition and compute. Writing
+needs four to six weeks. Submission in about four months is realistic with the
+extension, three without.
 
 ## Spin-offs
 
