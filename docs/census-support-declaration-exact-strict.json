@@ -1,10 +1,10 @@
 {
-  "name": "paper-2021-census-support-exact-v2",
+  "name": "paper-2021-census-support-exact-subplot_exclusion_strict",
   "rule": "exact 2021 census",
   "role": "check",
   "policy": "measured_subplots_uncertainty_interior_v1",
   "join": "census_event",
-  "missing_reference_policy": "subplot_exclusion",
+  "missing_reference_policy": "subplot_exclusion_strict",
   "resolved_blockers": ["datum_review_pending", "flight_provenance_pending"],
   "evidence": {
     "reviewed": "2026-10-01",
@@ -58,112 +58,112 @@
       "plot": "TEAK_043",
       "event": "vst_TEAK_2021",
       "year": 2021,
-      "support_id": "3a9a660cbefff7c37fc667ee29dda1268d21962dbc4ac52b3d8e6553c6ab398c"
+      "support_id": "ed98a9d2628487619396c7b87e38e650764c8204e83a9e3263db05493d26306b"
     },
     {
       "site": "TEAK",
       "plot": "TEAK_047",
       "event": "vst_TEAK_2021",
       "year": 2021,
-      "support_id": "3dbe5b82d9e1cc9dfb5e4b63950688cfbcc7836a96a2ced12d7bea4471765c6f"
+      "support_id": "6beb9d637309c5c6371587c128d6105cfb11e2bd772bef87f08177367c2851d7"
     },
     {
       "site": "WREF",
       "plot": "WREF_073",
       "event": "vst_WREF_2021",
       "year": 2021,
-      "support_id": "82105afb3ec5083bc05d42cc1797ae2a82653fc6a51c1c7d940249193a257620"
+      "support_id": "ab49138d3dd1a5cbffef9fd15848fc8bf1dc176ef2c53fd2a49b345ed3507a7f"
     },
     {
       "site": "WREF",
       "plot": "WREF_075",
       "event": "vst_WREF_2021",
       "year": 2021,
-      "support_id": "9b50a7b133a87e105cdacf66207fded47236b018ae8c65f887d385384cec5e55"
+      "support_id": "2e07883705189fe079ab826846f08ffbe02eabd0d58256ec825ae99fd462b4a2"
     },
     {
       "site": "WREF",
       "plot": "WREF_076",
       "event": "vst_WREF_2021",
       "year": 2021,
-      "support_id": "367c90a2a748e649f7eb497cf3869c8ac749efdb184406457455950204447535"
+      "support_id": "896cd0d1062a8f7d1d353ef7bfe2176c228b4b2854cd262f8c377a900e8a9021"
     },
     {
       "site": "WREF",
       "plot": "WREF_077",
       "event": "vst_WREF_2021",
       "year": 2021,
-      "support_id": "e435aec21dec05b6319dd43bd9053ddeee03122d69477208edd916932a2a5fa5"
+      "support_id": "2dce922d628e49c57cd3438c117f82c5784d90cb3e341027290170447c381fea"
     },
     {
       "site": "ABBY",
       "plot": "ABBY_061",
       "event": "vst_ABBY_2021",
       "year": 2021,
-      "support_id": "bb8ff3ede0d1d5f053d5abf7f8668cb518fa5431cf3ed4681e3656468d2f16d9"
+      "support_id": "b99919755d4fee8d996f74455dc3a1096250d73a1911e9744dec75b8e6c3a5a4"
     },
     {
       "site": "ABBY",
       "plot": "ABBY_062",
       "event": "vst_ABBY_2021",
       "year": 2021,
-      "support_id": "2bc885dfc6ca591caff037b01df463777dd21ebee8b0e1812974813017811bc3"
+      "support_id": "3ec2fa42cb5d23046b424df108521b10cd143337f4dfba8345f1d81d9c45682a"
     },
     {
       "site": "ABBY",
       "plot": "ABBY_063",
       "event": "vst_ABBY_2021",
       "year": 2021,
-      "support_id": "0447d7900a5d9dfc5dff36c6a0f05e0433adb694741bc49aa9453e5817c7ee2e"
+      "support_id": "0d593c24ae1e14da78419af55f54700d5b626f328a9032af6a19048cc6e0c5eb"
     },
     {
       "site": "ABBY",
       "plot": "ABBY_064",
       "event": "vst_ABBY_2021",
       "year": 2021,
-      "support_id": "0455cae6074cf0da717d41ba915db4fb4584c78857335b9226f9b6c2acba65f5"
+      "support_id": "4280370cb1e3f4bf128b387f595ccd6ec8ff4960869241f540cf2bc27f1eeb44"
     },
     {
       "site": "ABBY",
       "plot": "ABBY_067",
       "event": "vst_ABBY_2021",
       "year": 2021,
-      "support_id": "e07785b6d68084ef197717a676cee75d1488bc5ccae17b3693e78f672de7b496"
+      "support_id": "91029ff2b4812b95f62f10475402a5414fc052c152a44a51dde8b8932f74e88d"
     },
     {
       "site": "ABBY",
       "plot": "ABBY_068",
       "event": "vst_ABBY_2021",
       "year": 2021,
-      "support_id": "0a3c0839ab64b27cdaa446f99c23c040a6543b105b3343272e1abc242a99cb5b"
+      "support_id": "90a102bc578e2b001d8497293811a47d3525e976dbf340d48416c60387035870"
     },
     {
       "site": "ABBY",
       "plot": "ABBY_069",
       "event": "vst_ABBY_2021",
       "year": 2021,
-      "support_id": "008b03162d1cdc46bfd25cc9bfdf266eab9439fb35d0297240d576f0486f77dc"
+      "support_id": "212a9e59e19d31bf4fa49caee0dbb6a79bfe3cc6889c0f4cf3c2469f320f5735"
     },
     {
       "site": "ABBY",
       "plot": "ABBY_070",
       "event": "vst_ABBY_2021",
       "year": 2021,
-      "support_id": "2ecb01eee21d44928b5e6c3fb8bb4a70afd9b55d03590ad964075f35a9abd8d7"
+      "support_id": "a0985e6bedeec96570ee5e034b73d9455457f69a1a42afe80e8fc497d7434775"
     },
     {
       "site": "ABBY",
       "plot": "ABBY_073",
       "event": "vst_ABBY_2021",
       "year": 2021,
-      "support_id": "1d6d512b1338d277db60cd8c251791db38a32c717299ca993cbe5ae08b025dba"
+      "support_id": "33ba817af52611dd2a57252c88acbd3164351dde29014441679f96d5ec68480e"
     },
     {
       "site": "ABBY",
       "plot": "ABBY_076",
       "event": "vst_ABBY_2021",
       "year": 2021,
-      "support_id": "71aa28ab2c23cfd8b35ef99381980b604fab4c30c25e12f14dfa621f94903c82"
+      "support_id": "f7396f7c0ffcb016a644d3cd5e34420a56d1a03b29d6ef9e6d49d78de76e758e"
     }
   ]
 }

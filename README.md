@@ -75,10 +75,10 @@ instead of decimating its own.
 The [censused-subplot study](results/census-support-results.md) scores
 precision only inside surveyed, censused subplots, from each plot's nearest
 full census within four years of the 2021 flights, with subplots holding
-unmapped census trees excluded. It scores 54 of the 106 plots. On identical
-detections, censused precision is 0.09–0.35 higher than nominal-box precision
-(CHM-VWF at native density: 0.77 against 0.47), and the classical arms keep
-their order.
+unmapped census trees excluded. It scores 57 of the 106 plots. On identical
+detections, censused precision is 0.08–0.34 higher than nominal-box precision
+(CHM-VWF at native density: 0.78 against 0.48), and at native density the
+classical arms keep their order.
 
 The [point-cloud detector study](results/pointcloud-detector-results.md)
 compares native-density understory recovery by crown class, with a separate

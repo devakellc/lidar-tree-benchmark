@@ -74,13 +74,17 @@ unmatched detections can represent trees outside the target population;
 reference-relative precision is not independently verified tree precision.
 
 Missing-reference policy (amendment of 2026-10-01): subplot exclusion. A
-census target that is not a usable reference (no usable mapped position or
-height, a flagged or duplicate record) still stands in its subplot, so every
-sampled subplot holding one is removed from the precision interior before
-erosion; for a merged 2 x 2 block that is the whole block. Recall keeps the
-references inside the remaining interior. A missing target whose subplot is
-unknown or not sampled makes the plot unscorable. Missing references are
-never imputed, and a declaration cannot clear them without this policy.
+census target without a usable mapped position (no coordinates, an unusable
+or flagged mapping, an unknown or unlisted subplot, an unresolved duplicate)
+still stands in its subplot, so every sampled subplot holding one is removed
+from the precision interior before erosion; for a merged 2 x 2 block that is
+the whole block. A target with a position but no usable height stays a
+reference matched on position alone, flagged `height_unknown`. Recall keeps
+the references inside the remaining interior. A missing target whose subplot
+is unknown or not sampled makes the plot unscorable. The declared
+sensitivity `subplot_exclusion_strict` also removes the subplots of
+heightless targets. Missing references are never imputed, and a declaration
+cannot clear them without one of these policies.
 
 Record geometry, event, population, uncertainty policy, input hashes and code
 identity with outputs. Reject stale support caches and mixed-support pooling.
