@@ -280,3 +280,17 @@ git diff --check
 Python/GPU tests use the environment required by the affected model or workflow;
 raster tests additionally require `rasterio`. Test success checks implementation
 contracts; performance claims require the corresponding data and study runs.
+
+## License
+
+The code and documentation in this repository are released under the
+[MIT License](LICENSE). Components and data keep their own terms:
+
+- [external/treeiso](external/treeiso/) is vendored under its own MIT License
+  ([LICENSE](external/treeiso/LICENSE)).
+- NEON field and airborne data are released under CC0 1.0; USGS 3DEP point
+  clouds are public domain.
+- FGI-EMIT data are licensed CC BY-NC-SA 4.0 and are not redistributed here.
+- Model checkpoints and container images used by the GPU arms remain under
+  their upstream licences; this repository pins their hashes but does not
+  redistribute them.
