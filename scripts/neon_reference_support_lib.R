@@ -229,22 +229,44 @@ neon_build_support <- function(event, references, locations, epsg) {
 }
 
 # Missing-reference policy "subplot_exclusion" (declared 2026-10-01). A census
-# target that is not a usable reference (no usable mapped position or height,
-# a flagged or duplicate record) still stands in its subplot, where a correct
-# detection would count as a false positive. Every geometry subplot holding
-# such a tree leaves the precision interior before erosion; recall keeps the
+# target without a usable mapped position (no coordinates, an unusable or
+# flagged mapping, an unknown or unlisted subplot, an unresolved duplicate)
+# still stands in its subplot, where a correct detection would count as a
+# false positive; every geometry subplot holding one leaves the precision
+# interior before erosion. A target that has a position but no usable height
+# stays a reference: its height is set missing, so greedy_match pairs it on
+# position alone, and it is flagged `height_unknown`. Recall keeps the
 # references inside the remaining interior. A missing target whose subplot is
-# unknown or not sampled makes the plot unscorable (fail closed). Resolves
-# incomplete_target_references and records what the policy removed.
-neon_subplot_exclusion <- function(support) {
+# unknown or not sampled makes the plot unscorable (fail closed).
+# strict = TRUE is the declared sensitivity "subplot_exclusion_strict": every
+# target that is not a reference, heightless ones included, removes its subplot.
+NEON_MISSING_POLICIES <- c("subplot_exclusion", "subplot_exclusion_strict")
+neon_subplot_exclusion <- function(support, strict = FALSE) {
   refs <- support$references
-  missing <- refs$target_population & !refs$reference_eligible
   member <- support$member_of
   if (is.null(member)) member <- setNames(support$subplots$subplotID, support$subplots$subplotID)
+  geom <- sf::st_geometry(support$subplots)   # loads sf before any sf subsetting
+  blockers <- setdiff(support$blockers, c("incomplete_target_references", "empty_reference_interior"))
+  refs$height_unknown <- rep(FALSE, nrow(refs))
+  if (!strict) {
+    heightless <- refs$target_population & !refs$reference_eligible & refs$exclusion == "invalid_height"
+    refs$height[heightless] <- NA_real_
+    refs$height_unknown <- heightless
+    refs$reference_eligible[heightless] <- TRUE
+    for (i in which(heightless)) {               # the checks build_support ran on references
+      sp <- geom[support$subplots$subplotID == member[[refs$subplotID[i]]]]
+      refs$subplot_conflict[i] <- !neon_support_inside(refs$E[i], refs$N[i],
+                                                       sf::st_buffer(sp, refs$pos_unc[i]))
+    }
+    outside <- heightless & !refs$inside_sampled &
+      !neon_support_inside(refs$E, refs$N, sf::st_buffer(support$footprint, support$boundary_margin_m))
+    if (any(refs$subplot_conflict[heightless])) blockers <- c(blockers, "measurement_subplot_conflict")
+    if (any(outside)) blockers <- c(blockers, "references_outside_sampled_footprint")
+  }
+  missing <- refs$target_population & !refs$reference_eligible
   ids <- refs$subplotID[missing]
   known <- !is.na(ids) & ids %in% names(member)
   excluded <- sort(unique(unname(member[ids[known]])))
-  geom <- sf::st_geometry(support$subplots)   # loads sf before any sf subsetting
   keep <- geom[!support$subplots$subplotID %in% excluded]
   core <- if (length(keep))
     sf::st_buffer(sf::st_union(keep), -support$boundary_margin_m) else NULL
@@ -252,11 +274,12 @@ neon_subplot_exclusion <- function(support) {
   refs$inside_interior <- if (empty) rep(FALSE, nrow(refs)) else
     neon_support_inside(refs$E, refs$N, core)
   refs$reference_selected <- refs$reference_eligible & refs$inside_interior & !refs$subplot_conflict
-  blockers <- setdiff(support$blockers, c("incomplete_target_references", "empty_reference_interior"))
   if (any(!known)) blockers <- c(blockers, "unlocatable_missing_reference")
   if (empty || !any(refs$reference_selected)) blockers <- c(blockers, "empty_reference_interior")
-  support$missing_reference_policy <- list(name = "subplot_exclusion",
+  support$missing_reference_policy <- list(
+    name = if (strict) "subplot_exclusion_strict" else "subplot_exclusion",
     n_missing_targets = sum(missing), n_unlocatable = sum(!known),
+    n_height_unknown = sum(refs$height_unknown),
     excluded_subplots = excluded, interior_area_before_m2 = support$interior_area_m2)
   support$references <- refs
   if (!empty) support$core <- core

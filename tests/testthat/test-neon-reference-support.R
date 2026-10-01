@@ -409,3 +409,39 @@ test_that("subplot exclusion works in a session without sf attached", {
   expect_null(attr(out, "status"), info = paste(out, collapse = "\n"))
   expect_true(any(grepl("23_400", out)))
 })
+
+test_that("a mapped target without height stays a position-only reference", {
+  f <- support_fixture()
+  # stem2: mapped in 23_400 (from point 23) but its height is missing.
+  f$ai <- rbind(f$ai, transform(f$ai, individualID = "stem2", subplotID = "23_400", height = NA))
+  f$mt <- rbind(f$mt, transform(f$mt, individualID = "stem2", pointID = "23"))
+  b <- support_build(f)
+  expect_identical(b$references$exclusion[b$references$individualID == "stem2"], "invalid_height")
+  x <- neon_subplot_exclusion(b)
+  r <- x$references[x$references$individualID == "stem2", ]
+  expect_true(r$reference_selected && r$height_unknown)
+  expect_length(x$missing_reference_policy$excluded_subplots, 0)
+  expect_equal(x$missing_reference_policy$n_height_unknown, 1)
+  expect_equal(x$interior_area_m2, b$interior_area_m2)
+  # matched on position alone: an apex far above twice any stem height still counts
+  decl <- list(name = "synthetic", resolved_blockers = c("datum_review_pending", "flight_provenance_pending"),
+               admitted = data.frame(plot = x$plot, event = x$event, support_id = neon_support_identity(x)))
+  a <- neon_admit_support(x, decl)
+  det <- data.frame(x = c(500010, 500030 + 0.2), y = c(4700010, 4700010 + 0.2), z = c(15, 60))
+  s <- score_neon_support(a, det, det_epsg = 32618)
+  expect_equal(c(s$TP, s$n_ref), c(2, 2))
+  # the strict sensitivity removes its subplot instead
+  st <- neon_subplot_exclusion(b, strict = TRUE)
+  expect_identical(st$missing_reference_policy$excluded_subplots, "23_400")
+  expect_identical(st$missing_reference_policy$name, "subplot_exclusion_strict")
+  expect_false(any(st$references$height_unknown))
+})
+
+test_that("a heightless reference outside its recorded subplot is a conflict", {
+  f <- support_fixture()
+  f$ai <- rbind(f$ai, transform(f$ai, individualID = "stem2", subplotID = "21_400", height = NA))
+  f$mt <- rbind(f$mt, transform(f$mt, individualID = "stem2", pointID = "23"))   # mapped in 23_400
+  x <- neon_subplot_exclusion(support_build(f))
+  expect_true(x$references$subplot_conflict[x$references$individualID == "stem2"])
+  expect_true("measurement_subplot_conflict" %in% x$blockers)
+})

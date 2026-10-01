@@ -132,4 +132,6 @@ test_that("the declared missing-reference policy is applied before admission", {
   decl$missing_reference_policy <- "none"
   expect_error(census_admitted_bundles(d, "HARV", decl, 2022), "not admitted|incomplete")
   expect_error(census_apply_policy(b, "impute"), "Unknown missing-reference policy")
+  expect_identical(census_apply_policy(b, "subplot_exclusion_strict")$missing_reference_policy$name,
+                   "subplot_exclusion_strict")
 })

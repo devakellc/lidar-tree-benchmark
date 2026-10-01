@@ -65,8 +65,8 @@ census_cell_detections <- function(nd, arm, site, plot, rung, root, cell = NULL)
 # neon_admit_support(). A plot admitted twice is an error.
 census_apply_policy <- function(bundle, policy) {
   if (is.null(policy) || identical(policy, "none")) return(bundle)
-  if (!identical(policy, "subplot_exclusion")) stop("Unknown missing-reference policy: ", policy)
-  neon_subplot_exclusion(bundle)
+  if (!policy %in% NEON_MISSING_POLICIES) stop("Unknown missing-reference policy: ", policy)
+  neon_subplot_exclusion(bundle, strict = identical(policy, "subplot_exclusion_strict"))
 }
 census_admitted_bundles <- function(support, site, declaration, years) {
   adm <- as.data.frame(declaration$admitted, stringsAsFactors = FALSE)
