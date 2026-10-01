@@ -37,6 +37,13 @@ neon_archive_listing <- function(data, path) {
   rownames(files) <- NULL
   manifest <- list(product = data$productCode, site = data$siteCode,
     month = data$month, release = data$release, files = files)
+  if (file.exists(path)) {
+    # JSON omits NA keys per record, so partly populated md5/crc32c columns
+    # come back in first-appearance order; compare in the archived order.
+    old <- jsonlite::read_json(path, simplifyVector = TRUE)$files
+    if (is.data.frame(old) && setequal(names(old), names(files)))
+      manifest$files <- files[names(old)]
+  }
   neon_check_manifest(path, manifest)
   invisible(manifest)
 }

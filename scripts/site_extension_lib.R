@@ -38,8 +38,12 @@ ext_crown_source <- function(gt) {
 # uses (inside the nominal core box), which is the per-plot n_ref.
 ext_plot_inventory <- function(gt, pc, min_trees = EXT_MIN_TREES) {
   lt <- ext_live_trees(gt)
-  if (!nrow(lt)) stop("No live mapped trees")
   if (any(!lt$plotID %in% pc$plotID)) stop("Live trees lack plot centroids")
+  if (!nrow(lt)) return(data.frame(plotID = character(), plotType = character(),
+    easting = numeric(), northing = numeric(), core_half = numeric(), n_live = integer(),
+    n_live_dbh10 = integer(), n_core = integer(), n_core_dbh10 = integer(),
+    n_core_canopy_position = integer(), n_core_height_fallback = integer(),
+    n_core_no_class = integer(), admitted = logical()))
   src <- ext_crown_source(lt)
   plots <- sort(unique(lt$plotID))
   do.call(rbind, lapply(plots, function(p) {
@@ -104,14 +108,15 @@ ext_tile_coverage <- function(inv, tiles, buffer = EXT_CLIP_BUF) {
 
 # The header tile: the listed tile wholly containing the most admitted clips,
 # ties broken by core stems and then key, so the choice is reproducible.
-ext_header_tile <- function(inv, buffer = EXT_CLIP_BUF) {
+# NULL when no admitted clip lies inside a single listed tile.
+ext_header_tile <- function(inv, listed, buffer = EXT_CLIP_BUF) {
   a <- inv[inv$admitted, , drop = FALSE]
-  if (!nrow(a)) stop("No admitted plots")
+  if (!nrow(a)) return(NULL)
   one <- vapply(seq_len(nrow(a)), function(i) {
     k <- neon_required_tiles(a$easting[i], a$northing[i], a$core_half[i] + buffer)
-    if (length(k) == 1L) k else NA_character_
+    if (length(k) == 1L && k %in% listed) k else NA_character_
   }, character(1))
-  if (all(is.na(one))) stop("No admitted clip lies inside a single tile")
+  if (all(is.na(one))) return(NULL)
   d <- data.frame(key = one, stems = a$n_core)[!is.na(one), , drop = FALSE]
   s <- do.call(rbind, lapply(split(d, d$key), function(x)
     data.frame(key = x$key[1], plots = nrow(x), stems = sum(x$stems))))
@@ -177,4 +182,61 @@ ext_download_audit <- function(files, tiles, needed) {
     got$listed[i] && ext_file_matches(files[i], rows[i, , drop = FALSE]), logical(1))
   got$needed <- !is.na(got$key) & got$key %in% needed
   list(files = got, missing = sort(setdiff(needed, got$key[got$verified])))
+}
+
+# Census remarks recording forest management. Word-bounded so that, e.g.,
+# "No longer falls within reduced nested size" is not read as thinning.
+EXT_DISTURBANCE <- paste0("\\bthin(ning|ned)?\\b|\\bharvest(ed|ing)?\\b|",
+                          "\\blogg(ed|ing)\\b|clear.?cut|\\bcut (down|during|from)\\b|\\bfelled\\b")
+
+# Per plot, before `cutoff` (a Date): records whose remarks match
+# EXT_DISTURBANCE, and individuals recorded as removed, with how many of those
+# ever reached 10 cm DBH and their tallest height on any record.
+ext_disturbance_by_plot <- function(ai, plots, cutoff) {
+  d <- as.Date(substr(ai$date, 1, 10))
+  pre <- ai[!is.na(d) & d < cutoff & ai$plotID %in% plots, , drop = FALSE]
+  pre_d <- d[!is.na(d) & d < cutoff & ai$plotID %in% plots]
+  hit <- !is.na(pre$remarks) & grepl(EXT_DISTURBANCE, pre$remarks, ignore.case = TRUE)
+  rem <- grepl("^Removed", pre$plantStatus)
+  big <- unique(ai$individualID[!is.na(ai$stemDiameter) & ai$stemDiameter >= 10])
+  do.call(rbind, lapply(sort(unique(plots)), function(p) {
+    i <- pre$plotID == p
+    k <- i & hit
+    removed <- unique(pre$individualID[i & rem])
+    h <- ai$height[ai$individualID %in% removed & !is.na(ai$height)]
+    data.frame(plotID = p, disturbance_records = sum(k),
+               first_disturbance = if (any(k)) as.character(min(pre_d[k])) else NA_character_,
+               last_disturbance = if (any(k)) as.character(max(pre_d[k])) else NA_character_,
+               removed_individuals = length(removed),
+               removed_dbh10 = length(intersect(removed, big)),
+               removed_max_height = if (length(h)) max(h) else NA_real_, stringsAsFactors = FALSE)
+  }))
+}
+
+# Status history of the scored reference before `cutoff`. The nearest-record
+# rule in neon_ground_truth.R scores a stem as live from its record nearest
+# the acquisition year, so flag stems that (a) have any earlier non-live
+# record, (b) whose last record before the cutoff is not live, and (c) whose
+# scored year ends before their plot's last disturbance remark.
+ext_core_status_history <- function(ai, cs, disturb, cutoff) {
+  a <- ai[ai$individualID %in% cs$individualID, , drop = FALSE]
+  a$d <- as.Date(substr(a$date, 1, 10))
+  a <- a[!is.na(a$d), , drop = FALSE]
+  pre <- a[a$d < cutoff, , drop = FALSE]
+  pre <- pre[order(pre$individualID, pre$d), , drop = FALSE]
+  nonlive <- tapply(!grepl("^Live", pre$plantStatus), pre$individualID, any)
+  last <- pre[!duplicated(pre$individualID, fromLast = TRUE), , drop = FALSE]
+  scored <- a[as.integer(format(a$d, "%Y")) == cs$meas_year[match(a$individualID, cs$individualID)], ,
+              drop = FALSE]
+  scored_end <- tapply(scored$d, scored$individualID, max)
+  out <- data.frame(individualID = cs$individualID, plotID = cs$plotID, meas_year = cs$meas_year,
+                    stringsAsFactors = FALSE)
+  out$any_nonlive_before <- nonlive[out$individualID] %in% TRUE
+  out$last_before_status <- last$plantStatus[match(out$individualID, last$individualID)]
+  out$last_before_nonlive <- !is.na(out$last_before_status) &
+    !grepl("^Live", out$last_before_status)
+  end <- as.Date(as.numeric(scored_end[out$individualID]), origin = "1970-01-01")
+  ld <- as.Date(disturb$last_disturbance[match(out$plotID, disturb$plotID)])
+  out$scored_before_disturbance <- !is.na(ld) & !is.na(end) & end < ld
+  out
 }
