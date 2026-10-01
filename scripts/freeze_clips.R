@@ -95,7 +95,7 @@ code <- vapply(c("freeze_clips.R", "model_bench_lib.R", "sweep_lib.R", "site_ext
 inputs <- unlist(lapply(fields, `[[`, "inputs"), use.names = FALSE)
 contract <- list(sites = SITES, populations = FROZEN_POPULATIONS[FROZEN_POPULATIONS$population %in% POPS, ],
                  rungs = FROZEN_RUNGS, buffer = BUF, seed_salt = SALT,
-                 lidr_threads = FROZEN_LIDR_THREADS,
+                 lidr_threads = FROZEN_LIDR_THREADS, point_order = FROZEN_POINT_ORDER,
                  versions = list(R = R.version.string,
                                  lidR = as.character(packageVersion("lidR")),
                                  rlas = as.character(packageVersion("rlas")),
@@ -146,10 +146,11 @@ for (site in SITES) {
   ctg <- neon_read_catalog(laz, ext_live_trees(f$gt), f$pc, file.path(f$nd, "lidar"))
   opt_progress(ctg) <- FALSE
   plots <- pop[pop$site == site, , drop = FALSE]
-  res <- mclapply(seq_len(nrow(plots)), function(i)
+  # Fresh worker processes: forked workers share the parent's GDAL state.
+  res <- plot_lapply(seq_len(nrow(plots)), function(i)
     tryCatch(freeze_plot(site, ctg, plots[i, ]),
              error = function(e) structure(conditionMessage(e), class = "freeze_error")),
-    mc.cores = CORES, mc.preschedule = FALSE)
+    mc.cores = CORES)
   bad <- !vapply(res, is.data.frame, logical(1))   # caught errors and dead workers
   for (i in which(bad)) message(sprintf("%s %s failed: %s", site, plots$plotID[i],
                                         paste(format(res[[i]]), collapse = " ")))
