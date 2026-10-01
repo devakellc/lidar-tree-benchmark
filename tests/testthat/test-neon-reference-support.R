@@ -395,3 +395,17 @@ test_that("a missing target in a merged distributed block empties the plot", {
   expect_true("empty_reference_interior" %in% x$blockers)
   expect_false(any(x$references$reference_selected))
 })
+
+test_that("subplot exclusion works in a session without sf attached", {
+  f <- support_fixture()
+  f$ai <- rbind(f$ai, transform(f$ai, individualID = "stem2", subplotID = "23_400"))
+  path <- tempfile(fileext = ".rds"); on.exit(unlink(path))
+  saveRDS(support_build(f), path)
+  lib <- normalizePath(file.path("..", "..", "scripts", "neon_reference_support_lib.R"))
+  code <- sprintf('source("%s"); b <- neon_subplot_exclusion(readRDS("%s")); cat(b$missing_reference_policy$excluded_subplots)',
+                  lib, path)
+  out <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), c("-e", shQuote(code)),
+                                  stdout = TRUE, stderr = TRUE))
+  expect_null(attr(out, "status"), info = paste(out, collapse = "\n"))
+  expect_true(any(grepl("23_400", out)))
+})

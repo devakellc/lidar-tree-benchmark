@@ -244,9 +244,10 @@ neon_subplot_exclusion <- function(support) {
   ids <- refs$subplotID[missing]
   known <- !is.na(ids) & ids %in% names(member)
   excluded <- sort(unique(unname(member[ids[known]])))
-  keep <- support$subplots[!support$subplots$subplotID %in% excluded, , drop = FALSE]
-  core <- if (nrow(keep))
-    sf::st_buffer(sf::st_union(sf::st_geometry(keep)), -support$boundary_margin_m) else NULL
+  geom <- sf::st_geometry(support$subplots)   # loads sf before any sf subsetting
+  keep <- geom[!support$subplots$subplotID %in% excluded]
+  core <- if (length(keep))
+    sf::st_buffer(sf::st_union(keep), -support$boundary_margin_m) else NULL
   empty <- is.null(core) || any(sf::st_is_empty(core))
   refs$inside_interior <- if (empty) rep(FALSE, nrow(refs)) else
     neon_support_inside(refs$E, refs$N, core)
