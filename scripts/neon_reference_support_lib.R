@@ -104,14 +104,24 @@ neon_latest_mapping <- function(mt) {
   if (is.null(out)) mt[FALSE, , drop = FALSE] else out
 }
 
-neon_event_references <- function(ai, pp, mt, locations, year, epsg) {
+# join = "measurement_year" (the protocol) keeps measurements dated in `year`;
+# "census_event" keeps every measurement of the census events whose plot record
+# is dated in `year`, whatever the measurement date (one WREF census ran from
+# September 2020 to April 2021 under its 2020 event).
+neon_event_references <- function(ai, pp, mt, locations, year, epsg,
+                                  join = c("measurement_year", "census_event")) {
+  join <- match.arg(join)
   neon_support_require(ai, c("plotID", "individualID", "date", "eventID", "subplotID",
     "growthForm", "plantStatus", "stemDiameter", "height", "canopyPosition", "dataQF"), "Measurements")
   neon_support_require(pp, c("plotID", "eventID", "date", "subplotsSampled"), "Census records")
   neon_support_require(locations, c("ptloc", "easting", "northing", "epsg", "unc"), "Named points")
   if (anyDuplicated(locations$ptloc)) stop("Ambiguous named-point coordinates")
   year <- neon_year(year)
-  a <- as.data.frame(ai[!is.na(ai$date) & substr(as.character(ai$date), 1, 4) == year, ])
+  a <- if (join == "measurement_year")
+    as.data.frame(ai[!is.na(ai$date) & substr(as.character(ai$date), 1, 4) == year, ]) else {
+    census <- unique(pp$eventID[!is.na(pp$date) & substr(as.character(pp$date), 1, 4) == year])
+    as.data.frame(ai[!is.na(ai$date) & ai$eventID %in% census, ])
+  }
   a$reference_row <- seq_len(nrow(a))
   a$measurement_date <- as.character(a$date)
   a$exclusion <- rep("", nrow(a))
