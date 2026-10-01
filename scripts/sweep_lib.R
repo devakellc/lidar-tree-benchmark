@@ -35,7 +35,7 @@ plot_half <- function(plotType) ifelse(plotType == "tower", 20, 10)
 plot_lapply <- function(X, FUN, ..., mc.cores = 1L, mc.preschedule = FALSE) {
   cores <- min(as.integer(mc.cores), length(X))
   if (cores <= 1L) return(lapply(X, FUN, ...))
-  cl <- parallel::makePSOCKcluster(cores)
+  cl <- parallel::makePSOCKcluster(cores, outfile = "")   # keep workers' messages
   on.exit(parallel::stopCluster(cl), add = TRUE)
   parallel::clusterCall(cl, function(pkgs, job, opts) {
     for (p in pkgs) suppressMessages(library(p, character.only = TRUE))
@@ -46,7 +46,32 @@ plot_lapply <- function(X, FUN, ..., mc.cores = 1L, mc.preschedule = FALSE) {
   }, rev(.packages()), Sys.getenv("CLAUDE_JOB_DIR"), options()[grep("^lidR", names(options()))])
   globals <- setdiff(ls(globalenv(), all.names = TRUE), ".Random.seed")
   parallel::clusterExport(cl, globals, envir = globalenv())
-  parallel::parLapplyLB(cl, X, FUN, ...)
+  # parLapplyLB re-raises a worker error as a plain error, losing its class, so
+  # workers return frozen-root integrity failures as values and the parent
+  # re-raises them. The wrapper's environment holds only FUN.
+  wrap_env <- new.env(parent = globalenv()); wrap_env$f <- FUN
+  wrap <- function(x, ...) tryCatch(f(x, ...), frozen_integrity_error = function(e) e)
+  environment(wrap) <- wrap_env
+  res <- parallel::parLapplyLB(cl, X, wrap, ...)
+  bad <- Find(function(r) inherits(r, "frozen_integrity_error"), res)
+  if (!is.null(bad)) stop(bad)
+  res
+}
+
+# Per-plot error handler for arms that skip a failed plot: it reports the plot
+# and returns NULL, but a frozen-root integrity failure always propagates.
+skip_failed_plot <- function(p) function(e) {
+  if (inherits(e, "frozen_integrity_error")) stop(e)
+  message("plot ", p, " failed: ", conditionMessage(e))
+  NULL
+}
+
+# For arms whose handler returns the error object: stops when any plot came
+# back as something other than NULL (no reference stems) or a data.frame.
+stop_failed_plots <- function(keep, res) {
+  failed <- keep[!vapply(res, function(r) is.null(r) || is.data.frame(r), logical(1))]
+  if (length(failed)) stop("plots failed: ", paste(failed, collapse = ","), call. = FALSE)
+  invisible(res)
 }
 
 ## ---- variable-window allometry (Popescu & Wynne), clamped to [lo, hi] -----

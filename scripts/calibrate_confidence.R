@@ -174,13 +174,11 @@ label_dets <- function(det, stems, cx, cy, ph) {
 ## ---- per-site driver ------------------------------------------------------
 # Deep arms' instance clouds must carry the sealed root's stamp (frozen_stamp);
 # an absent directory means that arm did not run. Checked for every site before
-# any site runs, outside the per-site error handler.
-check_artifact_stamps <- function(site, arms = ARMS, root = frozen_root(d, A$FROZEN_ROOT)) {
-  nd <- file.path(d, "neon", site)
-  for (a in intersect(paste0(arms, "_instances"),
-                      c("segmentanytree_instances", "forestformer3d_instances")))
-    if (dir.exists(file.path(nd, a))) frozen_stamp_check(file.path(nd, a), root)
-}
+# any site runs, outside the per-site error handler (frozen_check_artifacts).
+# Only SegmentAnyTree and ForestFormer3D are read from disk; the other arms
+# detect on the frozen clip here.
+ARTIFACT_DIRS <- intersect(paste0(ARMS, "_instances"),
+                           c("segmentanytree_instances", "forestformer3d_instances"))
 
 run_site <- function(site, arms = ARMS) {
   nd <- file.path(d, "neon", site)
@@ -223,7 +221,7 @@ run_site <- function(site, arms = ARMS) {
   }
   res <- rbindlist(Filter(Negate(is.null),
             plot_lapply(plots, function(p) tryCatch(one_plot(p),
-              error = function(e) { message("  ", p, ": ", conditionMessage(e)); NULL }),
+              error = skip_failed_plot(p)),   # frozen integrity errors still stop
               mc.cores = CORES, mc.preschedule = FALSE)))
   if (!nrow(res)) { cat(sprintf("[%s] no detections labelled\n", site)); return(NULL) }
   res <- res[is.finite(res$raw), ]
@@ -268,7 +266,8 @@ report <- function(res, oos = oos_calibrated(res)) {
 
 run_main <- function() {
   t0 <- Sys.time(); all_res <- list()
-  if (!FROM_CACHE) for (site in SITES) check_artifact_stamps(site)
+  if (!FROM_CACHE) for (site in SITES)
+    frozen_check_artifacts(file.path(d, "neon", site), ARTIFACT_DIRS, frozen_root(d, A$FROZEN_ROOT))
   for (site in SITES) {
     r <- tryCatch(if (FROM_CACHE) {
       path <- file.path(d, "neon", site, "confidence_calibration.csv")
@@ -283,6 +282,7 @@ run_main <- function() {
       }
       cached
     } else run_site(site), error = function(e) {
+      if (inherits(e, "frozen_integrity_error")) stop(e)   # never skip a bad root
       message("site ", site, " failed: ", conditionMessage(e)); NULL })
     if (!is.null(r)) all_res[[site]] <- r
   }

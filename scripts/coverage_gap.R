@@ -51,8 +51,8 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #   Rscript scripts/coverage_gap.R SITE=SOAP
 #   Rscript scripts/coverage_gap.R SITES=SOAP,SJER,TEAK CORES=1 LADDER=1
 #     [POP=adopted] [FROZEN_ROOT=...] [MINTREES=1]
-# (CORES=1 default: the ladder path runs lasR exec, which drops dense cells
-#  under fork -- see the repo memory on mclapply + lasR.)
+# (CORES=1 default; plots run on fresh workers, see plot_lapply in sweep_lib.R,
+#  because lasR exec dropped dense cells in forked workers.)
 # Reads (read-only): work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv},
 #   best_treetop_cache/, deepforest_boxes/, detectree2_boxes/, and the sealed
 #   frozen root's normalized clips + manifests.
@@ -216,11 +216,9 @@ run_plot <- function(site, pid, pc, gt, nd, df_boxes, sel, root, mapped) {
 ## ---- per-site driver ------------------------------------------------------
 # The apex cache must carry the sealed root's stamp (frozen_stamp): detections
 # made on other clips stop the run instead of being credited. Checked for every
-# site before any site runs, outside the per-site error handler.
-check_artifact_stamps <- function(site, root = frozen_root(d, A$FROZEN_ROOT)) {
-  cache_dir <- file.path(d, "neon", site, "best_treetop_cache")
-  if (dir.exists(cache_dir)) frozen_stamp_check(cache_dir, root)
-}
+# site before any site runs, outside the per-site error handler
+# (frozen_check_artifacts).
+ARTIFACT_DIRS <- "best_treetop_cache"
 
 run_site <- function(site) {
   nd <- file.path(d, "neon", site)
@@ -244,8 +242,7 @@ run_site <- function(site) {
   if (!length(plots)) return(NULL)
   res_list <- plot_lapply(plots, function(p)
     tryCatch(run_plot(site, p, pc, gt, nd, df_boxes, sel, fz$root, mapped),
-             error = function(e) { message("  ", p, " failed: ",
-                                            conditionMessage(e)); NULL }),
+             error = skip_failed_plot(p)),   # frozen integrity errors still stop
     mc.cores = CORES, mc.preschedule = FALSE)
   res <- rbindlist(Filter(Negate(is.null), res_list), fill = TRUE)
   if (!nrow(res)) { cat(sprintf("[%s] no cells scored\n", site)); return(NULL) }
@@ -327,9 +324,11 @@ print_report <- function(res) {
 
 run_main <- function() {
   t0 <- Sys.time(); all_res <- list()
-  for (site in SITES) check_artifact_stamps(site)
+  for (site in SITES) frozen_check_artifacts(file.path(d, "neon", site), ARTIFACT_DIRS,
+                                             frozen_root(d, A$FROZEN_ROOT))
   for (site in SITES) {
     r <- tryCatch(run_site(site), error = function(e) {
+      if (inherits(e, "frozen_integrity_error")) stop(e)   # never skip a bad root
       message("site ", site, " failed: ", conditionMessage(e)); NULL })
     if (!is.null(r)) all_res[[site]] <- r
   }

@@ -182,3 +182,38 @@ test_that("a clip is canonical whatever order and gpstime ulps it was read with"
   set.seed(1); db <- decimate_points(b, homogenize(density = 0.05, res = 5))
   expect_identical(da@data, db@data)
 })
+
+test_that("integrity failures stop arms that otherwise skip a failed plot", {
+  env <- new.env(); sys.source(file.path("..", "..", "scripts", "sweep_lib.R"), envir = env)
+  bad <- tryCatch(frozen_stop("bytes differ for %s", "A_001"), error = identity)
+  expect_s3_class(bad, "frozen_integrity_error")
+  expect_error(env$skip_failed_plot("A_001")(bad), "bytes differ")
+  expect_message(out <- env$skip_failed_plot("A_001")(simpleError("detector crashed")),
+                 "plot A_001 failed: detector crashed")
+  expect_null(out)
+  ok <- list(NULL, data.frame(x = 1))
+  expect_silent(env$stop_failed_plots(c("A", "B"), ok))
+  expect_error(env$stop_failed_plots(c("A", "B", "C"), c(ok, list(simpleError("x")))),
+               "plots failed: C")
+})
+
+test_that("consumers check every present artifact directory", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  root <- file.path(d, "root"); dir.create(root)
+  writeLines("a", file.path(root, "clip_manifest.csv"))
+  frozen_stamp(file.path(d, "ams3d_instances"), root)
+  expect_true(frozen_check_artifacts(d, c("ams3d_instances", "absent_instances"), root))
+  dir.create(file.path(d, "legacy_instances"))
+  err <- tryCatch(frozen_check_artifacts(d, "legacy_instances", root), error = identity)
+  expect_s3_class(err, "frozen_integrity_error")
+})
+
+test_that("plot_lapply keeps the integrity class across worker processes", {
+  env <- new.env(); sys.source(file.path("..", "..", "scripts", "sweep_lib.R"), envir = env)
+  f <- function(i) if (i == 2) frozen_stop("bytes differ for cell %d", i) else i
+  environment(f) <- list2env(list(frozen_stop = frozen_stop), parent = globalenv())
+  err <- tryCatch(env$plot_lapply(1:3, f, mc.cores = 2), error = identity)
+  expect_s3_class(err, "frozen_integrity_error")
+  expect_match(conditionMessage(err), "bytes differ for cell 2")
+  expect_identical(env$plot_lapply(c(1, 3), f, mc.cores = 2), list(1, 3))
+})

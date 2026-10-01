@@ -50,11 +50,10 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #   Rscript scripts/detect_pc_ladder.R [SITES=SJER,SOAP,TEAK] [CORES=1]
 #                                      [TOL=4] [A=0.10] [RUNG=8]
 #                                      [POP=adopted] [FROZEN_ROOT=...]
-# CORES defaults to 1 on purpose: lasR `exec` (chm_vwf + lasr_lmax_pc) can
-# transiently fail under mclapply fork on the dense native clips, and a failed
-# arm makes equal_set_guard drop the whole (plot,rung) cell -- silently shrinking
-# the pooled population. CORES>1 is faster but only safe if the run reports
-# 0 dropped cells; the canonical numbers are produced single-threaded.
+# CORES defaults to 1: lasR `exec` (chm_vwf + lasr_lmax_pc) used to fail at
+# random in forked workers, and a failed arm makes equal_set_guard drop the
+# whole (plot,rung) cell. Plots now run on fresh workers (plot_lapply), which
+# avoids that; the canonical numbers are still produced single-threaded.
 # Output:
 #   $CLAUDE_JOB_DIR/neon/<SITE>/pc_detect_ladder_results.csv  (one row per
 #       plot x rung x detector)
@@ -180,9 +179,7 @@ run_site <- function(SITE) {
                 mc.cores = CORES, mc.preschedule = FALSE)
   # A failed plot (e.g. a frozen cell that no longer matches its hash) must not
   # leave the population silently smaller.
-  failed <- keep[!vapply(res_list, function(r) is.null(r) || is.data.frame(r), logical(1))]
-  if (length(failed)) stop(sprintf("[%s] plots failed: %s", SITE,
-                                   paste(failed, collapse = ",")), call. = FALSE)
+  stop_failed_plots(keep, res_list)
   results <- do.call(rbind, Filter(Negate(is.null), res_list))
   dt <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
   if (is.null(results)) { cat(sprintf("[%s] no results\n", SITE)); return(NULL) }

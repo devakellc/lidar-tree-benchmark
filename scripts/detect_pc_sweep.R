@@ -157,8 +157,7 @@ run_site <- function(SITE) {
                 mc.cores = CORES, mc.preschedule = FALSE)
   # A failed plot (e.g. a frozen cell that no longer matches its hash) must not
   # leave the population silently smaller; detector failures stay per-cell.
-  failed <- keep[!vapply(res_list, function(r) is.null(r) || is.data.frame(r), logical(1))]
-  if (length(failed)) stop("plots failed: ", paste(failed, collapse = ","), call. = FALSE)
+  stop_failed_plots(keep, res_list)
   results <- do.call(rbind, Filter(Negate(is.null), res_list))
   dt <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
   if (is.null(results)) { cat(sprintf("[%s] no results\n", SITE)); return(NULL) }

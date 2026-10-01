@@ -34,9 +34,8 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # score_plot, and writes treeiso_results.csv (detector = "treeiso"). Upsampled or
 # unusable cells are absent from the sealed root and skipped. The instance
 # directory records the sealed root that made it (frozen_stamp); one made on
-# other clips must be moved aside first. Within it, a persisted cloud is reused
-# only when its .src_sha256 sidecar names the frozen raw clip it was segmented
-# from; otherwise Treeiso re-runs on the frozen bytes.
+# other clips must be moved aside first, so a cloud already in it was segmented
+# from this root's frozen bytes and is reused as a checkpoint.
 #
 # Usage:
 #   Rscript scripts/detect_treeiso_sweep.R SITE=SOAP RUNGS=native
@@ -81,15 +80,12 @@ run_plot <- function(site, pid, pc, gt, nd, root) {
     if (is.null(cell)) next                                    # upsampled / unusable
     raw <- cell$rawground; dtm <- cell$dtm
     out <- file.path(idir, sprintf("%s_%s.laz", pid, rung))
-    src <- paste0(out, ".src_sha256")                          # frozen clip it came from
-    raw_sha <- frozen_sha256(raw)
-    if (!file.exists(out) || !file.exists(src) ||
-        !identical(readLines(src, warn = FALSE), raw_sha)) {   # checkpoint: reuse
-      unlink(c(out, src))
+    if (!file.exists(out)) {                                   # checkpoint: reuse
       ok <- tryCatch(system2(PYTHON, c(shQuote(RUNNER), shQuote(raw), shQuote(out)),
                              stdout = FALSE, stderr = FALSE), error = function(e) 1L)
-      if (!identical(as.integer(ok), 0L) || !file.exists(out)) next  # treeiso failed -> skip cell
-      writeLines(raw_sha, src)
+      if (!identical(as.integer(ok), 0L) || !file.exists(out)) {  # treeiso failed -> skip cell
+        unlink(out); next
+      }
     }
     det <- tryCatch(read_instances_laz(out, id_field = ID_FIELD), error = function(e) NULL)
     if (is.null(det) || !nrow(det)) next
@@ -121,10 +117,10 @@ run_site <- function(site) {
               paste(RUNGS, collapse = ",")))
   if (!length(keep)) return(NULL)
   frozen_stamp(file.path(nd, "treeiso_instances"), fz$root)
-  res <- rbindlist(Filter(Negate(is.null), mclapply(keep, function(p)
+  res <- rbindlist(Filter(Negate(is.null), plot_lapply(keep, function(p)
     tryCatch(run_plot(site, p, pc, gt, nd, fz$root),
-             error = function(e) { message("  ", p, ": ", conditionMessage(e)); NULL }),
-    mc.cores = CORES, mc.preschedule = FALSE)), fill = TRUE)
+             error = skip_failed_plot(p)),   # frozen integrity errors still stop
+    mc.cores = CORES)), fill = TRUE)
   if (!nrow(res)) { cat(sprintf("[%s] no rows\n", site)); return(NULL) }
   o <- file.path(nd, "treeiso_results.csv"); write.csv(res, o, row.names = FALSE)
   cat(sprintf("[%s] wrote %d rows -> %s\n", site, nrow(res), o))
@@ -136,7 +132,9 @@ run_main <- function() {
     cat(sprintf("NOTE: PYTHON=%s exists=%s ; RUNNER=%s\n", PYTHON, file.exists(PYTHON), RUNNER))
   t0 <- Sys.time(); all_res <- list()
   for (site in SITES) {
-    r <- tryCatch(run_site(site), error = function(e) { message(site, ": ", conditionMessage(e)); NULL })
+    r <- tryCatch(run_site(site), error = function(e) {
+      if (inherits(e, "frozen_integrity_error")) stop(e)   # never skip a bad root
+      message(site, ": ", conditionMessage(e)); NULL })
     if (!is.null(r)) all_res[[site]] <- r
   }
   res <- if (length(all_res)) do.call(rbind, all_res) else NULL

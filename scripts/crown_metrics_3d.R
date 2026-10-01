@@ -171,7 +171,7 @@ run_plot <- function(site, pid, root, pc, gt, fc) {
 # Mirrors crown_metrics_sweep.R::run_site: the declared population's gated
 # stems, authoritative rds crown-diameter join (drop any pre-existing CD columns
 # first), the population's plots that hold >=MINTREES stems with a field crown
-# diameter (a crown sub-population), mclapply over plots, write the NEW
+# diameter (a crown sub-population), plot_lapply over plots, write the NEW
 # crown_metrics_3d_results.csv.
 run_site <- function(site) {
   nd  <- file.path(d, "neon", site)
@@ -195,15 +195,14 @@ run_site <- function(site) {
               site, fz$population, MINTREES, length(keep), paste(keep, collapse = ",")))
   if (!length(keep)) return(NULL)
 
-  res_list <- mclapply(keep, function(p)
+  res_list <- plot_lapply(keep, function(p)
     tryCatch(run_plot(site, p, fz$root, pc, gt, fc),
              error = function(e) { message("  plot ", p, " failed: ",
                                             conditionMessage(e)); e }),
     mc.cores = CORES, mc.preschedule = FALSE)
   # A failed plot (e.g. a frozen cell that no longer matches its hash) must not
   # leave the population silently smaller; segmenter crashes stay per-arm.
-  failed <- keep[!vapply(res_list, function(r) is.null(r) || is.data.frame(r), logical(1))]
-  if (length(failed)) stop("plots failed: ", paste(failed, collapse = ","), call. = FALSE)
+  stop_failed_plots(keep, res_list)
   res <- do.call(rbind, Filter(Negate(is.null), res_list))
   if (is.null(res) || !nrow(res)) {
     cat(sprintf("[%s] no crowns matched\n", site)); return(NULL) }

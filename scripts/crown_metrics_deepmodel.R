@@ -226,7 +226,7 @@ run_plot_model <- function(site, pid, mname, model, pc, gt, fc, nd, root) {
 # Mirrors crown_metrics_3d.R::run_site: the declared population's gated stems,
 # authoritative rds crown-diameter join (drop any pre-existing CD cols first),
 # the population's plots with >=MINTREES stems carrying a field crown diameter,
-# mclapply over plots, write the NEW per-model crown-metrics CSV. Returns a
+# plot_lapply over plots, write the NEW per-model crown-metrics CSV. Returns a
 # named list of per-model result frames (only models that produced rows).
 run_site <- function(site) {
   nd  <- file.path(d, "neon", site)
@@ -258,16 +258,14 @@ run_site <- function(site) {
       next
     }
     frozen_stamp_check(idir, fz$root)    # instance clouds made on these clips only
-    res_list <- mclapply(keep, function(p)
+    res_list <- plot_lapply(keep, function(p)
       tryCatch(run_plot_model(site, p, mname, model, pc, gt, fc, nd, fz$root),
                error = function(e) { message("  ", mname, "/", p, " failed: ",
                                               conditionMessage(e)); e }),
       mc.cores = CORES, mc.preschedule = FALSE)
     # Missing artefacts are skipped inside run_plot_model; an error (e.g. a
     # frozen DTM that no longer matches its hash) must stop the run.
-    failed <- keep[!vapply(res_list, function(r) is.null(r) || is.data.frame(r), logical(1))]
-    if (length(failed))
-      stop(mname, " plots failed: ", paste(failed, collapse = ","), call. = FALSE)
+    stop_failed_plots(keep, res_list)
     res <- do.call(rbind, Filter(Negate(is.null), res_list))
     if (is.null(res) || !nrow(res)) {
       cat(sprintf("[%s] %s: no crowns matched\n", site, mname)); next }
