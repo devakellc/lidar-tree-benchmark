@@ -32,12 +32,20 @@ neon_released_files <- function(product, site, month, release = "RELEASE-2026") 
 
 neon_archive_listing <- function(data, path) {
   # Signed cloud URLs are credentials: archive file identities, never the URLs.
-  files <- data$files[order(data$files$name), c("name", "size", "md5")]
+  # Cloud listings carry crc32c and usually no md5; keep whichever is present.
+  files <- data$files[order(data$files$name), neon_identity_fields(data$files)]
   rownames(files) <- NULL
   manifest <- list(product = data$productCode, site = data$siteCode,
     month = data$month, release = data$release, files = files)
   neon_check_manifest(path, manifest)
   invisible(manifest)
+}
+
+# An all-NA column would vanish in the JSON round trip and break the cache
+# contract on re-archive, so only populated identity fields are kept.
+neon_identity_fields <- function(files) {
+  keep <- intersect(c("name", "size", "md5", "crc32c"), names(files))
+  keep[vapply(keep, function(k) !all(is.na(files[[k]])), logical(1))]
 }
 
 neon_tile_index <- function(files, product) {
@@ -48,7 +56,7 @@ neon_tile_index <- function(files, product) {
   parts <- regmatches(files$name, matches)
   keep <- lengths(parts) == 3L
   if (!any(keep)) stop("No spatial tiles recognized in file list")
-  out <- files[keep, c("name", "size", "md5")]
+  out <- files[keep, neon_identity_fields(files)]
   out$tile_e <- as.numeric(vapply(parts[keep], `[`, character(1), 2))
   out$tile_n <- as.numeric(vapply(parts[keep], `[`, character(1), 3))
   out$key <- sprintf("%.0f_%.0f", out$tile_e, out$tile_n)

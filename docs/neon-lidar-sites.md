@@ -1,9 +1,10 @@
 # NEON benchmark sites — field data & LiDAR acquisitions
 
 Reference for the three **Domain D17 (Pacific Southwest)** sites used in the
-density-ladder sweep and follow-on analyses, plus the eastern preflight.
+density-ladder sweep and follow-on analyses, the two **Domain D16 (Pacific
+Northwest)** sites admitted to extend it, and the retired eastern preflight.
 The three D17 sites share **UTM zone 11N / EPSG:32611** for NEON woody-vegetation
-and AOP LiDAR products. That frame does not apply to HARV or BART.
+and AOP LiDAR products. That frame does not apply to WREF, ABBY, HARV or BART.
 
 **Field ground truth:** NEON Woody Plant Vegetation Structure `DP1.10098.001`.
 Nominal plot dimensions do not establish census coverage: forest tower plots
@@ -83,6 +84,27 @@ field coverage:
 
 SJER field stems were mostly measured in **2022 and 2024**, not 2021; treat its
 sweep metrics as carrying the full ±4 yr temporal slack.
+
+## Pacific Northwest extension (D16)
+
+WREF and ABBY, in Washington, passed the
+[extension preflight](../results/pacific-northwest-extension-results.md) on
+2026-10-01. Both use **UTM zone 10N / EPSG:32610** for field and LiDAR data;
+do not mix their coordinates with the D17 frame.
+
+| Code | Site name | Forest type | 2021 LiDAR | Sensor | Header tile all / first returns per m² | Admitted plots / core stems, all mapped | Same, DBH ≥ 10 cm |
+|------|-----------|-------------|------------|--------|:--------------------------------------:|:---------------------------------------:|:-----------------:|
+| **WREF** | Wind River Experimental Forest | Old-growth Douglas-fir / western hemlock | **2021-07** | Optech Galaxy Prime 5060445 | 18.7 / 9.8 | 38 / 1,081 | 38 / 1,063 |
+| **ABBY** | Abby Road | Managed Douglas-fir | **2021-07** | Optech Galaxy Prime 5060445 | 16.3 / 10.1 | 32 / 1,074 | 25 / 800 |
+
+Seven ABBY distributed plots are young stands of saplings below 10 cm DBH
+without a NEON canopy position, so the frozen five-site population uses the
+DBH ≥ 10 cm gate at every site. Tower plots sample 800 m² of trees and
+distributed plots 400 m², as at D17. WREF distributed plots were censused in
+2019 and 2022, ABBY distributed plots in 2017, 2019 and 2024.
+
+**Download:** `Rscript scripts/neon_ground_truth.R SITE=<CODE> YEAR=2021`, then
+`Rscript scripts/neon_download_lidar.R SITE=<CODE> YEAR=2021`.
 
 ## Eastern broadleaf preflight
 
