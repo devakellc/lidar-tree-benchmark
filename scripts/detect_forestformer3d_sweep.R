@@ -79,6 +79,7 @@ cyl_centers <- function(cx, cy, ph, spacing) {
 
 run_main <- function() {
   stopifnot(file.exists(ENTRY), file.exists(DRIVER), file.exists(CKPT), file.exists(REPO))
+  CKPT <- container_path(CKPT)              # seen by the container; mounts are resolved
   nd  <- file.path(d, "neon", SITE)
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"),     stringsAsFactors = FALSE)
@@ -91,20 +92,28 @@ run_main <- function() {
   cat(sprintf("[%s] forestformer3d plots (%s): %d (image=%s layout=%s)\n",
               SITE, fz$population, length(keep), IMAGE, LAYOUT))
 
-  # Run provenance, then an isolated copy of the (patched) model checkout.
-  manifest <- list(layout = LAYOUT, image = IMAGE, image_id = docker_image_id(IMAGE),
-    source = git_source_identity(REPO, c("configs", "oneformer3d", "tools")),
-    checkpoint = list(file = basename(CKPT), md5 = unname(tools::md5sum(CKPT)),
-                      sha256 = digest::digest(file = CKPT, algo = "sha256")),
-    code = file_digests(c(ENTRY, PATCH, DRIVER, file.path(dirname(DRIVER), "ff3d_export.py"),
-                          .find("detect_forestformer3d_sweep.R"), .find("io_bridge.R"),
-                          .find("model_runner.R"))),
-    frozen_root = frozen_root_id(fz$root), population = fz$population,
-    rungs = RUNGS_RAW, timeout = TIMEOUT,
-    cylinders = if (LAYOUT == "outer_cylinders")
-      list(radius = RADIUS, spacing = SPACING, merge_tol = MERGE_TOL))
-  jsonlite::write_json(manifest, file.path(nd, "forestformer3d_run_manifest.json"),
-                       auto_unbox = TRUE, pretty = TRUE, digits = NA)
+  # Run provenance. Results are resumable: the results file is tied to its
+  # sealed root and population, the model identity must match the one that
+  # made the existing rows, and each pass is appended to the manifest.
+  result_file <- file.path(nd, "forestformer3d_results.csv")
+  frozen_resume_guard(result_file, fz)
+  results <- if (file.exists(result_file))
+    read.csv(result_file, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
+  update_run_manifest(file.path(nd, "forestformer3d_run_manifest.json"),
+    identity = list(layout = LAYOUT, image = IMAGE, image_id = docker_image_id(IMAGE),
+      source = git_source_identity(REPO, c("configs", "oneformer3d", "tools")),
+      checkpoint = list(file = basename(CKPT), md5 = unname(tools::md5sum(CKPT)),
+                        sha256 = digest::digest(file = CKPT, algo = "sha256")),
+      frozen_root = frozen_root_id(fz$root), population = fz$population,
+      cylinders = if (LAYOUT == "outer_cylinders")
+        list(radius = RADIUS, spacing = SPACING, merge_tol = MERGE_TOL)),
+    pass = list(rungs = as.list(RUNGS_RAW), timeout = TIMEOUT,
+      started = format(Sys.time(), tz = "UTC", usetz = TRUE),
+      code = file_digests(c(ENTRY, PATCH, DRIVER, file.path(dirname(DRIVER), "ff3d_export.py"),
+                            .find("detect_forestformer3d_sweep.R"), .find("io_bridge.R"),
+                            .find("model_runner.R")))),
+    resuming = !is.null(results))
+  done <- if (is.null(results)) character() else paste(results$plot, results$rung)
   ws <- file.path(tempdir(), "ff3d_model")
   if (system2("rsync", shQuote(c("-a", "--exclude=.git", "--exclude=data",
         "--exclude=work_dirs", "--exclude=__pycache__", paste0(REPO, "/"),
@@ -122,20 +131,27 @@ run_main <- function() {
   inst_dir <- file.path(nd, "forestformer3d_instances")
   frozen_stamp(inst_dir, fz$root)
 
-  out <- list()
   for (pid in keep) {                       # SERIAL -- one GPU
     ci <- pc[pc$plotID == pid, ][1, ]
     cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
     if (nrow(stems) < 1) next
-    native_pdens <- NA_real_; ncell <- 0L
+    # Native density from the sealed root, so a pass without native still
+    # applies the no-upsampling guard (the root also records upsampled cells).
+    np <- frozen_clip(NULL, SITE, pid, NA, cx, cy, ph, fz$root)
+    native_pdens <- if (is.null(np)) NA_real_ else np$pdens
+    ncell <- 0L; nskip <- 0L; out <- list()
     for (rung in c(if (RUN_NATIVE) NA_real_ else numeric(), RUNGS)) {
       prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
       pdens <- prep$pdens; frdens <- prep$frdens
-      if (is.na(rung)) native_pdens <- pdens
-      else if (is.na(native_pdens) || rung >= native_pdens) next
+      if (!is.na(rung) && (is.na(native_pdens) || rung >= native_pdens)) next
       tag <- ifelse(is.na(rung), "native", as.character(rung))
+      dest <- file.path(inst_dir, sprintf("%s_%s.laz", pid, tag))
+      if (paste(pid, tag) %in% done && file.exists(dest) &&
+          file.exists(sub("[.]laz$", ".receipt.json", dest))) {
+        nskip <- nskip + 1L; next           # finished in an earlier pass
+      }
       cell <- file.path(tempdir(), sprintf("ff3d_%s_%s", pid, tag))
       unlink(cell, recursive = TRUE); dir.create(cell, recursive = TRUE)
       if (LAYOUT == "whole_scene") {
@@ -172,7 +188,6 @@ run_main <- function() {
       # Persist the labelled cloud for the crown and IoU/PQ arms (same
       # UserData/PointSourceID schema ff3d_collapse just read), with the
       # driver's export receipt and this cell's receipt.
-      dest <- file.path(inst_dir, sprintf("%s_%s.laz", pid, tag))
       if (!file.copy(out_laz, dest, overwrite = TRUE)) stop("Cannot persist ", dest)
       if (file.exists(paste0(out_laz, ".json")))
         file.copy(paste0(out_laz, ".json"), paste0(dest, ".json"), overwrite = TRUE)
@@ -193,16 +208,23 @@ run_main <- function() {
         n_cyl = n_cyl, n_apex = nrow(det)), sc)
       ncell <- ncell + 1L
     }
-    cat(sprintf("  %s: %d cells\n", pid, ncell))
+    cat(sprintf("  %s: %d cells, %d already done\n", pid, ncell, nskip))
+    if (length(out)) {                      # write after every plot: a crash loses one plot
+      new <- do.call(rbind, out)
+      new$tp_core <- round(new$precision * new$n_det)
+      results <- if (is.null(results)) new else
+        rbind(results[!paste(results$plot, results$rung) %in% paste(new$plot, new$rung), ,
+                      drop = FALSE], new)
+      done <- paste(results$plot, results$rung)
+      tmp <- paste0(result_file, ".tmp")
+      write.csv(results, tmp, row.names = FALSE)
+      if (!file.rename(tmp, result_file)) stop("Cannot write ", result_file)
+    }
   }
-  results <- do.call(rbind, out)
   if (is.null(results) || !nrow(results)) {
     cat("no forestformer3d results\n"); return(invisible())
   }
-  results$tp_core <- round(results$precision * results$n_det)
-  write.csv(results, file.path(nd, "forestformer3d_results.csv"), row.names = FALSE)
-  cat(sprintf("[%s] forestformer3d DONE: %d rows -> %s\n", SITE, nrow(results),
-              file.path(nd, "forestformer3d_results.csv")))
+  cat(sprintf("[%s] forestformer3d DONE: %d rows -> %s\n", SITE, nrow(results), result_file))
 }
 
 if (sys.nframe() == 0L) run_main()

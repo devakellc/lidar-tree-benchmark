@@ -140,6 +140,11 @@ run_docker_arm <- function(image, input, out_csv, extra = character(),
   .valid_detection_or_null(det)
 }
 
+# run_docker_arm identity-mounts symlink-resolved directories, so any path
+# handed to a container as an argument must be resolved the same way, or the
+# container sees a path that exists only through a host symlink.
+container_path <- function(path) normalizePath(path, mustWork = TRUE)
+
 ## ---- run provenance for GPU arms -----------------------------------------
 # Identity of what a GPU arm run depended on, written next to its outputs: the
 # container image ID, the upstream source revision plus a hash of its local
@@ -171,4 +176,22 @@ file_digests <- function(paths, algo = "sha256") {
   if (any(!file.exists(paths))) stop("Missing run input: ", paths[!file.exists(paths)][1])
   setNames(as.list(vapply(paths, function(p) digest::digest(file = p, algo = algo),
                           character(1))), basename(paths))
+}
+
+# Run manifest of a resumable arm: one model identity plus one entry per pass.
+# Resuming (existing results) requires the identity that made them; a fresh
+# run starts a new manifest. Returns the identity as JSON reads it back.
+update_run_manifest <- function(path, identity, pass, resuming) {
+  identity <- jsonlite::fromJSON(jsonlite::toJSON(identity, auto_unbox = TRUE, digits = NA))
+  passes <- list()
+  if (resuming) {
+    if (!file.exists(path) ||
+        !identical(jsonlite::read_json(path, simplifyVector = TRUE)$identity, identity))
+      stop("Existing results were made with another model identity; ",
+           "move them aside to start fresh")
+    passes <- jsonlite::read_json(path, simplifyVector = FALSE)$passes
+  }
+  jsonlite::write_json(list(identity = identity, passes = c(passes, list(pass))), path,
+                       auto_unbox = TRUE, pretty = TRUE, digits = NA)
+  invisible(identity)
 }
