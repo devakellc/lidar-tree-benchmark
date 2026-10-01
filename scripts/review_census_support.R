@@ -20,7 +20,8 @@ source(.find("neon_reference_support_lib.R"))
 #   Rscript scripts/review_census_support.R [SITES=SJER,SOAP,TEAK,WREF,ABBY]
 #     [YEARS=2019,...,2024] [TARGET_YEAR=2021] [WINDOW=4]
 #     [SUPPORT=$CLAUDE_JOB_DIR/reference_support_census_event]
-#     [POLICY=subplot_exclusion] [EVIDENCE=docs/census-support-evidence.json]
+#     [POLICY=subplot_exclusion|subplot_exclusion_strict|none]
+#     [EVIDENCE=docs/census-support-evidence.json]
 #     [FROZEN_ROOT=...] [OUT=<SUPPORT>/admission]
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
@@ -39,7 +40,9 @@ pop <- read.csv(file.path(ROOT, "population.csv"), stringsAsFactors = FALSE)
 stems <- read.csv(file.path(ROOT, "population_stems.csv"), stringsAsFactors = FALSE)
 pops <- sub("^in_", "", grep("^in_", names(pop), value = TRUE))
 
-apply_policy <- function(b) if (identical(POLICY, "subplot_exclusion")) neon_subplot_exclusion(b) else b
+if (!POLICY %in% c("none", NEON_MISSING_POLICIES)) stop("Unknown missing-reference policy: ", POLICY)
+apply_policy <- function(b) if (identical(POLICY, "none")) b else
+  neon_subplot_exclusion(b, strict = identical(POLICY, "subplot_exclusion_strict"))
 bundle_status <- function(b) {
   if (is.null(b)) return("no_bundle")
   left <- setdiff(b$blockers, NEON_RESOLVABLE_BLOCKERS)
@@ -80,6 +83,7 @@ candidate_cols <- function(prefix, cand, status) {
     interior_m2 = if (is.null(b)) NA_real_ else b$interior_area_m2,
     n_target = if (is.null(b)) NA_integer_ else sum(b$references$target_population),
     n_missing = if (is.null(pol)) NA_integer_ else pol$n_missing_targets,
+    n_height_unknown = if (is.null(pol)) NA_integer_ else pol$n_height_unknown,
     n_unlocatable = if (is.null(pol)) NA_integer_ else pol$n_unlocatable,
     excluded_subplots = if (is.null(pol)) NA_character_ else paste(pol$excluded_subplots, collapse = ";"),
     n_selected = if (is.null(b)) NA_integer_ else sum(b$references$reference_selected),
@@ -172,8 +176,9 @@ if (!is.null(A$EVIDENCE)) {
   joins <- unique(unlist(lapply(SITES, function(s) lapply(site_bundles(s), function(b) b$raw$join))))
   for (rule in c("nearest", "exact")) {
     ok <- tab[tab[[paste0(rule, "_status")]] == "admissible", , drop = FALSE]
-    decl <- list(name = sprintf("paper-%d-census-support-%s-v1", TARGET,
-                                if (rule == "nearest") "nearest" else "exact"),
+    decl <- list(name = sprintf("paper-%d-census-support-%s-%s", TARGET,
+                                if (rule == "nearest") "nearest" else "exact",
+                                if (POLICY == "subplot_exclusion") "v2" else POLICY),
       rule = if (rule == "nearest") sprintf("nearest all-growth-forms census within %d years of %d", WINDOW, TARGET)
              else sprintf("exact %d census", TARGET),
       role = if (rule == "nearest") "headline" else "check",
