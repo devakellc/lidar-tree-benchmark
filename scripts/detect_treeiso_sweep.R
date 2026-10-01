@@ -23,22 +23,30 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # point of measuring it here.
 #
 # Runs the vendored Treeiso (external/treeiso/, MIT) as a CPU subprocess on the
-# frozen RAW-with-ground clip per (plot, rung): run_treeiso.py removes ground,
+# sealed frozen RAW-with-ground clip per (plot, rung) of the declared population
+# (freeze_clips.R; POP= picks a sensitivity population): run_treeiso.py removes ground,
 # runs init/intermediate/final cut-pursuit, and writes per-point instance ids in
 # a `treeiso` extra dim. This arm persists that labelled cloud to
 # work/neon/<SITE>/treeiso_instances/<plot>_<rung>.laz (so #V1 IoU/PQ + #P1
 # fusion can consume the per-point labels), reduces it to apexes via the bridge,
-# converts the absolute-UTM apex z to AGL with the cached frozen ground_dtm.tif
+# converts the absolute-UTM apex z to AGL with the frozen ground_dtm.tif
 # (Treeiso keeps absolute Z, like SegmentAnyTree), matches to field stems with
-# score_plot, and writes treeiso_results.csv (detector = "treeiso").
+# score_plot, and writes treeiso_results.csv (detector = "treeiso"). Upsampled or
+# unusable cells are absent from the sealed root and skipped. The instance
+# directory records the sealed root that made it (frozen_stamp); one made on
+# other clips must be moved aside first. Within it, a persisted cloud is reused
+# only when its .src_sha256 sidecar names the frozen raw clip it was segmented
+# from; otherwise Treeiso re-runs on the frozen bytes.
 #
 # Usage:
 #   Rscript scripts/detect_treeiso_sweep.R SITE=SOAP RUNGS=native
 #   Rscript scripts/detect_treeiso_sweep.R SITES=SOAP,SJER,TEAK RUNGS=native,8,4,2,1 CORES=4
+#     [POP=adopted|all_mapped|relaxed] [FROZEN_ROOT=...] [MINTREES=1]
 # Env: PYTHON=~/miniconda3/envs/treeiso/bin/python (see external/treeiso/README.md).
-# Reads: work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv} + the cached
-#   frozen clips work/neon/<SITE>/frozen/<SITE>/<plot>/<rung>/{clip_rawground.laz,
-#   ground_dtm.tif}. Writes treeiso_results.csv + persists treeiso_instances/.
+# Reads: work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv} + the sealed
+#   frozen root (default work/neon/frozen_2021/<SITE>/<plot>/<rung>/
+#   {clip_rawground.laz,ground_dtm.tif}). Writes treeiso_results.csv + persists
+#   treeiso_instances/.
 suppressMessages({ library(lidR); library(data.table); library(parallel) })
 options(lidR.progress = FALSE, lidR.verbose = FALSE)
 d <- .job_dir()
@@ -51,7 +59,9 @@ SITES <- if (!is.null(A$SITES)) strsplit(A$SITES, ",")[[1]] else
 RUNGS <- if (is.null(A$RUNGS)) "native" else strsplit(A$RUNGS, ",")[[1]]
 CORES <- as.integer(if (is.null(A$CORES)) 4 else A$CORES)
 TOL   <- as.numeric(if (is.null(A$TOL)) 4 else A$TOL)
-MINTREES <- as.integer(if (is.null(A$MINTREES)) 6 else A$MINTREES)
+# The declared population supplies the plot gate; MINTREES only drops plots
+# with fewer gated stems in the scored core.
+MINTREES <- as.integer(if (is.null(A$MINTREES)) 1 else A$MINTREES)
 PYTHON  <- if (!is.null(A$PYTHON)) A$PYTHON else "~/miniconda3/envs/treeiso/bin/python"
 PYTHON  <- path.expand(PYTHON)
 RUNNER  <- .find("../external/treeiso/run_treeiso.py")
@@ -59,32 +69,34 @@ if (is.null(RUNNER)) RUNNER <- Find(file.exists,
   c("external/treeiso/run_treeiso.py", file.path(getwd(), "external/treeiso/run_treeiso.py")))
 ID_FIELD <- "treeiso"
 
-fz <- function(nd, site, pid, rung, f) file.path(nd, "frozen", site, pid, rung, f)
-
-run_plot <- function(site, pid, pc, gt, nd) {
+run_plot <- function(site, pid, pc, gt, nd, root) {
   ci <- pc[pc$plotID == pid, ][1, ]; cx <- ci$easting; cy <- ci$northing
   ph <- plot_half(ci$plotType)
   stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, , drop = FALSE]
-  if (nrow(stems) < 1) return(NULL)
+  if (nrow(stems) < MINTREES) return(NULL)
   idir <- file.path(nd, "treeiso_instances"); dir.create(idir, showWarnings = FALSE, recursive = TRUE)
   rows <- list()
   for (rung in RUNGS) {
-    raw <- fz(nd, site, pid, rung, "clip_rawground.laz")
-    dtm <- fz(nd, site, pid, rung, "ground_dtm.tif")
-    if (!file.exists(raw) || !file.exists(dtm)) next
+    cell <- frozen_clip(NULL, site, pid, rung, cx, cy, ph, root)  # hash-verified
+    if (is.null(cell)) next                                    # upsampled / unusable
+    raw <- cell$rawground; dtm <- cell$dtm
     out <- file.path(idir, sprintf("%s_%s.laz", pid, rung))
-    if (!file.exists(out)) {                                   # checkpoint: reuse
+    src <- paste0(out, ".src_sha256")                          # frozen clip it came from
+    raw_sha <- frozen_sha256(raw)
+    if (!file.exists(out) || !file.exists(src) ||
+        !identical(readLines(src, warn = FALSE), raw_sha)) {   # checkpoint: reuse
+      unlink(c(out, src))
       ok <- tryCatch(system2(PYTHON, c(shQuote(RUNNER), shQuote(raw), shQuote(out)),
                              stdout = FALSE, stderr = FALSE), error = function(e) 1L)
       if (!identical(as.integer(ok), 0L) || !file.exists(out)) next  # treeiso failed -> skip cell
+      writeLines(raw_sha, src)
     }
     det <- tryCatch(read_instances_laz(out, id_field = ID_FIELD), error = function(e) NULL)
     if (is.null(det) || !nrow(det)) next
     n_apex <- nrow(det)
     det <- tryCatch(det_to_agl(det, dtm), error = function(e) NULL)
     if (is.null(det) || !nrow(det)) next
-    frdens <- tryCatch(jsonlite::read_json(fz(nd, site, pid, rung, "manifest.json"),
-                       simplifyVector = TRUE)$frdens, error = function(e) NA_real_)
+    frdens <- cell$frdens
     sc <- tryCatch(score_plot(stems, det, tol_xy = TOL, core_cx = cx, core_cy = cy,
                               core_half = ph), error = function(e) NULL)
     if (is.null(sc)) next
@@ -102,12 +114,15 @@ run_site <- function(site) {
   gtf <- file.path(nd, "ground_truth_stems.csv"); pcf <- file.path(nd, "plot_centroids.csv")
   if (!file.exists(gtf) || !file.exists(pcf)) { cat(sprintf("[%s] no GT\n", site)); return(NULL) }
   gt <- read.csv(gtf, stringsAsFactors = FALSE); pc <- read.csv(pcf, stringsAsFactors = FALSE)
-  gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), , drop = FALSE]
-  counts <- table(gt$plotID); keep <- intersect(names(counts)[counts >= MINTREES], pc$plotID)
-  cat(sprintf("[%s] treeiso on %d plots x {%s}\n", site, length(keep), paste(RUNGS, collapse = ",")))
+  fz <- frozen_scope(d, site, A, gt)              # declared population + sealed root
+  gt <- fz$gt
+  keep <- intersect(fz$plots, pc$plotID)
+  cat(sprintf("[%s] treeiso on %d plots (%s) x {%s}\n", site, length(keep), fz$population,
+              paste(RUNGS, collapse = ",")))
   if (!length(keep)) return(NULL)
+  frozen_stamp(file.path(nd, "treeiso_instances"), fz$root)
   res <- rbindlist(Filter(Negate(is.null), mclapply(keep, function(p)
-    tryCatch(run_plot(site, p, pc, gt, nd),
+    tryCatch(run_plot(site, p, pc, gt, nd, fz$root),
              error = function(e) { message("  ", p, ": ", conditionMessage(e)); NULL }),
     mc.cores = CORES, mc.preschedule = FALSE)), fill = TRUE)
   if (!nrow(res)) { cat(sprintf("[%s] no rows\n", site)); return(NULL) }

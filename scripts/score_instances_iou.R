@@ -63,10 +63,12 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # Usage:
 #   Rscript scripts/score_instances_iou.R SITE=SOAP
 #   Rscript scripts/score_instances_iou.R SITES=SOAP,SJER,TEAK CORES=4
+#     [POP=adopted] [FROZEN_ROOT=...] [MINTREES=1]
 # Reads (read-only): work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv},
 #   the cached field crown widths work/neon/<SITE>/vst/<site>_vst_allyears.rds, the
-#   cached frozen normalized clips work/neon/<SITE>/frozen/<SITE>/<plot>/<rung>/
-#   clip_normalized.laz, and the persisted instance clouds above.
+#   sealed frozen root's normalized clips for the declared population's plots
+#   (freeze_clips.R; default work/neon/frozen_2021/<SITE>/<plot>/<rung>/
+#   clip_normalized.laz), and the persisted instance clouds above.
 # Writes: work/neon/<SITE>/instance_iou_pq.csv (one long-form row per
 #   site x plot x rung x model; SUMMABLE accumulators + per-cell rates).
 suppressMessages({ library(lidR); library(data.table); library(parallel) })
@@ -89,6 +91,8 @@ XFER_TOL  <- as.numeric(if (is.null(A$XFER_TOL)) 0.5 else A$XFER_TOL)
 MERGE_TOL <- as.numeric(if (is.null(A$MERGE_TOL)) 2.0 else A$MERGE_TOL)
 CANOPY_MIN <- as.numeric(if (is.null(A$CANOPY_MIN)) 2.0 else A$CANOPY_MIN)
 FALLBACK_RADIUS <- as.numeric(if (is.null(A$FALLBACK_RADIUS)) 2.0 else A$FALLBACK_RADIUS)
+# The declared population supplies the plot gate; MINTREES only drops plots
+# with fewer gated stems in the scored core.
 MINTREES  <- as.integer(if (is.null(A$MINTREES)) 1 else A$MINTREES)
 SAT_ID_FIELD <- "PredInstance"
 # #V6: apex-Voronoi proxy rows for the cached best-config arms (mask_source =
@@ -167,16 +171,11 @@ instance_path <- function(idir, pid, rung) {
   if (length(hit)) hit[1] else NA_character_
 }
 
-# Frozen normalized clip for the substrate. frozen_clip() callers pass
-# out_root = work/neon/<SITE>/frozen and it writes out_root/<SITE>/<plot>/<rung>/.
-frozen_norm_path <- function(nd, site, pid, rung)
-  file.path(nd, "frozen", site, pid, rung, "clip_normalized.laz")
-
 ## ---- per-plot, per-rung IoU/PQ scoring -----------------------------------
 # Build the reference partition once per (plot, rung) from the frozen normalized
 # canopy substrate inside the plot core, then for every model with a persisted
 # cloud project its labels onto that substrate and emit one accumulator row.
-run_plot <- function(site, pid, pc, gt, nd, selection = NULL) {
+run_plot <- function(site, pid, pc, gt, nd, root, selection = NULL) {
   ci <- pc[pc$plotID == pid, ][1, ]
   cx <- ci$easting; cy <- ci$northing
   ph <- plot_half(ci$plotType)
@@ -192,9 +191,9 @@ run_plot <- function(site, pid, pc, gt, nd, selection = NULL) {
 
   rows <- list()
   for (rung in RUNGS) {
-    fp <- frozen_norm_path(nd, site, pid, rung)
-    if (!file.exists(fp)) next                          # no substrate -> skip cell
-    sub <- tryCatch(suppressWarnings(lidR::readLAS(fp)), error = function(e) NULL)
+    cell <- frozen_clip(NULL, site, pid, rung, cx, cy, ph, root)  # hash-verified
+    if (is.null(cell)) next                             # no substrate -> skip cell
+    sub <- tryCatch(suppressWarnings(lidR::readLAS(cell$normalized)), error = function(e) NULL)
     if (is.null(sub) || lidR::is.empty(sub)) next
     sd <- sub@data
     keep <- sd$Z >= CANOPY_MIN &
@@ -250,6 +249,16 @@ run_plot <- function(site, pid, pc, gt, nd, selection = NULL) {
 }
 
 ## ---- per-site driver ------------------------------------------------------
+# Instance clouds and the apex cache must carry the sealed root's stamp
+# (frozen_stamp); an absent directory means that arm did not run. Checked for
+# every site before any site runs, outside the per-site error handler.
+check_artifact_stamps <- function(site, root = frozen_root(d, A$FROZEN_ROOT)) {
+  nd <- file.path(d, "neon", site)
+  for (a in c(vapply(MODELS, `[[`, character(1), "dir"),
+              if (APEX_PROXY) "best_treetop_cache"))
+    if (dir.exists(file.path(nd, a))) frozen_stamp_check(file.path(nd, a), root)
+}
+
 run_site <- function(site) {
   nd <- file.path(d, "neon", site)
   gtf <- file.path(nd, "ground_truth_stems.csv")
@@ -258,7 +267,8 @@ run_site <- function(site) {
     cat(sprintf("[%s] no ground truth / centroids -- skipped\n", site)); return(NULL) }
   gt <- read.csv(gtf, stringsAsFactors = FALSE)
   pc <- read.csv(pcf, stringsAsFactors = FALSE)
-  gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), , drop = FALSE]
+  fz <- frozen_scope(d, site, A, gt)              # declared population + sealed root
+  gt <- fz$gt
   # COALESCE the crown diameter: the CSV already carries maxCrownDiameter; the
   # cached VST RDS may carry a (more authoritative) value. Keep the CSV value as
   # a fallback and overwrite it only where the RDS provides a finite value, so a
@@ -275,14 +285,14 @@ run_site <- function(site) {
   gt$maxCrownDiameter[rds_ok] <- gt$maxCrownDiameter_rds[rds_ok]
   gt$maxCrownDiameter_rds <- NULL
 
-  plots <- intersect(unique(gt$plotID), pc$plotID)
-  cat(sprintf("[%s] scoring %d plots over rungs {%s}\n",
-              site, length(plots), paste(RUNGS, collapse = ",")))
+  plots <- intersect(fz$plots, pc$plotID)
+  cat(sprintf("[%s] scoring %d plots (%s) over rungs {%s}\n",
+              site, length(plots), fz$population, paste(RUNGS, collapse = ",")))
   if (!length(plots)) return(NULL)
 
   selection <- read_selection(SELECTION, site)
-  res_list <- mclapply(plots, function(p)
-    tryCatch(run_plot(site, p, pc, gt, nd, selection),
+  res_list <- plot_lapply(plots, function(p)
+    tryCatch(run_plot(site, p, pc, gt, nd, fz$root, selection),
              error = function(e) { message("  ", p, " failed: ",
                                             conditionMessage(e)); NULL }),
     mc.cores = CORES, mc.preschedule = FALSE)
@@ -350,6 +360,7 @@ print_tables <- function(res) {
 run_main <- function() {
   t0 <- Sys.time()
   all_res <- list()
+  for (site in SITES) check_artifact_stamps(site)
   for (site in SITES) {
     r <- tryCatch(run_site(site), error = function(e) {
       message("site ", site, " failed: ", conditionMessage(e)); NULL })

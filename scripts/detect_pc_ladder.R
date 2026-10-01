@@ -32,13 +32,12 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #   lasr_lmax_pc  : lasR point-based local_maximum (not local_maximum_raster).
 # All three point-cloud extractors live in pc_detect_lib.R, shared with #6.
 #
-# Clip provider: frozen_clip (model_bench_lib.R). Chosen over the prepare_clip +
-# inline-decimate path because its decimation is SEEDED by (site,plot,rung) and
-# cached, so (a) the 8-rung clip is reproducible across runs and arms, and (b)
-# all four detectors are guaranteed to score the SAME bytes per (plot,rung) --
-# they read one cached normalized clip. The shared cache under neon/<SITE>/frozen
-# is the same one the model-benchmark arms use (same core_half=plot_half, same
-# buffer=25), so the 8-rung clips are reused, not rebuilt.
+# Clip provider: the sealed frozen-clip root written by freeze_clips.R, read
+# through frozen_scope() / frozen_clip() (model_bench_lib.R). Its decimation is
+# SEEDED by (site,plot,rung) and every cell is hash-verified, so (a) the 8-rung
+# clip is reproducible across runs and arms, and (b) all four detectors score
+# the SAME bytes per (plot,rung) as every other arm. Plots and the stem gate come
+# from the root's declared population (POP, default adopted).
 #
 # Pooling: the canonical sum-counts pool() + equal_set_guard() from
 # model_bench_lib.R, keyed by (site, plot, rung). recall = sum(TP)/sum(n_ref);
@@ -50,6 +49,7 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # Usage:
 #   Rscript scripts/detect_pc_ladder.R [SITES=SJER,SOAP,TEAK] [CORES=1]
 #                                      [TOL=4] [A=0.10] [RUNG=8]
+#                                      [POP=adopted] [FROZEN_ROOT=...]
 # CORES defaults to 1 on purpose: lasR `exec` (chm_vwf + lasr_lmax_pc) can
 # transiently fail under mclapply fork on the dense native clips, and a failed
 # arm makes equal_set_guard drop the whole (plot,rung) cell -- silently shrinking
@@ -76,7 +76,6 @@ CORES <- as.integer(if (is.null(A$CORES)) 1 else A$CORES)
 TOL   <- as.numeric(if (is.null(A$TOL))  4.0  else A$TOL)
 A_VWF <- as.numeric(if (is.null(A$A))    0.10 else A$A)
 RUNG  <- as.numeric(if (is.null(A$RUNG)) 8    else A$RUNG)
-MINTREES <- 6
 ARMS  <- c("chm_vwf","lidr_lmf_pc","lidr_li2012","lasr_lmax_pc")
 
 ## ---- run all 4 arms on ONE frozen (plot,rung) clip, score each -----------
@@ -129,7 +128,7 @@ run_cell <- function(prep, stems, cx, cy, ph, SITE, pid, plotType, rung_lbl) {
 }
 
 ## ---- per-plot worker: native + (8 if not upsampling) ---------------------
-run_plot <- function(pid, gt, pc, ctg, SITE, froot) {
+run_plot <- function(pid, gt, pc, SITE, froot) {
   ci <- pc[pc$plotID == pid, ][1, ]
   cx <- ci$easting; cy <- ci$northing
   ph <- plot_half(ci$plotType)
@@ -138,16 +137,14 @@ run_plot <- function(pid, gt, pc, ctg, SITE, froot) {
   if (nrow(stems) < 1) return(NULL)
 
   # native first -> gives native all-return density for the no-upsampling guard
-  np <- tryCatch(frozen_clip(ctg, SITE, pid, NA, cx, cy, ph, out_root = froot),
-                 error = function(e) NULL)
+  np <- frozen_clip(NULL, SITE, pid, NA, cx, cy, ph, froot)
   if (is.null(np)) return(NULL)
   rungs <- c(NA, pc_rungs_for(np$pdens, RUNG))   # native always; RUNG if dense
 
   rows <- list()
   for (rung in rungs) {
     prep <- if (is.na(rung)) np else
-      tryCatch(frozen_clip(ctg, SITE, pid, rung, cx, cy, ph, out_root = froot),
-               error = function(e) NULL)
+      frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, froot)
     if (is.null(prep)) next
     lbl <- if (is.na(rung)) "native" else as.character(rung)
     r <- run_cell(prep, stems, cx, cy, ph, SITE, pid, ci$plotType, lbl)
@@ -164,25 +161,28 @@ run_site <- function(SITE) {
                   stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"),
                   stringsAsFactors = FALSE)
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
-  froot <- file.path(nd, "frozen")
+  fz  <- frozen_scope(d, SITE, A, gt)     # declared population + sealed root
+  gt  <- fz$gt
+  invisible(neon_validate_inputs(gt, pc))
+  froot <- fz$root
 
-  counts <- table(gt$plotID)
-  keep   <- intersect(names(counts)[counts >= MINTREES], pc$plotID)
-  cat(sprintf("[%s] plots: %d (%s)\n", SITE, length(keep),
+  keep   <- intersect(fz$plots, pc$plotID)
+  cat(sprintf("[%s] plots (%s): %d (%s)\n", SITE, fz$population, length(keep),
               paste(keep, collapse = ",")))
   if (!length(keep)) return(NULL)
 
   t0 <- Sys.time()
-  res_list <- mclapply(keep, function(p)
-                tryCatch(run_plot(p, gt, pc, ctg, SITE, froot),
+  res_list <- plot_lapply(keep, function(p)
+                tryCatch(run_plot(p, gt, pc, SITE, froot),
                          error = function(e) {
                            message("plot ", p, " failed: ",
-                                   conditionMessage(e)); NULL }),
+                                   conditionMessage(e)); e }),
                 mc.cores = CORES, mc.preschedule = FALSE)
+  # A failed plot (e.g. a frozen cell that no longer matches its hash) must not
+  # leave the population silently smaller.
+  failed <- keep[!vapply(res_list, function(r) is.null(r) || is.data.frame(r), logical(1))]
+  if (length(failed)) stop(sprintf("[%s] plots failed: %s", SITE,
+                                   paste(failed, collapse = ",")), call. = FALSE)
   results <- do.call(rbind, Filter(Negate(is.null), res_list))
   dt <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
   if (is.null(results)) { cat(sprintf("[%s] no results\n", SITE)); return(NULL) }

@@ -15,11 +15,12 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # AMS3D (adaptive mean shift, crownsegmentr) arm of the NEON model benchmark.
 # Walking skeleton (#B1): runs segment_tree_crowns on the normalized clip per
 # plot x density rung, collapses each crown_id to its max-Z apex (x,y,z), and
-# scores against field stems with the existing sweep_lib harness.
+# scores against field stems with the existing sweep_lib harness. Clips, plots
+# and the stem gate come from the sealed root of freeze_clips.R.
 #
 # Usage:
 #   Rscript scripts/detect_ams3d_sweep.R [SITE=SOAP] [PLOTS=ALL] [CORES=6]
-#       [TOL=4] [CD_RATIO=0.4] [CL_RATIO=0.8]
+#       [TOL=4] [CD_RATIO=0.4] [CL_RATIO=0.8] [POP=adopted] [FROZEN_ROOT=...]
 # Output: $CLAUDE_JOB_DIR/neon/<SITE>/ams3d_results.csv (one row per
 #         plot x rung) + ams3d_ledger.csv (recorded zero-shot knobs).
 suppressMessages({ library(lidR); library(sf); library(data.table)
@@ -83,23 +84,23 @@ CORES <- as.integer(if (is.null(A$CORES)) 6 else A$CORES)
 TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
 CD    <- as.numeric(if (is.null(A$CD_RATIO)) 0.4 else A$CD_RATIO)
 CL    <- as.numeric(if (is.null(A$CL_RATIO)) 0.8 else A$CL_RATIO)
-RUNGS <- c(8, 4, 2, 1)
-MINTREES <- 6
+RUNGS <- FROZEN_RUNGS
 
 run_main <- function() {
   nd  <- file.path(d, "neon", SITE)
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"),     stringsAsFactors = FALSE)
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
-  counts <- table(gt$plotID)
-  keep   <- names(counts)[counts >= MINTREES]
+  fz  <- frozen_scope(d, SITE, A, gt)     # declared population + sealed root
+  gt  <- fz$gt
+  invisible(neon_validate_inputs(gt, pc))
+  keep   <- fz$plots
   if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   keep   <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] AMS3D plots: %d (%s)\n", SITE, length(keep),
+  cat(sprintf("[%s] AMS3D plots (%s): %d (%s)\n", SITE, fz$population, length(keep),
               paste(keep, collapse = ",")))
+  # Instance clouds record the sealed root that made them; a directory made on
+  # other clips must be moved aside first.
+  frozen_stamp(file.path(nd, "ams3d_instances"), fz$root)
 
   run_plot <- function(pid) {
     ci <- pc[pc$plotID == pid, ][1, ]
@@ -109,9 +110,7 @@ run_main <- function() {
     if (nrow(stems) < 1) return(NULL)
     out <- list(); native_pdens <- NA_real_
     for (rung in c(NA, RUNGS)) {
-      prep <- tryCatch(frozen_clip(ctg, SITE, pid, rung, cx, cy, ph,
-                                   out_root = file.path(nd, "frozen")),
-                       error = function(e) NULL)
+      prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
       pdens <- prep$pdens; frdens <- prep$frdens
       if (is.na(rung)) native_pdens <- pdens
@@ -143,8 +142,12 @@ run_main <- function() {
 
   res_list <- mclapply(keep, function(p)
                 tryCatch(run_plot(p), error = function(e) {
-                  message("plot ", p, " failed: ", conditionMessage(e)); NULL }),
+                  message("plot ", p, " failed: ", conditionMessage(e)); e }),
                 mc.cores = CORES, mc.preschedule = FALSE)
+  # A failed plot (e.g. a frozen cell that no longer matches its hash) must not
+  # leave the population silently smaller.
+  failed <- keep[!vapply(res_list, function(r) is.null(r) || is.data.frame(r), logical(1))]
+  if (length(failed)) stop("plots failed: ", paste(failed, collapse = ","), call. = FALSE)
   results <- do.call(rbind, Filter(Negate(is.null), res_list))
   if (is.null(results) || !nrow(results)) { cat("no AMS3D results\n"); return(invisible()) }
   write.csv(results, file.path(nd, "ams3d_results.csv"), row.names = FALSE)

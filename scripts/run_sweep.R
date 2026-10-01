@@ -16,16 +16,19 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # Usage:
 #   Rscript scripts/run_sweep.R [PLOTS=SOAP_031,SOAP_048|ALL] [OUT=results.csv]
 #                               [CORES=8] [TOL=2.5] [MEAS_YEAR=2021]
-# Reads work/neon/{ground_truth_stems.csv,plot_centroids.csv} and the LiDAR
-# catalog in work/neon/lidar/. Writes a long-form metrics CSV: one row per
-# (plot x density-rung x chm_res x vwf_slope).
+#                               [POP=adopted|all_mapped|relaxed] [FROZEN_ROOT=...]
+# Reads work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv} and the
+# sealed frozen-clip root written by freeze_clips.R: the plots and the stem gate
+# come from its declared population (POP, default adopted), the clips from its
+# seeded cells, so every arm scores the same bytes. Writes a long-form metrics
+# CSV: one row per (plot x density-rung x chm_res x vwf_slope).
 #
 # MEAS_YEAR (optional): when set (e.g. MEAS_YEAR=2021) the ground truth is
 # additionally restricted to stems whose nearest apparentindividual measurement
 # falls in that exact calendar year (the gt `meas_year` column). This drives the
 # temporal-sensitivity cut (issue #5): re-score using ONLY stems measured in the
 # LiDAR-acquisition year vs. the default +/-4 yr nearest-measurement baseline.
-# When unset, behaviour is IDENTICAL to the baseline.
+# The plots stay those of the declared population; only the stems change.
 #
 # OUT defaulting: when MEAS_YEAR is set AND OUT is omitted, OUT defaults to a
 # distinct sweep_results_<YEAR>.csv under the site dir, so the exact-year subset
@@ -36,6 +39,7 @@ suppressMessages({ library(lidR); library(parallel) })
 options(lidR.progress = FALSE)
 d <- .job_dir()
 source(.find("sweep_lib.R"))
+source(.find("model_bench_lib.R"))
 
 ## ---- args ----------------------------------------------------------------
 args <- strsplit(commandArgs(TRUE), "=")
@@ -61,7 +65,8 @@ OUT   <- if (!is.null(A$OUT)) {
 ## ---- data ----------------------------------------------------------------
 gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"))
 pc  <- read.csv(file.path(nd, "plot_centroids.csv"))
-gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
+fz  <- frozen_scope(d, SITE, A, gt)       # declared population + sealed root
+gt  <- fz$gt
 ## temporal-sensitivity cut (issue #5): keep ONLY exact-measurement-year stems.
 if (!is.na(MEAS_YEAR)) {
   n_before <- nrow(gt)
@@ -71,22 +76,17 @@ if (!is.na(MEAS_YEAR)) {
 } else {
   cat("MEAS_YEAR filter = none (+/-4 yr nearest-measurement baseline)\n")
 }
-laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                  recursive = TRUE, full.names = TRUE)
-ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
+invisible(neon_validate_inputs(gt, pc))
 
-## plots to run: those with >= MINTREES live trees, intersected with PLOTS arg
-MINTREES <- 6
-counts <- table(gt$plotID)
-keep   <- names(counts)[counts >= MINTREES]
+## plots to run: the declared population, intersected with the PLOTS arg
+keep   <- fz$plots
 if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
 keep   <- intersect(keep, pc$plotID)
-cat(sprintf("plots to sweep: %d (%s)\n", length(keep), paste(keep, collapse=",")))
+cat(sprintf("population %s, plots to sweep: %d (%s)\n", fz$population, length(keep),
+            paste(keep, collapse=",")))
 
-RUNGS <- c(8, 4, 2, 1)          # native is added per-plot as the top rung
+RUNGS <- FROZEN_RUNGS           # native is added per-plot as the top rung
 A_SET <- c(0.05, 0.10, 0.15)    # VWF slope
-
-tmpdir <- file.path(tempdir(), "sweep"); dir.create(tmpdir, showWarnings = FALSE)
 
 ## ---- per-plot worker -----------------------------------------------------
 run_plot <- function(pid) {
@@ -99,19 +99,20 @@ run_plot <- function(pid) {
   out <- list(); native_pdens <- NA_real_
   # native first (rung = NA) -> captures native density; then decimated rungs.
   for (rung in c(NA, RUNGS)) {
-    prep <- tryCatch(prepare_clip(ctg, cx, cy, rung, tmpdir, core_half = ph),
-                     error = function(e) NULL)
+    # Frozen cells are read-only and hash-verified; an upsampled or unusable
+    # cell comes back NULL.
+    prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
     if (is.null(prep)) next
     pdens <- prep$pdens; frdens <- prep$frdens
     if (is.na(rung)) native_pdens <- pdens
     # no-upsampling guard: compare the rung TARGET to the plot's NATIVE density
     # (not the post-decimation density, which would false-skip on undershoot).
-    else if (is.na(native_pdens) || rung >= native_pdens) { unlink(prep$file); next }
+    else if (is.na(native_pdens) || rung >= native_pdens) next
     res_set <- if (frdens >= 8) c(0.25, 0.5, 1.0) else c(0.5, 1.0)
     for (res in res_set) for (a in A_SET) {
-      det <- tryCatch(detect_lasr(prep$file, res, a, frdens),  # frdens gates smoothing
-                      error = function(e) NULL)
-      if (is.null(det)) next
+      # A detector error stops the plot: the historical forked runs dropped
+      # such cells silently (see plot_lapply in sweep_lib.R).
+      det <- detect_lasr(prep$normalized, res, a, frdens)  # frdens gates smoothing
       sc <- score_plot(stems, det, tol_xy = TOL, core_cx = cx, core_cy = cy,
                        core_half = ph)
       sc <- cbind(data.frame(plot = pid, plotType = ci$plotType,
@@ -121,16 +122,19 @@ run_plot <- function(pid) {
                   sc)
       out[[length(out) + 1]] <- sc
     }
-    unlink(prep$file)
   }
   if (!length(out)) return(NULL)
   do.call(rbind, out)
 }
 
 t0 <- Sys.time()
-res_list <- mclapply(keep, function(p) tryCatch(run_plot(p), error=function(e) {
-              message("plot ", p, " failed: ", conditionMessage(e)); NULL }),
+res_list <- plot_lapply(keep, function(p) tryCatch(run_plot(p), error=function(e) {
+              message("plot ", p, " failed: ", conditionMessage(e)); e }),
               mc.cores = CORES, mc.preschedule = FALSE)
+# A failed plot (e.g. a frozen cell that no longer matches its hash) must not
+# leave the population silently smaller.
+failed <- keep[!vapply(res_list, function(r) is.null(r) || is.data.frame(r), logical(1))]
+if (length(failed)) stop("plots failed: ", paste(failed, collapse = ","), call. = FALSE)
 results <- do.call(rbind, Filter(Negate(is.null), res_list))
 dt <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
 
