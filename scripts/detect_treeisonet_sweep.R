@@ -20,7 +20,7 @@
 # Usage:
 #   Rscript scripts/detect_treeisonet_sweep.R [SITE=SOAP] [PLOTS=ALL]
 #       [CONF=0.22] [VOXEL=0] [TOL=4] [MASKS=1] [MASK_VOXEL=0] [HMIN=2]
-#       [POP=adopted] [FROZEN_ROOT=...]
+#       [RUNGS=native,8,4,2,1] [POP=adopted] [FROZEN_ROOT=...]
 #   The documented ALS setting for the apex pass is VOXEL=0.8,0.8,2.0. Masks
 #   keep the checkpoint-native voxels (MASK_VOXEL=0) the transfer audit
 #   validated and the crown arm uses.
@@ -56,7 +56,11 @@ TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
 MASKS <- is.null(A$MASKS) || A$MASKS != "0"
 HMIN  <- if (is.null(A$HMIN)) "2" else A$HMIN
 MASK_VOXEL <- if (is.null(A$MASK_VOXEL)) "0" else A$MASK_VOXEL
-RUNGS <- FROZEN_RUNGS
+RUNGS_RAW <- if (is.null(A$RUNGS)) c("native", FROZEN_RUNGS) else strsplit(A$RUNGS, ",")[[1]]
+RUN_NATIVE <- any(tolower(RUNGS_RAW) == "native")
+RUNGS <- as.numeric(RUNGS_RAW[tolower(RUNGS_RAW) != "native"])
+if (anyNA(RUNGS) || !all(RUNGS %in% FROZEN_RUNGS))
+  stop("RUNGS must be native and/or frozen rungs ", paste(FROZEN_RUNGS, collapse = ","))
 VENV  <- file.path(.ROOT, "gpu/.venv/bin/python")
 DRV   <- file.path(.ROOT, "gpu/run_treeisonet.py")
 DRV_MASK <- file.path(.ROOT, "gpu/run_treeisonet_crowns.py")
@@ -105,6 +109,7 @@ run_main <- function() {
                             .find("detect_treeisonet_sweep.R"), .find("model_runner.R"))),
       python = system2(VENV, "--version", stdout = TRUE, stderr = TRUE),
       conf = CONF, voxel = VOXEL, masks = MASKS, mask_voxel = MASK_VOXEL, hmin = HMIN,
+      rungs = RUNGS_RAW,
       frozen_root = frozen_root_id(fz$root), population = fz$population),
     file.path(nd, "treeisonet_run_manifest.json"), auto_unbox = TRUE, pretty = TRUE)
   inst_dir <- file.path(nd, "treeisonet_instances")
@@ -116,13 +121,16 @@ run_main <- function() {
     cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
     if (nrow(stems) < 1) next
-    native_pdens <- NA_real_; ncell <- 0L
-    for (rung in c(NA, RUNGS)) {
+    # Native density from the sealed root, so a pass without the native rung
+    # still applies the no-upsampling guard.
+    np <- frozen_clip(NULL, SITE, pid, NA, cx, cy, ph, fz$root)
+    native_pdens <- if (is.null(np)) NA_real_ else np$pdens
+    ncell <- 0L
+    for (rung in c(if (RUN_NATIVE) NA_real_ else numeric(), RUNGS)) {
       prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
       pdens <- prep$pdens; frdens <- prep$frdens
-      if (is.na(rung)) native_pdens <- pdens
-      else if (is.na(native_pdens) || rung >= native_pdens) next
+      if (!is.na(rung) && (is.na(native_pdens) || rung >= native_pdens)) next
       ocsv <- file.path(tempdir(), sprintf("ti_%s_%s.csv", pid,
                         ifelse(is.na(rung), "native", rung)))
       det <- run_python_arm(VENV, DRV, prep$normalized, ocsv,
