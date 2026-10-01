@@ -36,9 +36,14 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # All point-cloud windows use the SAME variable-window allometry as the CHM
 # path: ws <- ws_factory(A) (slope a, clamped [3,5]); hmin/min_height = 2.
 #
+# Plots, stems and the native clip come from the sealed frozen-clip root
+# (freeze_clips.R): POP= picks the declared population (default adopted),
+# FROZEN_ROOT= another root.
+#
 # Usage:
 #   Rscript scripts/detect_pc_sweep.R [SITES=SJER,SOAP,TEAK] [CORES=6]
-#                                     [TOL=4] [A=0.10]
+#                                     [TOL=4] [A=0.10] [POP=adopted]
+#                                     [FROZEN_ROOT=...]
 # Output: $CLAUDE_JOB_DIR/neon/<SITE>/pc_detect_results.csv  (one row per
 #         plot x detector, with overall + per-crown-class recall columns).
 suppressMessages({ library(lidR); library(lasR); library(sf)
@@ -46,6 +51,7 @@ suppressMessages({ library(lidR); library(lasR); library(sf)
 options(lidR.progress = FALSE)
 d <- .job_dir()
 source(.find("sweep_lib.R"))
+source(.find("model_bench_lib.R")) # frozen_scope, frozen_clip
 source(.find("pc_detect_lib.R"))   # shared point-cloud apex extractors (#6/#38)
 
 ## ---- args ----------------------------------------------------------------
@@ -56,7 +62,6 @@ SITES <- if (is.null(A$SITES)) c("SJER","SOAP","TEAK") else
 CORES <- as.integer(if (is.null(A$CORES)) 6 else A$CORES)
 TOL   <- as.numeric(if (is.null(A$TOL))  4.0  else A$TOL)
 A_VWF <- as.numeric(if (is.null(A$A))    0.10 else A$A)
-MINTREES <- 6
 
 ## ---- per-detector apex extractors -----------------------------------------
 # det_lidr_lmf_pc / det_lidr_li2012 / det_lasr_lmax_pc now live in
@@ -64,7 +69,7 @@ MINTREES <- 6
 # the two scripts cannot drift apart. Each returns a base data.frame(x, y, z).
 
 ## ---- per-plot worker: run all 4 detectors, score each --------------------
-run_plot <- function(pid, gt, pc, ctg, tmpdir) {
+run_plot <- function(pid, site, gt, pc, root) {
   ci <- pc[pc$plotID == pid, ][1, ]
   cx <- ci$easting; cy <- ci$northing
   ph <- plot_half(ci$plotType)                 # tower +/-20, distributed +/-10
@@ -72,12 +77,11 @@ run_plot <- function(pid, gt, pc, ctg, tmpdir) {
               abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
   if (nrow(stems) < 1) return(NULL)
 
-  prep <- tryCatch(prepare_clip(ctg, cx, cy, NA, tmpdir, core_half = ph),
-                   error = function(e) NULL)
+  # Frozen native cell: read-only and hash-verified; NULL when unusable.
+  prep <- frozen_clip(NULL, site, pid, NA, cx, cy, ph, root)
   if (is.null(prep)) return(NULL)
-  on.exit(unlink(prep$file), add = TRUE)
   frdens <- prep$frdens; pdens <- prep$pdens
-  las <- tryCatch(readLAS(prep$file), error = function(e) NULL)
+  las <- tryCatch(readLAS(prep$normalized), error = function(e) NULL)
   if (is.null(las) || is.empty(las)) return(NULL)
   ws <- ws_factory(A_VWF)
 
@@ -91,7 +95,7 @@ run_plot <- function(pid, gt, pc, ctg, tmpdir) {
   dets <- list()
   tim  <- c()
   t0 <- Sys.time()
-  dets$chm_vwf <- tryCatch(detect_lasr(prep$file, res, A_VWF, frdens),
+  dets$chm_vwf <- tryCatch(detect_lasr(prep$normalized, res, A_VWF, frdens),
                            error = function(e) NULL)
   tim["chm_vwf"] <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
   t0 <- Sys.time()
@@ -102,7 +106,7 @@ run_plot <- function(pid, gt, pc, ctg, tmpdir) {
   dets$lidr_li2012 <- tryCatch(det_lidr_li2012(las), error = function(e) NULL)
   tim["lidr_li2012"] <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
   t0 <- Sys.time()
-  dets$lasr_lmax_pc <- tryCatch(det_lasr_lmax_pc(prep$file, ws),
+  dets$lasr_lmax_pc <- tryCatch(det_lasr_lmax_pc(prep$normalized, ws),
                                 error = function(e) NULL)
   tim["lasr_lmax_pc"] <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
 
@@ -135,28 +139,25 @@ run_site <- function(SITE) {
                   stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"),
                   stringsAsFactors = FALSE)
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
+  fz  <- frozen_scope(d, SITE, A, gt)     # declared population + sealed root
+  gt  <- fz$gt
+  invisible(neon_validate_inputs(gt, pc))
 
-  counts <- table(gt$plotID)
-  keep   <- names(counts)[counts >= MINTREES]
-  keep   <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] plots: %d (%s)\n", SITE, length(keep),
+  keep   <- intersect(fz$plots, pc$plotID)
+  cat(sprintf("[%s] plots (%s): %d (%s)\n", SITE, fz$population, length(keep),
               paste(keep, collapse = ",")))
   if (!length(keep)) return(NULL)
 
-  tmpdir <- file.path(tempdir(), paste0("pcsweep_", SITE))
-  dir.create(tmpdir, showWarnings = FALSE, recursive = TRUE)
-
   t0 <- Sys.time()
-  res_list <- mclapply(keep, function(p)
-                tryCatch(run_plot(p, gt, pc, ctg, tmpdir),
+  res_list <- plot_lapply(keep, function(p)
+                tryCatch(run_plot(p, SITE, gt, pc, fz$root),
                          error = function(e) {
                            message("plot ", p, " failed: ",
-                                   conditionMessage(e)); NULL }),
+                                   conditionMessage(e)); e }),
                 mc.cores = CORES, mc.preschedule = FALSE)
+  # A failed plot (e.g. a frozen cell that no longer matches its hash) must not
+  # leave the population silently smaller; detector failures stay per-cell.
+  stop_failed_plots(keep, res_list)
   results <- do.call(rbind, Filter(Negate(is.null), res_list))
   dt <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
   if (is.null(results)) { cat(sprintf("[%s] no results\n", SITE)); return(NULL) }

@@ -83,6 +83,10 @@ to resolve code and working-data paths.
 - Compare detectors on equal site, plot, and density support. Report exclusions,
   failures, reference counts, and annotation limitations rather than silently
   dropping cells or substituting another model's output.
+- Every NEON arm reads the declared plot population and the seeded clips of
+  the sealed frozen root (`scripts/freeze_clips.R`) through `frozen_scope()`
+  and `frozen_clip()`. Do not decimate, re-clip or write inside an arm; a new
+  freeze goes to a new root. Sensitivity populations are chosen with `POP=`.
 - Keep detection and crown-delineation metrics distinct. Compare equivalent
   crown diameter with `ninetyCrownDiameter` and max-caliper diameter with
   `maxCrownDiameter`; label Voronoi-on-stems instance metrics as proxies.

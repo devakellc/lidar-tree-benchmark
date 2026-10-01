@@ -15,14 +15,15 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # lidRplugins competitor arm (#C9) of the NEON model benchmark.
 # Runs three classical LiDAR-native detectors (lmfauto + multichm via
 # locate_trees; ptrees via segment_trees + reduce_instances) plus the CHM-VWF
-# baseline on the SAME frozen normalized clip per plot x density rung, scoring
+# baseline on the SAME frozen normalized clip per plot x density rung (the
+# sealed root from freeze_clips.R, over its declared population), scoring
 # each against field stems with the existing harness.
 # lmfauto/multichm return treetops directly -> st_coordinates + .tops_to_det;
 # ptrees returns per-point treeID -> reduce_instances. All -> assert_detection_contract.
 #
 # Usage:
 #   Rscript scripts/detect_lidrplugins_sweep.R [SITE=SOAP] [PLOTS=ALL]
-#       [CORES=6] [TOL=4] [A=0.10]
+#       [CORES=6] [TOL=4] [A=0.10] [POP=adopted] [FROZEN_ROOT=...]
 # Install: lidRplugins from a patched source clone (rgeos/rgdal/EBImage stripped
 #   from DESCRIPTION) -- see docs/superpowers/plans/2026-06-07-lidrplugins-competitor-arm.md Task 1.
 # Output: $CLAUDE_JOB_DIR/neon/<SITE>/lidrplugins_results.csv (one row per
@@ -81,8 +82,8 @@ det_multichm <- function(las, res = 0.5, a = 0.10) {
 det_ptrees <- function(las, hmin = 2, k = c(30, 15), inst_path = NULL) {
   # ptrees' C routine (C_lastrees_ptrees) hard-segfaults -- uncatchable by the
   # tryCatch below -- when there are too few returns above hmin (e.g. a treeless
-  # clip on a sparse rung). Under mclapply such a segfault silently nulls the
-  # whole plot (all rungs + all arms). Skip safely: too few canopy points means
+  # clip on a sparse rung). Such a segfault kills the plot's worker and stops
+  # the run (all rungs + all arms). Skip safely: too few canopy points means
   # ptrees would detect nothing anyway, so return a 0-row frame (legit recall=0)
   # without entering C, keeping the other detectors' results for the cell intact.
   if (sum(las$Z >= hmin) < min(k)) {
@@ -111,24 +112,24 @@ PLOTS <- if (is.null(A$PLOTS) || A$PLOTS == "ALL") NULL else strsplit(A$PLOTS, "
 CORES <- as.integer(if (is.null(A$CORES)) 6 else A$CORES)
 TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
 A_VWF <- as.numeric(if (is.null(A$A))   0.10 else A$A)
-RUNGS <- c(8, 4, 2, 1)
-MINTREES <- 6
+RUNGS <- FROZEN_RUNGS
 ARMS  <- c("lmfauto", "multichm", "ptrees", "chm_vwf")
 
 run_main <- function() {
   nd  <- file.path(d, "neon", SITE)
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"),     stringsAsFactors = FALSE)
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
-  counts <- table(gt$plotID)
-  keep   <- names(counts)[counts >= MINTREES]
+  fz  <- frozen_scope(d, SITE, A, gt)     # declared population + sealed root
+  gt  <- fz$gt
+  invisible(neon_validate_inputs(gt, pc))
+  keep   <- fz$plots
   if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   keep   <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] lidRplugins plots: %d (%s)\n", SITE, length(keep),
+  cat(sprintf("[%s] lidRplugins plots (%s): %d (%s)\n", SITE, fz$population, length(keep),
               paste(keep, collapse = ",")))
+  # ptrees instance clouds record the sealed root that made them; a directory
+  # made on other clips must be moved aside first.
+  frozen_stamp(file.path(nd, "ptrees_instances"), fz$root)
 
   run_plot <- function(pid) {
     ci <- pc[pc$plotID == pid, ][1, ]
@@ -138,9 +139,7 @@ run_main <- function() {
     if (nrow(stems) < 1) return(NULL)
     out <- list(); native_pdens <- NA_real_
     for (rung in c(NA, RUNGS)) {
-      prep <- tryCatch(frozen_clip(ctg, SITE, pid, rung, cx, cy, ph,
-                                   out_root = file.path(nd, "frozen")),
-                       error = function(e) NULL)
+      prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
       pdens <- prep$pdens; frdens <- prep$frdens
       if (is.na(rung)) native_pdens <- pdens
@@ -177,10 +176,13 @@ run_main <- function() {
     do.call(rbind, out)
   }
 
-  res_list <- mclapply(keep, function(p)
+  res_list <- plot_lapply(keep, function(p)
                 tryCatch(run_plot(p), error = function(e) {
-                  message("plot ", p, " failed: ", conditionMessage(e)); NULL }),
+                  message("plot ", p, " failed: ", conditionMessage(e)); e }),
                 mc.cores = CORES, mc.preschedule = FALSE)
+  # A failed plot (e.g. a frozen cell that no longer matches its hash) must not
+  # leave the population silently smaller.
+  stop_failed_plots(keep, res_list)
   results <- do.call(rbind, Filter(Negate(is.null), res_list))
   if (is.null(results) || !nrow(results)) { cat("no lidRplugins results\n"); return(invisible()) }
   results$tp_core <- round(results$precision * results$n_det)

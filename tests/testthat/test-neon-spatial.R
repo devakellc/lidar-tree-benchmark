@@ -25,6 +25,13 @@ test_that("field metadata and spatial headers must agree", {
   expect_error(neon_validate_inputs(f$gt, f$pc, sf::st_crs(32611)), "differs")
   for (bad in c(4326, 3857, 2276, NA))
     expect_error(neon_assert_crs(sf::st_crs(bad)), "projected metric")
+  # D17 SOAP and TEAK tile WKT spells the unit "Meter"; it is still EPSG:32611.
+  wkt <- sf::st_crs(32611)$wkt
+  at <- regexpr("CONVERSION[", wkt, fixed = TRUE)
+  d17 <- sf::st_crs(paste0(substr(wkt, 1, at - 1), gsub("\"metre\"", "\"Meter\"",
+                                                          substring(wkt, at), fixed = TRUE)))
+  expect_identical(d17$units_gdal, "Meter")
+  expect_true(neon_assert_crs(d17, 32611) == sf::st_crs(32611))
   f$gt$epsg <- 32619
   expect_error(neon_validate_inputs(f$gt, f$pc), "Stem and plot")
   f <- field_fixture()

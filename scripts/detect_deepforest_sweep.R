@@ -20,16 +20,18 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # optical fusion member. This runs DeepForest's NEON-pretrained crown model
 # (predict_tile) on the downloaded RGB tiles (neon_download_aop.R, DP3.30010),
 # reduces each crown box to its centroid, samples an apex Z from a CHM built on
-# demand from the matched frozen normalized clip, and scores against field stems
-# by crown_class with the SAME score_plot harness. detector = "deepforest",
-# rung = "rgb" (RGB has no density ladder -- that is the point).
+# demand from the plot's native normalized clip in the sealed frozen root, and
+# scores the declared population's plots against field stems by crown_class with
+# the SAME score_plot harness. detector = "deepforest", rung = "rgb" (RGB has no
+# density ladder -- that is the point).
 #
 # Usage:
-#   Rscript scripts/detect_deepforest_sweep.R SITE=SOAP
+#   Rscript scripts/detect_deepforest_sweep.R SITE=SOAP [POP=adopted] [FROZEN_ROOT=...]
 # Env: PYTHON=~/miniconda3/envs/deepforest/bin/python (deepforest 2.x, CPU ok).
 # Reads work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv,rgb/*.tif} +
-#   the frozen normalized clips. Writes work/neon/<SITE>/deepforest_results.csv
-#   and caches per-tile boxes in deepforest_boxes/.
+#   the sealed frozen root (freeze_clips.R). Writes
+#   work/neon/<SITE>/deepforest_results.csv and caches per-tile boxes in
+#   deepforest_boxes/.
 suppressMessages({ library(lidR); library(terra); library(data.table) })
 options(lidR.progress = FALSE, lidR.verbose = FALSE)
 d <- .job_dir()
@@ -85,10 +87,10 @@ all_boxes <- function(gt, pc) {
 }
 
 ## ---- per-plot CHM (from frozen normalized clip) to give boxes an apex z ----
-plot_chm <- function(pid, epsg) {
-  clip <- file.path(nd, "frozen", SITE, pid, "native", "clip_normalized.laz")
-  if (!file.exists(clip)) return(NULL)
-  las <- tryCatch(suppressWarnings(lidR::readLAS(clip)), error = function(e) NULL)
+# `cell` is the plot's native frozen cell (frozen_clip); NULL = unusable cell.
+plot_chm <- function(cell, epsg) {
+  if (is.null(cell)) return(NULL)
+  las <- tryCatch(suppressWarnings(lidR::readLAS(cell$normalized)), error = function(e) NULL)
   if (is.null(las) || lidR::is.empty(las)) return(NULL)
   neon_assert_crs(las, epsg, "Frozen CHM source")
   tryCatch(suppressWarnings(lidR::rasterize_canopy(las, res = CHM_RES, algorithm = lidR::p2r())),
@@ -100,27 +102,27 @@ run_main <- function() {
     cat(sprintf("PYTHON=%s exists=%s RUNNER=%s\n", PYTHON, file.exists(PYTHON), RUNNER)) }
   gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
-  gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), , drop = FALSE]
+  fz <- frozen_scope(d, SITE, A, gt)              # declared population + sealed root
+  gt <- fz$gt
   epsg <- neon_validate_inputs(gt, pc)
   boxes <- all_boxes(gt, pc); if (is.null(boxes)) { cat("no DeepForest boxes\n"); return(invisible()) }
   cat(sprintf("[%s] DeepForest crown boxes (all tiles, score>=%.2f): %d\n",
               SITE, SCORE_THRESH, nrow(boxes)))
-  keep <- intersect(unique(gt$plotID), pc$plotID)
+  keep <- intersect(fz$plots, pc$plotID)
   rows <- list()
   for (pid in keep) {
     ci <- pc[pc$plotID == pid, ][1, ]; cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, , drop = FALSE]
     if (!nrow(stems)) next
     bp <- boxes[abs(boxes$x - cx) <= ph + TOL & abs(boxes$y - cy) <= ph + TOL, , drop = FALSE]
-    chm <- plot_chm(pid, epsg)
-    if (is.null(chm)) {                                 # frozen clip missing/empty
+    chm <- plot_chm(frozen_clip(NULL, SITE, pid, NA, cx, cy, ph, fz$root), epsg)
+    if (is.null(chm)) {                                 # native cell unusable/empty
       # Without a CHM every box would be floored to z=2.0, which score_plot's
       # greedy_match height gate (bz >= 0.5*az) then rejects for normal-height
       # stems -- yet the plot's stems would still pollute the pooled denominator,
       # silently dragging recall/F1 down. Skip the plot instead (no precedent for
-      # scoring under corrupted heights). Run the frozen-clip sweep first.
-      cat(sprintf("[%s] %s: no frozen CHM -> skipped (re-run the frozen sweep)\n",
-                  SITE, pid)); next
+      # scoring under corrupted heights).
+      cat(sprintf("[%s] %s: no native frozen CHM -> skipped\n", SITE, pid)); next
     }
     z <- if (!is.null(chm) && nrow(bp))
       as.numeric(terra::extract(chm, cbind(bp$x, bp$y))[, 1]) else rep(NA_real_, nrow(bp))

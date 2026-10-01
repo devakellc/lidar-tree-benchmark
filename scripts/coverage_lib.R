@@ -26,6 +26,8 @@ arm_family <- function(arm) unname(FAMILY_MAP[as.character(arm)])
 # <arm>__<site>__<plot>__<rung>__<params...>.csv (chm_vwf / treeisonet / the
 # GPU arms). The arm name anchors the whole basename, so "li2012" can never
 # swallow a "lidr_li2012" file. NULL = no cache / unreadable / wrong schema.
+# Callers check the cache's frozen-root stamp (frozen_stamp_check) once per
+# site before reading.
 read_arm_cache <- function(dir, arm, site, plot, rung, params = NULL) {
   stem <- sprintf("%s__%s__%s__%s", arm, site, plot, rung)
   candidates <- c(file.path(dir, paste0(stem, ".csv")),
@@ -187,11 +189,12 @@ deepforest_plot_boxes <- function(nd, site, cx, cy, half, year = "2021") {
       abs(b$y - cy) <= half, , drop = FALSE]
 }
 
-deepforest_plot_detections <- function(nd, site, pid, cx, cy, half, year = "2021") {
+# `clip` is the plot's native normalized clip as frozen_clip() returned it from
+# the sealed root (hash-verified), or NULL when that cell is unusable.
+deepforest_plot_detections <- function(nd, site, clip, cx, cy, half, year = "2021") {
   boxes <- deepforest_plot_boxes(nd, site, cx, cy, half, year)
   if (is.null(boxes)) return(NULL)
-  clip <- file.path(nd, "frozen", site, pid, "native", "clip_normalized.laz")
-  if (!file.exists(clip)) return(NULL)
+  if (is.null(clip) || !file.exists(clip)) return(NULL)
   las <- suppressWarnings(lidR::readLAS(clip))
   if (is.null(las) || lidR::is.empty(las)) return(NULL)
   chm <- suppressWarnings(lidR::rasterize_canopy(las, res = 0.5, algorithm = lidR::p2r()))
