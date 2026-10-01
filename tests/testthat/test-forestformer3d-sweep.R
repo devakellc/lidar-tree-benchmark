@@ -145,3 +145,32 @@ test_that("LIVE (gated): a cylinder through ff3d_arm.py is restored to input UTM
   expect_true(all(out@data$X > cx - 20 & out@data$X < cx + 20))  # UTM restored, not ~0
   expect_true(all(out@data$Y > cy - 20 & out@data$Y < cy + 20))
 })
+
+test_that("container arguments resolve symlinks like the identity mounts do", {
+  d <- tempfile(); dir.create(file.path(d, "store"), recursive = TRUE)
+  on.exit(unlink(d, recursive = TRUE))
+  writeLines("w", file.path(d, "store", "model.pth"))
+  file.symlink(file.path(d, "store"), file.path(d, "linked"))
+  via <- file.path(d, "linked", "model.pth")
+  expect_identical(container_path(via), normalizePath(file.path(d, "store", "model.pth")))
+  expect_identical(dirname(container_path(via)), normalizePath(dirname(via)))
+  expect_error(container_path(file.path(d, "missing.pth")))
+})
+
+test_that("a resumable run manifest keeps one identity and appends passes", {
+  f <- tempfile(fileext = ".json"); on.exit(unlink(f))
+  id <- list(image_id = "sha256:abc", source = list(commit = "c1", modified = TRUE),
+             checkpoint = list(md5 = "m1"), population = "adopted")
+  p1 <- list(rungs = list("native", "8"), code = list(a.R = "h1"))
+  update_run_manifest(f, id, p1, resuming = FALSE)
+  update_run_manifest(f, id, list(rungs = list("4"), code = list(a.R = "h2")), resuming = TRUE)
+  m <- jsonlite::read_json(f)
+  expect_length(m$passes, 2L)
+  expect_identical(unlist(m$passes[[1]]$rungs), c("native", "8"))
+  expect_identical(m$passes[[2]]$code$a.R, "h2")
+  expect_error(update_run_manifest(f, modifyList(id, list(checkpoint = list(md5 = "m2"))),
+                                   p1, resuming = TRUE), "another model identity")
+  expect_error(update_run_manifest(tempfile(), id, p1, resuming = TRUE), "another model identity")
+  update_run_manifest(f, id, p1, resuming = FALSE)          # fresh run: new manifest
+  expect_length(jsonlite::read_json(f)$passes, 1L)
+})
