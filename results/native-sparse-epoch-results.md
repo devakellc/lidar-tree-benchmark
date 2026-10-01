@@ -1,21 +1,33 @@
-# Native sparse epoch and canopy reference: preparation
+# Native sparse epoch versus decimation
 
-Prepared on 1 October 2026. Draft: no detector has been run on the sparse
-clouds yet. The density ladder simulates sparse acquisitions by decimating
-the 2021 NEON clouds. The [native 3DEP cross-check](native-ql2-crosscheck-results.md)
-could test that only against a different, denser sensor thinned to the same
-target. This study prepares a same-sensor-family test, earlier NEON flights
-over the same plots at native sparse density, and checks whether published
-hand-drawn canopy boxes cover the scoring cores, which would give a reference
-for precision that does not depend on the partial field census.
+Checked on 1 October 2026. The density ladder simulates sparse acquisitions
+by decimating the 2021 NEON clouds. The
+[native 3DEP cross-check](native-ql2-crosscheck-results.md) could test that
+only against a different, denser sensor thinned to the same target. This
+study runs the same-sensor-family test: earlier NEON flights over the same
+plots at their native sparse density, scored against the same field stems as
+the 2021 clouds decimated to bracketing rungs. It also checks whether
+published hand-drawn canopy boxes cover the scoring cores, which would give a
+reference for precision that does not depend on the partial field census.
 
-**Decision: use SJER 2017-03, SOAP 2018-06 and TEAK 2018-06 as the native
-sparse epochs, and use the NeonTreeEvaluation boxes on 14 tower plots as a
-supplementary visible-canopy reference.** The sparse plot clips hold 5.0 to
-5.4 first returns per m² at SJER and SOAP and 3.7 at TEAK (median), between
-the 4 and 8 points/m² rungs of the 2021 ladder. 586 stems of the adopted
-population are live in both epochs' references on 39 common plots, which is
-the reference the comparison should use.
+**Finding: decimation is slightly optimistic.** Against the 586 stems live in
+both epochs on 39 common plots, the native sparse clouds (3.9 to 5.0 first
+returns per m² at the median) give lower recall than the 2021 clouds
+decimated to 8 or 4 points/m², which bracket that density: 0.03 to 0.05
+lower for CHM-VWF and `multichm`, with 95% paired plot-bootstrap intervals
+that exclude zero. F1 is 0.04 lower for CHM-VWF (interval excludes zero) and
+0.02 lower for `multichm` (interval includes zero). For `multichm` the gap
+sits in codominant and intermediate stems and dominant recall agrees; for
+CHM-VWF it spans the dominant and codominant classes. Decimated rungs can
+stand in
+for native sparse acquisitions, with an optimism of a few points of recall
+that the paper should state; the earlier cross-check found the same
+direction (recall within 0.07).
+
+The epochs are SJER 2017-03, SOAP 2018-06 and TEAK 2018-06. The
+NeonTreeEvaluation boxes cover 14 tower cores and serve as a supplementary
+visible-canopy reference. SegmentAnyTree has not been run on the sparse
+clouds yet.
 
 ## Epochs
 
@@ -181,32 +193,136 @@ on 14 plots, as a supplement to the field-stem benchmark. The limits:
   exposure must be checked per checkpoint before any learned arm is scored
   against these boxes.
 
-## Next: the detector comparison
+## Native sparse versus decimated 2021
 
-Not run yet. For each epoch, CHM-VWF, `multichm` and SegmentAnyTree on the
-sealed sparse roots, and the same arms on the 2021 root, all scored against
-the 586 shared stems, by crown class:
+CHM-VWF (`run_sweep.R`, density-derived CHM resolution, `a` = 0.10) and
+`multichm` ran on each sealed root with the adopted population. To score both
+sides on one reference, each arm ran again in job directories whose ground
+truth holds only the comparison stems: for the shared stems, their 2021
+records on both sides (same positions, heights and crown classes). The cores
+coincide on every common plot. Pooled by summed counts, on the plots present
+in all four compared cells.
+
+| Arm | Site | Cell | Plots | Stems | First ret./m² | Recall | Precision | F1 | Overstory | Understory |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| CHM-VWF | SJER | sparse native | 4 | 40 | 4.2 | 0.53 | 0.35 | 0.42 | 0.67 | — |
+| CHM-VWF | SJER | 2021 native | 4 | 40 | 8.3 | 0.62 | 0.27 | 0.38 | 0.86 | — |
+| CHM-VWF | SJER | 2021 rung 8 | 4 | 40 | 5.1 | 0.53 | 0.34 | 0.41 | 0.67 | — |
+| CHM-VWF | SJER | 2021 rung 4 | 4 | 40 | 2.9 | 0.55 | 0.33 | 0.41 | 0.71 | — |
+| CHM-VWF | SOAP | sparse native | 18 | 209 | 5.0 | 0.29 | 0.35 | 0.32 | 0.34 | 0.07 |
+| CHM-VWF | SOAP | 2021 native | 18 | 209 | 12.2 | 0.48 | 0.29 | 0.36 | 0.53 | 0.24 |
+| CHM-VWF | SOAP | 2021 rung 8 | 18 | 209 | 5.6 | 0.32 | 0.41 | 0.36 | 0.37 | 0.10 |
+| CHM-VWF | SOAP | 2021 rung 4 | 18 | 209 | 2.9 | 0.36 | 0.44 | 0.40 | 0.42 | 0.10 |
+| CHM-VWF | TEAK | sparse native | 17 | 337 | 3.9 | 0.24 | 0.49 | 0.32 | 0.27 | 0.08 |
+| CHM-VWF | TEAK | 2021 native | 17 | 337 | 11.7 | 0.37 | 0.42 | 0.39 | 0.40 | 0.15 |
+| CHM-VWF | TEAK | 2021 rung 8 | 17 | 337 | 5.4 | 0.28 | 0.52 | 0.37 | 0.30 | 0.12 |
+| CHM-VWF | TEAK | 2021 rung 4 | 17 | 337 | 2.8 | 0.27 | 0.47 | 0.34 | 0.29 | 0.08 |
+| CHM-VWF | **D17** | sparse native | 39 | 586 | — | **0.28** | 0.41 | **0.33** | 0.31 | 0.09 |
+| CHM-VWF | **D17** | 2021 native | 39 | 586 | — | 0.43 | 0.34 | 0.38 | 0.47 | 0.20 |
+| CHM-VWF | **D17** | 2021 rung 8 | 39 | 586 | — | **0.31** | 0.45 | **0.37** | 0.34 | 0.12 |
+| CHM-VWF | **D17** | 2021 rung 4 | 39 | 586 | — | **0.32** | 0.44 | **0.37** | 0.36 | 0.09 |
+| `multichm` | SJER | sparse native | 4 | 40 | 4.2 | 0.72 | 0.25 | 0.37 | 0.81 | — |
+| `multichm` | SJER | 2021 native | 4 | 40 | 8.3 | 0.78 | 0.26 | 0.39 | 0.86 | — |
+| `multichm` | SJER | 2021 rung 8 | 4 | 40 | 5.1 | 0.70 | 0.22 | 0.33 | 0.86 | — |
+| `multichm` | SJER | 2021 rung 4 | 4 | 40 | 2.9 | 0.78 | 0.24 | 0.36 | 0.90 | — |
+| `multichm` | SOAP | sparse native | 18 | 209 | 5.0 | 0.57 | 0.28 | 0.37 | 0.62 | 0.36 |
+| `multichm` | SOAP | 2021 native | 18 | 209 | 12.2 | 0.64 | 0.31 | 0.42 | 0.69 | 0.45 |
+| `multichm` | SOAP | 2021 rung 8 | 18 | 209 | 5.6 | 0.65 | 0.31 | 0.42 | 0.70 | 0.45 |
+| `multichm` | SOAP | 2021 rung 4 | 18 | 209 | 2.9 | 0.65 | 0.31 | 0.42 | 0.70 | 0.45 |
+| `multichm` | TEAK | sparse native | 17 | 337 | 3.9 | 0.48 | 0.40 | 0.44 | 0.52 | 0.25 |
+| `multichm` | TEAK | 2021 native | 17 | 337 | 11.7 | 0.50 | 0.41 | 0.45 | 0.54 | 0.29 |
+| `multichm` | TEAK | 2021 rung 8 | 17 | 337 | 5.4 | 0.52 | 0.39 | 0.45 | 0.55 | 0.35 |
+| `multichm` | TEAK | 2021 rung 4 | 17 | 337 | 2.8 | 0.50 | 0.38 | 0.44 | 0.54 | 0.23 |
+| `multichm` | **D17** | sparse native | 39 | 586 | — | **0.53** | 0.32 | **0.40** | 0.57 | 0.31 |
+| `multichm` | **D17** | 2021 native | 39 | 586 | — | 0.57 | 0.34 | 0.43 | 0.60 | 0.37 |
+| `multichm` | **D17** | 2021 rung 8 | 39 | 586 | — | **0.58** | 0.33 | **0.42** | 0.61 | 0.41 |
+| `multichm` | **D17** | 2021 rung 4 | 39 | 586 | — | **0.57** | 0.33 | **0.42** | 0.61 | 0.34 |
+
+SJER has a single understory stem among the 40, so its understory column is
+left blank. Densities are the median first-return density of the scored
+clips. Recall by NEON crown class, D17 pooled (stems in brackets; 27 of the
+586 stems carry no crown class):
+
+| Arm | Cell | Dominant (154) | Codominant (314) | Intermediate (82) | Suppressed (9) |
+| --- | --- | ---: | ---: | ---: | ---: |
+| CHM-VWF | sparse native | 0.51 | 0.21 | 0.09 | 0.11 |
+| CHM-VWF | 2021 native | 0.66 | 0.37 | 0.21 | 0.11 |
+| CHM-VWF | 2021 rung 8 | 0.55 | 0.25 | 0.12 | 0.11 |
+| CHM-VWF | 2021 rung 4 | 0.55 | 0.26 | 0.09 | 0.11 |
+| `multichm` | sparse native | 0.73 | 0.49 | 0.28 | 0.56 |
+| `multichm` | 2021 native | 0.71 | 0.55 | 0.37 | 0.44 |
+| `multichm` | 2021 rung 8 | 0.71 | 0.57 | 0.41 | 0.33 |
+| `multichm` | 2021 rung 4 | 0.72 | 0.56 | 0.30 | 0.67 |
+
+Sparse native minus each 2021 cell, D17 shared stems, with 95% intervals
+from 2,000 paired bootstrap resamples of plots within site:
+
+| Arm | Versus | Recall | Precision | F1 |
+| --- | --- | --- | --- | --- |
+| CHM-VWF | 2021 rung 8 | −0.032 (−0.066 to −0.007) | −0.041 (−0.082 to −0.003) | −0.036 (−0.069 to −0.009) |
+| CHM-VWF | 2021 rung 4 | −0.039 (−0.072 to −0.009) | −0.030 (−0.078 to +0.012) | −0.037 (−0.071 to −0.004) |
+| CHM-VWF | 2021 native | −0.147 (−0.199 to −0.102) | +0.070 (+0.021 to +0.113) | −0.045 (−0.094 to −0.001) |
+| `multichm` | 2021 rung 8 | −0.048 (−0.084 to −0.012) | −0.007 (−0.035 to +0.018) | −0.018 (−0.048 to +0.010) |
+| `multichm` | 2021 rung 4 | −0.041 (−0.080 to −0.005) | −0.010 (−0.040 to +0.016) | −0.020 (−0.050 to +0.009) |
+| `multichm` | 2021 native | −0.039 (−0.072 to −0.006) | −0.020 (−0.053 to +0.009) | −0.026 (−0.059 to +0.003) |
+
+**Reading.** Both bracketing rungs give higher recall than the native
+sparse flight, so decimating to a matched density would too: the native
+sparse acquisition finds fewer stems than its decimated stand-in, by 3 to 5
+points, most of them codominant. SOAP and TEAK carry the gap; on SJER's four
+plots the cells differ by at most three of 40 stems. Precision moves less
+and, for `multichm`, not detectably. The comparison mixes a sensor change
+with a canopy change:
+the shared stems were live at both epochs, but neighbours died or grew in
+three years of drought mortality, and the 2018 SOAP and TEAK flights are in
+June rather than July. It is evidence that decimation is mildly optimistic,
+not a calibrated correction.
+
+### The 2015-only stratum
+
+Kept out of the shared comparison and scored separately. Those stems have
+no height (the 2015 census measured DBH only), so the matcher pairs them on
+position alone, without the height-consistency gate. To compare like with
+like, the re-measured stratum is also scored with its heights removed.
+Native sparse clouds, every adopted plot of the sparse references:
+
+| Arm | Stratum | Plots | Stems | Recall | Overstory | Understory |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| CHM-VWF | 2015-only | 34 | 729 | 0.29 | 0.36 | 0.23 |
+| CHM-VWF | re-measured, no height | 54 | 749 | 0.32 | 0.37 | 0.23 |
+| CHM-VWF | re-measured, with height | 54 | 749 | 0.29 | 0.34 | 0.20 |
+| `multichm` | 2015-only | 34 | 729 | 0.61 | 0.65 | 0.57 |
+| `multichm` | re-measured, no height | 54 | 749 | 0.62 | 0.66 | 0.56 |
+| `multichm` | re-measured, with height | 54 | 749 | 0.56 | 0.58 | 0.50 |
+
+The 2015-only stems are found as often as re-measured stems scored the same
+way, within 0.03, well inside the 10–20% dead fraction the mortality bound
+allows. The two strata lie partly on different plots (2015-only stems are
+almost all in tower plots), so this is a consistency check, not a mortality
+estimate. Dropping the height gate alone adds 0.03 (CHM-VWF) to 0.06
+(`multichm`) recall, so 2015-only results must never be pooled with
+height-gated ones. On the nine common plots that hold 2015-only stems (94
+stems) the 2021 clouds recall them about as well as the sparse ones; with so
+few stems this says nothing about their survival.
+
+### SegmentAnyTree
+
+Not run yet; it needs the GPU. The commands below write into the same
+comparison job directories, and the report picks the results up:
 
 ```sh
 W=$(pwd)/work
 for S in SOAP TEAK; do
-  CLAUDE_JOB_DIR=$W/sparse_2018 Rscript scripts/run_sweep.R SITE=$S POP=adopted \
-    FROZEN_ROOT=$W/sparse_2018/neon/frozen_2018 CORES=8 TOL=4 \
-    OUT=$W/sparse_2018/neon/$S/sweep_results_sparse.csv
-  CLAUDE_JOB_DIR=$W/sparse_2018 Rscript scripts/detect_multichm_sweep.R SITE=$S POP=adopted \
-    FROZEN_ROOT=$W/sparse_2018/neon/frozen_2018 CORES=8 TOL=4 \
-    OUT=$W/sparse_2018/neon/$S/multichm_sweep_results_sparse.csv
-  CLAUDE_JOB_DIR=$W/sparse_2018 Rscript scripts/detect_segmentanytree_sweep.R SITE=$S \
-    POP=adopted FROZEN_ROOT=$W/sparse_2018/neon/frozen_2018 RUNGS=native CORES=2
+  CLAUDE_JOB_DIR=$W/sparse_2018/compare_shared Rscript scripts/detect_segmentanytree_sweep.R \
+    SITE=$S POP=adopted FROZEN_ROOT=$W/sparse_2018/neon/frozen_2018 RUNGS=native CORES=2
+  CLAUDE_JOB_DIR=$W/sparse_compare_2021/shared Rscript scripts/detect_segmentanytree_sweep.R \
+    SITE=$S POP=adopted FROZEN_ROOT=$W/neon/frozen_2021 RUNGS=native,8,4 CORES=2
 done
-# SJER: the same three with CLAUDE_JOB_DIR=$W/sparse_2017 and
-#   FROZEN_ROOT=$W/sparse_2017/neon/frozen_2017
+CLAUDE_JOB_DIR=$W/sparse_2017/compare_shared Rscript scripts/detect_segmentanytree_sweep.R \
+  SITE=SJER POP=adopted FROZEN_ROOT=$W/sparse_2017/neon/frozen_2017 RUNGS=native CORES=2
+CLAUDE_JOB_DIR=$W/sparse_compare_2021/shared Rscript scripts/detect_segmentanytree_sweep.R \
+  SITE=SJER POP=adopted FROZEN_ROOT=$W/neon/frozen_2021 RUNGS=native,8,4 CORES=2
 ```
-
-The 2021 side reads the canonical ladder (rungs 8 and 4), restricted to the
-common plots, and both sides are re-scored on the shared stems. A
-first-return-matched 2021 clip per plot would need a new rung type; see the
-open questions.
 
 ## Reproduce
 
@@ -223,21 +339,40 @@ CLAUDE_JOB_DIR=$W/sparse_2018 Rscript scripts/freeze_clips.R SITES=SOAP,TEAK YEA
   CORES=4 OUT=$W/sparse_2018/neon/frozen_2018
 CLAUDE_JOB_DIR=$W/sparse_2017 Rscript scripts/freeze_clips.R SITES=SJER YEAR=2017 \
   CORES=4 OUT=$W/sparse_2017/neon/frozen_2017
-CLAUDE_JOB_DIR=$W Rscript scripts/audit_sparse_epoch.R \
-  EPOCHS=SJER:$W/sparse_2017:2017,SOAP:$W/sparse_2018:2018,TEAK:$W/sparse_2018:2018 \
-  OUT=$W/sparse_2018/audit
+EP=SJER:$W/sparse_2017:2017,SOAP:$W/sparse_2018:2018,TEAK:$W/sparse_2018:2018
+CLAUDE_JOB_DIR=$W Rscript scripts/audit_sparse_epoch.R EPOCHS=$EP OUT=$W/sparse_2018/audit
+CLAUDE_JOB_DIR=$W Rscript scripts/compare_sparse_epoch.R MODE=prepare EPOCHS=$EP \
+  C21=$W/sparse_compare_2021
+# then, in every comparison job directory J with its root R (the sparse root,
+# or $W/neon/frozen_2021 for the directories under sparse_compare_2021):
+#   CLAUDE_JOB_DIR=$J Rscript scripts/run_sweep.R SITE=$S POP=adopted \
+#     FROZEN_ROOT=$R CORES=8 TOL=4 OUT=$J/neon/$S/sweep.csv
+#   CLAUDE_JOB_DIR=$J Rscript scripts/detect_multichm_sweep.R SITE=$S POP=adopted \
+#     FROZEN_ROOT=$R CORES=8 TOL=4 OUT=$J/neon/$S/multichm.csv
+CLAUDE_JOB_DIR=$W Rscript scripts/compare_sparse_epoch.R MODE=report EPOCHS=$EP \
+  C21=$W/sparse_compare_2021 OUT=$W/sparse_2018/compare_report
 ```
 
-The ground-truth builder reuses a site's cached woody-vegetation download
-when it is copied into the job directory's `vst/` folder.
+The comparison job directories are `compare_shared`, `compare_2015only`,
+`strata_2015only`, `strata_remeasured` and `strata_remeasured_noheight`
+under each sparse job directory, and `shared` and `only2015` under
+`sparse_compare_2021`. The ground-truth builder reuses a site's cached
+woody-vegetation download when it is copied into the job directory's `vst/`
+folder.
 
-## Open questions
+## Caveats and open questions
 
-- **Matched density.** The 2021 ladder thins all returns uniformly. A
-  sparser sensor drops pulses, not points. Matching the sparse plots' first
-  returns needs either pulse-based thinning (lidR `homogenize` with
-  `use_pulse`) to a per-plot target, or interpolating between rungs 4 and 8.
-- **The 2015-only stratum.** Report with and without it, or score it as its
-  own stratum with the mortality bound as an error band.
-- **Season.** SOAP and TEAK fly in June in 2018 and July in 2021; SJER in
-  March both times.
+- **Bracketing, not matching.** The 2021 side uses the canonical rungs 8
+  and 4, which straddle the sparse first-return density. The ladder thins
+  all returns uniformly, while a sparser sensor drops pulses. A per-plot
+  pulse-thinned rung (lidR `homogenize` with `use_pulse`) at the sparse
+  first-return density would sharpen the comparison.
+- **Season and canopy change.** SOAP and TEAK fly in June in 2018 and July
+  in 2021; SJER in March both times. Three years of growth and drought
+  mortality lie between the epochs.
+- **Small SJER sample.** Four common plots and 40 stems; SJER contributes
+  little to the pooled result.
+- **No decimation-noise band here.** The decimation noise of a pooled D17
+  metric is about 0.01 (frozen-clip study); the bootstrap intervals, which
+  resample plots, are wider and dominate.
+- **The 2015-only stratum** stays out of every headline comparison.
