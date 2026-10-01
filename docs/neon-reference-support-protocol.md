@@ -6,9 +6,12 @@ it. Existing safeguards and diagnostic-only status remain unchanged.
 
 **Reused on 2026-10-01** for the paper's five sites (SJER, SOAP, TEAK, WREF,
 ABBY) by the
-[censused-subplot precision study](../results/census-support-results.md),
-with the 2021 LiDAR year as the exact census year and one geometry amendment
-recorded under Geometry and Boundaries. HARV and BART stay retired.
+[censused-subplot precision study](../results/census-support-results.md).
+For the paper the headline support of a plot is its nearest all-growth-forms
+census within four years of the 2021 flights, joined by census event (all
+measurements of the event, whatever their date); the exact 2021 census is a
+check. Amendments are recorded under Geometry and Boundaries and Scoring
+Contract. HARV and BART stay retired.
 
 This is a score-blind reference audit, not a detector comparison. Preserve all
 historical inputs and rectangular scores. HARV remains development; BART is
@@ -69,6 +72,15 @@ recall. Precision counts only detections inside the interior. Unsampled
 quadrants are never precision denominators. Even inside sampled polygons,
 unmatched detections can represent trees outside the target population;
 reference-relative precision is not independently verified tree precision.
+
+Missing-reference policy (amendment of 2026-10-01): subplot exclusion. A
+census target that is not a usable reference (no usable mapped position or
+height, a flagged or duplicate record) still stands in its subplot, so every
+sampled subplot holding one is removed from the precision interior before
+erosion; for a merged 2 x 2 block that is the whole block. Recall keeps the
+references inside the remaining interior. A missing target whose subplot is
+unknown or not sampled makes the plot unscorable. Missing references are
+never imputed, and a declaration cannot clear them without this policy.
 
 Record geometry, event, population, uncertainty policy, input hashes and code
 identity with outputs. Reject stale support caches and mixed-support pooling.

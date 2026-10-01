@@ -1,0 +1,498 @@
+{
+  "name": "paper-2021-census-support-nearest-v1",
+  "rule": "nearest all-growth-forms census within 4 years of 2021",
+  "role": "headline",
+  "policy": "measured_subplots_uncertainty_interior_v1",
+  "join": "census_event",
+  "missing_reference_policy": "subplot_exclusion",
+  "resolved_blockers": ["datum_review_pending", "flight_provenance_pending"],
+  "evidence": {
+    "reviewed": "2026-10-01",
+    "resolves": ["datum_review_pending", "flight_provenance_pending"],
+    "datum": "Field named points come from the NEON locations API, which declares the geodetic datum WGS84 and gives UTM coordinates in each site's zone (EPSG:32611 at SJER, SOAP and TEAK; EPSG:32610 at WREF and ABBY). The 2021 discrete-LiDAR tiles carry the same EPSG in their headers, and the NEON L3 processing reports state that all products are referenced to ITRF00 and projected to that UTM zone. The ITRF00 and WGS84 realizations differ at the centimetre level, far below the 4 m matching tolerance and the 0.5-1 m uncertainty margin applied to every footprint and mapped stem. The vertical datum correction NEON lists (about 0.6 m) affects elevations only; the scorer uses heights above the frozen ground model.",
+    "flight": "Every clip comes from the sealed frozen root built from the RELEASE-2026 2021 tiles of one flight campaign per site, listed below from NEON's L3 discrete-LiDAR processing reports. Tower and distributed plots of a site share that campaign; the census events admitted are dated within four years of it.",
+    "flights": [
+      {
+        "site": "SJER",
+        "campaign": "2021_SJER_5",
+        "sensor": "RIEGL Q780 2220855, payload P3C1",
+        "flight_days": "2021-03-31",
+        "source": "2021_SJER_5_L3_discrete_lidar_processing.pdf",
+        "sha256": "a38818efcdd755fe299244fd2880e8f8ffb49eb2e39325faf357af301156ceb4"
+      },
+      {
+        "site": "SOAP",
+        "campaign": "2021_SOAP_5",
+        "sensor": "Teledyne Optech Galaxy Prime 5060445, payload P1C2",
+        "flight_days": ["2021-07-12", "2021-07-13"],
+        "source": "2021_SOAP_5_L3_discrete_lidar_processing.pdf",
+        "sha256": "99f914e8c31bf338f744d943e3f4ec7ab286b28719caaf839f9ef6a97f788a81"
+      },
+      {
+        "site": "TEAK",
+        "campaign": "2021_TEAK_5",
+        "sensor": "Teledyne Optech Galaxy Prime 5060445, payload P1C2",
+        "flight_days": ["2021-07-13", "2021-07-14"],
+        "source": "2021_TEAK_5_L3_discrete_lidar_processing.pdf",
+        "sha256": "756471f8972e8ad35ddfbd161ec56ed87f3f4a16f237d4fab6c6b91e6f296d43"
+      },
+      {
+        "site": "WREF",
+        "campaign": "2021_WREF_4",
+        "sensor": "Teledyne Optech Galaxy Prime 5060445, payload P1C2",
+        "flight_days": ["2021-07-18", "2021-07-19", "2021-07-23", "2021-07-24"],
+        "source": "NEON 2021 L3 discrete-LiDAR processing report, as recorded in results/pacific-northwest-extension-results.md"
+      },
+      {
+        "site": "ABBY",
+        "campaign": "2021_ABBY_4",
+        "sensor": "Teledyne Optech Galaxy Prime 5060445, payload P1C2",
+        "flight_days": ["2021-07-19", "2021-07-24"],
+        "source": "NEON 2021 L3 discrete-LiDAR processing report, as recorded in results/pacific-northwest-extension-results.md"
+      }
+    ]
+  },
+  "admitted": [
+    {
+      "site": "SJER",
+      "plot": "SJER_002",
+      "event": "vst_SJER_2022",
+      "year": 2022,
+      "support_id": "ea52fadaf7fa3a7d383a74547e9808a35b1f9f5a41a3a2906f8f51fa37c9cd3b"
+    },
+    {
+      "site": "SJER",
+      "plot": "SJER_052",
+      "event": "vst_SJER_2024",
+      "year": 2024,
+      "support_id": "0729e81c76d8bb44881b7909d3c58a7fe9d773343001e028942d79f633a7ad68"
+    },
+    {
+      "site": "SJER",
+      "plot": "SJER_053",
+      "event": "vst_SJER_2024",
+      "year": 2024,
+      "support_id": "294d1353ade6902738820a429ce68bec859ab1adfa4239603c763b04d3962dd7"
+    },
+    {
+      "site": "SJER",
+      "plot": "SJER_054",
+      "event": "vst_SJER_2024",
+      "year": 2024,
+      "support_id": "2d346992d9d2b02f06584ba5c1d1b629699783af8399d3cae7ed6cb396b4bd5a"
+    },
+    {
+      "site": "SOAP",
+      "plot": "SOAP_046",
+      "event": "vst_SOAP_2023",
+      "year": 2023,
+      "support_id": "8a5fe237c8cca87b5ad9b95ec2b0e31395ac72229690e05f5779b8b85feba150"
+    },
+    {
+      "site": "SOAP",
+      "plot": "SOAP_052",
+      "event": "vst_SOAP_2023",
+      "year": 2023,
+      "support_id": "c0131139bb44dfdda02e0a6f1181ecfd788e9936ad01d47c743b3cebec330f04"
+    },
+    {
+      "site": "SOAP",
+      "plot": "SOAP_056",
+      "event": "vst_SOAP_2023",
+      "year": 2023,
+      "support_id": "e0c551a7421df5ef015fafa3233139727b0e592951cb8df7194944c49c5dd158"
+    },
+    {
+      "site": "TEAK",
+      "plot": "TEAK_002",
+      "event": "vst_TEAK_2022",
+      "year": 2022,
+      "support_id": "054d020a7f2d3639e5fb9874b31674eafd5f019b64d9bcebe431c056a4e68768"
+    },
+    {
+      "site": "TEAK",
+      "plot": "TEAK_003",
+      "event": "vst_TEAK_2022",
+      "year": 2022,
+      "support_id": "ea21a913eca28d9c145068a1c9c539505cf16b215e48c10a459bb5a065ca22be"
+    },
+    {
+      "site": "TEAK",
+      "plot": "TEAK_007",
+      "event": "vst_TEAK_2022",
+      "year": 2022,
+      "support_id": "f1eefadf52ec93c9b743f409a8735c1390a918657284aed62b11075aac4e917b"
+    },
+    {
+      "site": "TEAK",
+      "plot": "TEAK_013",
+      "event": "vst_TEAK_2022",
+      "year": 2022,
+      "support_id": "e0da00d84e35a30d437000943faaad2e536feac3d94a0a0a9f97c22d37b9364e"
+    },
+    {
+      "site": "TEAK",
+      "plot": "TEAK_017",
+      "event": "vst_TEAK_2022",
+      "year": 2022,
+      "support_id": "285d03d4954c1136b48d580f9d6017d82a743da3b04c4a5d75237c074fe1711e"
+    },
+    {
+      "site": "TEAK",
+      "plot": "TEAK_018",
+      "event": "vst_TEAK_2022",
+      "year": 2022,
+      "support_id": "05b763fa6a12a2c4de19e3177c7ac9773b3001efde6b16c4a075ec574421fcee"
+    },
+    {
+      "site": "TEAK",
+      "plot": "TEAK_020",
+      "event": "vst_TEAK_2022",
+      "year": 2022,
+      "support_id": "64f6737a640a47b6c8ec5e64804064251fd5e9bed1f27c98edda006579a66496"
+    },
+    {
+      "site": "TEAK",
+      "plot": "TEAK_043",
+      "event": "vst_TEAK_2021",
+      "year": 2021,
+      "support_id": "7aa56c8fcf1b808ba72a777c3d05adb7b3892efaa5a5045476d9a1421454db4a"
+    },
+    {
+      "site": "TEAK",
+      "plot": "TEAK_047",
+      "event": "vst_TEAK_2021",
+      "year": 2021,
+      "support_id": "a415a8e3daf62cef40629d0f645c114071de210a0d6073126f142efec374d299"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_001",
+      "event": "vst_WREF_2022",
+      "year": 2022,
+      "support_id": "5ce3b612d0c7ebda6880577a46cd7809db5b8251c14a6903ecdd7cbcb55484e4"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_003",
+      "event": "vst_WREF_2022",
+      "year": 2022,
+      "support_id": "b7bd09f46142d14be27d22bb4b0e67618b608dc6d3a1313c0116a1e59d9e12d9"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_004",
+      "event": "vst_WREF_2022",
+      "year": 2022,
+      "support_id": "f0d47b7972ffb0def9777db902e91ea01e00767bf2db2a80d116cc86e29d8c27"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_005",
+      "event": "vst_WREF_2022",
+      "year": 2022,
+      "support_id": "76b5a8ffcb6e9640a170c2eeaa2a18274c01609e31fde065f73209bb546f2b46"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_007",
+      "event": "vst_WREF_2022",
+      "year": 2022,
+      "support_id": "06cd49f641c5231185502f16c8a3e42255bb53d15100d762e6f5d43df169ecbe"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_008",
+      "event": "vst_WREF_2022",
+      "year": 2022,
+      "support_id": "415f5854cb466929e537ef6165ab715858e5fe0ea92fa3e6d58cc87d6c451acb"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_009",
+      "event": "vst_WREF_2022",
+      "year": 2022,
+      "support_id": "a30ae3b2fd270c3eee0353c2df3c7f883733925e9c2811bed5edb53bc5b7804d"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_011",
+      "event": "vst_WREF_2022",
+      "year": 2022,
+      "support_id": "a0b71b4dc6ab5236cc44139337802bf6767f323a1bfe778d9b2956d2b50bcfb6"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_012",
+      "event": "vst_WREF_2022",
+      "year": 2022,
+      "support_id": "05149880335e9773b8b96b3e9b517064c8b2514c0c4eb9b1ab73a6acc6a28dc3"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_014",
+      "event": "vst_WREF_2022",
+      "year": 2022,
+      "support_id": "c3c0478bbbc40db06f85897a940e01eb4b196ad024d58ae5a91dbc081149a5e2"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_071",
+      "event": "vst_WREF_2020",
+      "year": 2020,
+      "support_id": "b1cbc3d20ec0c3170ca178ae936992fb5fdefa8e4b7922617812aae8f83eebdf"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_072",
+      "event": "vst_WREF_2020",
+      "year": 2020,
+      "support_id": "0a0bdd65cdafa46399d4855603a342edab36b361c78f65d4d25466074f599590"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_073",
+      "event": "vst_WREF_2021",
+      "year": 2021,
+      "support_id": "c2dc4cfc687a794cc54fbe7d1fdf32caf4a1c10385dc1ab878d8a4fe5f3455f6"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_075",
+      "event": "vst_WREF_2021",
+      "year": 2021,
+      "support_id": "a6afe15d1f3412cdc6d52b5daf27f4287414933e20e39ee6fe9a01a3b3f5bbcc"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_076",
+      "event": "vst_WREF_2021",
+      "year": 2021,
+      "support_id": "e50096d930d1e31039f235383cd53c4fa22f012281194062f013a748722f489e"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_077",
+      "event": "vst_WREF_2021",
+      "year": 2021,
+      "support_id": "3f1169bbdf5e78696ad2010ec2d0ce936a0e6b55bf44c2cb2b66040f4f53477d"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_078",
+      "event": "vst_WREF_2020",
+      "year": 2020,
+      "support_id": "5f71ade9a9d81a9e8997520ddb516657a9c0f9eb394e6dd1dafa8198e867014d"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_079",
+      "event": "vst_WREF_2020",
+      "year": 2020,
+      "support_id": "36066b466ce3d79b99679135e94f183ca887f8bc788517f14f6ccd4fe86e8221"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_081",
+      "event": "vst_WREF_2020",
+      "year": 2020,
+      "support_id": "0bbabf7ff570bd57184be5f9ea7d5960605d114e3f3aacc4967ad82b4cbfea5a"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_082",
+      "event": "vst_WREF_2020",
+      "year": 2020,
+      "support_id": "011de8ae4fbd081178cb2ddbf625b5a63aa9ae4f8b78f0d760fbb7998e19b4e0"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_083",
+      "event": "vst_WREF_2020",
+      "year": 2020,
+      "support_id": "813c8fad790f4426eab4dd047877a5c0f9a52addd4944447067330efa9445fd4"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_084",
+      "event": "vst_WREF_2020",
+      "year": 2020,
+      "support_id": "2499b841a99847fe6d7675b36978126c27d2b6f33755f5f26a44ec7640849efe"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_085",
+      "event": "vst_WREF_2020",
+      "year": 2020,
+      "support_id": "149889ba2468785f881b9e72c8d0b9b1f7a5133c0e01659d90a407794cc2df59"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_086",
+      "event": "vst_WREF_2020",
+      "year": 2020,
+      "support_id": "d560f714590c58f129c0e5c47df2bf5618455d8bc639760b0fc056b036345727"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_087",
+      "event": "vst_WREF_2020",
+      "year": 2020,
+      "support_id": "e0e0ff5b0a16395820b2653a000ba7771e50af1b34fe462ad16df3d2e8b4634a"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_088",
+      "event": "vst_WREF_2020",
+      "year": 2020,
+      "support_id": "855133806bbe6c016d490b1ffb8ba39094775761abef31b0c1c13b75a60664fe"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_089",
+      "event": "vst_WREF_2020",
+      "year": 2020,
+      "support_id": "c2fa0a2082499545a4cc9add405595e5b25654a57b2ece0dcb1a0254945a38c7"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_001",
+      "event": "vst_ABBY_2024",
+      "year": 2024,
+      "support_id": "af70d3a52104e07f401b547ff3720d6d8f74d0e9918d0f96c300cd5e8b116196"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_002",
+      "event": "vst_ABBY_2024",
+      "year": 2024,
+      "support_id": "466e3e6728319af83ea5e53ac7728a2eafd38d6165fa5fafd2b3f0c356edb557"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_003",
+      "event": "vst_ABBY_2024",
+      "year": 2024,
+      "support_id": "609c144f1290fc79cfe0e10c73d0c71464229659f3532f712a8bbe1a70663b22"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_004",
+      "event": "vst_ABBY_2024",
+      "year": 2024,
+      "support_id": "1923ba3cb67e3aca4aefaf0e1a2480ca654c6e98f97dfc1ae391bdfd0d811ea2"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_008",
+      "event": "vst_ABBY_2024",
+      "year": 2024,
+      "support_id": "91c32d9b9645f03627a26cc8417a77525fcd3e36c8e719849cf6420d780612e0"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_010",
+      "event": "vst_ABBY_2024",
+      "year": 2024,
+      "support_id": "52a9a852e1b73dd344bc1d66fccbda56664c89caa8da12cf73ead607034b7642"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_013",
+      "event": "vst_ABBY_2024",
+      "year": 2024,
+      "support_id": "1e148a09e8ab7627567a50c6fc2a31fca5d66707c2b25f6317d33bb35f0742c8"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_014",
+      "event": "vst_ABBY_2024",
+      "year": 2024,
+      "support_id": "1f306a5b01673b63364fc8f0c3366ae7ec77afd072f7c084e64b2c74cc0c4af5"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_017",
+      "event": "vst_ABBY_2024",
+      "year": 2024,
+      "support_id": "b13b482eb53eaa1760251ed38775cfcdff0b19a07f6b1da5d668a41f2cb2c761"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_061",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "4406a6f00677a6db638cc5cc45798c24262aa443c7c51bf8847ee53bdc39da06"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_062",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "4a682302af44f7046a7751ba98d6d0b67111e6f0a70d4b434ad54528337457e9"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_063",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "59a6e24c4168a716bb192d226e5cbd357d3201cf9c6aefa476a41423e1687612"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_064",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "094c0062b5157bad908715377c8434188c6dc7bf8c7f8c62a99b3200866d5855"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_067",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "04c0b1deff7ce4735a6494f2a3cf0b55561ff44f35856111bb24a087ee88ba0b"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_068",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "0520a2e7c0e8dbebed65590b6fca7cb8a365f49c24b5d85ff422c4b9c1ed6420"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_069",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "9fad461354f503fba23bf78aa5c221f4ea7492a31c4700358c752bbe37846a1b"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_070",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "84559178b83e0eb1cbeb34bc518223aca00271e7a6262a7de9e970956c5ec035"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_073",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "a0adf987335568aa1532ccdd2feffe7ef7627a9c7d41b7c7f137e2ebaf52f48e"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_076",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "2e6d573e40ac0521d9b097b73123ed24647d00d3b40232d045ce946b80fec6e7"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_077",
+      "event": "vst_ABBY_2024",
+      "year": 2024,
+      "support_id": "2a57d9ae45df9631724b32ce7fd50f5a38ee1241dac5989fd6a4f4c356afa28c"
+    }
+  ]
+}
