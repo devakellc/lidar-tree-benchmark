@@ -185,9 +185,17 @@ ext_download_audit <- function(files, tiles, needed) {
 }
 
 # Census remarks recording forest management. Word-bounded so that, e.g.,
-# "No longer falls within reduced nested size" is not read as thinning.
-EXT_DISTURBANCE <- paste0("\\bthin(ning|ned)?\\b|\\bharvest(ed|ing)?\\b|",
-                          "\\blogg(ed|ing)\\b|clear.?cut|\\bcut (down|during|from)\\b|\\bfelled\\b")
+# "No longer falls within reduced nested size" is not read as thinning, and
+# tolerant of the misspellings in the ABBY records ("Thining", "thinnng").
+# Self-thinning and crown or branch condition notes are not management.
+EXT_DISTURBANCE <- paste0("\\bthin+(i?n+g|ed)\\b|\\bharvest(ed|ing)?\\b|\\blogg(ed|ing)\\b|",
+                          "clear.?cut|\\bclearing\\b|\\bsever(ed)?\\b|\\bbole cut\\b|^cut\\.?$|",
+                          "\\bcut (down|during|from)\\b|\\bfelled\\b")
+EXT_NOT_DISTURBANCE <- "self-thinning|^\\s*thinning (crown|branches|lower branches)"
+ext_is_disturbance <- function(remarks) {
+  !is.na(remarks) & grepl(EXT_DISTURBANCE, remarks, ignore.case = TRUE) &
+    !grepl(EXT_NOT_DISTURBANCE, remarks, ignore.case = TRUE)
+}
 
 # Per plot, before `cutoff` (a Date): records whose remarks match
 # EXT_DISTURBANCE, and individuals recorded as removed, with how many of those
@@ -196,7 +204,7 @@ ext_disturbance_by_plot <- function(ai, plots, cutoff) {
   d <- as.Date(substr(ai$date, 1, 10))
   pre <- ai[!is.na(d) & d < cutoff & ai$plotID %in% plots, , drop = FALSE]
   pre_d <- d[!is.na(d) & d < cutoff & ai$plotID %in% plots]
-  hit <- !is.na(pre$remarks) & grepl(EXT_DISTURBANCE, pre$remarks, ignore.case = TRUE)
+  hit <- ext_is_disturbance(pre$remarks)
   rem <- grepl("^Removed", pre$plantStatus)
   big <- unique(ai$individualID[!is.na(ai$stemDiameter) & ai$stemDiameter >= 10])
   do.call(rbind, lapply(sort(unique(plots)), function(p) {
@@ -223,9 +231,14 @@ ext_core_status_history <- function(ai, cs, disturb, cutoff) {
   a$d <- as.Date(substr(a$date, 1, 10))
   a <- a[!is.na(a$d), , drop = FALSE]
   pre <- a[a$d < cutoff, , drop = FALSE]
-  pre <- pre[order(pre$individualID, pre$d), , drop = FALSE]
-  nonlive <- tapply(!grepl("^Live", pre$plantStatus), pre$individualID, any)
-  last <- pre[!duplicated(pre$individualID, fromLast = TRUE), , drop = FALSE]
+  # One row per bole: a tree is live on a date if any of its boles is.
+  pre$live <- grepl("^Live", pre$plantStatus)
+  pre <- pre[order(pre$individualID, pre$d, pre$live), , drop = FALSE]
+  key <- paste(pre$individualID, pre$d)
+  day_live <- tapply(pre$live, key, any)
+  day <- pre[!duplicated(key, fromLast = TRUE), , drop = FALSE]  # Live bole last
+  nonlive <- tapply(!day_live[paste(day$individualID, day$d)], day$individualID, any)
+  last <- day[!duplicated(day$individualID, fromLast = TRUE), , drop = FALSE]
   scored <- a[as.integer(format(a$d, "%Y")) == cs$meas_year[match(a$individualID, cs$individualID)], ,
               drop = FALSE]
   scored_end <- tapply(scored$d, scored$individualID, max)

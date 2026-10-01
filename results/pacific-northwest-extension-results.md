@@ -108,18 +108,22 @@ sites. Historical D17 results keep their original 699-stem population.
 
 ABBY is managed forest, and its census remarks record thinning before the
 flight. Under the adopted gate, 14 of the 25 admitted ABBY plots carry
-thinning or harvest remarks: 11 of the 13 tower plots, thinned mainly between
-July and November 2018, and distributed plots ABBY_003, 017 and 019, thinned
-in autumn 2019. In those plots 163 individuals were recorded as removed before
-the flight. The thinning took small stems: only two of them ever reached
-10 cm DBH (10.1 and 10.5 cm), none was taller than 8.9 m, and none is in the
-reference. Tower plots were re-censused in 2021. At ABBY_017 the 18 reference
-stems were last measured in October 2019, during the bout that also recorded
-the thinning, and are recorded live in 2024. ABBY_007 was clear-cut in spring
-2017, removing trees up to 50 m tall; it holds no live mapped tree, so no gate
-admits it. WREF's only pre-flight remarks are five 2017 entries in four tower
-plots describing branch thinning and one harvested stump; no WREF individual
-was removed.
+thinning, clearing or harvest remarks: 11 of the 13 tower plots, mostly
+recorded at the July–November 2018 census, and distributed plots ABBY_003,
+017 and 019, recorded at the 2017 or 2019 censuses. Remark dates are census
+visits, not thinning dates. In those 14 plots 162 individuals were recorded
+as removed before the flight; one more removal, at ABBY_014, is a taxon
+correction. The thinning took small stems: only two removed individuals ever
+reached 10 cm DBH (10.1 and 10.5 cm), none was taller than 8.9 m, and none
+is in the reference. Tower plots were re-censused in 2021. At ABBY_017, 18 of
+the 24 reference stems are scored from October 2019 records, taken in the
+bout that also recorded the thinning, and all 18 were re-measured live in
+November 2024. One ABBY_070 stem is scored from a live record taken the day
+before a clearing remark. ABBY_007 was clear-cut in spring 2017, removing
+trees up to 50 m tall; it holds no live mapped tree, so no gate admits it.
+WREF's only pre-flight management remark is a 2017 "Harvested" note on a
+dead 1.9 m stump in WREF_075. Crown- and branch-thinning notes in three other
+tower plots are not counted, and no WREF individual was removed.
 
 `neon_ground_truth.R` scores a stem from its record nearest 2021, so a few
 reference stems carry an earlier record that is not live. Under the adopted
