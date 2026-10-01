@@ -42,6 +42,69 @@ test_that("agl_guard: empty in -> 0-row; partial off-DTM -> AGL; all off-DTM -> 
   expect_null(agl_guard(off, dtm))
 })
 
+# A whole-scene export as ff3d_arm.py writes it: the input rows in order, one
+# block (UserData 0), instance IDs in PointSourceID (0 = background) and the
+# source row index in ff3d_row.
+write_scene_pair <- function(dir) {
+  set.seed(3)
+  src <- data.frame(X = round(runif(60, 0, 30), 3), Y = round(runif(60, 0, 30), 3),
+                    Z = round(runif(60, 0, 20), 3))
+  src$Z[1:20] <- pmin(src$Z[1:20], 17); src$Z[21:40] <- pmin(src$Z[21:40], 11)
+  src$Z[c(1, 31)] <- c(18, 12)                       # one apex per instance
+  src$Z[41:60] <- 19                                 # taller background rows
+  base <- suppressMessages(lidR::LAS(src))
+  inp <- file.path(dir, "rawground.laz")
+  lidR::writeLAS(base, inp)
+  las <- base                                        # lidR registers extra bytes
+  las@data$UserData <- 0L                            # reliably only on in-memory LAS
+  las@data$PointSourceID <- as.integer(rep(c(1, 2, 0), each = 20))
+  las@data$ff3d_row <- 0:59
+  las <- lidR::add_lasattribute(las, las@data$ff3d_row, "ff3d_row", "source row")
+  out <- file.path(dir, "scene.laz")
+  lidR::writeLAS(las, out)
+  list(input = inp, output = out, las = las)
+}
+
+test_that("ff3d_scene_check accepts an indexed whole-scene export and rejects breaches", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  x <- write_scene_pair(d)
+  expect_true(ff3d_scene_check(x$output, x$input))
+  det <- ff3d_collapse(x$output)                     # one block: no cross-block merge
+  expect_equal(nrow(det), 2L)
+  expect_setequal(det$z, c(18, 12))                  # background rows never form a tree
+  bad <- function(edit, msg) {
+    las <- edit(x$las); f <- tempfile(fileext = ".laz", tmpdir = d)
+    lidR::writeLAS(las, f); expect_error(ff3d_scene_check(f, x$input), msg)
+  }
+  bad(function(l) { l@data$ff3d_row <- rev(l@data$ff3d_row); l }, "in order")
+  bad(function(l) { l@data$UserData[5] <- 1L; l }, "single block")
+  bad(function(l) { l@data$Z[7] <- l@data$Z[7] + 0.01; l }, "changed coordinates")
+  bad(function(l) l[2:60], "row count")
+})
+
+test_that("run provenance pins the source revision, its code changes and file hashes", {
+  skip_if(Sys.which("git") == "", "git not on PATH")
+  d <- tempfile(); dir.create(file.path(d, "configs"), recursive = TRUE)
+  on.exit(unlink(d, recursive = TRUE))
+  writeLines("a = 1", file.path(d, "configs", "model.py"))
+  git <- function(...) system2("git", c("-C", d, ...), stdout = FALSE, stderr = FALSE)
+  git("init", "-q"); git("add", "."); git("-c", "user.email=t@t", "-c", "user.name=t",
+                                          "commit", "-q", "-m", "init")
+  clean <- git_source_identity(d, "configs")
+  expect_match(clean$commit, "^[0-9a-f]{40}$")
+  expect_false(clean$modified)
+  dir.create(file.path(d, "data")); writeLines("scratch", file.path(d, "data", "list.txt"))
+  expect_identical(git_source_identity(d, "configs"), clean)   # run scratch is ignored
+  writeLines("a = 2", file.path(d, "configs", "model.py"))     # an applied patch
+  patched <- git_source_identity(d, "configs")
+  expect_true(patched$modified)
+  expect_false(identical(patched$modification_md5, clean$modification_md5))
+  expect_error(git_source_identity(file.path(d, "missing")), "source revision")
+  h <- file_digests(file.path(d, "configs", "model.py"))
+  expect_identical(names(h), "model.py"); expect_match(h[[1]], "^[0-9a-f]{64}$")
+  expect_error(file_digests(file.path(d, "none.pth")), "Missing run input")
+})
+
 # Spec §6 gated live smoke: push one real cylinder through the container and prove
 # the centering-offset round-trip (the "fragile step", §5) — output coords land in
 # the input UTM bbox, not centered near 0. Portable + opt-in: skips unless the

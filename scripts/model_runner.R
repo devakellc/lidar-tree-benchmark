@@ -139,3 +139,36 @@ run_docker_arm <- function(image, input, out_csv, extra = character(),
   if (is.null(det)) return(NULL)                     # schema failure -> skip cell
   .valid_detection_or_null(det)
 }
+
+## ---- run provenance for GPU arms -----------------------------------------
+# Identity of what a GPU arm run depended on, written next to its outputs: the
+# container image ID, the upstream source revision plus a hash of its local
+# modifications (e.g. an applied adapter patch), and checkpoint/code hashes.
+docker_image_id <- function(image, docker = "docker") {
+  out <- tryCatch(suppressWarnings(system2(docker, shQuote(c("image", "inspect",
+    image, "--format", "{{.Id}}")), stdout = TRUE, stderr = TRUE)), error = function(e) NULL)
+  if (is.null(out) || !is.null(attr(out, "status")) || length(out) != 1L ||
+      !startsWith(out, "sha256:"))
+    stop("Missing Docker image: ", image)
+  out
+}
+
+# `paths` limits the modification hash to code, so run scratch inside the
+# checkout (staged data lists) does not change the source identity.
+git_source_identity <- function(dir, paths = ".") {
+  git <- function(...) tryCatch(suppressWarnings(system2("git", shQuote(c("-C", dir, ...)),
+    stdout = TRUE, stderr = FALSE)), error = function(e) NULL)
+  head <- git("rev-parse", "HEAD")
+  if (is.null(head) || !is.null(attr(head, "status")) || length(head) != 1L)
+    stop("Cannot read the source revision of ", dir)
+  diff <- git("diff", "HEAD", "--", paths)
+  list(commit = head, modified = length(diff) > 0L,
+       modification_md5 = digest::digest(paste(diff, collapse = "\n"), algo = "md5",
+                                         serialize = FALSE))
+}
+
+file_digests <- function(paths, algo = "sha256") {
+  if (any(!file.exists(paths))) stop("Missing run input: ", paths[!file.exists(paths)][1])
+  setNames(as.list(vapply(paths, function(p) digest::digest(file = p, algo = algo),
+                          character(1))), basename(paths))
+}

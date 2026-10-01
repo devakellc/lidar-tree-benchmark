@@ -311,3 +311,19 @@ read_instances_ply <- function(ply_path, id_field = "treeID",
   if (!id_field %in% names(p)) return(NULL)
   instances_to_det(p, id_field = id_field, x = x, y = y, z = z)
 }
+
+# Whole-scene ForestFormer3D export contract (ff3d_arm.py with one input LAZ):
+# one output row per input row, in input order (ff3d_row 0..n-1), unchanged
+# coordinates and a single block (UserData 0). Stops on any breach.
+ff3d_scene_check <- function(out_laz, in_laz) {
+  out <- lidR::readLAS(out_laz); src <- lidR::readLAS(in_laz)
+  o <- out@data; s <- src@data
+  if (nrow(o) != nrow(s)) stop("Whole-scene output row count differs from its input")
+  if (nrow(o) && (!"ff3d_row" %in% names(o) ||
+      !identical(as.numeric(o$ff3d_row), as.numeric(seq_len(nrow(s)) - 1))))
+    stop("Whole-scene output rows are not the input rows in order")
+  if (!identical(o$X, s$X) || !identical(o$Y, s$Y) || !identical(o$Z, s$Z))
+    stop("Whole-scene output changed coordinates")
+  if (any(o$UserData != 0L)) stop("Whole-scene output must be a single block")
+  invisible(TRUE)
+}
