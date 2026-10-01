@@ -259,7 +259,8 @@ scripts and configuration.
 - [scripts](scripts/) — acquisition, processing, scoring, and export drivers.
 - [gpu](gpu/) — model adapters and runtime setup instructions.
 - [results](results/) — committed study reports and interpretation limits.
-- [docs](docs/) — methodology, study protocols, and execution guides.
+- [docs](docs/) — methodology, study protocols, execution guides, and the
+  [paper proposal](docs/paper-proposal.md).
 - [data](data/) — tracked GeoJSON site, plot, stem, and AOI context.
 - [tests](tests/) — regression tests for scoring, data handling, and workflows.
 
