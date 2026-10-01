@@ -126,3 +126,59 @@ test_that("frozen_scope reads the declared plots from a sealed root only", {
   expect_equal(nrow(s$gt), 1L)
   expect_error(frozen_scope(d, "A", list(POP = "relaxed"), gt), "not declared")
 })
+
+test_that("resumable results are tied to one sealed root and population", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  root <- file.path(d, "root"); dir.create(root)
+  writeLines("a", file.path(root, "clip_manifest.csv"))
+  scope <- list(root = root, population = "adopted")
+  res <- file.path(d, "results.csv")
+  frozen_resume_guard(res, scope)                       # fresh: writes the sidecar
+  expect_true(file.exists(paste0(res, ".frozen")))
+  writeLines("x", res)
+  expect_silent(frozen_resume_guard(res, scope))
+  expect_error(frozen_resume_guard(res, list(root = root, population = "relaxed")),
+               "another frozen root")
+  writeLines("b", file.path(root, "clip_manifest.csv"))
+  expect_error(frozen_resume_guard(res, scope), "another frozen root")
+  unlink(paste0(res, ".frozen"))                        # legacy results, no sidecar
+  expect_error(frozen_resume_guard(res, scope), "move them aside")
+})
+
+test_that("artifact directories carry the stamp of the root that made them", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  root <- file.path(d, "root"); dir.create(root)
+  writeLines("a", file.path(root, "clip_manifest.csv"))
+  inst <- file.path(d, "ams3d_instances")
+  expect_false(frozen_stamp_check(inst, root, strict = FALSE))
+  expect_error(frozen_stamp_check(inst, root), "re-run the arm")
+  frozen_stamp(inst, root)                               # new directory
+  writeLines("x", file.path(inst, "P_native.laz"))
+  expect_true(frozen_stamp_check(inst, root))
+  expect_silent(frozen_stamp(inst, root))                # same root: keep writing
+  writeLines("b", file.path(root, "clip_manifest.csv"))  # another freeze
+  expect_error(frozen_stamp_check(inst, root), "not made on the frozen root")
+  expect_error(frozen_stamp(inst, root), "move it aside")
+  legacy <- file.path(d, "legacy"); dir.create(legacy)
+  writeLines("x", file.path(legacy, "P_native.laz"))    # historical, unstamped
+  expect_error(frozen_stamp(legacy, root), "move it aside")
+  empty <- file.path(d, "empty"); dir.create(empty)
+  expect_silent(frozen_stamp(empty, root))
+  expect_error(frozen_stamp(inst, file.path(d, "none")), "No sealed frozen root")
+})
+
+test_that("a clip is canonical whatever order and gpstime ulps it was read with", {
+  set.seed(7)
+  pts <- data.frame(X = round(runif(400, 0, 50), 3), Y = round(runif(400, 0, 50), 3),
+                    Z = round(runif(400, 0, 30), 3), gpstime = 3e5 + runif(400),
+                    ReturnNumber = 1L, NumberOfReturns = 1L, Classification = 1L)
+  a <- LAS(pts); sf::st_crs(a) <- 32611
+  shuffled <- pts[sample(nrow(pts)), ]
+  shuffled$gpstime <- shuffled$gpstime * (1 + 2e-16)       # one-ulp read noise
+  b <- LAS(shuffled); sf::st_crs(b) <- 32611
+  frozen_canonical(a); frozen_canonical(b)
+  expect_identical(a@data, b@data)
+  set.seed(1); da <- decimate_points(a, homogenize(density = 0.05, res = 5))
+  set.seed(1); db <- decimate_points(b, homogenize(density = 0.05, res = 5))
+  expect_identical(da@data, db@data)
+})

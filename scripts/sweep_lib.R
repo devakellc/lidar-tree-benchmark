@@ -24,6 +24,31 @@ BUF       <- 25             # LiDAR clip buffer beyond the plot core (edge crown
 # requires event-specific sampled-subplot support; retain these legacy bounds.
 plot_half <- function(plotType) ifelse(plotType == "tower", 20, 10)
 
+## ---- per-plot parallel map on fresh worker processes -----------------------
+# Drop-in for parallel::mclapply in every arm that runs lasR. Forked workers
+# inherit the parent's GDAL/PROJ state, and lasR's GeoPackage, raster and JSON
+# I/O then fails at random (2-5% of calls in a 16-way stress test, with
+# sqlite, "cannot open SpatRaster" and JSON parse errors); arms that catch the
+# error drop the cell silently. Sequential runs and fresh PSOCK workers never
+# failed. Workers attach the caller's packages, run lidR single-threaded and
+# receive every global object; a closure FUN carries its own environment.
+plot_lapply <- function(X, FUN, ..., mc.cores = 1L, mc.preschedule = FALSE) {
+  cores <- min(as.integer(mc.cores), length(X))
+  if (cores <= 1L) return(lapply(X, FUN, ...))
+  cl <- parallel::makePSOCKcluster(cores)
+  on.exit(parallel::stopCluster(cl), add = TRUE)
+  parallel::clusterCall(cl, function(pkgs, job, opts) {
+    for (p in pkgs) suppressMessages(library(p, character.only = TRUE))
+    if (nzchar(job)) Sys.setenv(CLAUDE_JOB_DIR = job)
+    options(opts)
+    if ("lidR" %in% pkgs) lidR::set_lidr_threads(1L)
+    invisible(NULL)
+  }, rev(.packages()), Sys.getenv("CLAUDE_JOB_DIR"), options()[grep("^lidR", names(options()))])
+  globals <- setdiff(ls(globalenv(), all.names = TRUE), ".Random.seed")
+  parallel::clusterExport(cl, globals, envir = globalenv())
+  parallel::parLapplyLB(cl, X, FUN, ...)
+}
+
 ## ---- variable-window allometry (Popescu & Wynne), clamped to [lo, hi] -----
 ws_factory <- function(a, lo = 3, hi = 5) {
   force(a); force(lo); force(hi)
