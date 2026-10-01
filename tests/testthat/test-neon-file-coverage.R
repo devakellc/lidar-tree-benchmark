@@ -25,6 +25,46 @@ test_that("archived file metadata excludes signed URLs and detects changed ident
   expect_error(neon_archive_listing(x, path), "differs")
 })
 
+test_that("cloud listings keep crc32c identities and drop signed URLs", {
+  d <- tempfile(); dir.create(d)
+  on.exit(unlink(d, recursive = TRUE))
+  f <- data.frame(name = "NEON_D16_WREF_DP1_580000_5075000_classified_point_cloud_colorized.laz",
+                  size = 9, md5 = NA_character_, crc32 = NA_character_, crc32c = "e3069283",
+                  url = "https://example.test/?secret=hidden")
+  x <- list(productCode = "DP1.30003.001", siteCode = "WREF", month = "2021-07",
+            release = "RELEASE-2026", files = f)
+  path <- file.path(d, "listing.json")
+  neon_archive_listing(x, path)
+  snap <- jsonlite::read_json(path, simplifyVector = TRUE)
+  expect_equal(names(snap$files), c("name", "size", "crc32c"))
+  expect_false(any(grepl("secret|hidden", readLines(path))))
+  expect_silent(neon_archive_listing(x, path))   # stable on re-archive
+  idx <- neon_tile_index(snap$files, "DP1.30003.001")
+  expect_equal(idx$crc32c, "e3069283")
+  expect_equal(idx$key, "580000_5075000")
+})
+
+test_that("mixed md5/crc32c listings re-archive stably and still detect changes", {
+  d <- tempfile(); dir.create(d)
+  on.exit(unlink(d, recursive = TRUE))
+  # Real shape: crc32c on tiles, md5 only on the readme. The readme name sorts
+  # after the tile in every collation, so the first row lacks md5 everywhere.
+  f <- data.frame(name = c("NEON_D16_WREF_DP1_580000_5075000_classified_point_cloud_colorized.laz",
+                           "NEON_D16_WREF_DP1_readme.txt"),
+                  size = c(9, 5), md5 = c(NA, "355b1bbfc96725cdce8f4a2708fda310"),
+                  crc32c = c("e3069283", NA), url = "https://example.test/?secret=hidden")
+  x <- list(productCode = "DP1.30003.001", siteCode = "WREF", month = "2021-07",
+            release = "RELEASE-2026", files = f)
+  path <- file.path(d, "listing.json")
+  neon_archive_listing(x, path)
+  snap <- jsonlite::read_json(path, simplifyVector = TRUE)
+  expect_setequal(names(snap$files), c("name", "size", "md5", "crc32c"))
+  expect_silent(neon_archive_listing(x, path))
+  expect_equal(neon_tile_index(snap$files, "DP1.30003.001")$crc32c, "e3069283")
+  x$files$crc32c[1] <- "00000000"
+  expect_error(neon_archive_listing(x, path), "differs")
+})
+
 test_that("coverage requires every tile across the buffered plot extent", {
   keys <- neon_required_tiles(500990, 4700990, 45)
   expect_setequal(keys, c("500000_4700000", "501000_4700000", "500000_4701000", "501000_4701000"))
