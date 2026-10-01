@@ -80,16 +80,76 @@ test_that("a clip is covered only when every intersected tile is listed", {
   expect_true(all(cv$tiles_listed))
 })
 
-test_that("the header tile is the one wholly holding the most admitted clips", {
+test_that("the header tile is the listed one wholly holding the most admitted clips", {
   f <- ext_fixture()
   inv <- ext_plot_inventory(f$gt, f$pc)
-  pick <- ext_header_tile(inv)
+  listed <- c("500000_4000000", "501000_4000000", "502000_4000000")
+  pick <- ext_header_tile(inv, listed)
   expect_equal(pick$key, "500000_4000000")
   expect_setequal(pick$plots, c("D1", "T1"))
+  # The best tile unlisted: fall back to a listed single-tile clip, or NULL.
+  inv2 <- rbind(inv, transform(inv[inv$plotID == "D1", ], plotID = "D3", easting = 501500))
+  expect_equal(ext_header_tile(inv2, listed[-1])$key, "501000_4000000")
+  expect_null(ext_header_tile(inv, listed[-1]))
   inv$admitted <- inv$plotID == "D2"              # D2 straddles two tiles
-  expect_error(ext_header_tile(inv), "single tile")
+  expect_null(ext_header_tile(inv, listed))
   inv$admitted <- FALSE
-  expect_error(ext_header_tile(inv), "No admitted")
+  expect_null(ext_header_tile(inv, listed))
+})
+
+test_that("a gate that admits nothing yields empty tables, not an error", {
+  f <- ext_fixture()
+  none <- f$gt; none$live <- FALSE
+  inv <- ext_plot_inventory(none, f$pc)
+  expect_equal(nrow(inv), 0)
+  expect_true(all(c("plotID", "n_core", "admitted") %in% names(inv)))
+  s <- ext_site_summary(inv, "X", "dbh10")
+  expect_equal(c(s$plots_admitted, s$stems_core_admitted), c(0, 0))
+  expect_equal(nrow(ext_core_stems(none, inv)), 0)
+})
+
+test_that("the preflight clip geometry matches the sweep's", {
+  skip_if_not_installed("lasR")
+  env <- new.env()
+  sys.source(file.path("..", "..", "scripts", "sweep_lib.R"), envir = env)
+  expect_equal(EXT_CLIP_BUF, env$BUF)
+  expect_equal(ext_core_half(c("tower", "distributed")), env$plot_half(c("tower", "distributed")))
+})
+
+test_that("disturbance remarks and removals are counted per plot before the cutoff", {
+  ai <- data.frame(
+    individualID = c("a", "a", "b", "b", "c", "d", "e"),
+    plotID = c("P1", "P1", "P1", "P1", "P1", "P2", "P2"),
+    date = c("2018-07-01", "2021-08-01", "2018-07-01", "2019-08-01", "2019-08-01",
+             "2019-08-01", "2022-08-01"),
+    plantStatus = c("Live", "Live", "Live", "Removed", "Live", "Live", "Removed"),
+    remarks = c(NA, NA, NA, "Cut during forestry thinning",
+                "No longer falls within reduced nested size", NA, "Thinning event"),
+    stemDiameter = c(20, 21, 12, NA, 3, 15, 15), height = c(15, 16, 8.5, NA, 2, 12, 12))
+  d <- ext_disturbance_by_plot(ai, c("P1", "P2"), as.Date("2021-07-01"))
+  expect_equal(d$disturbance_records, c(1, 0))   # "within" is not thinning; 2022 is after
+  expect_equal(d$last_disturbance, c("2019-08-01", NA))
+  expect_equal(d$removed_individuals, c(1, 0))
+  expect_equal(d$removed_dbh10, c(1, 0))         # b reached 12 cm before removal
+  expect_equal(d$removed_max_height, c(8.5, NA))
+})
+
+test_that("status history flags earlier non-live records and pre-disturbance scores", {
+  ai <- data.frame(
+    individualID = c("a", "a", "b", "b", "c"),
+    plotID = "P1",
+    date = c("2018-07-01", "2021-08-01", "2017-07-01", "2019-08-01", "2019-06-01"),
+    plantStatus = c("No longer qualifies", "Live", "Live", "Live", "Live"),
+    remarks = NA, stemDiameter = 20)
+  cs <- data.frame(individualID = c("a", "b", "c"), plotID = "P1",
+                   meas_year = c(2021L, 2019L, 2019L))
+  disturb <- data.frame(plotID = "P1", last_disturbance = "2019-07-01")
+  h <- ext_core_status_history(ai, cs, disturb, as.Date("2021-07-01"))
+  expect_equal(h$any_nonlive_before, c(TRUE, FALSE, FALSE))
+  expect_equal(h$last_before_nonlive, c(TRUE, FALSE, FALSE))
+  expect_equal(h$last_before_status, c("No longer qualifies", "Live", "Live"))
+  # b was last scored after the remark; c only before it.
+  expect_equal(h$scored_before_disturbance, c(FALSE, FALSE, TRUE))
 })
 
 test_that("occupied density ignores empty cells and counts first returns", {

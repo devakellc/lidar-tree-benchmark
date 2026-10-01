@@ -20,7 +20,7 @@ plots and 2,525 stems.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | WREF | Old-growth Douglas-fir and western hemlock | 18, 19, 23 and 24 July | UTM 10N, EPSG:32610 | 580000_5075000 | 18.7 / 9.8 | median 17.9, range 10.2–25.8 (9 tower plots) | median 9.8, range 5.3–15.2 |
 | ABBY | Managed Douglas-fir | 19 and 24 July | UTM 10N, EPSG:32610 | 552000_5067000 | 16.3 / 10.1 | median 17.1, range 12.5–19.5 (7 tower plots) | median 9.6, range 7.0–11.0 |
-| D17, for comparison | Sierra Nevada oak woodland to red fir | March or July 2021 | UTM 11N, EPSG:32611 | — | — | 16.3–19.2 across sites | 9.0–11.9 across sites |
+| D17, for comparison | Sierra Nevada oak woodland to red fir | March or July 2021 | UTM 11N, EPSG:32611 | — | — | median 18.2, range 6.6–25.4 (46 swept plots) | median 11.5, range 4.2–17.8 |
 
 - **Sensor.** NEON's 2021 L3 discrete-LiDAR processing report for each site
   states that it was "flown with Teledyne Optech Galaxy Prime 5060445 as part
@@ -39,10 +39,11 @@ plots and 2,525 stems.
   first-return density the CHM resolution and smoothing branch. Every clip
   exceeds the 8 points/m² top rung in all-return density. First-return
   density falls below 8 at WREF_079 (7.6), WREF_085 (5.3) and ABBY_069 (7.0);
-  those plots take the sub-8 smoothing branch at native density, as SOAP's
-  sparsest plot (7.8) already does.
-- Only tower plots lie wholly inside the two header tiles. Distributed-plot
-  density will be measured when the ladder clips run.
+  those plots take the sub-8 smoothing branch at native density, as 8 of the
+  46 D17 plots already do.
+- The D17 row gives the native rung of the historical sweep, which uses the
+  same clip. Only tower plots lie wholly inside the two header tiles;
+  distributed-plot density will be measured when the ladder clips run.
 
 ## Field reference
 
@@ -103,11 +104,32 @@ two at SJER and one at TEAK. Keeping the all-mapped gate at D17 and flooring
 only ABBY would have avoided that cost but mixed reference definitions across
 sites. Historical D17 results keep their original 699-stem population.
 
-No admitted plot shows a harvest signature in the census records. No core
-stem at either site has a non-live record before the 2021 flight. Later
-records mark 18 WREF and 70 ABBY core stems as no longer live, mostly ABBY
-"No longer qualifies" entries in 2024 in the young stands, and only three as
-removed.
+## Management and status history
+
+ABBY is managed forest, and its census remarks record thinning before the
+flight. Under the adopted gate, 14 of the 25 admitted ABBY plots carry
+thinning or harvest remarks: 11 of the 13 tower plots, thinned mainly between
+July and November 2018, and distributed plots ABBY_003, 017 and 019, thinned
+in autumn 2019. In those plots 163 individuals were recorded as removed before
+the flight. The thinning took small stems: only two of them ever reached
+10 cm DBH (10.1 and 10.5 cm), none was taller than 8.9 m, and none is in the
+reference. Tower plots were re-censused in 2021. At ABBY_017 the 18 reference
+stems were last measured in October 2019, during the bout that also recorded
+the thinning, and are recorded live in 2024. ABBY_007 was clear-cut in spring
+2017, removing trees up to 50 m tall; it holds no live mapped tree, so no gate
+admits it. WREF's only pre-flight remarks are five 2017 entries in four tower
+plots describing branch thinning and one harvested stump; no WREF individual
+was removed.
+
+`neon_ground_truth.R` scores a stem from its record nearest 2021, so a few
+reference stems carry an earlier record that is not live. Under the adopted
+gate, the last record before the flight is not live for 6 WREF stems (two
+dead with a broken bole, two standing dead, two lost), all scored from live
+2021 or 2022 records. One example was recorded dead at 9.6 m in 2019 and live
+at 45.5 m in 2022. At ABBY the last pre-flight record is not live for 26
+stems, 24 of them "No longer qualifies" in 2017 or 2018, all scored from live
+2021 records. These records contradict each other; they are scored as live
+and listed in `core_status_history.csv` for review.
 
 ## Census footprint and timing
 
@@ -121,19 +143,19 @@ unchanged.
 Tower plots were censused almost every year at both sites. WREF distributed
 plots were censused in 2019 and 2022, and ABBY distributed plots in 2017, 2019
 and 2024, so their nearest measurement lies one to three years from the
-flight. About half of the WREF and ABBY core stems were measured in 2021
-(51% and 53%), against 49% at TEAK and 22% at SOAP. The ABBY plots measured
-in 2019 are young, fast-growing stands, so their field heights will
-under-state 2021 canopy height more than at the old-growth sites.
+flight. Under the adopted gate, 50% of WREF and 69% of ABBY core stems were
+measured in 2021, against 49% at TEAK, 22% at SOAP and none at SJER. Of the
+remaining ABBY stems, 184 were measured in 2019, all but one in distributed
+plots, so their field heights predate two growing seasons.
 
 ## Tile coverage and download
 
 The archived RELEASE-2026 file list for July 2021 holds 264 WREF and 176 ABBY
 classified 1 km tiles, with median sizes of 158 and 139 MB against 159 MB for
-SOAP's July 2021 tiles. Under either gate, every admitted clip intersects
-only listed tiles: 17 tiles at WREF and 20 at ABBY. Listing is not a physical
-coverage audit, so the downloaded set was checked against those 37 tiles
-below.
+SOAP's July 2021 tiles. The admitted clips (core plus 25 m) need 17 tiles at
+WREF and 15 at ABBY under the adopted gate, or 17 and 20 under the all-mapped
+gate, and every one is listed. Listing is not a physical coverage audit, so
+the downloaded set was checked against the 37 tiles of the larger set below.
 
 File identities are archived without signed URLs. NEON's cloud listings carry
 CRC32C checksums and no MD5 for more than 99.7% of files, so the archive now
@@ -164,7 +186,9 @@ gates. At D17 the adopted gate drops SJER_008, SJER_054 and TEAK_050.
   is not audited beyond agreement of the declared frames.
 - Crown classes come from field canopy position, not from the LiDAR; the
   height-quantile fallback is unreliable in single-cohort young stands.
-- Field heights measured in 2019 at ABBY predate two growing seasons.
+- Field heights measured in 2019 at ABBY predate two growing seasons, and
+  the 2018 and 2019 ABBY thinnings changed the understory between some
+  censuses and the flight.
 
 ## Reproduction
 
@@ -183,6 +207,8 @@ Rscript scripts/preflight_site_extension.R SITES=WREF,ABBY YEAR=2021 \
 
 The preflight writes `site_summary.csv`, `plot_inventory.csv`,
 `core_crown_class.csv`, `core_measurement_year.csv`, `released_listing.csv`,
-`header_tiles.csv`, `header_plot_density.csv` and, once tiles exist,
-`downloaded_tiles.csv` under `work/neon/site_extension_2021/`, with a contract
-that binds them to the input and code checksums.
+`disturbance_by_plot.csv`, `core_status_history.csv`, `header_tiles.csv`,
+`header_plot_density.csv` and, once tiles exist, `downloaded_tiles.csv` under
+`work/neon/site_extension_2021/`, with a contract that binds them to the input
+and code checksums. Disturbance and status checks use census records dated
+before the acquisition month.

@@ -13,7 +13,9 @@ source(.find("site_extension_lib.R"))
 # reference each candidate would add under the sweep's own gates, archives the
 # released LiDAR file list (no signed URLs), checks listed tiles cover every
 # admitted clip, and reads one 2021 tile per site for sensor, CRS and native
-# density. REFERENCE sites are inventoried only, for comparison. Run
+# density. For candidates it also reports pre-acquisition census disturbance
+# (thinning/harvest remarks, removals) and the status history of the scored
+# reference. REFERENCE sites are inventoried only, for comparison. Run
 # neon_ground_truth.R for every site first. Downloads at most one tile per
 # candidate site; the full tile set comes from neon_download_lidar.R.
 #   Rscript scripts/preflight_site_extension.R SITES=WREF,ABBY YEAR=2021 \
@@ -28,6 +30,7 @@ month <- if (is.null(A$MONTH)) sprintf("%d-07", year) else A$MONTH
 if (substr(month, 1, 4) != as.character(year)) stop("MONTH must fall in YEAR")
 header <- isTRUE(as.logical(if (is.null(A$HEADER)) "TRUE" else A$HEADER))
 release <- "RELEASE-2026"; product <- "DP1.30003.001"
+cutoff <- as.Date(paste0(month, "-01"))   # census records before the acquisition month
 out <- if (is.null(A$OUT)) file.path(.job_dir(), "neon", sprintf("site_extension_%d", year)) else A$OUT
 dir.create(out, recursive = TRUE, showWarnings = FALSE)
 
@@ -40,31 +43,66 @@ field <- function(site, candidate) {
   pc <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
   if (candidate) neon_validate_inputs(gt, pc)
   neon_reference_epoch(gt, year)
-  list(gt = gt, pc = pc, files = file.path(nd, c("ground_truth_stems.csv", "plot_centroids.csv")))
+  list(gt = gt, pc = pc, files = file.path(nd, c("ground_truth_stems.csv", "plot_centroids.csv")),
+       vst = file.path(nd, "vst", paste0(tolower(site), "_vst_allyears.rds")))
+}
+
+# A gate that admits nothing yields empty tables, not an abort: "no plots" is
+# a valid no-go outcome and must still reach the CSVs.
+tab_rows <- function(site, gate, tab) {
+  tab <- as.data.frame(tab, stringsAsFactors = FALSE)
+  if (nrow(tab)) data.frame(site = site, gate = gate, tab, stringsAsFactors = FALSE)
+}
+bind_rows0 <- function(rows, cols) {
+  rows <- Filter(Negate(is.null), rows)
+  if (length(rows)) do.call(rbind, rows) else
+    setNames(data.frame(matrix(nrow = 0, ncol = length(cols))), cols)
 }
 
 inputs <- character(); fields <- list()
 inv_rows <- list(); sum_rows <- list(); class_rows <- list(); year_rows <- list()
+dist_rows <- list(); hist_rows <- list()
 for (site in c(reference, sites)) {
   f <- fields[[site]] <- field(site, site %in% sites); inputs <- c(inputs, f$files)
+  if (site %in% sites) {
+    inputs <- c(inputs, f$vst)
+    ai <- readRDS(f$vst)$vst_apparentindividual
+    adm_any <- character()
+  }
   for (gate in EXT_GATES) {
     g <- ext_gate(f$gt, gate)
     inv <- ext_plot_inventory(g, f$pc)
     cs <- ext_core_stems(g, inv)
-    inv$site <- site; inv$gate <- gate
+    if (nrow(inv)) { inv$site <- site; inv$gate <- gate }
     inv_rows[[paste(site, gate)]] <- inv
     sum_rows[[paste(site, gate)]] <- ext_site_summary(inv, site, gate)
     cs$crown_class[is.na(cs$crown_class)] <- "unclassified"
-    class_rows[[paste(site, gate)]] <- data.frame(site = site, gate = gate,
-      as.data.frame(table(crown_source = cs$crown_source, crown_class = cs$crown_class),
-                    stringsAsFactors = FALSE))
-    year_rows[[paste(site, gate)]] <- data.frame(site = site, gate = gate,
-      as.data.frame(table(meas_year = cs$meas_year), stringsAsFactors = FALSE))
+    class_rows[[paste(site, gate)]] <- tab_rows(site, gate,
+      table(crown_source = cs$crown_source, crown_class = cs$crown_class))
+    year_rows[[paste(site, gate)]] <- tab_rows(site, gate, table(meas_year = cs$meas_year))
+    if (site %in% sites) {
+      adm <- inv$plotID[inv$admitted]; adm_any <- union(adm_any, adm)
+      if (length(adm)) {
+        db <- ext_disturbance_by_plot(ai, adm, cutoff)
+        h <- ext_core_status_history(ai, cs, db, cutoff)
+        if (nrow(h)) hist_rows[[paste(site, gate)]] <- data.frame(site = site, gate = gate, h)
+      }
+    }
+  }
+  if (site %in% sites && length(adm_any)) {
+    db <- ext_disturbance_by_plot(ai, adm_any, cutoff)
+    db$site <- site
+    db$admitted_gates <- vapply(db$plotID, function(p) paste(EXT_GATES[vapply(EXT_GATES,
+      function(gt) any(inv_rows[[paste(site, gt)]]$admitted &
+                       inv_rows[[paste(site, gt)]]$plotID == p), logical(1))], collapse = ";"),
+      character(1))
+    dist_rows[[site]] <- db
   }
 }
-inv <- do.call(rbind, inv_rows)
+inv <- do.call(rbind, Filter(nrow, inv_rows))
 inv$tiles_needed <- NA_character_; inv$tiles_listed <- NA
-class_tab <- do.call(rbind, class_rows); class_tab <- class_tab[class_tab$Freq > 0, ]
+class_tab <- bind_rows0(class_rows, c("site", "gate", "crown_source", "crown_class", "Freq"))
+class_tab <- class_tab[class_tab$Freq > 0, , drop = FALSE]
 
 listing_rows <- list(); header_rows <- list(); plot_dens <- list(); live <- list()
 dl_rows <- list()
@@ -100,9 +138,12 @@ for (site in sites) {
 
   # One tile per site: the listed tile wholly containing the most admitted clips.
   a <- inv[k & inv$gate == "all_mapped", ]
-  pick <- ext_header_tile(a)
+  pick <- ext_header_tile(a, listed = tiles$key)
+  if (is.null(pick)) {
+    warning(site, ": no admitted clip lies inside one listed tile; header check skipped")
+    next
+  }
   row <- tiles[tiles$key == pick$key, ]
-  if (nrow(row) != 1L) stop("Header tile is not listed: ", pick$key)
   dest <- file.path(out, site, row$name)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   if (!ext_file_matches(dest, row)) {
@@ -128,6 +169,7 @@ for (site in sites) {
   # Native density on the sweep's own clip (sweep_lib.R prepare_clip): the
   # pdens/frdens units that gate the ladder and CHM resolution.
   if (!exists("prepare_clip")) source(.find("sweep_lib.R"))
+  if (BUF != EXT_CLIP_BUF) stop("sweep_lib.R BUF differs from EXT_CLIP_BUF")
   ctg <- lidR::readLAScatalog(dest)
   lidR::opt_progress(ctg) <- FALSE
   tmp <- file.path(tempdir(), "site_extension"); dir.create(tmp, showWarnings = FALSE)
@@ -141,18 +183,29 @@ for (site in sites) {
   }
 }
 
-code <- vapply(c("preflight_site_extension.R", "site_extension_lib.R",
-                 "neon_acquisition_lib.R", "neon_spatial_lib.R"), .find, character(1))
+code <- vapply(c("preflight_site_extension.R", "site_extension_lib.R", "neon_acquisition_lib.R",
+                 "neon_spatial_lib.R", "sweep_lib.R"), .find, character(1))
 neon_check_manifest(file.path(out, "preflight_contract.json"),
   list(sites = sites, reference = reference, year = year, month = month, release = release,
-       inputs = inputs, input_md5 = unname(tools::md5sum(inputs)),
+       header = header, inputs = inputs, input_md5 = unname(tools::md5sum(inputs)),
        code_md5 = unname(tools::md5sum(code))))
+# Optional outputs from an earlier run must not survive next to fresh summaries.
+unlink(file.path(out, c("header_tiles.csv", "header_plot_density.csv", "downloaded_tiles.csv")))
 
 summ <- do.call(rbind, sum_rows)
 write.csv(inv, file.path(out, "plot_inventory.csv"), row.names = FALSE)
 write.csv(summ, file.path(out, "site_summary.csv"), row.names = FALSE)
 write.csv(class_tab, file.path(out, "core_crown_class.csv"), row.names = FALSE)
-write.csv(do.call(rbind, year_rows), file.path(out, "core_measurement_year.csv"), row.names = FALSE)
+write.csv(bind_rows0(year_rows, c("site", "gate", "meas_year", "Freq")),
+          file.path(out, "core_measurement_year.csv"), row.names = FALSE)
+write.csv(bind_rows0(dist_rows, c("plotID", "disturbance_records", "first_disturbance",
+                                  "last_disturbance", "removed_individuals", "removed_dbh10",
+                                  "removed_max_height", "site", "admitted_gates")),
+          file.path(out, "disturbance_by_plot.csv"), row.names = FALSE)
+hist <- bind_rows0(hist_rows, c("site", "gate", "individualID", "plotID", "meas_year",
+                                "any_nonlive_before", "last_before_status",
+                                "last_before_nonlive", "scored_before_disturbance"))
+write.csv(hist, file.path(out, "core_status_history.csv"), row.names = FALSE)
 write.csv(do.call(rbind, listing_rows), file.path(out, "released_listing.csv"), row.names = FALSE)
 if (length(header_rows))
   write.csv(do.call(rbind, header_rows), file.path(out, "header_tiles.csv"), row.names = FALSE)
@@ -169,6 +222,13 @@ cat(sprintf("admitted clips with every tile listed: %d / %d\n",
 if (length(header_rows)) print(do.call(rbind, header_rows)[, c("site", "tile",
   "system_identifier", "epsg", "all_return_density", "first_return_density")], row.names = FALSE)
 if (length(plot_dens)) print(do.call(rbind, plot_dens), row.names = FALSE)
+for (d in dist_rows)
+  cat(sprintf("%s before %s: %d admitted plots with disturbance remarks, %d removed individuals (%d ever >= 10 cm DBH)\n",
+              d$site[1], cutoff, sum(d$disturbance_records > 0), sum(d$removed_individuals),
+              sum(d$removed_dbh10)))
+if (nrow(hist)) print(aggregate(cbind(stems = 1L, any_nonlive_before, last_before_nonlive,
+                                      scored_before_disturbance) ~ site + gate, hist, sum),
+                      row.names = FALSE)
 for (site in names(dl_rows)) {
   d <- dl_rows[[site]]
   cat(sprintf("%s downloaded tiles: %d, verified %d, needed and verified %d / %d\n", site,
