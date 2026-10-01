@@ -4,6 +4,12 @@
 The declarations below document the retired study, not authorization to resume
 it. Existing safeguards and diagnostic-only status remain unchanged.
 
+**Reused on 2026-10-01** for the paper's five sites (SJER, SOAP, TEAK, WREF,
+ABBY) by the
+[censused-subplot precision study](../results/census-support-results.md),
+with the 2021 LiDAR year as the exact census year and one geometry amendment
+recorded under Geometry and Boundaries. HARV and BART stay retired.
+
 This is a score-blind reference audit, not a detector comparison. Preserve all
 historical inputs and rectangular scores. HARV remains development; BART is
 held out. Do not freeze eligibility or run inference from these diagnostics.
@@ -34,8 +40,14 @@ Use the guide's Figure 2 point numbering: 100 m2 subplot corners are the
 southwest anchor plus offsets 0, 1, 10, 9; 400 m2 corners use 0, 2, 20, 18.
 Fetch all four named-point coordinates, preserve their API records and use
 their measured quadrilateral. Never synthesize missing corners from a plot
-centroid, a tower label or an area total. Four 100 m2 subplots also support
-20 m tower plots; the historical tower-size default is not used for geometry.
+centroid, a tower label or an area total. Amendment of 2026-10-01: a complete
+2 x 2 block of 100 m2 subplots (anchors a, a+1, a+9, a+10) is the same square
+as the 400 m2 subplot anchored at a. NEON lists distributed plots both ways but
+surveys only their outer corners and centre, so such a block is drawn from the
+surveyed corners a, a+2, a+20, a+18 and each member subplot checks against it.
+Incomplete blocks keep their own 100 m2 corners and fail closed without them.
+Four 100 m2 subplots also support 20 m tower plots; the historical tower-size
+default is not used for geometry.
 
 The listed subplot areas must sum to the event's sampled tree area. Reject
 duplicates, overlaps, invalid geometries and missing coordinate uncertainty.
