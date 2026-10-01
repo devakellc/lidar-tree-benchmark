@@ -134,6 +134,34 @@ test_that("disturbance remarks and removals are counted per plot before the cuto
   expect_equal(d$removed_max_height, c(8.5, NA))
 })
 
+test_that("the disturbance pattern reads management, not crown condition", {
+  yes <- c("Cut during forestry thinning", "Thining", "Likely damaged during thinnng",
+           "Thinned", "Several stems were severed during a clearing event.", "Cut",
+           "Main bole cut", "Harvested", "Clear-cut event", "Lower branches thinned")
+  no <- c("No longer falls within reduced nested size", "Thinning crown",
+          "Thinning branches", "Thinning lower branches from tshe", "Dead - Self-thinning",
+          "Lower branches cut", "thin crown", NA)
+  expect_true(all(ext_is_disturbance(yes)))
+  expect_false(any(ext_is_disturbance(no)))
+})
+
+test_that("a dead secondary bole does not make a live tree non-live", {
+  ai <- data.frame(individualID = c("m", "m", "m"), plotID = "P1",
+                   date = c("2017-10-26", "2017-10-26", "2021-03-01"),
+                   plantStatus = c("Standing dead", "Live", "Live"), remarks = NA,
+                   stemDiameter = c(9.8, 31, 31.5))
+  cs <- data.frame(individualID = "m", plotID = "P1", meas_year = 2021L)
+  h <- ext_core_status_history(ai, cs, data.frame(plotID = "P1", last_disturbance = NA),
+                               as.Date("2021-07-01"))
+  expect_false(h$any_nonlive_before)
+  expect_equal(h$last_before_status, "Live")
+  ai$date[3] <- "2017-10-26"                     # last date mixed: Live bole preferred
+  h <- ext_core_status_history(ai, cs, data.frame(plotID = "P1", last_disturbance = NA),
+                               as.Date("2021-07-01"))
+  expect_equal(h$last_before_status, "Live")
+  expect_false(h$last_before_nonlive)
+})
+
 test_that("status history flags earlier non-live records and pre-disturbance scores", {
   ai <- data.frame(
     individualID = c("a", "a", "b", "b", "c"),

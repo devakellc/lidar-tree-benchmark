@@ -47,9 +47,10 @@ test_that("cloud listings keep crc32c identities and drop signed URLs", {
 test_that("mixed md5/crc32c listings re-archive stably and still detect changes", {
   d <- tempfile(); dir.create(d)
   on.exit(unlink(d, recursive = TRUE))
-  # Real shape: crc32c on tiles (sorting first), md5 only on the readme.
+  # Real shape: crc32c on tiles, md5 only on the readme. The readme name sorts
+  # after the tile in every collation, so the first row lacks md5 everywhere.
   f <- data.frame(name = c("NEON_D16_WREF_DP1_580000_5075000_classified_point_cloud_colorized.laz",
-                           "NEON..WREF.DP1.30003.001.readme.txt"),
+                           "NEON_D16_WREF_DP1_readme.txt"),
                   size = c(9, 5), md5 = c(NA, "355b1bbfc96725cdce8f4a2708fda310"),
                   crc32c = c("e3069283", NA), url = "https://example.test/?secret=hidden")
   x <- list(productCode = "DP1.30003.001", siteCode = "WREF", month = "2021-07",
