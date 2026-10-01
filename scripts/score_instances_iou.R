@@ -251,13 +251,10 @@ run_plot <- function(site, pid, pc, gt, nd, root, selection = NULL) {
 ## ---- per-site driver ------------------------------------------------------
 # Instance clouds and the apex cache must carry the sealed root's stamp
 # (frozen_stamp); an absent directory means that arm did not run. Checked for
-# every site before any site runs, outside the per-site error handler.
-check_artifact_stamps <- function(site, root = frozen_root(d, A$FROZEN_ROOT)) {
-  nd <- file.path(d, "neon", site)
-  for (a in c(vapply(MODELS, `[[`, character(1), "dir"),
-              if (APEX_PROXY) "best_treetop_cache"))
-    if (dir.exists(file.path(nd, a))) frozen_stamp_check(file.path(nd, a), root)
-}
+# every site before any site runs, outside the per-site error handler
+# (frozen_check_artifacts).
+ARTIFACT_DIRS <- c(vapply(MODELS, `[[`, character(1), "dir"),
+                   if (APEX_PROXY) "best_treetop_cache")
 
 run_site <- function(site) {
   nd <- file.path(d, "neon", site)
@@ -293,8 +290,7 @@ run_site <- function(site) {
   selection <- read_selection(SELECTION, site)
   res_list <- plot_lapply(plots, function(p)
     tryCatch(run_plot(site, p, pc, gt, nd, fz$root, selection),
-             error = function(e) { message("  ", p, " failed: ",
-                                            conditionMessage(e)); NULL }),
+             error = skip_failed_plot(p)),   # frozen integrity errors still stop
     mc.cores = CORES, mc.preschedule = FALSE)
   res <- do.call(rbind, Filter(Negate(is.null), res_list))
   if (is.null(res) || !nrow(res)) {
@@ -360,9 +356,11 @@ print_tables <- function(res) {
 run_main <- function() {
   t0 <- Sys.time()
   all_res <- list()
-  for (site in SITES) check_artifact_stamps(site)
+  for (site in SITES) frozen_check_artifacts(file.path(d, "neon", site), ARTIFACT_DIRS,
+                                             frozen_root(d, A$FROZEN_ROOT))
   for (site in SITES) {
     r <- tryCatch(run_site(site), error = function(e) {
+      if (inherits(e, "frozen_integrity_error")) stop(e)   # never skip a bad root
       message("site ", site, " failed: ", conditionMessage(e)); NULL })
     if (!is.null(r)) all_res[[site]] <- r
   }

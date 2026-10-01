@@ -52,7 +52,7 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #   Rscript scripts/fuse_detectors.R SITE=SOAP RUNGS=native,8,4,2,1 CORES=1
 # RGB=0 disables optical modes; PLOTS=... OUT=... provides a bounded smoke run.
 # POP= picks a sensitivity population and FROZEN_ROOT= another sealed root.
-# (CORES=1: detect_lasr uses lasR exec, which can drop dense cells under fork.)
+# (CORES=1 default; plots run on fresh workers, see plot_lapply in sweep_lib.R.)
 # Reads (read-only): work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv},
 #   the cached field crown widths vst rds, the sealed frozen root (normalized
 #   clips + DTMs of the declared population's plots; freeze_clips.R), and the
@@ -252,13 +252,10 @@ run_plot <- function(site, pid, pc, gt, nd, root, calibration = NULL) {
 
 # Other arms' instance clouds must carry the sealed root's stamp (frozen_stamp);
 # an absent directory means that arm did not run. Checked for every site before
-# any site runs, outside the per-site error handler, so stale clouds stop the run.
-check_artifact_stamps <- function(site, root = frozen_root(d, A$FROZEN_ROOT)) {
-  nd <- file.path(d, "neon", site)
-  for (a in c("li2012_instances", "ptrees_instances", "ams3d_instances",
-              "segmentanytree_instances", "forestformer3d_instances"))
-    if (dir.exists(file.path(nd, a))) frozen_stamp_check(file.path(nd, a), root)
-}
+# any site runs, outside the per-site error handler, so stale clouds stop the run
+# (frozen_check_artifacts).
+ARTIFACT_DIRS <- c("li2012_instances", "ptrees_instances", "ams3d_instances",
+                   "segmentanytree_instances", "forestformer3d_instances")
 
 run_site <- function(site) {
   nd <- file.path(d, "neon", site)
@@ -286,7 +283,7 @@ run_site <- function(site) {
   }
   res_list <- plot_lapply(plots, function(p)
     tryCatch(run_plot(site, p, pc, gt, nd, fz$root, calibration),
-             error = function(e) { message("  ", p, " failed: ", conditionMessage(e)); NULL }),
+             error = skip_failed_plot(p)),   # frozen integrity errors still stop
     mc.cores = CORES, mc.preschedule = FALSE)
   res <- rbindlist(Filter(Negate(is.null), res_list), fill = TRUE)
   if (!nrow(res)) { cat(sprintf("[%s] no cells fused\n", site)); return(NULL) }
@@ -404,9 +401,11 @@ rgb_summary <- function(res) {
 
 run_main <- function() {
   t0 <- Sys.time(); all_res <- list()
-  for (site in SITES) check_artifact_stamps(site)
+  for (site in SITES) frozen_check_artifacts(file.path(d, "neon", site), ARTIFACT_DIRS,
+                                             frozen_root(d, A$FROZEN_ROOT))
   for (site in SITES) {
     r <- tryCatch(run_site(site), error = function(e) {
+      if (inherits(e, "frozen_integrity_error")) stop(e)   # never skip a bad root
       message("site ", site, " failed: ", conditionMessage(e)); NULL })
     if (!is.null(r)) all_res[[site]] <- r
   }

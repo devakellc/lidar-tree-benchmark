@@ -130,11 +130,12 @@ run_main <- function() {
   }
 
   t0 <- Sys.time()
-  res_list <- mclapply(keep, function(p) tryCatch(run_plot(p), error = function(e) {
+  # Fresh workers: a dead forked worker would come back as NULL, like a plot
+  # without stems.
+  res_list <- plot_lapply(keep, function(p) tryCatch(run_plot(p), error = function(e) {
                 message("plot ", p, " failed: ", conditionMessage(e)); e }),
-                mc.cores = CORES, mc.preschedule = FALSE)
-  failed <- keep[!vapply(res_list, function(r) is.null(r) || is.data.frame(r), logical(1))]
-  if (length(failed)) stop("plots failed: ", paste(failed, collapse = ","), call. = FALSE)
+                mc.cores = CORES)
+  stop_failed_plots(keep, res_list)
   results <- do.call(rbind, Filter(Negate(is.null), res_list))
   dt <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
   if (is.null(results) || !nrow(results)) {

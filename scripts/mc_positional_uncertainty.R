@@ -55,9 +55,9 @@ TOLS   <- as.numeric(if (is.null(A$TOLS)) 4 else strsplit(A$TOLS, ",")[[1]])
 VWF_A  <- as.numeric(if (is.null(A$VWF_A)) 0.10 else A$VWF_A)
 MERGE_TOL <- as.numeric(if (is.null(A$MERGE_TOL)) 2.0 else A$MERGE_TOL)
 Z_TOL  <- as.numeric(if (is.null(A$Z_TOL)) 5.0 else A$Z_TOL)
-# CORES parallelizes the per-cell materialization (prep_cell). KEEP IT AT 1:
-# prep_cell -> materialize -> detect_lasr uses lasR::exec, which DEADLOCKS under
-# mclapply fork (the same hazard matcher_robustness.R / fuse_detectors.R guard).
+# CORES parallelizes the per-cell materialization (prep_cell) on fresh workers
+# (plot_lapply): detect_lasr uses lasR::exec, which failed or hung in forked
+# workers. The default stays 1.
 CORES  <- as.integer(if (is.null(A$CORES)) 1 else A$CORES)
 SAT_ID_FIELD <- "PredInstance"
 CHM_ARMS <- c("chm_vwf", "multichm")
@@ -125,12 +125,8 @@ prep_cell <- function(site, pid, pc, gt, nd, root) {
 ## ---- driver ---------------------------------------------------------------
 # Deep arms' instance clouds must carry the sealed root's stamp (frozen_stamp);
 # an absent directory means that arm did not run. Checked for every site before
-# any site runs, outside the per-site error handler.
-check_artifact_stamps <- function(site, root = frozen_root(d, A$FROZEN_ROOT)) {
-  nd <- file.path(d, "neon", site)
-  for (a in c("segmentanytree_instances", "forestformer3d_instances"))
-    if (dir.exists(file.path(nd, a))) frozen_stamp_check(file.path(nd, a), root)
-}
+# any site runs, outside the per-site error handler (frozen_check_artifacts).
+ARTIFACT_DIRS <- c("segmentanytree_instances", "forestformer3d_instances")
 
 run_site <- function(site) {
   nd <- file.path(d, "neon", site)
@@ -142,8 +138,8 @@ run_site <- function(site) {
   if (is.null(gt$pos_unc)) gt$pos_unc <- NA_real_
   plots <- intersect(fz$plots, pc$plotID)
   cells <- Filter(Negate(is.null), plot_lapply(plots, function(p)
-    tryCatch(prep_cell(site, p, pc, gt, nd, fz$root), error = function(e) {
-      message("  ", p, " failed: ", conditionMessage(e)); NULL }),
+    tryCatch(prep_cell(site, p, pc, gt, nd, fz$root),
+             error = skip_failed_plot(p)),   # frozen integrity errors still stop
     mc.cores = CORES, mc.preschedule = FALSE))
   if (!length(cells)) { cat(sprintf("[%s] no cells\n", site)); return(NULL) }
   arms <- sort(unique(unlist(lapply(cells, function(c) names(c$dets)))))
@@ -203,9 +199,11 @@ ARM_ORDER <- c("chm_vwf", "multichm", "li2012", "segmentanytree", "forestformer3
                "fusion_union", "fusion_layered")
 run_main <- function() {
   t0 <- Sys.time(); res <- list(); drw <- list()
-  for (site in SITES) check_artifact_stamps(site)
+  for (site in SITES) frozen_check_artifacts(file.path(d, "neon", site), ARTIFACT_DIRS,
+                                             frozen_root(d, A$FROZEN_ROOT))
   for (site in SITES) {
     r <- tryCatch(run_site(site), error = function(e) {
+      if (inherits(e, "frozen_integrity_error")) stop(e)   # never skip a bad root
       message("site ", site, ": ", conditionMessage(e)); NULL })
     if (!is.null(r)) { res[[site]] <- r$summ; drw[[site]] <- r$draws }
   }

@@ -133,8 +133,7 @@ res_list <- plot_lapply(keep, function(p) tryCatch(run_plot(p), error=function(e
               mc.cores = CORES, mc.preschedule = FALSE)
 # A failed plot (e.g. a frozen cell that no longer matches its hash) must not
 # leave the population silently smaller.
-failed <- keep[!vapply(res_list, function(r) is.null(r) || is.data.frame(r), logical(1))]
-if (length(failed)) stop("plots failed: ", paste(failed, collapse = ","), call. = FALSE)
+stop_failed_plots(keep, res_list)
 results <- do.call(rbind, Filter(Negate(is.null), res_list))
 dt <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
 

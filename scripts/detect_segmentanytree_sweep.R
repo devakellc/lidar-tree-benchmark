@@ -215,8 +215,8 @@ run_main <- function() {
         else run_one_cell(cell)
       })
     } else if (length(cells) && CORES > 1L) {
-      cell_results <- parallel::mclapply(cells, run_one_cell,
-        mc.cores = min(CORES, length(cells)), mc.preschedule = FALSE)
+      # Fresh workers: a dead worker stops the run instead of returning NULL.
+      cell_results <- plot_lapply(cells, run_one_cell, mc.cores = min(CORES, length(cells)))
     } else if (length(cells)) {
       cell_results <- lapply(cells, run_one_cell)
     }

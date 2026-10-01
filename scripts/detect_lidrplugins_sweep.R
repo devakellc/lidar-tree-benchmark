@@ -82,8 +82,8 @@ det_multichm <- function(las, res = 0.5, a = 0.10) {
 det_ptrees <- function(las, hmin = 2, k = c(30, 15), inst_path = NULL) {
   # ptrees' C routine (C_lastrees_ptrees) hard-segfaults -- uncatchable by the
   # tryCatch below -- when there are too few returns above hmin (e.g. a treeless
-  # clip on a sparse rung). Under mclapply such a segfault silently nulls the
-  # whole plot (all rungs + all arms). Skip safely: too few canopy points means
+  # clip on a sparse rung). Such a segfault kills the plot's worker and stops
+  # the run (all rungs + all arms). Skip safely: too few canopy points means
   # ptrees would detect nothing anyway, so return a 0-row frame (legit recall=0)
   # without entering C, keeping the other detectors' results for the cell intact.
   if (sum(las$Z >= hmin) < min(k)) {
@@ -182,8 +182,7 @@ run_main <- function() {
                 mc.cores = CORES, mc.preschedule = FALSE)
   # A failed plot (e.g. a frozen cell that no longer matches its hash) must not
   # leave the population silently smaller.
-  failed <- keep[!vapply(res_list, function(r) is.null(r) || is.data.frame(r), logical(1))]
-  if (length(failed)) stop("plots failed: ", paste(failed, collapse = ","), call. = FALSE)
+  stop_failed_plots(keep, res_list)
   results <- do.call(rbind, Filter(Negate(is.null), res_list))
   if (is.null(results) || !nrow(results)) { cat("no lidRplugins results\n"); return(invisible()) }
   results$tp_core <- round(results$precision * results$n_det)

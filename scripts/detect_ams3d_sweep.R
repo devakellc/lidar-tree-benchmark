@@ -140,14 +140,13 @@ run_main <- function() {
     do.call(rbind, out)
   }
 
-  res_list <- mclapply(keep, function(p)
+  res_list <- plot_lapply(keep, function(p)
                 tryCatch(run_plot(p), error = function(e) {
                   message("plot ", p, " failed: ", conditionMessage(e)); e }),
                 mc.cores = CORES, mc.preschedule = FALSE)
   # A failed plot (e.g. a frozen cell that no longer matches its hash) must not
   # leave the population silently smaller.
-  failed <- keep[!vapply(res_list, function(r) is.null(r) || is.data.frame(r), logical(1))]
-  if (length(failed)) stop("plots failed: ", paste(failed, collapse = ","), call. = FALSE)
+  stop_failed_plots(keep, res_list)
   results <- do.call(rbind, Filter(Negate(is.null), res_list))
   if (is.null(results) || !nrow(results)) { cat("no AMS3D results\n"); return(invisible()) }
   write.csv(results, file.path(nd, "ams3d_results.csv"), row.names = FALSE)

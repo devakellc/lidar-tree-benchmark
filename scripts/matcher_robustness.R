@@ -195,8 +195,7 @@ run_site <- function(site) {
   if (!length(plots)) return(NULL)
   res_list <- plot_lapply(plots, function(p)
     tryCatch(run_plot(site, p, pc, gt, nd, fz$root),
-             error = function(e) { message("  ", p, " failed: ",
-                                            conditionMessage(e)); NULL }),
+             error = skip_failed_plot(p)),   # frozen integrity errors still stop
     mc.cores = CORES, mc.preschedule = FALSE)
   res <- rbindlist(Filter(Negate(is.null), res_list), fill = TRUE)
   if (!nrow(res)) { cat(sprintf("[%s] no cells scored\n", site)); return(NULL) }
@@ -250,6 +249,7 @@ run_main <- function() {
   t0 <- Sys.time(); all_res <- list()
   for (site in SITES) {
     r <- tryCatch(run_site(site), error = function(e) {
+      if (inherits(e, "frozen_integrity_error")) stop(e)   # never skip a bad root
       message("site ", site, " failed: ", conditionMessage(e)); NULL })
     if (!is.null(r)) all_res[[site]] <- r
   }
