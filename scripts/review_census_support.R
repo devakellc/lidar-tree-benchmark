@@ -8,18 +8,20 @@ source(.find("neon_spatial_lib.R"))
 source(.find("neon_reference_support_lib.R"))
 
 # Score-blind admission review of censused-subplot support for the declared
-# plot population. For every plot of the sealed frozen root it reports the
-# census events near the LiDAR year, the support bundle built by
-# neon_reference_support.R from the exact-year event (the protocol's rule) and,
-# as a separate option, from the nearest all-growth-forms event within WINDOW
-# years, with the blockers that keep each bundle diagnostic. It also records
-# what the 2015 tower census says about its subplots. Nothing is scored and no
-# bundle is admitted: the draft declaration lists the exact-year bundles whose
-# only blockers are review blockers, for a reviewer to accept or reject.
+# plot population. For every plot of the sealed frozen root it takes two
+# candidate bundles from neon_reference_support.R outputs: the nearest
+# all-growth-forms census within WINDOW years of the LiDAR year (the headline
+# rule) and the exact LiDAR-year census (a check), applies the declared
+# missing-reference policy (subplot exclusion) and reports whether each bundle
+# would be admitted, what the policy removed, and what the 2015 tower census
+# says about its subplots. With EVIDENCE=<json> it writes the reviewed
+# declarations for both rules, admitting exactly the bundles held back only by
+# the datum and flight-provenance review that the evidence resolves.
 #   Rscript scripts/review_census_support.R [SITES=SJER,SOAP,TEAK,WREF,ABBY]
 #     [YEARS=2019,...,2024] [TARGET_YEAR=2021] [WINDOW=4]
-#     [SUPPORT=$CLAUDE_JOB_DIR/reference_support_v1] [FROZEN_ROOT=...] [OUT=...]
-# SUPPORT holds one neon_reference_support.R output per <SITE>_<YEAR>.
+#     [SUPPORT=$CLAUDE_JOB_DIR/reference_support_census_event]
+#     [POLICY=subplot_exclusion] [EVIDENCE=docs/census-support-evidence.json]
+#     [FROZEN_ROOT=...] [OUT=<SUPPORT>/admission]
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
 split_arg <- function(x, default) strsplit(if (is.null(x)) default else x, ",")[[1]]
@@ -28,40 +30,63 @@ SITES <- split_arg(A$SITES, "SJER,SOAP,TEAK,WREF,ABBY")
 YEARS <- as.integer(split_arg(A$YEARS, paste(2019:2024, collapse = ",")))
 TARGET <- as.integer(if (is.null(A$TARGET_YEAR)) 2021 else A$TARGET_YEAR)
 WINDOW <- as.integer(if (is.null(A$WINDOW)) 4 else A$WINDOW)
-SUPPORT <- if (is.null(A$SUPPORT)) file.path(d, "reference_support_v1") else A$SUPPORT
+SUPPORT <- if (is.null(A$SUPPORT)) file.path(d, "reference_support_census_event") else A$SUPPORT
+POLICY <- if (is.null(A$POLICY)) "subplot_exclusion" else A$POLICY
 ROOT <- if (is.null(A$FROZEN_ROOT)) file.path(d, "neon", "frozen_2021") else A$FROZEN_ROOT
 OUT <- if (is.null(A$OUT)) file.path(SUPPORT, "admission") else A$OUT
-REVIEW_ONLY <- c("datum_review_pending", "flight_provenance_pending")
 
 pop <- read.csv(file.path(ROOT, "population.csv"), stringsAsFactors = FALSE)
 stems <- read.csv(file.path(ROOT, "population_stems.csv"), stringsAsFactors = FALSE)
 pops <- sub("^in_", "", grep("^in_", names(pop), value = TRUE))
 
-# One bundle summary per site x year x plot from the preparation outputs.
-support_runs <- function(site) {
+apply_policy <- function(b) if (identical(POLICY, "subplot_exclusion")) neon_subplot_exclusion(b) else b
+bundle_status <- function(b) {
+  if (is.null(b)) return("no_bundle")
+  left <- setdiff(b$blockers, NEON_RESOLVABLE_BLOCKERS)
+  if (!length(left)) "admissible" else paste0("blocked: ", paste(left, collapse = ";"))
+}
+
+# Every built bundle of a site, with its year, before and after the policy.
+site_bundles <- function(site) {
+  out <- list()
+  for (y in YEARS) {
+    f <- file.path(SUPPORT, paste0(site, "_", y), "support_bundles.rds")
+    if (!file.exists(f)) next
+    for (b in readRDS(f)) out[[length(out) + 1]] <- list(year = y, plot = b$plot, event = b$event,
+                                                          raw = b, policy = apply_policy(b))
+  }
+  out
+}
+geometry_errors <- function(site) {
   rows <- lapply(YEARS, function(y) {
-    dir <- file.path(SUPPORT, paste0(site, "_", y))
-    if (!file.exists(file.path(dir, "completion.json"))) return(NULL)
-    s <- read.csv(file.path(dir, "event_support_summary.csv"), stringsAsFactors = FALSE)
-    b <- readRDS(file.path(dir, "support_bundles.rds"))
-    s$year <- y
-    s$blockers <- vapply(seq_len(nrow(s)), function(i) {
-      k <- neon_support_key(s$plot[i], s$event[i])
-      if (is.null(b[[k]])) NA_character_ else paste(b[[k]]$blockers, collapse = ";")
-    }, character(1))
-    s
+    f <- file.path(SUPPORT, paste0(site, "_", y), "event_support_summary.csv")
+    if (!file.exists(f)) return(NULL)
+    s <- read.csv(f, stringsAsFactors = FALSE)
+    s <- s[s$geometry_status != "measured_corners", c("plot", "event", "geometry_status"), drop = FALSE]
+    if (nrow(s)) cbind(year = y, s) else NULL
   })
   do.call(rbind, rows)
 }
 
-bundle_status <- function(geometry, blockers) {
-  if (is.na(geometry)) return("no_bundle")
-  if (geometry != "measured_corners") return(paste0("geometry_failed: ", geometry))
-  b <- strsplit(blockers, ";", fixed = TRUE)[[1]]
-  if (all(b %in% REVIEW_ONLY)) return("admissible_on_declaration")
-  if (all(b %in% NEON_RESOLVABLE_BLOCKERS))
-    return("admissible_with_missing_reference_policy")
-  paste0("blocked: ", paste(setdiff(b, NEON_RESOLVABLE_BLOCKERS), collapse = ";"))
+candidate_cols <- function(prefix, cand, status) {
+  b <- if (is.null(cand)) NULL else cand$policy
+  pol <- if (is.null(b)) NULL else b$missing_reference_policy
+  out <- data.frame(
+    year = if (is.null(cand)) NA_integer_ else cand$year,
+    event = if (is.null(cand)) NA_character_ else cand$event,
+    status = status,
+    support_id = if (is.null(b)) NA_character_ else neon_support_identity(b),
+    interior_before_m2 = if (is.null(b)) NA_real_ else cand$raw$interior_area_m2,
+    interior_m2 = if (is.null(b)) NA_real_ else b$interior_area_m2,
+    n_target = if (is.null(b)) NA_integer_ else sum(b$references$target_population),
+    n_missing = if (is.null(pol)) NA_integer_ else pol$n_missing_targets,
+    n_unlocatable = if (is.null(pol)) NA_integer_ else pol$n_unlocatable,
+    excluded_subplots = if (is.null(pol)) NA_character_ else paste(pol$excluded_subplots, collapse = ";"),
+    n_selected = if (is.null(b)) NA_integer_ else sum(b$references$reference_selected),
+    blockers = if (is.null(b)) NA_character_ else paste(b$blockers, collapse = ";"),
+    stringsAsFactors = FALSE)
+  names(out) <- paste0(prefix, "_", names(out))
+  out
 }
 
 review_site <- function(site) {
@@ -75,57 +100,51 @@ review_site <- function(site) {
     ai$growthForm %in% c("single bole tree", "multi-bole tree") &
     is.finite(ai$stemDiameter) & ai$stemDiameter >= 10
   gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
-  runs <- support_runs(site)
+  bundles <- site_bundles(site)
+  errors <- geometry_errors(site)
   plots <- pop[pop$site == site, , drop = FALSE]
   do.call(rbind, lapply(seq_len(nrow(plots)), function(i) {
     p <- plots$plotID[i]
     ev <- pp[pp$plotID == p & pp$year %in% (TARGET - WINDOW):(TARGET + WINDOW), , drop = FALSE]
     ev <- ev[order(abs(ev$year - TARGET), -ev$year), , drop = FALSE]
-    full <- ev[ev$dataCollected %in% "allGrowthForms", , drop = FALSE]
-    r <- if (is.null(runs)) NULL else runs[runs$plot == p, , drop = FALSE]
-    exact <- if (!is.null(r)) r[r$year == TARGET, , drop = FALSE] else NULL
+    mine <- Filter(function(b) b$plot == p, bundles)
+    # Nearest rule: the closest full census whose bundle holds target records.
+    usable <- Filter(function(b) abs(b$year - TARGET) <= WINDOW &&
+                       sum(b$raw$references$target_population) > 0, mine)
+    near <- if (length(usable)) usable[[order(vapply(usable, function(b) abs(b$year - TARGET), 0),
+                                              -vapply(usable, `[[`, 0, "year"))[1]]] else NULL
+    exact <- Filter(function(b) b$year == TARGET, mine)
+    exact <- if (length(exact)) exact[[1]] else NULL
     exact_events <- ev[ev$year == TARGET, , drop = FALSE]
+    err <- if (!is.null(errors)) errors[errors$plot == p, , drop = FALSE] else NULL
     exact_status <- if (!nrow(exact_events)) "no_census_event" else
       if (!any(exact_events$dataCollected %in% "allGrowthForms"))
         paste0("not_full_census: ", paste(unique(exact_events$dataCollected), collapse = ";")) else
-      if (is.null(exact) || !nrow(exact)) "no_bundle" else
-      bundle_status(exact$geometry_status[1], exact$blockers[1])
-    near <- if (!is.null(r) && nrow(r)) r[r$geometry_status == "measured_corners" &
-      abs(r$year - TARGET) <= WINDOW, , drop = FALSE] else NULL
-    near <- if (!is.null(near) && nrow(near)) near[order(abs(near$year - TARGET), -near$year)[1], ] else NULL
+      if (is.null(exact)) {
+        e <- if (!is.null(err)) err$geometry_status[err$year == TARGET] else character()
+        if (length(e)) paste0("geometry_failed: ", e[1]) else "no_bundle"
+      } else bundle_status(exact$policy)
+    near_status <- if (!is.null(near)) bundle_status(near$policy) else
+      if (any(ev$dataCollected %in% "allGrowthForms")) {
+        e <- if (!is.null(err)) err$geometry_status[abs(err$year - TARGET) <= WINDOW] else character()
+        if (length(e)) paste0("geometry_failed: ", e[1]) else "no_bundle"
+      } else "no_full_census_in_window"
     ref <- stems[stems$site == site & stems$plotID == p & stems$population == "adopted", ]
     ref_year <- gt$meas_year[match(paste(ref$plotID, ref$individualID),
                                    paste(gt$plotID, gt$individualID))]
     t15 <- target_2015 & ai$plotID == p
-    sub15 <- unique(ai$subplotID[t15])
     out <- data.frame(site = site, plot = p, plotType = plots$plotType[i],
       n_core_dbh10 = plots$n_core_dbh10[i],
       events_in_window = paste(sprintf("%d:%s", ev$year, ifelse(is.na(ev$dataCollected), "NA",
                                                                 ev$dataCollected)), collapse = ";"),
-      exact_event = if (nrow(exact_events)) exact_events$eventID[1] else NA_character_,
-      exact_sampled_area_m2 = if (nrow(exact_events)) exact_events$totalSampledAreaTrees[1] else NA_real_,
-      exact_subplots = if (nrow(exact_events)) exact_events$subplotsSampled[1] else NA_character_,
-      exact_status = exact_status,
-      exact_measured_area_m2 = if (!is.null(exact) && nrow(exact)) exact$measured_area_m2[1] else NA_real_,
-      exact_interior_area_m2 = if (!is.null(exact) && nrow(exact)) exact$interior_area_m2[1] else NA_real_,
-      exact_n_target = if (!is.null(exact) && nrow(exact)) exact$n_target[1] else NA_integer_,
-      exact_n_selected = if (!is.null(exact) && nrow(exact)) exact$n_selected[1] else NA_integer_,
-      exact_support_id = if (!is.null(exact) && nrow(exact)) exact$support_id[1] else NA_character_,
-      exact_blockers = if (!is.null(exact) && nrow(exact)) exact$blockers[1] else NA_character_,
-      nearest_full_year = if (!is.null(near)) near$year else NA_integer_,
-      nearest_offset_yr = if (!is.null(near)) near$year - TARGET else NA_integer_,
-      nearest_event = if (!is.null(near)) near$event else NA_character_,
-      nearest_interior_area_m2 = if (!is.null(near)) near$interior_area_m2 else NA_real_,
-      nearest_n_selected = if (!is.null(near)) near$n_selected else NA_integer_,
-      nearest_status = if (!is.null(near)) bundle_status(near$geometry_status, near$blockers) else
-        if (nrow(full)) "no_bundle" else "no_full_census_in_window",
-      ref_share_in_exact_year = if (length(ref_year)) mean(ref_year %in% TARGET) else NA_real_,
+      candidate_cols("nearest", near, near_status),
+      candidate_cols("exact", exact, exact_status),
       ref_share_in_nearest_year = if (length(ref_year) && !is.null(near))
         mean(ref_year %in% near$year) else NA_real_,
       census_2015_area_m2 = if (any(pp$plotID == p & pp$year == 2015L))
         pp$totalSampledAreaTrees[pp$plotID == p & pp$year == 2015L][1] else NA_real_,
       census_2015_target_records = sum(t15),
-      census_2015_quadrants_400 = sum(grepl("_400$", sub15)),
+      census_2015_quadrants_400 = sum(grepl("^[0-9]+_400$", unique(ai$subplotID[t15]))),
       stringsAsFactors = FALSE)
     for (q in pops) out[[paste0("in_", q)]] <- plots[[paste0("in_", q)]][i]
     out
@@ -136,29 +155,39 @@ tab <- do.call(rbind, lapply(SITES, review_site))
 dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 write.csv(tab, file.path(OUT, "census_support_admission.csv"), row.names = FALSE)
 
-# Counts per site, population and status, for the exact-year and nearest rules.
 simple <- function(x) sub(":.*$", "", x)
 counts <- do.call(rbind, lapply(pops, function(q) {
   x <- tab[tab[[paste0("in_", q)]], , drop = FALSE]
-  rbind(data.frame(population = q, rule = "exact_year", site = x$site, status = simple(x$exact_status)),
-        data.frame(population = q, rule = "nearest_full_census", site = x$site,
-                   status = simple(x$nearest_status)))
+  rbind(data.frame(population = q, rule = "nearest", site = x$site, status = simple(x$nearest_status)),
+        data.frame(population = q, rule = "exact", site = x$site, status = simple(x$exact_status)))
 }))
 agg <- aggregate(list(plots = rep(1L, nrow(counts))), counts[, c("population", "rule", "site", "status")], sum)
 agg <- agg[order(agg$population, agg$rule, match(agg$site, SITES), agg$status), ]
 write.csv(agg, file.path(OUT, "census_support_admission_counts.csv"), row.names = FALSE)
 
-# Draft declaration: exact-year bundles held back only by review blockers.
-cand <- tab[tab$exact_status == "admissible_on_declaration", , drop = FALSE]
-draft <- list(name = sprintf("paper-%d-census-support (DRAFT, not reviewed)", TARGET),
-              policy = "measured_subplots_uncertainty_interior_v1",
-              resolved_blockers = REVIEW_ONLY,
-              evidence = list(datum = "TO REVIEW: field named points and 2021 AOP tiles share the site's WGS84 UTM EPSG; NEON AOP specifies ITRF00",
-                              flight = "TO REVIEW: 2021 flight days per site from the NEON L3 processing reports"),
-              admitted = cand[, c("site", "plot", "exact_event", "exact_support_id")])
-names(draft$admitted) <- c("site", "plot", "event", "support_id")
-jsonlite::write_json(draft, file.path(OUT, "declaration_draft.json"), auto_unbox = TRUE,
-                     pretty = TRUE, digits = NA)
-print(agg, row.names = FALSE)
-cat(sprintf("exact-year bundles held back only by review blockers: %d plots\n", nrow(cand)))
-cat("Score-blind review; no bundle admitted and no detector scored.\n")
+# Reviewed declarations: the evidence resolves the datum and flight review;
+# the policy has already cleared missing target references.
+if (!is.null(A$EVIDENCE)) {
+  evidence <- jsonlite::read_json(A$EVIDENCE, simplifyVector = TRUE)
+  joins <- unique(unlist(lapply(SITES, function(s) lapply(site_bundles(s), function(b) b$raw$join))))
+  for (rule in c("nearest", "exact")) {
+    ok <- tab[tab[[paste0(rule, "_status")]] == "admissible", , drop = FALSE]
+    decl <- list(name = sprintf("paper-%d-census-support-%s-v1", TARGET,
+                                if (rule == "nearest") "nearest" else "exact"),
+      rule = if (rule == "nearest") sprintf("nearest all-growth-forms census within %d years of %d", WINDOW, TARGET)
+             else sprintf("exact %d census", TARGET),
+      role = if (rule == "nearest") "headline" else "check",
+      policy = "measured_subplots_uncertainty_interior_v1",
+      join = if (length(joins) == 1L) joins else "mixed",
+      missing_reference_policy = POLICY,
+      resolved_blockers = NEON_RESOLVABLE_BLOCKERS,
+      evidence = evidence,
+      admitted = data.frame(site = ok$site, plot = ok$plot, event = ok[[paste0(rule, "_event")]],
+                            year = ok[[paste0(rule, "_year")]],
+                            support_id = ok[[paste0(rule, "_support_id")]]))
+    jsonlite::write_json(decl, file.path(OUT, sprintf("declaration_%s.json", rule)),
+                         auto_unbox = TRUE, pretty = TRUE, digits = NA)
+  }
+}
+print(agg[agg$population == "adopted", ], row.names = FALSE)
+cat("Score-blind review; detectors are scored only by score_census_support.R.\n")

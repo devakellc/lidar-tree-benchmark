@@ -225,7 +225,43 @@ neon_build_support <- function(event, references, locations, epsg) {
     boundary_margin_m = margin, nominal_area_m2 = geometry$nominal_area,
     measured_area_m2 = as.numeric(sf::st_area(geometry$footprint)),
     interior_area_m2 = as.numeric(sf::st_area(core)), blockers = blockers,
-    evaluation_ready = FALSE)
+    member_of = geometry$member_of, evaluation_ready = FALSE)
+}
+
+# Missing-reference policy "subplot_exclusion" (declared 2026-10-01). A census
+# target that is not a usable reference (no usable mapped position or height,
+# a flagged or duplicate record) still stands in its subplot, where a correct
+# detection would count as a false positive. Every geometry subplot holding
+# such a tree leaves the precision interior before erosion; recall keeps the
+# references inside the remaining interior. A missing target whose subplot is
+# unknown or not sampled makes the plot unscorable (fail closed). Resolves
+# incomplete_target_references and records what the policy removed.
+neon_subplot_exclusion <- function(support) {
+  refs <- support$references
+  missing <- refs$target_population & !refs$reference_eligible
+  member <- support$member_of
+  if (is.null(member)) member <- setNames(support$subplots$subplotID, support$subplots$subplotID)
+  ids <- refs$subplotID[missing]
+  known <- !is.na(ids) & ids %in% names(member)
+  excluded <- sort(unique(unname(member[ids[known]])))
+  keep <- support$subplots[!support$subplots$subplotID %in% excluded, , drop = FALSE]
+  core <- if (nrow(keep))
+    sf::st_buffer(sf::st_union(sf::st_geometry(keep)), -support$boundary_margin_m) else NULL
+  empty <- is.null(core) || any(sf::st_is_empty(core))
+  refs$inside_interior <- if (empty) rep(FALSE, nrow(refs)) else
+    neon_support_inside(refs$E, refs$N, core)
+  refs$reference_selected <- refs$reference_eligible & refs$inside_interior & !refs$subplot_conflict
+  blockers <- setdiff(support$blockers, c("incomplete_target_references", "empty_reference_interior"))
+  if (any(!known)) blockers <- c(blockers, "unlocatable_missing_reference")
+  if (empty || !any(refs$reference_selected)) blockers <- c(blockers, "empty_reference_interior")
+  support$missing_reference_policy <- list(name = "subplot_exclusion",
+    n_missing_targets = sum(missing), n_unlocatable = sum(!known),
+    excluded_subplots = excluded, interior_area_before_m2 = support$interior_area_m2)
+  support$references <- refs
+  if (!empty) support$core <- core
+  support$interior_area_m2 <- if (empty) 0 else as.numeric(sf::st_area(core))
+  support$blockers <- unique(blockers)
+  support
 }
 
 neon_support_identity <- function(support) {
@@ -257,8 +293,9 @@ neon_check_support_rows <- function(df) {
 # with its evidence, and lists the exact support identities it admits. Only
 # review blockers can be resolved; geometry and reference-placement blockers
 # cannot. The admitted bundle records the declaration and becomes scorable.
-NEON_RESOLVABLE_BLOCKERS <- c("datum_review_pending", "flight_provenance_pending",
-                              "incomplete_target_references")
+# Incomplete target references are not resolvable by declaration; only the
+# declared missing-reference policy (neon_subplot_exclusion) clears them.
+NEON_RESOLVABLE_BLOCKERS <- c("datum_review_pending", "flight_provenance_pending")
 neon_admit_support <- function(support, declaration) {
   neon_support_require(as.data.frame(declaration$admitted), c("plot", "event", "support_id"),
                        "Admission declaration")
