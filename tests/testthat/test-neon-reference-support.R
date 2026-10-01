@@ -332,3 +332,16 @@ test_that("a complete block of 100 m2 subplots is the surveyed 20 m square", {
   f$pp$subplotsSampled <- "31_100|32_100|40_100"; f$pp$totalSampledAreaTrees <- 300
   expect_error(neon_event_geometry(f$pp, f$points, 32618), "Missing subplot corner: 31_100")
 })
+
+test_that("a census event joined across the year boundary keeps its measurements", {
+  f <- support_fixture()
+  f$pp$date <- "2020-07-13"; f$pp$eventID <- "vst_HARV_2020"
+  f$ai$eventID <- "vst_HARV_2020"; f$ai$date <- "2021-03-02"   # measured the next spring
+  by_year <- neon_event_references(f$ai, f$pp, f$mt, f$points, 2020, 32618)
+  expect_equal(nrow(by_year), 0L)                                # protocol: nothing dated 2020
+  spring <- neon_event_references(f$ai, f$pp, f$mt, f$points, 2021, 32618)
+  expect_identical(spring$exclusion, "census_epoch_mismatch")
+  by_event <- neon_event_references(f$ai, f$pp, f$mt, f$points, 2020, 32618, join = "census_event")
+  expect_true(by_event$reference_eligible)
+  expect_identical(by_event$measurement_date, "2021-03-02")
+})

@@ -19,6 +19,9 @@ year <- neon_year(if (is.null(A$YEAR)) 2022L else A$YEAR)
 # runs; a cached response is copied into this run's own locations/ folder,
 # which remains the archived input of the run.
 location_cache <- A$LOCATION_CACHE
+# JOIN=census_event keeps all measurements of the year's census events (see
+# neon_event_references); the default is the protocol's measurement year.
+join <- if (is.null(A$JOIN)) "measurement_year" else match.arg(A$JOIN, c("measurement_year", "census_event"))
 nd <- file.path(.job_dir(), "neon", site)
 out <- if (is.null(A$OUT)) file.path(.job_dir(), "reference_support", site) else A$OUT
 metadata <- file.path(out, "locations")
@@ -39,7 +42,8 @@ events <- pp[!is.na(pp$date) & substr(as.character(pp$date), 1, 4) == year, ]
 if (!nrow(events)) stop("No census events in declared year")
 epsg <- neon_field_epsg(events)
 ai <- dat$vst_apparentindividual
-ai <- ai[!is.na(ai$date) & substr(as.character(ai$date), 1, 4) == year, ]
+ai <- if (join == "measurement_year") ai[!is.na(ai$date) & substr(as.character(ai$date), 1, 4) == year, ] else
+  ai[!is.na(ai$date) & ai$eventID %in% events$eventID, ]
 maps <- neon_latest_mapping(dat$vst_mappingandtagging)
 maps <- maps[neon_support_key(maps$plotID, maps$individualID) %in%
                neon_support_key(ai$plotID, ai$individualID), ]
@@ -87,6 +91,7 @@ contract <- list(schema = 1L, site = site, year = year, epsg = epsg,
   files = sources, md5 = unname(tools::md5sum(sources)),
   software = neon_support_software(),
   population = "live_mapped_boles_dbh_ge_10cm", policy = "measured_subplots_uncertainty_interior_v1")
+if (join != "measurement_year") contract$join <- join   # replays of older outputs stay valid
 neon_check_manifest(file.path(out, "input_contract.json"), contract)
 receipt <- file.path(out, "completion.json")
 if (file.exists(receipt)) {
@@ -97,7 +102,7 @@ if (file.exists(receipt)) {
   quit(status = 0L)
 }
 references <- neon_event_references(dat$vst_apparentindividual, pp, dat$vst_mappingandtagging,
-                                    points, year, epsg)
+                                    points, year, epsg, join = join)
 # An event year can list census rows without any tree measurement.
 for (column in c("inside_sampled", "inside_interior", "boundary_uncertain", "subplot_conflict", "reference_selected"))
   references[[column]] <- rep(FALSE, nrow(references))
@@ -118,6 +123,7 @@ for (key in unique(keys)) {
     next
   }
   built$input_contract <- contract
+  built$join <- join
   id <- neon_support_identity(built)
   bundles[[key]] <- built
   refs <- built$references
