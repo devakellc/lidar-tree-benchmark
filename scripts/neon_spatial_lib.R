@@ -44,7 +44,7 @@ neon_location_frame <- function(location) {
 neon_assert_crs <- function(spatial, expected = NULL, label = "Spatial input") {
   crs <- sf::st_crs(spatial)
   if (is.na(crs) || isTRUE(sf::st_is_longlat(crs)) ||
-      !crs$units_gdal %in% c("metre", "meter", "m") ||
+      !tolower(crs$units_gdal) %in% c("metre", "meter", "m") || # D17 WKT says "Meter"
       isTRUE(crs == sf::st_crs(3857)))
     stop(label, " requires a declared projected metric CRS")
   if (!is.null(expected) && !isTRUE(crs == sf::st_crs(expected)))
