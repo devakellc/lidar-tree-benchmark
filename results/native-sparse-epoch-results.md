@@ -70,10 +70,10 @@ archived without their signed download URLs.
 
 ## Native density
 
-Plot clips come from the same frozen-clip provider as the 2021 ladder:
-nominal core plus 25 m, single-threaded TIN normalization, a canonical point
-order and hash-sealed roots, one per epoch. Densities are per clip; ranges in
-brackets.
+Plot clips come from the same [frozen-clip](frozen-clips-results.md) provider
+as the 2021 ladder: nominal core plus 25 m, single-threaded TIN
+normalization, a canonical point order and hash-sealed roots, one per epoch.
+Densities are per clip; ranges in brackets.
 
 | Site | Epoch | Plots | All returns per m² | First returns per m² |
 | --- | --- | ---: | --- | --- |
@@ -360,19 +360,30 @@ under each sparse job directory, and `shared` and `only2015` under
 woody-vegetation download when it is copied into the job directory's `vst/`
 folder.
 
-## Caveats and open questions
+## Declared decisions
 
-- **Bracketing, not matching.** The 2021 side uses the canonical rungs 8
-  and 4, which straddle the sparse first-return density. The ladder thins
-  all returns uniformly, while a sparser sensor drops pulses. A per-plot
-  pulse-thinned rung (lidR `homogenize` with `use_pulse`) at the sparse
-  first-return density would sharpen the comparison.
+- **The 2021 side brackets, it does not match.** The sparse epochs are
+  compared with the canonical 2021 rungs 8 and 4, which straddle their
+  first-return density, not with a per-plot rung thinned to that exact
+  density. Both bracketing rungs give higher recall than the native sparse
+  flight, so an exact match would too; the conclusion does not depend on
+  where in the bracket the match falls. The ladder thins all returns
+  uniformly while a sparser sensor drops whole pulses; that difference is
+  part of what the comparison measures, not something to remove.
+- **The 2015-only stratum stays out of the shared comparison.** Stems last
+  recorded in 2015 are scored only as their own stratum, with the mortality
+  bound as its error band (up to 20% dead by the flight at SOAP, 12% at
+  TEAK), and never pooled with the shared stems or with height-gated
+  results.
+
+## Caveats
+
 - **Season and canopy change.** SOAP and TEAK fly in June in 2018 and July
   in 2021; SJER in March both times. Three years of growth and drought
   mortality lie between the epochs.
 - **Small SJER sample.** Four common plots and 40 stems; SJER contributes
   little to the pooled result.
-- **No decimation-noise band here.** The decimation noise of a pooled D17
-  metric is about 0.01 (frozen-clip study); the bootstrap intervals, which
-  resample plots, are wider and dominate.
-- **The 2015-only stratum** stays out of every headline comparison.
+- **Decimation noise.** The [frozen-clip study](frozen-clips-results.md)
+  measured the seed-to-seed spread of per-site CHM-VWF F1 at rungs 8 and 4
+  as 0.005 to 0.018. The bootstrap intervals here, which resample plots, are
+  wider and already dominate.
