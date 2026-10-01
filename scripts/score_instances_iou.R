@@ -35,8 +35,10 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #                      launders within-cylinder over-segmentation) to a global_id
 #                      per point. read_instance_points_laz alone is insufficient
 #                      because the FF3D block id is required. algo = "forestformer3d".
-# (TreeisoNet joins once detect_treeisonet_crowns.R persists its per-point treeOff
-# labels; today it writes only treeisonet_crown_metrics.csv, so it is skipped.)
+#   TreeisoNet      -> work/neon/<SITE>/treeisonet_instances/<plot>_<rung>.laz
+#                      (detect_treeisonet_sweep.R MASKS=1: corrected treeOff
+#                      export aligned to the normalized clip, tree_pred with
+#                      0 = background). algo = "treeisonet".
 #
 # Reference (ground-truth) instances are an explicit VORONOI-ON-STEMS PROXY: each
 # point of the frozen NORMALIZED clip is assigned to the nearest field stem within
@@ -148,7 +150,8 @@ MODELS <- list(
   ptrees         = list(dir = "ptrees_instances",  load = make_laz_loader("treeID")),
   ams3d          = list(dir = "ams3d_instances",   load = make_laz_loader("crown_id")),
   li2012         = list(dir = "li2012_instances",  load = make_laz_loader("treeID")),
-  treeiso        = list(dir = "treeiso_instances", load = make_laz_loader("treeiso")))
+  treeiso        = list(dir = "treeiso_instances", load = make_laz_loader("treeiso")),
+  treeisonet     = list(dir = "treeisonet_instances", load = make_laz_loader("tree_pred")))
 
 ## ---- field crown diameter per site (cached vst rds; as crown_metrics_3d) ---
 field_crowns <- function(site) {
