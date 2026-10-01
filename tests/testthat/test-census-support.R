@@ -98,3 +98,38 @@ test_that("census and nominal-box scores of one cell pool side by side", {
   expect_equal(p$precision, c(1, 1)); expect_equal(p$rect_precision, c(0.5, 0.5))
   expect_true(all(nzchar(p$support_set_id)))
 })
+
+test_that("persisted detections round-trip through the census reader", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  root <- census_root(d); nd <- file.path(d, "SITE"); dir <- file.path(nd, "chm_vwf_detections")
+  frozen_stamp(dir, root)
+  det <- data.frame(x = c(500010.123456, 500020), y = c(4700010.5, 4700020), z = c(15.25, 9))
+  f <- persist_detections(dir, "HARV_033", 4, det)
+  expect_identical(basename(f), "HARV_033__4.csv")
+  expect_false(file.exists(paste0(f, ".part")))
+  expect_identical(basename(persist_detections(dir, "HARV_033", NA, det[0, ])), "HARV_033__native.csv")
+  got <- census_cell_detections(nd, "chm_vwf", "HARV", "HARV_033", 4, root)
+  expect_equal(as.data.frame(got)[, c("x", "y", "z")], det, tolerance = 1e-9)
+  expect_equal(nrow(census_cell_detections(nd, "chm_vwf", "HARV", "HARV_033", NA, root)), 0L)
+  expect_error(persist_detections(dir, "HARV_033", 2, data.frame(x = 1, y = 2)), "z")
+})
+
+test_that("the declared missing-reference policy is applied before admission", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  b <- census_fixture()
+  b$references$target_population[1] <- TRUE
+  b$references$reference_eligible[1] <- FALSE              # its only target goes missing
+  b$blockers <- c(b$blockers, "incomplete_target_references")
+  dir.create(file.path(d, "HARV_2022"))
+  saveRDS(list(`HARV_033::vst_HARV_2022` = b), file.path(d, "HARV_2022", "support_bundles.rds"))
+  x <- neon_subplot_exclusion(b)
+  decl <- list(name = "synthetic", missing_reference_policy = "subplot_exclusion",
+               resolved_blockers = c("datum_review_pending", "flight_provenance_pending"),
+               admitted = data.frame(site = "HARV", plot = "HARV_033", event = "vst_HARV_2022",
+                                     support_id = neon_support_identity(x)))
+  # the stem's subplot leaves the interior, which then holds no reference
+  expect_error(census_admitted_bundles(d, "HARV", decl, 2022), "empty_reference_interior")
+  decl$missing_reference_policy <- "none"
+  expect_error(census_admitted_bundles(d, "HARV", decl, 2022), "not admitted|incomplete")
+  expect_error(census_apply_policy(b, "impute"), "Unknown missing-reference policy")
+})

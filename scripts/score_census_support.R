@@ -23,7 +23,7 @@ source(.find("census_support_lib.R"))
 # persisted apexes is reported as missing.
 #   Rscript scripts/score_census_support.R DECLARATION=<reviewed.json>
 #     [SITES=SJER,SOAP,TEAK,WREF,ABBY] [ARMS=...] [RUNGS=native,8,4,2,1]
-#     [YEARS=2019,...,2024] [SUPPORT=$CLAUDE_JOB_DIR/reference_support_v1]
+#     [YEARS=2019,...,2024] [SUPPORT=$CLAUDE_JOB_DIR/reference_support_census_event]
 #     [POP=adopted] [FROZEN_ROOT=...] [TOL=4] [OUT=...]
 # Writes OUT/census_support_scores.csv (one row per site x plot x rung x arm),
 # census_support_pooled.csv (per arm x rung, equal cells) and
@@ -39,7 +39,7 @@ SITES <- split_arg(A$SITES, "SJER,SOAP,TEAK,WREF,ABBY")
 ARMS  <- split_arg(A$ARMS, paste(names(FAMILY_MAP)[!FAMILY_MAP %in% "rgb"], collapse = ","))
 RUNGS <- split_arg(A$RUNGS, "native,8,4,2,1")
 YEARS <- as.integer(split_arg(A$YEARS, paste(2019:2024, collapse = ",")))
-SUPPORT <- if (is.null(A$SUPPORT)) file.path(d, "reference_support_v1") else A$SUPPORT
+SUPPORT <- if (is.null(A$SUPPORT)) file.path(d, "reference_support_census_event") else A$SUPPORT
 TOL <- as.numeric(if (is.null(A$TOL)) 4 else A$TOL)
 OUT <- if (is.null(A$OUT)) file.path(d, "census_support_scores") else A$OUT
 

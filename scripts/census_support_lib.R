@@ -27,7 +27,7 @@ census_rung_label <- function(rung) if (is.na(rung)) "native" else as.character(
 census_cell_detections <- function(nd, arm, site, plot, rung, root, cell = NULL) {
   r <- census_rung_label(rung)
   ddir <- file.path(nd, paste0(arm, "_detections"))
-  f <- file.path(ddir, sprintf("%s__%s.csv", plot, r))
+  f <- frozen_detections_file(ddir, plot, rung)
   if (file.exists(f)) {
     frozen_stamp_check(ddir, root)
     det <- read.csv(f, stringsAsFactors = FALSE)
@@ -60,8 +60,14 @@ census_cell_detections <- function(nd, arm, site, plot, rung, root, cell = NULL)
 
 # The bundles a declaration admits for one site, keyed by plot. Each admitted
 # row names its plot and event; the bundle is found in the per-year
-# preparation outputs <support>/<SITE>_<YEAR>/support_bundles.rds and must
-# pass neon_admit_support(). A plot admitted twice is an error.
+# preparation outputs <support>/<SITE>_<YEAR>/support_bundles.rds, the
+# declaration's missing-reference policy is applied, and the result must pass
+# neon_admit_support(). A plot admitted twice is an error.
+census_apply_policy <- function(bundle, policy) {
+  if (is.null(policy) || identical(policy, "none")) return(bundle)
+  if (!identical(policy, "subplot_exclusion")) stop("Unknown missing-reference policy: ", policy)
+  neon_subplot_exclusion(bundle)
+}
 census_admitted_bundles <- function(support, site, declaration, years) {
   adm <- as.data.frame(declaration$admitted, stringsAsFactors = FALSE)
   if (!"site" %in% names(adm)) stop("Declaration rows need a site")
@@ -74,7 +80,8 @@ census_admitted_bundles <- function(support, site, declaration, years) {
     b <- readRDS(f)
     for (k in names(b)) {
       if (!any(adm$plot == b[[k]]$plot & adm$event == b[[k]]$event)) next
-      out[[b[[k]]$plot]] <- neon_admit_support(b[[k]], declaration)
+      out[[b[[k]]$plot]] <- neon_admit_support(
+        census_apply_policy(b[[k]], declaration$missing_reference_policy), declaration)
     }
   }
   missing <- setdiff(adm$plot, names(out))

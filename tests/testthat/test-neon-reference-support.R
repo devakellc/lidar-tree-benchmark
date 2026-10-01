@@ -345,3 +345,53 @@ test_that("a census event joined across the year boundary keeps its measurements
   expect_true(by_event$reference_eligible)
   expect_identical(by_event$measurement_date, "2021-03-02")
 })
+
+test_that("subplot exclusion removes subplots holding missing targets from precision", {
+  f <- support_fixture()
+  # stem2 is a census target in 23_400 without any mapping record.
+  f$ai <- rbind(f$ai, transform(f$ai, individualID = "stem2", subplotID = "23_400"))
+  b <- support_build(f)
+  expect_true("incomplete_target_references" %in% b$blockers)
+  x <- neon_subplot_exclusion(b)
+  expect_identical(x$missing_reference_policy$excluded_subplots, "23_400")
+  expect_equal(x$missing_reference_policy$n_missing_targets, 1)
+  expect_setequal(x$blockers, c("datum_review_pending", "flight_provenance_pending"))
+  expect_lt(x$interior_area_m2, b$interior_area_m2 / 2 + 1)        # one 400 m2 square left
+  expect_true(x$references$reference_selected[x$references$individualID == "stem1"])
+  # a detection in the excluded subplot no longer counts against precision
+  decl <- list(name = "synthetic", resolved_blockers = c("datum_review_pending", "flight_provenance_pending"),
+               admitted = data.frame(plot = x$plot, event = x$event, support_id = neon_support_identity(x)))
+  a <- neon_admit_support(x, decl)
+  det <- data.frame(x = c(500010, 500030), y = c(4700010, 4700010), z = 15)
+  s <- score_neon_support(a, det, det_epsg = 32618)
+  expect_equal(c(s$TP, s$n_det, s$precision), c(1, 1, 1))
+  # without the policy the declaration cannot clear the missing reference
+  decl$admitted$support_id <- neon_support_identity(b)
+  expect_error(neon_admit_support(b, decl), "incomplete_target_references")
+  decl$resolved_blockers <- c(decl$resolved_blockers, "incomplete_target_references")
+  expect_error(neon_admit_support(b, decl), "non-review blocker")
+})
+
+test_that("a missing target in an unknown subplot fails the plot closed", {
+  f <- support_fixture()
+  f$ai <- rbind(f$ai, transform(f$ai, individualID = "stem2", subplotID = NA_character_))
+  x <- neon_subplot_exclusion(support_build(f))
+  expect_true("unlocatable_missing_reference" %in% x$blockers)
+  expect_equal(x$missing_reference_policy$n_unlocatable, 1)
+  decl <- list(name = "synthetic", resolved_blockers = c("datum_review_pending", "flight_provenance_pending"),
+               admitted = data.frame(plot = x$plot, event = x$event, support_id = neon_support_identity(x)))
+  expect_error(neon_admit_support(x, decl), "unlocatable_missing_reference")
+})
+
+test_that("a missing target in a merged distributed block empties the plot", {
+  f <- support_fixture()
+  f$points <- f$points[sub(".*[.]", "", f$points$ptloc) %in% c("31", "33", "41", "49", "51"), ]
+  f$pp$subplotsSampled <- "31_100|32_100|40_100|41_100"; f$pp$totalSampledAreaTrees <- 400
+  f$ai$subplotID <- "32_100"; f$mt$pointID <- "41"; f$mt$stemDistance <- 3; f$mt$stemAzimuth <- 0
+  f$ai <- rbind(f$ai, transform(f$ai, individualID = "stem2", subplotID = "40_100"))
+  x <- neon_subplot_exclusion(support_build(f))
+  expect_identical(x$missing_reference_policy$excluded_subplots, "31_400")
+  expect_equal(x$interior_area_m2, 0)
+  expect_true("empty_reference_interior" %in% x$blockers)
+  expect_false(any(x$references$reference_selected))
+})
