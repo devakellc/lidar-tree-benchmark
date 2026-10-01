@@ -19,8 +19,11 @@
 #
 # Usage:
 #   Rscript scripts/detect_treeisonet_sweep.R [SITE=SOAP] [PLOTS=ALL]
-#       [CONF=0.22] [VOXEL=0] [TOL=4] [MASKS=1] [HMIN=2] [POP=adopted]
-#       [FROZEN_ROOT=...]
+#       [CONF=0.22] [VOXEL=0] [TOL=4] [MASKS=1] [MASK_VOXEL=0] [HMIN=2]
+#       [POP=adopted] [FROZEN_ROOT=...]
+#   The documented ALS setting for the apex pass is VOXEL=0.8,0.8,2.0. Masks
+#   keep the checkpoint-native voxels (MASK_VOXEL=0) the transfer audit
+#   validated and the crown arm uses.
 #   VOXEL may be a scalar isotropic override or "x,y,z" (e.g. 0.8,0.8,2.0).
 # Requires the venv + weights from gpu/setup_treeisonet_env.sh + gpu/mirror_weights.sh.
 # Output: $CLAUDE_JOB_DIR/neon/<SITE>/treeisonet_results.csv (one row per
@@ -52,6 +55,7 @@ VOXEL <- if (is.null(A$VOXEL)) "0" else A$VOXEL
 TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
 MASKS <- is.null(A$MASKS) || A$MASKS != "0"
 HMIN  <- if (is.null(A$HMIN)) "2" else A$HMIN
+MASK_VOXEL <- if (is.null(A$MASK_VOXEL)) "0" else A$MASK_VOXEL
 RUNGS <- FROZEN_RUNGS
 VENV  <- file.path(.ROOT, "gpu/.venv/bin/python")
 DRV   <- file.path(.ROOT, "gpu/run_treeisonet.py")
@@ -70,7 +74,7 @@ treeisonet_mask <- function(input, dest, label) {
   unlink(aligned)
   pts <- run_python_crown_arm(VENV, DRV_MASK, input,
     file.path(tempdir(), paste0(basename(dest), ".csv")),
-    extra = c(LOC, CFG, OFF, OCFG, VOXEL, CONF, HMIN, aligned), timeout = 900,
+    extra = c(LOC, CFG, OFF, OCFG, MASK_VOXEL, CONF, HMIN, aligned), timeout = 900,
     label = label)
   if (is.null(pts) || !file.exists(aligned)) return(NULL)
   out <- lidR::readLAS(aligned)
@@ -100,7 +104,7 @@ run_main <- function() {
       code = file_digests(c(DRV, if (MASKS) c(DRV_MASK, file.path(.ROOT, "gpu/treeisonet_export.py")),
                             .find("detect_treeisonet_sweep.R"), .find("model_runner.R"))),
       python = system2(VENV, "--version", stdout = TRUE, stderr = TRUE),
-      conf = CONF, voxel = VOXEL, masks = MASKS, hmin = HMIN,
+      conf = CONF, voxel = VOXEL, masks = MASKS, mask_voxel = MASK_VOXEL, hmin = HMIN,
       frozen_root = frozen_root_id(fz$root), population = fz$population),
     file.path(nd, "treeisonet_run_manifest.json"), auto_unbox = TRUE, pretty = TRUE)
   inst_dir <- file.path(nd, "treeisonet_instances")
