@@ -16,14 +16,18 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # best-scoring tested configuration for each site. "Best" means pooled F1 from
 # the cached benchmark metric CSVs. For CHM-VWF we use the richer sweep grid
 # (rung x chm_res x vwf_a); for the other arms we use each detector's tested
-# rung(s). Detections are regenerated from the cached frozen clips and cached as
-# per-cell CSVs so GPU-backed arms can resume.
+# rung(s). Detections are regenerated from the sealed frozen-clip root
+# (freeze_clips.R; default work/neon/frozen_2021, hash-verified) and cached as
+# per-cell CSVs under work/neon/<SITE>/best_treetop_cache/ so GPU-backed arms
+# can resume. The cache is stamped with the root's clip-manifest SHA-256 and a
+# cache made on other clips is refused. Selection and export cover the plots
+# of the root's declared population only (POP=, default adopted).
 #
 # Usage:
 #   Rscript scripts/export_best_treetops_geojson.R \
 #     [SITES=SJER,SOAP,TEAK] [METHODS=ALL|chm_vwf,multichm,...] \
 #     [OUT=work/neon/best_treetops_geojson] [EXTENT=core|recall|all] \
-#     [FORCE=0] [SKIP_GPU=0]
+#     [FORCE=0] [SKIP_GPU=0] [POP=adopted] [FROZEN_ROOT=...]
 #
 # Writes:
 #   OUT/<detector>.geojson
@@ -172,6 +176,8 @@ metric_rows <- function(site, method) {
   f <- metric_file_for(site, method)
   if (!file.exists(f)) return(NULL)
   r <- read.csv(f, stringsAsFactors = FALSE)
+  # Select and export over the declared population's plots only.
+  r <- r[r$plot %in% site_context(site)$plots, , drop = FALSE]
   if (!nrow(r)) return(NULL)
   family <- METHOD_REGISTRY$family[match(method, METHOD_REGISTRY$method)]
   if (family == "chm_sweep") {
@@ -234,11 +240,10 @@ site_context <- function(site) {
   nd <- file.path(d, "neon", site)
   pc <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
   gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  if (!length(laz)) stop("no LAZ files under ", file.path(nd, "lidar"), call. = FALSE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
-  ctx <- list(site = site, nd = nd, pc = pc, ctg = ctg,
+  fz <- frozen_scope(d, site, A, gt)      # declared population + sealed root
+  invisible(neon_validate_inputs(fz$gt, pc))
+  frozen_stamp(detection_cache_dir(nd, fz$root), fz$root)  # once per site, in the parent
+  ctx <- list(site = site, nd = nd, pc = pc, root = fz$root, plots = fz$plots,
               epsg = neon_field_epsg(pc))
   assign(site, ctx, .site_cache)
   ctx
@@ -262,12 +267,18 @@ cache_suffix <- function(method, row) {
   sanitize(paste(parts, collapse = "__"))
 }
 
+# Per-cell detections are cached in one directory per site. site_context()
+# stamps it with the sealed root (frozen_stamp): a cache holding files made on
+# other clips is refused, never reused; move it aside to keep it.
+# crown_metrics_sweep.R (SEED_POLICY=best) checks the same stamp before reading.
+detection_cache_dir <- function(nd, root) file.path(nd, "best_treetop_cache")
+
 cell_cache_path <- function(ctx, method, row) {
   parts <- c(method, ctx$site, row$plot, as.character(row$rung))
   suffix <- cache_suffix(method, row)
   if (nzchar(suffix)) parts <- c(parts, suffix)
-  dir.create(file.path(ctx$nd, "best_treetop_cache"), recursive = TRUE, showWarnings = FALSE)
-  file.path(ctx$nd, "best_treetop_cache", paste0(sanitize(paste(parts, collapse = "__")), ".csv"))
+  file.path(detection_cache_dir(ctx$nd, ctx$root),
+            paste0(sanitize(paste(parts, collapse = "__")), ".csv"))
 }
 
 read_det_cache <- function(path) {
@@ -303,14 +314,16 @@ treeisonet_det <- function(prep, pid, rung) {
                  timeout = TIMEOUT, label = sprintf("%s/%s", pid, rung))
 }
 
+# Instance clouds persisted by detect_segmentanytree_sweep.R, read only from a
+# directory stamped with this root (a directory made on other clips stops the
+# run; an absent one means SAT runs here). The unstamped legacy
+# sat_batch_salvage/ outputs are no longer read: nothing ties them to the root.
 persisted_segmentanytree_det <- function(ctx, prep, pid, rung) {
+  dir <- file.path(ctx$nd, "segmentanytree_instances")
+  if (!dir.exists(dir)) return(NULL)
+  frozen_stamp_check(dir, ctx$root)
   stem <- sprintf("%s_%s", pid, rung)
-  candidates <- c(
-    file.path(ctx$nd, "segmentanytree_instances", paste0(stem, ".laz")),
-    file.path(ctx$nd, "segmentanytree_instances", paste0(stem, ".las")),
-    file.path(ctx$nd, "sat_batch_salvage", pid, paste0("sat_", stem, "_out.laz")),
-    file.path(ctx$nd, "sat_batch_salvage", pid, paste0("sat_", stem, "_out.las"))
-  )
+  candidates <- file.path(dir, paste0(stem, c(".laz", ".las")))
   hit <- candidates[file.exists(candidates)]
   if (!length(hit)) return(NULL)
   det_abs <- read_instances_laz(hit[1], id_field = "PredInstance")
@@ -427,8 +440,7 @@ generate_cell_det <- function(ctx, row) {
   ci <- ctx$pc[ctx$pc$plotID == row$plot, ][1, ]
   cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
   rung_lbl <- as.character(row$rung)
-  prep <- frozen_clip(ctx$ctg, ctx$site, row$plot, rung_value(rung_lbl), cx, cy, ph,
-                      out_root = file.path(ctx$nd, "frozen"))
+  prep <- frozen_clip(NULL, ctx$site, row$plot, rung_value(rung_lbl), cx, cy, ph, ctx$root)
   if (is.null(prep)) return(NULL)
   det <- switch(method,
     chm_vwf = detect_lasr(prep$normalized, as.numeric(row$chm_res),
@@ -548,8 +560,7 @@ segmentanytree_batch_features <- function(ctx, rows, sel) {
     ci <- ctx$pc[ctx$pc$plotID == row$plot, ][1, ]
     cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
     rung_lbl <- as.character(row$rung)
-    prep <- frozen_clip(ctx$ctg, ctx$site, row$plot, rung_value(rung_lbl), cx, cy, ph,
-                        out_root = file.path(ctx$nd, "frozen"))
+    prep <- frozen_clip(NULL, ctx$site, row$plot, rung_value(rung_lbl), cx, cy, ph, ctx$root)
     if (is.null(prep)) next
 
     if (is.null(det)) {
@@ -615,7 +626,7 @@ segmentanytree_batch_features <- function(ctx, rows, sel) {
         det_to_layer(ctx, cell$row, sel, det)
       }
       one_layers <- if (SAT_CORES > 1L && length(cells) > 1L)
-        parallel::mclapply(cells, run_single,
+        plot_lapply(cells, run_single,
                            mc.cores = min(SAT_CORES, length(cells)),
                            mc.preschedule = FALSE) else lapply(cells, run_single)
       for (lyr in one_layers)

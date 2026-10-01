@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
 # TreeisoNet treeOff crown arm (#20). Runs the treeOff crown driver
 # (gpu/run_treeisonet_crowns.py) on the native normalized frozen clip per SOAP
-# plot (SERIAL, single GPU), reduces the per-point instances to apexes + crown
+# plot (sealed root and declared population from freeze_clips.R; SERIAL, single
+# GPU), reduces the per-point instances to apexes + crown
 # diameters (the bridge's reduce_instances + crown_diameter_table on the labeled
 # CANOPY points), matches apexes to field stems (greedy_match with a height
 # gate), and joins NEON field crown diameter. Output is schema-compatible with
@@ -14,7 +15,7 @@
 #
 # Usage:
 #   Rscript scripts/detect_treeisonet_crowns.R [SITE=SOAP] [PLOTS=ALL]
-#       [CONF=0.22] [TOL=4] [HMIN=2]
+#       [CONF=0.22] [TOL=4] [HMIN=2] [POP=adopted] [FROZEN_ROOT=...]
 # Output: $CLAUDE_JOB_DIR/neon/<SITE>/treeisonet_crown_metrics.csv
 suppressMessages({ library(lidR); library(data.table); library(grDevices) })
 options(lidR.progress = FALSE)
@@ -41,7 +42,7 @@ PLOTS <- if (is.null(A$PLOTS) || A$PLOTS == "ALL") NULL else strsplit(A$PLOTS, "
 CONF  <- if (is.null(A$CONF))  "0.22" else A$CONF
 TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
 HMIN  <- if (is.null(A$HMIN)) "2" else A$HMIN
-MINTREES <- 6
+MINTREES <- 6    # field-crown-diameter stems per plot (crown sub-population)
 VENV  <- file.path(.ROOT, "gpu/.venv/bin/python")
 DRV   <- file.path(.ROOT, "gpu/run_treeisonet_crowns.py")
 LOC   <- file.path(.ROOT, "gpu/store/treeaibox/als_treeloc.pth")
@@ -67,19 +68,21 @@ run_main <- function() {
   nd <- file.path(d, "neon", SITE)
   gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc <- read.csv(file.path(nd, "plot_centroids.csv"),     stringsAsFactors = FALSE)
-  gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
+  fz <- frozen_scope(d, SITE, A, gt)      # declared population + sealed root
+  gt <- fz$gt
+  invisible(neon_validate_inputs(gt, pc))
   gt <- gt[, setdiff(names(gt), c("maxCrownDiameter", "ninetyCrownDiameter")), drop = FALSE]
   neon_reference_epoch(gt, 2021) # This historical crown join is still nearest-to-2021.
   gt <- merge(gt, field_crowns(SITE), by = "individualID", all.x = TRUE)
   gt <- gt[!is.na(gt$maxCrownDiameter) | !is.na(gt$ninetyCrownDiameter), ]
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
+  # Crown sub-population: the declared plots that also hold >= MINTREES gated
+  # stems with a field crown diameter.
   counts <- table(gt$plotID); keep <- names(counts)[counts >= MINTREES]
+  keep <- intersect(fz$plots, keep)
   if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   keep <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] treeisonet crowns: %d plots w/ field CD (conf=%s)\n",
-              SITE, length(keep), CONF))
+  cat(sprintf("[%s] treeisonet crowns (%s): %d plots w/ field CD (conf=%s)\n",
+              SITE, fz$population, length(keep), CONF))
 
   rows <- list()
   for (pid in keep) {                       # SERIAL -- single GPU
@@ -87,9 +90,7 @@ run_main <- function() {
     ph <- plot_half(ci$plotType)
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
     if (nrow(stems) < 1) next
-    prep <- tryCatch(frozen_clip(ctg, SITE, pid, NA, cx, cy, ph,
-                                 out_root = file.path(nd, "frozen")),
-                     error = function(e) NULL)
+    prep <- frozen_clip(NULL, SITE, pid, NA, cx, cy, ph, fz$root)
     if (is.null(prep)) next
     ocsv <- file.path(tempdir(), sprintf("ticr_%s.csv", pid))
     pts <- run_python_crown_arm(VENV, DRV, prep$normalized, ocsv,

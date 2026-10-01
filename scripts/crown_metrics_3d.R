@@ -45,12 +45,13 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #
 # Usage:
 #   Rscript scripts/crown_metrics_3d.R SITES=SJER,SOAP,TEAK CORES=8 TOL=4
+#     [POP=adopted] [FROZEN_ROOT=...]
 #
-# Reads (read-only): work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv}
-#   the LiDAR catalog work/neon/<SITE>/lidar/, the cached field-crown widths
-#   work/neon/<SITE>/vst/<site>_vst_allyears.rds, and the cached frozen clips
-#   work/neon/<SITE>/frozen/<plot>/native/clip_normalized.laz (reused, never
-#   regenerated here).
+# Reads (read-only): work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv},
+#   the cached field-crown widths work/neon/<SITE>/vst/<site>_vst_allyears.rds,
+#   and the native cells of the sealed frozen-clip root (freeze_clips.R; default
+#   work/neon/frozen_2021, hash-verified, never regenerated here). Plots and the
+#   stem gate come from its declared population (POP=, default adopted).
 # Writes (NEW file, never overwrites crown_metrics_results.csv):
 #   work/neon/<SITE>/crown_metrics_3d_results.csv  (one row per matched tree,
 #   canonical cols: site, plot, algo, crown_class, individualID, d_eq,
@@ -70,7 +71,7 @@ A     <- setNames(lapply(args, `[`, 2), sapply(args, `[`, 1))
 SITES <- if (is.null(A$SITES)) c("SJER", "SOAP", "TEAK") else strsplit(A$SITES, ",")[[1]]
 CORES <- as.integer(if (is.null(A$CORES)) 8 else A$CORES)
 TOL   <- as.numeric(if (is.null(A$TOL))  4 else A$TOL)
-MINTREES <- 6
+MINTREES <- 6   # crown sub-population: >= 6 gated stems with a field crown diameter
 
 ## ---- per-segmenter instance labelling on a normalized clip ---------------
 # Each returns the SAME seg@data table the detection arm consumed, plus the id
@@ -133,12 +134,12 @@ field_crowns <- function(site) {
 }
 
 ## ---- per-plot 3-D crown benchmark ----------------------------------------
-# Reads the cached native frozen normalized clip (NEVER regenerates it), runs
+# Reads the sealed native frozen normalized clip (NEVER regenerates it), runs
 # each segmenter once, and for every segmenter derives crown_diameter_table +
 # instance_apex from the SAME labelling, then scores against the plot-core stems
 # via the shared score_crowns_against_field glue. Returns canonical-cols rows for
 # all segmenters that produced a match, or NULL.
-run_plot <- function(site, pid, ctg, pc, gt, fc, nd) {
+run_plot <- function(site, pid, root, pc, gt, fc) {
   ci <- pc[pc$plotID == pid, ][1, ]
   cx <- ci$easting; cy <- ci$northing
   ph <- plot_half(ci$plotType)
@@ -146,9 +147,7 @@ run_plot <- function(site, pid, ctg, pc, gt, fc, nd) {
               abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
   if (nrow(stems) < 1) return(NULL)
 
-  prep <- tryCatch(frozen_clip(ctg, site, pid, NA, cx, cy, ph,
-                               out_root = file.path(nd, "frozen")),
-                   error = function(e) NULL)
+  prep <- frozen_clip(NULL, site, pid, NA, cx, cy, ph, root)   # hash-verified
   if (is.null(prep)) return(NULL)
   las <- tryCatch(readLAS(prep$normalized), error = function(e) NULL)
   if (is.null(las) || is.empty(las)) return(NULL)
@@ -169,14 +168,17 @@ run_plot <- function(site, pid, ctg, pc, gt, fc, nd) {
 }
 
 ## ---- per-site driver ------------------------------------------------------
-# Mirrors crown_metrics_sweep.R::run_site: live & is_tree stems, authoritative
-# rds crown-diameter join (drop any pre-existing CD columns first), >=MINTREES
-# plots, mclapply over plots, write the NEW crown_metrics_3d_results.csv.
+# Mirrors crown_metrics_sweep.R::run_site: the declared population's gated
+# stems, authoritative rds crown-diameter join (drop any pre-existing CD columns
+# first), the population's plots that hold >=MINTREES stems with a field crown
+# diameter (a crown sub-population), mclapply over plots, write the NEW
+# crown_metrics_3d_results.csv.
 run_site <- function(site) {
   nd  <- file.path(d, "neon", site)
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
+  fz  <- frozen_scope(d, site, A, gt)     # declared population + sealed root
+  gt  <- fz$gt
   gt  <- gt[, setdiff(names(gt),
                       c("maxCrownDiameter", "ninetyCrownDiameter")), drop = FALSE]
   neon_reference_epoch(gt, 2021) # This historical crown join is still nearest-to-2021.
@@ -184,22 +186,24 @@ run_site <- function(site) {
   gt  <- merge(gt, fc, by = "individualID", all.x = TRUE)
   gt  <- gt[!is.na(gt$maxCrownDiameter) | !is.na(gt$ninetyCrownDiameter), ]
 
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
+  invisible(neon_validate_inputs(gt, pc))
 
   counts <- table(gt$plotID)
   keep <- names(counts)[counts >= MINTREES]
-  keep <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] plots with >=%d stems w/ field CD: %d (%s)\n",
-              site, MINTREES, length(keep), paste(keep, collapse = ",")))
+  keep <- intersect(intersect(fz$plots, keep), pc$plotID)
+  cat(sprintf("[%s] %s plots with >=%d stems w/ field CD: %d (%s)\n",
+              site, fz$population, MINTREES, length(keep), paste(keep, collapse = ",")))
   if (!length(keep)) return(NULL)
 
   res_list <- mclapply(keep, function(p)
-    tryCatch(run_plot(site, p, ctg, pc, gt, fc, nd),
+    tryCatch(run_plot(site, p, fz$root, pc, gt, fc),
              error = function(e) { message("  plot ", p, " failed: ",
-                                            conditionMessage(e)); NULL }),
+                                            conditionMessage(e)); e }),
     mc.cores = CORES, mc.preschedule = FALSE)
+  # A failed plot (e.g. a frozen cell that no longer matches its hash) must not
+  # leave the population silently smaller; segmenter crashes stay per-arm.
+  failed <- keep[!vapply(res_list, function(r) is.null(r) || is.data.frame(r), logical(1))]
+  if (length(failed)) stop("plots failed: ", paste(failed, collapse = ","), call. = FALSE)
   res <- do.call(rbind, Filter(Negate(is.null), res_list))
   if (is.null(res) || !nrow(res)) {
     cat(sprintf("[%s] no crowns matched\n", site)); return(NULL) }
@@ -257,11 +261,12 @@ print_tables <- function(res) {
 ## ---- run ------------------------------------------------------------------
 run_main <- function() {
   t0 <- Sys.time()
-  all_res <- list()
+  all_res <- list(); failed <- character()
   for (site in SITES) {
     r <- tryCatch(run_site(site), error = function(e) {
-      message("site ", site, " failed: ", conditionMessage(e)); NULL })
-    if (!is.null(r)) all_res[[site]] <- r
+      message("site ", site, " failed: ", conditionMessage(e)); e })
+    if (inherits(r, "error")) failed <- c(failed, site)
+    else if (!is.null(r)) all_res[[site]] <- r
   }
   res <- do.call(rbind, all_res)
   dt <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
@@ -273,6 +278,8 @@ run_main <- function() {
     print(table(res$crown_class, useNA = "ifany"))
     print_tables(res)
   }
+  # Other sites still finish, write and print; a failed site must not pass silently.
+  if (length(failed)) stop("sites failed: ", paste(failed, collapse = ","), call. = FALSE)
 }
 
 if (sys.nframe() == 0L) run_main()

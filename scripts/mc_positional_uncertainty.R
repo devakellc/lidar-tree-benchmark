@@ -32,8 +32,10 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # Usage:
 #   Rscript scripts/mc_positional_uncertainty.R SITES=SOAP,SJER,TEAK K=200
 #   Rscript scripts/mc_positional_uncertainty.R SITE=SOAP K=300 TOLS=3,4,5
-# Reads: ground_truth_stems.csv (with pos_unc), plot_centroids.csv, the frozen
-#   normalized clips + DTMs, and the persisted deep instance clouds.
+#     [POP=adopted] [FROZEN_ROOT=...]
+# Reads: ground_truth_stems.csv (with pos_unc), plot_centroids.csv, the sealed
+#   frozen root's normalized clips + DTMs for the declared population's plots
+#   (freeze_clips.R), and the persisted deep instance clouds.
 # Writes: work/neon/<SITE>/positional_uncertainty.csv (per arm x tol: median +
 #   5th/95th-percentile bands on recall/precision/F1 + per-class recall).
 suppressMessages({ library(lidR); library(data.table); library(parallel); library(sf) })
@@ -61,7 +63,6 @@ SAT_ID_FIELD <- "PredInstance"
 CHM_ARMS <- c("chm_vwf", "multichm")
 CLASSES  <- c("dominant", "codominant", "intermediate", "suppressed")
 
-fz <- function(nd, site, pid, f) file.path(nd, "frozen", site, pid, RUNG, f)
 inst_path <- function(idir, pid) {
   cand <- file.path(idir, paste0(pid, "_", RUNG, c(".laz", ".las")))
   hit <- cand[file.exists(cand)]; if (length(hit)) hit[1] else NA_character_
@@ -103,35 +104,46 @@ materialize <- function(las, clip, dtm, frdens, res, nd, site, pid) {
 }
 
 ## ---- per-cell fixed detections + stems, for the MC loop -------------------
-prep_cell <- function(site, pid, pc, gt, nd) {
+prep_cell <- function(site, pid, pc, gt, nd, root) {
   ci <- pc[pc$plotID == pid, ][1, ]; cx <- ci$easting; cy <- ci$northing
   ph <- plot_half(ci$plotType)
   stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, , drop = FALSE]
   if (nrow(stems) < 1) return(NULL)
-  clip <- fz(nd, site, pid, "clip_normalized.laz"); if (!file.exists(clip)) return(NULL)
+  cell <- frozen_clip(NULL, site, pid, RUNG, cx, cy, ph, root)  # hash-verified
+  if (is.null(cell)) return(NULL)                   # upsampled / unusable cell
+  clip <- cell$normalized
   las <- tryCatch(suppressWarnings(lidR::readLAS(clip)), error = function(e) NULL)
   if (is.null(las) || lidR::is.empty(las)) return(NULL)
-  frdens <- tryCatch(jsonlite::read_json(fz(nd, site, pid, "manifest.json"),
-                     simplifyVector = TRUE)$frdens, error = function(e) NA_real_)
-  if (is.null(frdens) || is.na(frdens)) frdens <- 8
+  frdens <- cell$frdens
   res <- if (frdens >= 8) 0.25 else 0.5
-  dets <- materialize(las, clip, fz(nd, site, pid, "ground_dtm.tif"), frdens, res, nd, site, pid)
+  dets <- materialize(las, clip, cell$dtm, frdens, res, nd, site, pid)
   if (is.null(dets)) return(NULL)
   list(site = site, plot = pid, cx = cx, cy = cy, ph = ph, stems = stems,
        dets = dets, seed = seed_for(site, pid, RUNG))
 }
 
 ## ---- driver ---------------------------------------------------------------
+# Deep arms' instance clouds must carry the sealed root's stamp (frozen_stamp);
+# an absent directory means that arm did not run. Checked for every site before
+# any site runs, outside the per-site error handler.
+check_artifact_stamps <- function(site, root = frozen_root(d, A$FROZEN_ROOT)) {
+  nd <- file.path(d, "neon", site)
+  for (a in c("segmentanytree_instances", "forestformer3d_instances"))
+    if (dir.exists(file.path(nd, a))) frozen_stamp_check(file.path(nd, a), root)
+}
+
 run_site <- function(site) {
   nd <- file.path(d, "neon", site)
   gtf <- file.path(nd, "ground_truth_stems.csv"); pcf <- file.path(nd, "plot_centroids.csv")
   if (!file.exists(gtf) || !file.exists(pcf)) return(NULL)
   gt <- read.csv(gtf, stringsAsFactors = FALSE); pc <- read.csv(pcf, stringsAsFactors = FALSE)
-  gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), , drop = FALSE]
+  fz <- frozen_scope(d, site, A, gt)              # declared population + sealed root
+  gt <- fz$gt
   if (is.null(gt$pos_unc)) gt$pos_unc <- NA_real_
-  plots <- intersect(unique(gt$plotID), pc$plotID)
-  cells <- Filter(Negate(is.null), mclapply(plots, function(p)
-    tryCatch(prep_cell(site, p, pc, gt, nd), error = function(e) NULL),
+  plots <- intersect(fz$plots, pc$plotID)
+  cells <- Filter(Negate(is.null), plot_lapply(plots, function(p)
+    tryCatch(prep_cell(site, p, pc, gt, nd, fz$root), error = function(e) {
+      message("  ", p, " failed: ", conditionMessage(e)); NULL }),
     mc.cores = CORES, mc.preschedule = FALSE))
   if (!length(cells)) { cat(sprintf("[%s] no cells\n", site)); return(NULL) }
   arms <- sort(unique(unlist(lapply(cells, function(c) names(c$dets)))))
@@ -191,6 +203,7 @@ ARM_ORDER <- c("chm_vwf", "multichm", "li2012", "segmentanytree", "forestformer3
                "fusion_union", "fusion_layered")
 run_main <- function() {
   t0 <- Sys.time(); res <- list(); drw <- list()
+  for (site in SITES) check_artifact_stamps(site)
   for (site in SITES) {
     r <- tryCatch(run_site(site), error = function(e) {
       message("site ", site, ": ", conditionMessage(e)); NULL })

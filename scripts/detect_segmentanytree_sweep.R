@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
 # SegmentAnyTree (#M6) density-ladder arm. Runs the upstream SAT instance
 # segmenter zero-shot (Docker, sm_120 rebuild) on the RAW-WITH-GROUND frozen clip
-# per plot x density rung, reducing per-tree instances to apex detections and
+# per plot x density rung (sealed root and declared population from
+# freeze_clips.R), reducing per-tree instances to apex detections and
 # scoring against field stems with the existing harness. CORES controls how many
 # independent SAT containers may run concurrently on the same GPU; default 1,
 # CORES=2 is the tested RTX 5090 throughput setting.
@@ -17,7 +18,11 @@
 # Usage:
 #   Rscript scripts/detect_segmentanytree_sweep.R [SITE=SOAP] [PLOTS=ALL]
 #       [TOL=4] [IMAGE=sat-sm120-test] [TIMEOUT=1800] [CORES=1] [BATCH=0]
-#       [RUNGS=native,8,4,2,1]
+#       [RUNGS=native,8,4,2,1] [POP=adopted] [FROZEN_ROOT=...]
+# Resume: cells already in segmentanytree_results.csv with a persisted instance
+# LAS are skipped. The file is tied to the sealed root and population that made
+# it (frozen_resume_guard); against another one the run stops, so move the old
+# results aside first.
 # Requires the sm_120 image:  bash gpu/segmentanytree-sm120/build.sh
 # Output: $CLAUDE_JOB_DIR/neon/<SITE>/segmentanytree_results.csv (one row per
 #         plot x rung).
@@ -47,7 +52,6 @@ RUNGS_RAW <- if (is.null(A$RUNGS)) c("native", "8", "4", "2", "1") else
 RUN_NATIVE <- any(tolower(RUNGS_RAW) == "native")
 RUNGS <- as.numeric(RUNGS_RAW[tolower(RUNGS_RAW) != "native"])
 RUNGS <- RUNGS[is.finite(RUNGS)]
-MINTREES <- 6
 DRIVER   <- file.path(.ROOT, "gpu", "run_segmentanytree.py")
 BATCH_DRIVER <- file.path(.ROOT, "gpu", "run_segmentanytree_batch.py")
 # The merged LAS carries the instance label as the PredInstance extra dim
@@ -92,18 +96,19 @@ run_main <- function() {
   nd  <- file.path(d, "neon", SITE)
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"),     stringsAsFactors = FALSE)
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
-  counts <- table(gt$plotID)
-  keep   <- names(counts)[counts >= MINTREES]
+  fz  <- frozen_scope(d, SITE, A, gt)     # declared population + sealed root
+  gt  <- fz$gt
+  invisible(neon_validate_inputs(gt, pc))
+  keep   <- fz$plots
   if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   keep   <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] segmentanytree plots: %d (image=%s tol=%s cores=%d batch=%s)\n",
-              SITE, length(keep), IMAGE, TOL, CORES, BATCH))
+  cat(sprintf("[%s] segmentanytree plots (%s): %d (image=%s tol=%s cores=%d batch=%s)\n",
+              SITE, fz$population, length(keep), IMAGE, TOL, CORES, BATCH))
 
   result_file <- file.path(nd, "segmentanytree_results.csv")
+  inst_dir <- file.path(nd, "segmentanytree_instances")
+  frozen_stamp(inst_dir, fz$root)        # instance clouds made on other clips stop here
+  frozen_resume_guard(result_file, fz)
   results <- if (file.exists(result_file)) {
     read.csv(result_file, stringsAsFactors = FALSE)
   } else data.frame()
@@ -125,9 +130,7 @@ run_main <- function() {
   # crown arm can re-derive crown_diameter_table + instance_apex from the SAME
   # labelling without re-running the container. The merged LAS already carries the
   # PredInstance extra dim (verified by read_instances_laz above), so a plain copy
-  # preserves the schema the crown arm reads.
-  inst_dir <- file.path(nd, "segmentanytree_instances")
-  dir.create(inst_dir, recursive = TRUE, showWarnings = FALSE)
+  # preserves the schema the crown arm reads. inst_dir is stamped above.
   instance_candidates <- function(plot, tag) {
     file.path(inst_dir, paste0(plot, "_", tag, c(".laz", ".las")))
   }
@@ -153,9 +156,7 @@ run_main <- function() {
     unlink(c(batch_in, batch_out), recursive = TRUE, force = TRUE)
     dir.create(batch_in, recursive = TRUE, showWarnings = FALSE)
     for (rung in c(if (RUN_NATIVE) NA_real_ else numeric(), RUNGS)) {
-      prep <- tryCatch(frozen_clip(ctg, SITE, pid, rung, cx, cy, ph,
-                                   out_root = file.path(nd, "frozen")),
-                       error = function(e) NULL)
+      prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
       pdens <- prep$pdens; frdens <- prep$frdens
       if (is.na(rung)) native_pdens <- pdens

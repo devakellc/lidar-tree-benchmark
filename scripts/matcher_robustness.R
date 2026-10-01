@@ -31,19 +31,21 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # vs isolated = real understory / field-map gap), per crown_class -- the count
 # feeds the #P2 router and #P1 fusion.
 #
-# Detections are regenerated DETERMINISTICALLY from the cached frozen NORMALIZED
-# clips (so every matcher scores identical apexes) via detect_lasr at the
-# canonical params (density-derived chm_res, vwf_a = 0.10), matching the benchmark.
+# Detections are regenerated DETERMINISTICALLY from the sealed frozen NORMALIZED
+# clips of the declared population's plots (freeze_clips.R; so every matcher
+# scores identical apexes) via detect_lasr at the canonical params
+# (density-derived chm_res, vwf_a = 0.10), matching the benchmark.
 # A null result (no pooled movement) confirms greedy-flat-4 is adequate; a delta
 # says switch. Pools with the canonical pool() (sum counts, never average rates).
 #
 # Usage:
 #   Rscript scripts/matcher_robustness.R SITE=SOAP
 #   Rscript scripts/matcher_robustness.R SITES=SOAP,SJER,TEAK CORES=4 RUNGS=native
+#     [POP=adopted] [FROZEN_ROOT=...] [MINTREES=1]
 # Reads (read-only): work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv},
 #   the cached field crown widths work/neon/<SITE>/vst/<site>_vst_allyears.rds, and
-#   the cached frozen normalized clips work/neon/<SITE>/frozen/<SITE>/<plot>/<rung>/
-#   {clip_normalized.laz,manifest.json}.
+#   the sealed frozen root (default work/neon/frozen_2021/<SITE>/<plot>/<rung>/
+#   {clip_normalized.laz,manifest.json}).
 # Writes: work/neon/<SITE>/matcher_robustness.csv (one row per
 #   site x plot x rung x config; pool with pool()).
 suppressMessages({ library(lidR); library(data.table); library(parallel) })
@@ -68,6 +70,8 @@ TOL_CAP  <- as.numeric(if (is.null(A$TOL_CAP)) 12.0 else A$TOL_CAP)
 NEAR_TOL <- as.numeric(if (is.null(A$NEAR_TOL)) 4.0 else A$NEAR_TOL)
 VWF_A    <- as.numeric(if (is.null(A$VWF_A)) 0.10 else A$VWF_A)
 LAMBDA   <- as.numeric(if (is.null(A$LAMBDA)) 0.5 else A$LAMBDA)
+# The declared population supplies the plot gate; MINTREES only drops plots
+# with fewer gated stems in the scored core.
 MINTREES <- as.integer(if (is.null(A$MINTREES)) 1 else A$MINTREES)
 TX_SET   <- c(2, 3, 4, 5)               # tol_xy sensitivity
 TZ_SET   <- c(5, 8, 12)                 # tol_z_up sensitivity
@@ -94,11 +98,6 @@ field_crowns <- function(site) {
   ai <- ai[order(ai$individualID, ai$dist21), ]
   ai[!duplicated(ai$individualID), c("individualID", "maxCrownDiameter")]
 }
-
-frozen_norm_path <- function(nd, site, pid, rung)
-  file.path(nd, "frozen", site, pid, rung, "clip_normalized.laz")
-frozen_manifest  <- function(nd, site, pid, rung)
-  file.path(nd, "frozen", site, pid, rung, "manifest.json")
 
 ## ---- per-class FP error structure for one (plot,rung), baseline matcher ---
 # Recomputes the baseline greedy match, finds the core false positives, tags each
@@ -131,7 +130,7 @@ fp_by_class <- function(stems, det, cx, cy, ph, near_tol = NEAR_TOL) {
 }
 
 ## ---- per-plot re-score over all matcher configs + the sensitivity grid ----
-run_plot <- function(site, pid, pc, gt, nd) {
+run_plot <- function(site, pid, pc, gt, nd, root) {
   ci <- pc[pc$plotID == pid, ][1, ]
   cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
   stems <- gt[gt$plotID == pid &
@@ -141,12 +140,10 @@ run_plot <- function(site, pid, pc, gt, nd) {
                        base_tol = BASE_TOL, k = K, tol_cap = TOL_CAP)
   rows <- list()
   for (rung in RUNGS) {
-    fp <- frozen_norm_path(nd, site, pid, rung)
-    if (!file.exists(fp)) next
-    frdens <- tryCatch(jsonlite::read_json(frozen_manifest(nd, site, pid, rung),
-                                           simplifyVector = TRUE)$frdens,
-                       error = function(e) NA_real_)
-    if (is.null(frdens) || is.na(frdens)) frdens <- 8        # safe default res rule
+    cell <- frozen_clip(NULL, site, pid, rung, cx, cy, ph, root)  # hash-verified
+    if (is.null(cell)) next                                  # upsampled / unusable
+    fp <- cell$normalized
+    frdens <- cell$frdens
     res <- if (frdens >= 8) 0.25 else 0.5
     det <- tryCatch(detect_lasr(fp, res, VWF_A, frdens), error = function(e) NULL)
     if (is.null(det)) next
@@ -185,18 +182,19 @@ run_site <- function(site) {
     cat(sprintf("[%s] no ground truth / centroids -- skipped\n", site)); return(NULL) }
   gt <- read.csv(gtf, stringsAsFactors = FALSE)
   pc <- read.csv(pcf, stringsAsFactors = FALSE)
-  gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), , drop = FALSE]
+  fz <- frozen_scope(d, site, A, gt)              # declared population + sealed root
+  gt <- fz$gt
   gt <- gt[, setdiff(names(gt), "maxCrownDiameter"), drop = FALSE]
   gt <- merge(gt, field_crowns(site), by = "individualID", all.x = TRUE)
   if (is.null(gt$maxCrownDiameter)) gt$maxCrownDiameter <- NA_real_
   if (is.null(gt$pos_unc)) gt$pos_unc <- NA_real_
 
-  plots <- intersect(unique(gt$plotID), pc$plotID)
-  cat(sprintf("[%s] re-scoring %d plots over rungs {%s}\n",
-              site, length(plots), paste(RUNGS, collapse = ",")))
+  plots <- intersect(fz$plots, pc$plotID)
+  cat(sprintf("[%s] re-scoring %d plots (%s) over rungs {%s}\n",
+              site, length(plots), fz$population, paste(RUNGS, collapse = ",")))
   if (!length(plots)) return(NULL)
-  res_list <- mclapply(plots, function(p)
-    tryCatch(run_plot(site, p, pc, gt, nd),
+  res_list <- plot_lapply(plots, function(p)
+    tryCatch(run_plot(site, p, pc, gt, nd, fz$root),
              error = function(e) { message("  ", p, " failed: ",
                                             conditionMessage(e)); NULL }),
     mc.cores = CORES, mc.preschedule = FALSE)
