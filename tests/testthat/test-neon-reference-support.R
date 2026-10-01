@@ -252,3 +252,83 @@ test_that("standalone preparation replays offline and rejects tampered outputs",
   expect_equal(attr(third, "status"), 1L)
   expect_true(any(grepl("Cache contract differs", third)))
 })
+
+test_that("only a reviewed declaration naming the exact bundle admits it", {
+  f <- support_fixture(); b <- support_build(f)
+  expect_setequal(b$blockers, c("datum_review_pending", "flight_provenance_pending"))
+  decl <- list(name = "synthetic-2022", resolved_blockers = c("datum_review_pending",
+                                                              "flight_provenance_pending"),
+               admitted = data.frame(plot = b$plot, event = b$event,
+                                     support_id = neon_support_identity(b)))
+  a <- neon_admit_support(b, decl)
+  expect_true(a$evaluation_ready)
+  expect_length(a$blockers, 0)
+  expect_identical(a$admission$declaration, "synthetic-2022")
+  expect_identical(a$admission$prepared_support_id, neon_support_identity(b))
+  out <- score_neon_support(a, data.frame(x = 500010, y = 4700010, z = 15), det_epsg = 32618)
+  expect_equal(out$TP, 1)
+  # A different bundle, an unlisted plot or a remaining blocker stays diagnostic.
+  stale <- decl; stale$admitted$support_id <- "0"
+  expect_error(neon_admit_support(b, stale), "not admitted")
+  partial <- decl; partial$resolved_blockers <- "datum_review_pending"
+  expect_error(neon_admit_support(b, partial), "flight_provenance_pending")
+  geometry <- decl; geometry$resolved_blockers <- c(decl$resolved_blockers, "empty_reference_interior")
+  expect_error(neon_admit_support(b, geometry), "non-review blocker")
+  f$mt$stemDistance <- sqrt(1000); f$mt$stemAzimuth <- atan2(30, 10) * 180 / pi
+  conflict <- support_build(f)
+  decl$admitted$support_id <- neon_support_identity(conflict)
+  expect_error(neon_admit_support(conflict, decl), "measurement_subplot_conflict")
+})
+
+test_that("preparation handles a census year without measurements and a shared location cache", {
+  f <- support_fixture(); f$pp$utmZone <- "18N"
+  f$ai$date <- "2021-07-14"                       # the 2022 event lists no tree records
+  root <- tempfile(); dir.create(root)
+  on.exit(unlink(root, recursive = TRUE))
+  vst <- file.path(root, "neon/SOAP/vst"); dir.create(vst, recursive = TRUE)
+  saveRDS(list(vst_apparentindividual = f$ai, vst_perplotperyear = f$pp,
+               vst_mappingandtagging = f$mt), file.path(vst, "soap_vst_allyears.rds"))
+  cache <- file.path(root, "cache"); dir.create(cache)
+  for (i in seq_len(nrow(f$points))) {
+    p <- f$points[i, ]
+    loc <- list(locationName = p$ptloc, locationUtmEasting = p$easting,
+      locationUtmNorthing = p$northing, locationUtmZone = 18L, locationUtmHemisphere = "N",
+      locationProperties = data.frame(locationPropertyName = c("Value for Geodetic datum",
+        "Value for Coordinate uncertainty"), locationPropertyValue = c("WGS84", as.character(p$unc))))
+    jsonlite::write_json(list(location = p$ptloc, status = 200L, data = loc),
+      file.path(cache, paste0(p$ptloc, ".json")), auto_unbox = TRUE, pretty = TRUE)
+  }
+  out <- file.path(root, "SOAP_2022")
+  script <- normalizePath(file.path("..", "..", "scripts", "neon_reference_support.R"))
+  res <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+    c(shQuote(script), "SITE=SOAP", "YEAR=2022", paste0("OUT=", shQuote(out)),
+      paste0("LOCATION_CACHE=", shQuote(cache))),
+    env = paste0("CLAUDE_JOB_DIR=", shQuote(root)), stdout = TRUE, stderr = TRUE))
+  expect_null(attr(res, "status"), info = paste(res, collapse = "\n"))
+  s <- read.csv(file.path(out, "event_support_summary.csv"))
+  expect_identical(s$geometry_status, "measured_corners")
+  expect_equal(s$n_target, 0)
+  expect_true(length(list.files(file.path(out, "locations"))) > 0)   # copied from the cache
+})
+
+test_that("a complete block of 100 m2 subplots is the surveyed 20 m square", {
+  f <- support_fixture()
+  # Distributed plots survey only the outer corners and centre (31, 33, 41, 49, 51).
+  f$points <- f$points[sub(".*[.]", "", f$points$ptloc) %in% c("31", "33", "41", "49", "51"), ]
+  f$pp$subplotsSampled <- "31_100|32_100|40_100|41_100"; f$pp$totalSampledAreaTrees <- 400
+  expect_identical(unname(neon_merge_100_blocks(c("31_100", "32_100", "40_100", "41_100"))),
+                   rep("31_400", 4))
+  expect_identical(unname(neon_merge_100_blocks(c("31_100", "32_100", "40_100"))),
+                   c("31_100", "32_100", "40_100"))         # incomplete block stays as listed
+  g <- neon_event_geometry(f$pp, f$points, 32618)
+  expect_identical(g$subplots$subplotID, "31_400")
+  expect_equal(as.numeric(sf::st_area(g$footprint)), 400)
+  # A stem recorded in 32_100 checks against the block, not missing corners.
+  f$ai$subplotID <- "32_100"
+  f$mt$pointID <- "41"; f$mt$stemDistance <- 3; f$mt$stemAzimuth <- 0
+  b <- support_build(f)
+  expect_false(b$references$subplot_conflict)
+  expect_true(b$references$reference_selected)
+  f$pp$subplotsSampled <- "31_100|32_100|40_100"; f$pp$totalSampledAreaTrees <- 300
+  expect_error(neon_event_geometry(f$pp, f$points, 32618), "Missing subplot corner: 31_100")
+})

@@ -30,12 +30,34 @@ neon_event_subplots <- function(event) {
       neon_support_flagged(event$dataQF)) stop("Incomplete or quality-flagged census event")
   ids <- trimws(strsplit(event$subplotsSampled, "|", fixed = TRUE)[[1]])
   if (!length(ids) || anyDuplicated(ids) || any(!nzchar(ids))) stop("Missing or duplicate subplots")
-  corners <- lapply(ids, neon_subplot_corners)
+  invisible(lapply(ids, neon_subplot_corners))     # every listed encoding must be supported
   areas <- as.numeric(vapply(strsplit(ids, "_", fixed = TRUE), `[`, character(1), 2))
   if (!is.finite(event$totalSampledAreaTrees) ||
       abs(sum(areas) - event$totalSampledAreaTrees) > 1e-6) stop("Census sampled-area mismatch")
-  names(corners) <- ids
+  member_of <- neon_merge_100_blocks(ids)
+  geom_ids <- unique(unname(member_of))
+  corners <- lapply(geom_ids, neon_subplot_corners)
+  names(corners) <- geom_ids
+  attr(corners, "member_of") <- member_of
   corners
+}
+
+# A complete 2 x 2 block of 100 m2 subplots (anchors a, a+1, a+9, a+10) is the
+# same 20 m square as the 400 m2 subplot anchored at a; NEON encodes distributed
+# plots both ways, but surveys only the square's outer corners and centre. The
+# block is therefore drawn from the surveyed corners a, a+2, a+20, a+18 and each
+# member subplot maps to it; incomplete blocks keep their own 100 m2 corners.
+# Returns the geometry subplot for every listed subplot, named by listed ID.
+neon_merge_100_blocks <- function(ids) {
+  member_of <- setNames(ids, ids)
+  small <- ids[grepl("^[0-9]+_100$", ids)]       # malformed IDs fail in neon_subplot_corners
+  anchors <- as.integer(sub("_100$", "", small))
+  for (a in sort(anchors)) {
+    block <- paste0(a + c(0L, 1L, 9L, 10L), "_100")
+    if (all(block %in% small) && all(member_of[block] == block))
+      member_of[block] <- paste0(a, "_400")
+  }
+  member_of
 }
 
 neon_event_geometry <- function(event, locations, epsg) {
@@ -62,7 +84,8 @@ neon_event_geometry <- function(event, locations, epsg) {
   if (abs(sum(as.numeric(sf::st_area(g))) - as.numeric(sf::st_area(union))) > 1e-5)
     stop("Overlapping sampled subplots")
   list(footprint = union, subplots = sf::st_sf(subplotID = names(corners), geometry = g),
-       anchors = unique(do.call(rbind, used)), nominal_area = event$totalSampledAreaTrees)
+       anchors = unique(do.call(rbind, used)), nominal_area = event$totalSampledAreaTrees,
+       member_of = attr(corners, "member_of"))
 }
 
 neon_latest_mapping <- function(mt) {
@@ -171,9 +194,10 @@ neon_build_support <- function(event, references, locations, epsg) {
   refs$inside_interior <- neon_support_inside(refs$E, refs$N, core)
   refs$boundary_uncertain <- valid & !refs$inside_interior &
     neon_support_inside(refs$E, refs$N, sf::st_buffer(geometry$footprint, margin))
-  refs$subplot_conflict <- FALSE
+  refs$subplot_conflict <- rep(FALSE, nrow(refs))
   for (i in which(valid)) {
-    subplot <- sf::st_geometry(geometry$subplots[geometry$subplots$subplotID == refs$subplotID[i], ])
+    gid <- geometry$member_of[[refs$subplotID[i]]]
+    subplot <- sf::st_geometry(geometry$subplots[geometry$subplots$subplotID == gid, ])
     refs$subplot_conflict[i] <- !neon_support_inside(refs$E[i], refs$N[i],
                                                     sf::st_buffer(subplot, refs$pos_unc[i]))
   }
@@ -216,6 +240,34 @@ neon_check_support_rows <- function(df) {
   if (any(vapply(split(df$support_id, key), function(x) length(unique(x)) != 1L, logical(1))))
     stop("Different reference support within the same plot")
   invisible(TRUE)
+}
+
+# Admission under a reviewed declaration (protocol: "a separate reviewed
+# declaration admits support"). The declaration names the blockers it resolves,
+# with its evidence, and lists the exact support identities it admits. Only
+# review blockers can be resolved; geometry and reference-placement blockers
+# cannot. The admitted bundle records the declaration and becomes scorable.
+NEON_RESOLVABLE_BLOCKERS <- c("datum_review_pending", "flight_provenance_pending",
+                              "incomplete_target_references")
+neon_admit_support <- function(support, declaration) {
+  neon_support_require(as.data.frame(declaration$admitted), c("plot", "event", "support_id"),
+                       "Admission declaration")
+  if (!length(declaration$name) || !nzchar(declaration$name)) stop("Unnamed admission declaration")
+  resolved <- as.character(declaration$resolved_blockers)
+  if (any(!resolved %in% NEON_RESOLVABLE_BLOCKERS))
+    stop("Declaration resolves a non-review blocker: ",
+         paste(setdiff(resolved, NEON_RESOLVABLE_BLOCKERS), collapse = ", "))
+  adm <- as.data.frame(declaration$admitted)
+  row <- adm[adm$plot == support$plot & adm$event == support$event, , drop = FALSE]
+  if (nrow(row) != 1L || !identical(row$support_id, neon_support_identity(support)))
+    stop("Support bundle ", support$plot, "/", support$event, " is not admitted by ", declaration$name)
+  left <- setdiff(support$blockers, resolved)
+  if (length(left)) stop("Unresolved support blockers for ", support$plot, ": ", paste(left, collapse = ", "))
+  support$admission <- list(declaration = declaration$name, resolved = intersect(support$blockers, resolved),
+                            prepared_support_id = row$support_id)
+  support$blockers <- character()
+  support$evaluation_ready <- TRUE
+  support
 }
 
 score_neon_support <- function(support, det, det_epsg = NULL, tol_xy = 4, ...) {

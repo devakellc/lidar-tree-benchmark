@@ -8,9 +8,17 @@ source(.find("neon_spatial_lib.R"))
 source(.find("neon_reference_support_lib.R"))
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
+# HARV/BART are the retired eastern audit (exact 2022 events); the paper sites
+# are prepared score-blind for the censused-subplot precision study.
+SUPPORT_SITES <- c("HARV", "BART", "SJER", "SOAP", "TEAK", "WREF", "ABBY")
 site <- if (is.null(A$SITE)) "HARV" else A$SITE
-if (!site %in% c("HARV", "BART")) stop("This score-blind preparation is restricted to HARV/BART")
+if (!site %in% SUPPORT_SITES) stop("Score-blind support preparation is declared only for ",
+                                   paste(SUPPORT_SITES, collapse = ", "))
 year <- neon_year(if (is.null(A$YEAR)) 2022L else A$YEAR)
+# LOCATION_CACHE: a directory of raw NEON location responses shared between
+# runs; a cached response is copied into this run's own locations/ folder,
+# which remains the archived input of the run.
+location_cache <- A$LOCATION_CACHE
 nd <- file.path(.job_dir(), "neon", site)
 out <- if (is.null(A$OUT)) file.path(.job_dir(), "reference_support", site) else A$OUT
 metadata <- file.path(out, "locations")
@@ -44,6 +52,8 @@ needed <- sort(unique(needed))
 needed <- needed[grepl("^[A-Z]{4}_[0-9]+[.]basePlot[.]vst[.][0-9]+$", needed)]
 for (name in setdiff(needed, points$ptloc)) {
   path <- file.path(metadata, paste0(name, ".json"))
+  shared <- if (!is.null(location_cache)) file.path(location_cache, paste0(name, ".json"))
+  if (!file.exists(path) && !is.null(shared) && file.exists(shared)) file.copy(shared, path)
   if (!file.exists(path)) {
     response <- curl::curl_fetch_memory(paste0("https://data.neonscience.org/api/v0/locations/", name),
                                         curl::new_handle(timeout = 60))
@@ -51,6 +61,10 @@ for (name in setdiff(needed, points$ptloc)) {
                    retrieved_utc = format(Sys.time(), tz = "UTC", usetz = TRUE))
     if (response$status_code == 200L) record$data <- jsonlite::fromJSON(rawToChar(response$content))$data
     jsonlite::write_json(record, path, auto_unbox = TRUE, pretty = TRUE, digits = NA)
+    if (!is.null(shared)) {
+      dir.create(location_cache, recursive = TRUE, showWarnings = FALSE)
+      file.copy(path, shared)
+    }
   }
   record <- jsonlite::read_json(path, simplifyVector = TRUE)
   if (!identical(record$location, name)) stop("Cached location identity mismatch")
@@ -84,8 +98,9 @@ if (file.exists(receipt)) {
 }
 references <- neon_event_references(dat$vst_apparentindividual, pp, dat$vst_mappingandtagging,
                                     points, year, epsg)
+# An event year can list census rows without any tree measurement.
 for (column in c("inside_sampled", "inside_interior", "boundary_uncertain", "subplot_conflict", "reference_selected"))
-  references[[column]] <- FALSE
+  references[[column]] <- rep(FALSE, nrow(references))
 keys <- neon_support_key(events$plotID, events$eventID)
 summaries <- list(); bundles <- list()
 for (key in unique(keys)) {
