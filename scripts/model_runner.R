@@ -73,6 +73,46 @@ run_python_arm <- function(venv_python, script, input, out_csv,
   det
 }
 
+# Many cells in ONE Python process (e.g. gpu/run_treeisonet_batch.py): CUDA
+# starts once per batch instead of once per cell. Long runs that start and stop
+# a GPU process every few seconds have hung the workstation. `jobs` is a list
+# of per-cell argument lists the batch driver understands, each with an
+# `output`; stale outputs are removed first. Returns, per job, whether its
+# output exists afterwards; read the outputs with the per-cell readers below.
+# The driver's per-job lines stream to this process's stdout (the run log), so
+# a batch that runs for an hour still shows progress.
+run_python_batch <- function(venv_python, script, jobs, timeout = 1800,
+                             label = NULL) {
+  if (!length(jobs)) return(logical())
+  outs <- vapply(jobs, function(j) j$output, character(1))
+  unlink(c(outs, paste0(outs, ".error")))
+  jf <- tempfile("batch_jobs_", fileext = ".json")
+  on.exit(unlink(jf), add = TRUE)
+  jsonlite::write_json(jobs, jf, auto_unbox = TRUE, digits = NA)
+  st <- tryCatch(suppressWarnings(system2(venv_python, shQuote(c(script, jf)),
+                                          stdout = "", stderr = "",
+                                          timeout = timeout)),
+                 error = function(e) 1L)
+  if (!identical(as.integer(st), 0L)) .log_python_failure(label, NULL, st)
+  for (e in paste0(outs, ".error")[file.exists(paste0(outs, ".error"))])
+    message("batch job failed: ", basename(sub("[.]error$", "", e)), ": ",
+            paste(readLines(e, warn = FALSE), collapse = " "))
+  file.exists(outs)
+}
+
+# Crown CSV (x y z crown_id) -> labelled points, or NULL; shared by the
+# per-cell and batch crown paths.
+.read_crown_csv <- function(out_csv) {
+  if (!file.exists(out_csv)) return(NULL)
+  d <- tryCatch(read.table(out_csv, header = TRUE), error = function(e) NULL)
+  if (is.null(d) || !identical(names(d), c("x", "y", "z", "crown_id")))
+    return(NULL)
+  pts <- data.frame(X = as.numeric(d$x), Y = as.numeric(d$y),
+                    Z = as.numeric(d$z), crown_id = as.integer(d$crown_id))
+  pts[is.finite(pts$X) & is.finite(pts$Y) & is.finite(pts$Z) &
+        !is.na(pts$crown_id), , drop = FALSE]
+}
+
 run_python_crown_arm <- function(venv_python, script, input, out_csv,
                                  extra = character(), timeout = 1800,
                                  label = NULL) {
@@ -86,14 +126,7 @@ run_python_crown_arm <- function(venv_python, script, input, out_csv,
     .log_python_failure(label, out, st)
     return(NULL)
   }
-  if (!file.exists(out_csv)) return(NULL)
-  d <- tryCatch(read.table(out_csv, header = TRUE), error = function(e) NULL)
-  if (is.null(d) || !identical(names(d), c("x", "y", "z", "crown_id")))
-    return(NULL)
-  pts <- data.frame(X = as.numeric(d$x), Y = as.numeric(d$y),
-                    Z = as.numeric(d$z), crown_id = as.integer(d$crown_id))
-  pts[is.finite(pts$X) & is.finite(pts$Y) & is.finite(pts$Z) &
-        !is.na(pts$crown_id), , drop = FALSE]
+  .read_crown_csv(out_csv)
 }
 
 # #19 Docker backend. Same contract as run_python_arm, but the arm runs inside a
