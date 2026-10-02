@@ -65,11 +65,20 @@ The [Pacific Northwest preflight](results/pacific-northwest-extension-results.md
 admits NEON WREF and ABBY, flown in 2021 with the same sensor class, as two
 further sites. The new five-site reference keeps stems of at least 10 cm DBH:
 106 plots and 2,525 stems, against 46 plots and 699 stems in the historical
-SJER, SOAP and TEAK sweep. No detector has been scored at the new sites yet.
+SJER, SOAP and TEAK sweep.
 The [frozen-clip study](results/frozen-clips-results.md) declares that
 population, keeps the six-stem plot gate and freezes one seeded clip per site,
 plot and density rung; every NEON arm now reads those hash-verified clips
 instead of decimating its own.
+
+ForestFormer3D and TreeisoNet have been re-run on all five sites with
+corrected adapters; the
+[re-run comparison](results/model-benchmark-results.md#corrected-adapter-re-runs-on-the-frozen-clips)
+supersedes their June 2026 rows. On the same 530 cells, native-density F1 is
+**0.50** for ForestFormer3D and **0.45** for TreeisoNet. At 1 point/m², both
+arms are near **0.42–0.44**. ForestFormer3D's June SOAP F1 of 0.26 rises to
+0.45 on the same plots. The June TreeisoNet failure on SJER and TEAK came from
+a different voxel setting on those sites.
 
 The [point-cloud detector study](results/pointcloud-detector-results.md)
 compares native-density understory recovery by crown class, with a separate

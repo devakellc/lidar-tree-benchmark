@@ -15,11 +15,15 @@
 #   TreeisoNet apex      -- the treeLoc pass does not run treeOff; June rows are
 #                           listed as reported, with the share of common cells
 #                           whose apex count is unchanged.
+#   TreeisoNet voxel     -- with VOXEL0=<job dir> (a native-rung re-run at the
+#                           checkpoint's own voxel), the June native rows are
+#                           compared with both re-run voxel settings, so an
+#                           apex change is traced to the voxel, not the adapter.
 # June persisted only native ForestFormer3D clouds; its rung-8 rows (historical
 # all-mapped population) are reported separately and are not an equal set.
 #   Rscript scripts/compare_adapter_reruns.R BEFORE=<job dir> AFTER=<job dir>
 #     [SITES=SJER,SOAP,TEAK] [LADDER_SITES=SJER,SOAP,TEAK,WREF,ABBY] [POP=adopted]
-#     [OUT=<AFTER>/neon/adapter_before_after]
+#     [VOXEL0=<job dir>] [OUT=<AFTER>/neon/adapter_before_after]
 .bs_file <- grep("^--file=", commandArgs(FALSE), value = TRUE)
 bs <- Find(file.exists, c(
   if (length(.bs_file)) file.path(dirname(sub("^--file=", "", .bs_file[1])), "bootstrap.R"),
@@ -36,6 +40,7 @@ A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(arg
 if (is.null(A$BEFORE) || is.null(A$AFTER)) stop("BEFORE= and AFTER= job dirs are required")
 BEFORE <- normalizePath(A$BEFORE); AFTER <- normalizePath(A$AFTER)
 SITES <- strsplit(if (is.null(A$SITES)) "SJER,SOAP,TEAK" else A$SITES, ",")[[1]]
+VOXEL0 <- if (is.null(A$VOXEL0)) NULL else normalizePath(A$VOXEL0)
 OUT <- if (is.null(A$OUT)) file.path(AFTER, "neon", "adapter_before_after") else A$OUT
 TOL <- 4; MERGE_TOL <- 2
 dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
@@ -75,6 +80,7 @@ pooled_row <- function(df, label) {
 }
 
 ff3d_apex <- list(); ff3d_mask <- list(); ti_apex <- list(); ti_crown <- list()
+ti_voxel <- list()
 for (site in SITES) {
   s <- site_inputs(site)
   before_dir <- file.path(BEFORE, "neon", site, "forestformer3d_instances")
@@ -148,6 +154,22 @@ for (site in SITES) {
         rerun_F1 = if (nrow(aa)) pa$F1 else NA,
         common_cells = nrow(cc), same_apex_count = sum(cc$n_apex_june == cc$n_apex_rerun))
     }
+    # Native rung only: which re-run voxel reproduces the June apex counts.
+    vf <- if (is.null(VOXEL0)) "" else file.path(VOXEL0, "neon", site, "treeisonet_results.csv")
+    if (file.exists(vf)) {
+      v <- read.csv(vf, colClasses = c(rung = "character"))
+      runs <- list(june = b, voxel0 = v, configured = a)
+      runs <- lapply(runs, function(x) x[x$rung == "native", , drop = FALSE])
+      cells <- Reduce(intersect, lapply(runs, `[[`, "plot"))
+      runs <- lapply(runs, function(x) x[match(cells, x$plot), , drop = FALSE])
+      same <- function(x) sum(runs$june$n_apex == x$n_apex)
+      for (run in names(runs)) {
+        p <- pool(runs[[run]])
+        ti_voxel[[length(ti_voxel) + 1]] <- data.frame(site = site, run = run,
+          plots = length(cells), n_ref = p$n_ref, n_det = p$n_det, F1 = p$F1,
+          same_apex_count_as_june = same(runs[[run]]))
+      }
+    }
   }
 
   # TreeisoNet crowns: paired by individualID on stems both runs matched.
@@ -204,6 +226,7 @@ if (!is.null(arm_rows) && length(unique(arm_rows$detector)) == 2L) {
 tables <- list(ff3d_apex_before_after = ff3d_apex, ff3d_mask_before_after = ff3d_mask,
                rerun_ladder = ladder,
                treeisonet_apex_before_after = ti_apex,
+               treeisonet_voxel_attribution = ti_voxel,
                treeisonet_crowns_before_after = ti_crown)
 for (name in names(tables)) {
   x <- do.call(rbind, tables[[name]])
