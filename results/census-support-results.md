@@ -176,17 +176,27 @@ at every rung where every arm has a cell:
 | AMS3D | 2 | 0.60 | 0.68 | 0.64 | 0.61 | 0.40 | 0.49 |
 | AMS3D | 1 | 0.43 | 0.82 | 0.56 | 0.42 | 0.50 | 0.46 |
 | Li 2012 | native | 0.59 | 0.69 | 0.64 | 0.59 | 0.44 | 0.51 |
+| ForestFormer3D | native | 0.66 | 0.67 | 0.67 | 0.64 | 0.43 | 0.51 |
+| ForestFormer3D | 8 | 0.63 | 0.69 | 0.66 | 0.61 | 0.44 | 0.51 |
+| ForestFormer3D | 4 | 0.57 | 0.66 | 0.61 | 0.57 | 0.42 | 0.48 |
+| ForestFormer3D | 2 | 0.53 | 0.66 | 0.59 | 0.52 | 0.42 | 0.46 |
+| ForestFormer3D | 1 | 0.48 | 0.69 | 0.57 | 0.46 | 0.44 | 0.45 |
 
 The exact 2021 check (16 tower plots, 495 censused references) moves in the
-same direction: CHM-VWF native 0.79 against 0.44, multichm 0.67 against 0.39,
-Li 2012 0.69 against 0.41, AMS3D 0.27 against 0.16. The strict sensitivity
-(54 plots) gives native precision within 0.01 of the headline for every arm
-(CHM-VWF 0.77 against 0.47). Per site, CHM-VWF native censused precision is
-0.81 at ABBY, 0.80 at WREF and 0.65 at TEAK; SJER (2 plots) and SOAP (1 plot)
-are too small to read.
+same direction: CHM-VWF native 0.79 against 0.44, ForestFormer3D 0.75
+against 0.42, multichm 0.67 against 0.39, Li 2012 0.69 against 0.41, AMS3D
+0.27 against 0.16. The strict sensitivity (54 plots) gives native precision
+within 0.01 of the headline for every arm (CHM-VWF 0.77 against 0.47,
+ForestFormer3D 0.66 against 0.41). Per site, CHM-VWF native censused
+precision is 0.81 at ABBY, 0.80 at WREF and 0.65 at TEAK; SJER (2 plots) and
+SOAP (1 plot) are too small to read.
 
 - Recall barely moves, because the censused references are a subset of the
   same stems; precision moves because unsampled area no longer counts.
+- ForestFormer3D, from the corrected whole-scene re-run, has the highest
+  censused F1 at native density (0.67) and at 8 points/m² (0.66). Its
+  censused precision stays at 0.66–0.69 on every rung while its recall falls
+  with density.
 - At native density the F1 order of the classical arms is the same in both
   scorings (Li 2012, CHM-VWF, multichm, lmfauto, ptrees, AMS3D). At sparser
   rungs arms within about 0.02 F1 swap places; at 1 point/m² multichm
@@ -200,8 +210,9 @@ are too small to read.
   grid. It remains a separate bracket and has not yet been recomputed on the
   paper population.
 
-ForestFormer3D, TreeisoNet and SegmentAnyTree join this table once their
-re-runs on the sealed root persist detections.
+ForestFormer3D is scored from the labelled clouds its re-run persisted,
+reduced exactly as its sweep reduces them. TreeisoNet and SegmentAnyTree join
+this table once their re-runs on the sealed root persist detections.
 
 ## Reproduce
 
@@ -227,7 +238,7 @@ O=$CLAUDE_JOB_DIR/census_support_scores
 for RULE in nearest exact; do
   D=docs/census-support-declaration-$RULE.json
   Rscript scripts/score_census_support.R DECLARATION=$D \
-    ARMS=chm_vwf,lmfauto,multichm,ptrees,ams3d OUT=$O/${RULE}_ladder
+    ARMS=chm_vwf,lmfauto,multichm,ptrees,ams3d,forestformer3d OUT=$O/${RULE}_ladder
   Rscript scripts/score_census_support.R DECLARATION=$D \
     ARMS=chm_vwf,ptrees,ams3d,li2012 RUNGS=native OUT=$O/${RULE}_native
 done
