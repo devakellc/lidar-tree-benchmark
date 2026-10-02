@@ -62,6 +62,29 @@ test_that("persisted apexes come from stamped sources in a fixed order", {
                "not made on the frozen root")
 })
 
+test_that("ForestFormer3D apexes are re-derived from its scored cloud", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  root <- census_root(d); nd <- file.path(d, "SITE")
+  inst <- file.path(nd, "forestformer3d_instances"); frozen_stamp(inst, root)
+  # absolute Z over a flat 100 m DTM; UserData = block, PointSourceID = instance
+  las <- LAS(data.frame(X = c(500001, 500001.5, 500009), Y = c(4700001, 4700001.5, 4700009),
+                        Z = c(110, 112, 105), UserData = c(1L, 1L, 1L),
+                        PointSourceID = c(1L, 1L, 2L)))
+  sf::st_crs(las) <- 32618
+  writeLAS(las, file.path(inst, "HARV_033_8.laz"))
+  dtm <- terra::rast(xmin = 500000, xmax = 500010, ymin = 4700000, ymax = 4700010,
+                     resolution = 1, crs = "EPSG:32618", vals = 100)
+  dtm_path <- file.path(d, "dtm.tif"); terra::writeRaster(dtm, dtm_path)
+  expect_null(census_cell_detections(nd, "forestformer3d", "HARV", "HARV_033", 8, root))
+  det <- census_cell_detections(nd, "forestformer3d", "HARV", "HARV_033", 8, root,
+                                cell = list(dtm = dtm_path))
+  expect_identical(attr(det, "source"), "instances")
+  expect_equal(sort(det$z), c(5, 12), tolerance = 1e-6)
+  sweep <- agl_guard(ff3d_collapse(file.path(inst, "HARV_033_8.laz"), merge_tol = 2.0), dtm_path)
+  expect_equal(det[order(det$z), c("x", "y", "z")], sweep[order(sweep$z), c("x", "y", "z")],
+               ignore_attr = TRUE)
+})
+
 test_that("only declared bundles are loaded, each admitted once", {
   d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
   b <- census_fixture()
