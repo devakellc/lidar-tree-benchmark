@@ -15,7 +15,9 @@
 # and persists treeisonet_instances/<plot>_<rung>.laz (tree_pred) for the
 # IoU/PQ and crown scorers. Every run writes treeisonet_run_manifest.json
 # (TreeAIBox revision and local modification hash, checkpoint, config and
-# driver hashes); every mask cell a receipt next to its cloud.
+# driver hashes); every mask cell a receipt next to its cloud. The scored
+# apexes of every cell go to treeisonet_detections/<plot>__<rung>.csv, so the
+# censused-subplot precision re-scores them without inference.
 #
 # Usage:
 #   Rscript scripts/detect_treeisonet_sweep.R [SITE=SOAP] [PLOTS=ALL]
@@ -127,6 +129,9 @@ run_main <- function() {
     file.path(nd, "treeisonet_run_manifest.json"), auto_unbox = TRUE, pretty = TRUE)
   inst_dir <- file.path(nd, "treeisonet_instances")
   if (MASKS) frozen_stamp(inst_dir, fz$root)
+  # The scored apexes of every cell, for re-scoring without inference.
+  det_dir <- file.path(nd, "treeisonet_detections")
+  frozen_stamp(det_dir, fz$root)
 
   # Phase 1: every usable cell of the site and its driver jobs.
   cells <- list()
@@ -152,6 +157,7 @@ run_main <- function() {
                    dest = file.path(inst_dir, sprintf("%s_%s.laz", pid, tag)))
       cell$jobs <- treeisonet_jobs(prep$normalized, cell$apex_csv, cell$mask_csv,
                                    cell$aligned)
+      unlink(frozen_detections_file(det_dir, pid, tag))   # no stale apexes
       cells[[length(cells) + 1]] <- cell
     }
   }
@@ -174,6 +180,7 @@ run_main <- function() {
   for (cell in cells) {
     det <- .read_detection_csv(cell$apex_csv)
     if (is.null(det)) next                # GPU crash -> skip cell (guard drops)
+    persist_detections(det_dir, cell$pid, cell$tag, det)
     n_inst <- NA_integer_
     if (MASKS) {
       n_inst <- treeisonet_mask_finish(cell$prep$normalized, cell$aligned, cell$dest,
