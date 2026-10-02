@@ -96,16 +96,29 @@ This is the largest pipeline and spans several files. Flow:
    `YEAR` defaults to 2021 and `MAX_YEAR_GAP` to 4; the retired eastern preflight
    used 2022 and exact-year references in a separate job directory. Downloads
    require `NEON_TOKEN` from outside the repository.
-2. [scripts/run_sweep.R](scripts/run_sweep.R) + [scripts/sweep_lib.R](scripts/sweep_lib.R)
-   — for each plot, decimates to a **density rung** (8/4/2/1 pts/m² + native),
-   runs `detect_lasr` over a grid of `chm_res` × `vwf_a`, and scores against
+2. [scripts/freeze_clips.R](scripts/freeze_clips.R) — declares the plot
+   population and freezes one seeded clip per site × plot × **density rung**
+   (8/4/2/1 pts/m² + native) under `work/neon/frozen_2021`, sealed by
+   `clip_manifest.csv` (SHA-256 of every file). See the
+   [frozen-clip study](results/frozen-clips-results.md).
+3. [scripts/run_sweep.R](scripts/run_sweep.R) + [scripts/sweep_lib.R](scripts/sweep_lib.R)
+   — for each plot of the declared population and each frozen rung, runs
+   `detect_lasr` over a grid of `chm_res` × `vwf_a` and scores against
    stems. Output is **long-form**: one row per (plot × rung × chm_res × vwf_a).
-3. [scripts/analyze_sweep.R](scripts/analyze_sweep.R) — per-site pooling + figures.
-4. [scripts/compare_sites.R](scripts/compare_sites.R) — cross-site structure
+4. [scripts/analyze_sweep.R](scripts/analyze_sweep.R) — per-site pooling + figures.
+5. [scripts/compare_sites.R](scripts/compare_sites.R) — cross-site structure
    gradient SJER → SOAP → TEAK.
 
 Sweep invariants — get these wrong and the metrics are silently misleading:
 
+- **One population, one frozen root**: every arm takes its plots, stem gate
+  and clips from `frozen_scope()` and `frozen_clip(NULL, ...)` on the sealed
+  root. The headline population is `adopted` (live mapped stems with DBH
+  ≥ 10 cm in plots holding ≥ 6 of them); `all_mapped` (the historical D17
+  population) and `relaxed` (no six-stem gate) are sensitivity rows chosen
+  with `POP=`. Arms never decimate, read tiles or write to the root; a new
+  freeze goes to a new `OUT=`. The provider runs lidR single-threaded because
+  native TIN normalization changes by up to ~1 cm with the thread count.
 - **Pool by summing counts, not averaging rates**: site/rung recall is
   `sum(TP) / sum(n_ref)`, never `mean(per-plot recall)` (small plots would
   dominate). Per-class TP is recovered as `round(rec_class * n_class)`.

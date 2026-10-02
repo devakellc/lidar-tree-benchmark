@@ -372,14 +372,25 @@ Per site × density rung (recall mc/vwf; ΔF1 = multichm − CHM-VWF):
   plots — not held out. They identify which knobs matter (resolution ≫ slope),
   not a deployable tuned value; a calibration/validation split (plan §3.2) would
   be the next step before quoting an operational parameter set.
+- **The numbers here come from unseeded clips.** Each arm, and each run,
+  decimated its own realization. The
+  [frozen-clip study](frozen-clips-results.md) measured that noise: pooled F1
+  per site and rung moves by 0.005–0.03 (SD) between realizations. SOAP's F1
+  at 4 points/m² (0.42) is an upper-tail draw; the expected value is about
+  0.38–0.39, level with the neighbouring rungs, so it is not a peak. The same
+  study found that the original runs lost 5 of 1,483 grid rows to lasR
+  failures in forked workers, including TEAK_046 at native density in the
+  headline configuration: the TEAK native headline pools 19 plots and 353
+  stems, not 20 and 396. All arms now read one set of seeded frozen clips.
 - **The §8 multichm head-to-head re-clips, it does not reuse the cached clips.**
-  `prepare_clip` is unseeded (exactly like `run_sweep.R`), so each arm decimates
-  its own realization and reads `res` from its **own** measured first-return
-  density; the comparison pools over plots and rungs, which is robust to the
-  realization. The two arms are restricted to the common (plot, rung) set before
-  pooling, and every Δ is a difference of **pooled** rates, never a mean of
-  per-row deltas. multichm's apex `z` is read from the 2-D tops' `Z` attribute,
-  so its height RMSE is reported but does not drive the detection metrics. The §8
+  `prepare_clip` is unseeded (exactly like `run_sweep.R` was), so each arm
+  decimated its own realization and read `res` from its **own** measured
+  first-return density; the comparison pools over plots and rungs, which is
+  robust to the realization. The two arms are restricted to the common
+  (plot, rung) set before pooling, and every Δ is a difference of **pooled**
+  rates, never a mean of per-row deltas. multichm's apex `z` is read from the
+  2-D tops' `Z` attribute, so its height RMSE is reported but does not drive
+  the detection metrics. The §8
   CHM-VWF baseline uses the **density-derived** `res` rule (0.25 / 0.5 m by
   `frdens`), not the §4 modal `res = 0.5` headline, so its level differs slightly.
   **SJER understory in §8 is just 2 stems** — its understory delta is not
@@ -405,19 +416,27 @@ Requires R with the **lasR `pre-devel`** build (variable-window `ws`,
 `summarise()` density), `lidR`, `neonUtilities`, `RCSF`, `future`; ~5 GB disk for
 three sites of LiDAR.
 
+The commands below rerun the study on the frozen clips with the historical
+population; decimated rungs then reproduce the tables within the decimation
+noise measured in the [frozen-clip study](frozen-clips-results.md), not
+digit for digit.
+
 ```sh
 export CLAUDE_JOB_DIR=$(pwd)/work
 for S in SOAP SJER TEAK; do
   Rscript scripts/neon_ground_truth.R   SITE=$S            # field stems -> UTM (geoNEON-free)
   Rscript scripts/neon_download_lidar.R SITE=$S YEAR=2021  # byTileAOP over plots (~1-3 GB)
-  Rscript scripts/run_sweep.R           SITE=$S PLOTS=ALL CORES=16 TOL=4
-  Rscript scripts/analyze_sweep.R       SITE=$S            # tables + PNGs
+done
+Rscript scripts/freeze_clips.R SITES=SJER,SOAP,TEAK        # population + seeded frozen clips
+for S in SOAP SJER TEAK; do
+  Rscript scripts/run_sweep.R     SITE=$S POP=all_mapped CORES=16 TOL=4
+  Rscript scripts/analyze_sweep.R SITE=$S                  # tables + PNGs
 done
 Rscript scripts/compare_sites.R SJER,SOAP,TEAK             # structure-gradient table + figure
-Rscript scripts/validate_heights.R SITES=SJER,SOAP,TEAK    # apex-vs-field height by crown class
+Rscript scripts/validate_heights.R SITES=SJER,SOAP,TEAK POP=all_mapped   # apex-vs-field height
 # §8 multichm arm (reuses the cached sweep_results.csv for the CHM-VWF baseline)
 for S in SOAP SJER TEAK; do
-  Rscript scripts/detect_multichm_sweep.R SITE=$S PLOTS=ALL CORES=16 TOL=4
+  Rscript scripts/detect_multichm_sweep.R SITE=$S POP=all_mapped CORES=16 TOL=4
 done
 Rscript scripts/analyze_multichm_sweep.R SITES=SJER,SOAP,TEAK   # §8 tables + figure
 ```
@@ -426,8 +445,8 @@ Rscript scripts/analyze_multichm_sweep.R SITES=SJER,SOAP,TEAK   # §8 tables + f
 |---|---|
 | `neon_ground_truth.R` | NEON woody-veg → geolocated live field stems + crown class (reimplements `geoNEON::getLocTOS` via the locations API) |
 | `neon_download_lidar.R` | `byTileAOP` download of the 1 km tiles overlapping field stems |
-| `sweep_lib.R` | pipeline + global height-aware 1:1 matcher + crown-class/height-band scorer |
-| `run_sweep.R` | per plot × density rung × CHM res × VWF slope, `mclapply` over plots |
+| `sweep_lib.R` | pipeline + global height-aware 1:1 matcher + crown-class/height-band scorer + `plot_lapply` |
+| `run_sweep.R` | per plot × frozen density rung × CHM res × VWF slope, fresh worker per plot |
 | `analyze_sweep.R` | pooled density-sensitivity + best-params + parameter main effects + figures |
 | `compare_sites.R` | cross-site structure-gradient roll-up + combined figure |
 | `validate_heights.R` | detected apex vs field height (position-only match), by site & crown class + scatter |

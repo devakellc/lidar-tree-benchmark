@@ -1,0 +1,192 @@
+{
+  "contract": {
+    "sites": ["SJER", "SOAP", "TEAK", "WREF", "ABBY"],
+    "populations": [
+      {
+        "population": "adopted",
+        "gate": "dbh10",
+        "min_trees": 6,
+        "role": "headline"
+      },
+      {
+        "population": "all_mapped",
+        "gate": "all_mapped",
+        "min_trees": 6,
+        "role": "sensitivity: historical stem gate"
+      },
+      {
+        "population": "relaxed",
+        "gate": "dbh10",
+        "min_trees": 1,
+        "role": "sensitivity: no six-stem plot gate"
+      }
+    ],
+    "rungs": [8, 4, 2, 1],
+    "buffer": 25,
+    "seed_salt": 0,
+    "lidr_threads": 1,
+    "point_order": ["gpstime", "ReturnNumber", "X", "Y", "Z"],
+    "versions": {
+      "R": "R version 4.3.3 (2024-02-29)",
+      "lidR": "4.3.2",
+      "rlas": "1.9.2",
+      "terra": "1.8.29"
+    },
+    "input_md5": ["a340ae04243c95d4c5dddb80ecc8eec4", "8bca27c0c848249938be34515b4c9076", "9c21e54b2e29ebf168c59956b319018d", "ace3123f56db2547ccc252fd741e6cb4", "0ef58d33d52f2e2c106c665e142803e3", "a3ab1bdac437b6e82d5eb118fab11ea6", "19e5332dd6952ae30c2a26e23948ef51", "78b7810d0f8dd6255bd87209a6ebb6be", "0495f4a5bff7b8a9f5b5f2045d215c78", "bb652a70b9d06f3736aaa3092a95ef37"],
+    "code_md5": ["12fd3d06d2a47b82ced11e9af91943ed", "243502f0d6fdb48ccc7a0918fb2126b2", "28c8543ebece47110c8e1b91eb19dba4", "30c123bc63c262b928f9d3d1ce346313", "4198be3d4eb56a6b6215f08d94759814"]
+  },
+  "digests": {
+    "population_csv": "f1abbee19d2c11f0de607bfb906a0c51802aa17c8adac8f9b9750e2b820dad04",
+    "population_stems_csv": "e7de5071cbb91ffd217577eca8868cc6243d8890f975416ab0e27b53ea9a2bfb",
+    "clip_manifest_csv": "4567a247a6dd6d9630d6cea5427da3e262b1dcaac4a07a1173b3764e8a63c8d4"
+  },
+  "cells": {
+    "ok": 773,
+    "upsampled": 2
+  },
+  "populations": [
+    {
+      "population": "adopted",
+      "site": "SJER",
+      "plots": 6,
+      "tower": 6,
+      "distributed": 0,
+      "core_stems": 57
+    },
+    {
+      "population": "adopted",
+      "site": "SOAP",
+      "plots": 18,
+      "tower": 7,
+      "distributed": 11,
+      "core_stems": 231
+    },
+    {
+      "population": "adopted",
+      "site": "TEAK",
+      "plots": 19,
+      "tower": 6,
+      "distributed": 13,
+      "core_stems": 374
+    },
+    {
+      "population": "adopted",
+      "site": "WREF",
+      "plots": 38,
+      "tower": 20,
+      "distributed": 18,
+      "core_stems": 1063
+    },
+    {
+      "population": "adopted",
+      "site": "ABBY",
+      "plots": 25,
+      "tower": 13,
+      "distributed": 12,
+      "core_stems": 800
+    },
+    {
+      "population": "all_mapped",
+      "site": "SJER",
+      "plots": 8,
+      "tower": 7,
+      "distributed": 1,
+      "core_stems": 71
+    },
+    {
+      "population": "all_mapped",
+      "site": "SOAP",
+      "plots": 18,
+      "tower": 7,
+      "distributed": 11,
+      "core_stems": 232
+    },
+    {
+      "population": "all_mapped",
+      "site": "TEAK",
+      "plots": 20,
+      "tower": 7,
+      "distributed": 13,
+      "core_stems": 396
+    },
+    {
+      "population": "all_mapped",
+      "site": "WREF",
+      "plots": 38,
+      "tower": 20,
+      "distributed": 18,
+      "core_stems": 1081
+    },
+    {
+      "population": "all_mapped",
+      "site": "ABBY",
+      "plots": 32,
+      "tower": 13,
+      "distributed": 19,
+      "core_stems": 1074
+    },
+    {
+      "population": "relaxed",
+      "site": "SJER",
+      "plots": 21,
+      "tower": 13,
+      "distributed": 8,
+      "core_stems": 89
+    },
+    {
+      "population": "relaxed",
+      "site": "SOAP",
+      "plots": 27,
+      "tower": 13,
+      "distributed": 14,
+      "core_stems": 251
+    },
+    {
+      "population": "relaxed",
+      "site": "TEAK",
+      "plots": 36,
+      "tower": 18,
+      "distributed": 18,
+      "core_stems": 419
+    },
+    {
+      "population": "relaxed",
+      "site": "WREF",
+      "plots": 39,
+      "tower": 20,
+      "distributed": 19,
+      "core_stems": 1068
+    },
+    {
+      "population": "relaxed",
+      "site": "ABBY",
+      "plots": 26,
+      "tower": 13,
+      "distributed": 13,
+      "core_stems": 801
+    }
+  ],
+  "plots": {
+    "adopted": {
+      "SJER": ["SJER_046", "SJER_047", "SJER_050", "SJER_051", "SJER_052", "SJER_053"],
+      "SOAP": ["SOAP_001", "SOAP_002", "SOAP_003", "SOAP_004", "SOAP_008", "SOAP_009", "SOAP_013", "SOAP_015", "SOAP_017", "SOAP_020", "SOAP_021", "SOAP_031", "SOAP_046", "SOAP_048", "SOAP_049", "SOAP_050", "SOAP_055", "SOAP_057"],
+      "TEAK": ["TEAK_001", "TEAK_002", "TEAK_003", "TEAK_006", "TEAK_007", "TEAK_011", "TEAK_012", "TEAK_013", "TEAK_014", "TEAK_015", "TEAK_017", "TEAK_019", "TEAK_020", "TEAK_043", "TEAK_044", "TEAK_045", "TEAK_046", "TEAK_047", "TEAK_052"],
+      "WREF": ["WREF_001", "WREF_002", "WREF_003", "WREF_004", "WREF_005", "WREF_007", "WREF_009", "WREF_010", "WREF_011", "WREF_012", "WREF_013", "WREF_014", "WREF_015", "WREF_016", "WREF_017", "WREF_018", "WREF_019", "WREF_020", "WREF_070", "WREF_071", "WREF_072", "WREF_073", "WREF_074", "WREF_075", "WREF_076", "WREF_077", "WREF_078", "WREF_079", "WREF_080", "WREF_081", "WREF_082", "WREF_083", "WREF_084", "WREF_085", "WREF_086", "WREF_087", "WREF_088", "WREF_089"],
+      "ABBY": ["ABBY_001", "ABBY_003", "ABBY_006", "ABBY_008", "ABBY_010", "ABBY_014", "ABBY_016", "ABBY_017", "ABBY_019", "ABBY_023", "ABBY_025", "ABBY_061", "ABBY_062", "ABBY_063", "ABBY_064", "ABBY_065", "ABBY_067", "ABBY_068", "ABBY_069", "ABBY_070", "ABBY_073", "ABBY_074", "ABBY_075", "ABBY_076", "ABBY_077"]
+    },
+    "all_mapped": {
+      "SJER": ["SJER_008", "SJER_046", "SJER_047", "SJER_050", "SJER_051", "SJER_052", "SJER_053", "SJER_054"],
+      "SOAP": ["SOAP_001", "SOAP_002", "SOAP_003", "SOAP_004", "SOAP_008", "SOAP_009", "SOAP_013", "SOAP_015", "SOAP_017", "SOAP_020", "SOAP_021", "SOAP_031", "SOAP_046", "SOAP_048", "SOAP_049", "SOAP_050", "SOAP_055", "SOAP_057"],
+      "TEAK": ["TEAK_001", "TEAK_002", "TEAK_003", "TEAK_006", "TEAK_007", "TEAK_011", "TEAK_012", "TEAK_013", "TEAK_014", "TEAK_015", "TEAK_017", "TEAK_019", "TEAK_020", "TEAK_043", "TEAK_044", "TEAK_045", "TEAK_046", "TEAK_047", "TEAK_050", "TEAK_052"],
+      "WREF": ["WREF_001", "WREF_002", "WREF_003", "WREF_004", "WREF_005", "WREF_007", "WREF_009", "WREF_010", "WREF_011", "WREF_012", "WREF_013", "WREF_014", "WREF_015", "WREF_016", "WREF_017", "WREF_018", "WREF_019", "WREF_020", "WREF_070", "WREF_071", "WREF_072", "WREF_073", "WREF_074", "WREF_075", "WREF_076", "WREF_077", "WREF_078", "WREF_079", "WREF_080", "WREF_081", "WREF_082", "WREF_083", "WREF_084", "WREF_085", "WREF_086", "WREF_087", "WREF_088", "WREF_089"],
+      "ABBY": ["ABBY_001", "ABBY_002", "ABBY_003", "ABBY_004", "ABBY_005", "ABBY_006", "ABBY_008", "ABBY_009", "ABBY_010", "ABBY_011", "ABBY_012", "ABBY_013", "ABBY_014", "ABBY_016", "ABBY_017", "ABBY_019", "ABBY_023", "ABBY_025", "ABBY_061", "ABBY_062", "ABBY_063", "ABBY_064", "ABBY_065", "ABBY_067", "ABBY_068", "ABBY_069", "ABBY_070", "ABBY_073", "ABBY_074", "ABBY_075", "ABBY_076", "ABBY_077"]
+    },
+    "relaxed": {
+      "SJER": ["SJER_002", "SJER_003", "SJER_004", "SJER_008", "SJER_010", "SJER_015", "SJER_022", "SJER_025", "SJER_045", "SJER_046", "SJER_047", "SJER_048", "SJER_049", "SJER_050", "SJER_051", "SJER_052", "SJER_053", "SJER_054", "SJER_058", "SJER_059", "SJER_063"],
+      "SOAP": ["SOAP_001", "SOAP_002", "SOAP_003", "SOAP_004", "SOAP_007", "SOAP_008", "SOAP_009", "SOAP_012", "SOAP_013", "SOAP_015", "SOAP_017", "SOAP_018", "SOAP_020", "SOAP_021", "SOAP_031", "SOAP_043", "SOAP_045", "SOAP_046", "SOAP_048", "SOAP_049", "SOAP_050", "SOAP_051", "SOAP_052", "SOAP_055", "SOAP_056", "SOAP_057", "SOAP_060"],
+      "TEAK": ["TEAK_001", "TEAK_002", "TEAK_003", "TEAK_005", "TEAK_006", "TEAK_007", "TEAK_010", "TEAK_011", "TEAK_012", "TEAK_013", "TEAK_014", "TEAK_015", "TEAK_016", "TEAK_017", "TEAK_018", "TEAK_019", "TEAK_020", "TEAK_025", "TEAK_043", "TEAK_044", "TEAK_045", "TEAK_046", "TEAK_047", "TEAK_048", "TEAK_050", "TEAK_051", "TEAK_052", "TEAK_053", "TEAK_054", "TEAK_055", "TEAK_056", "TEAK_057", "TEAK_058", "TEAK_059", "TEAK_060", "TEAK_061"],
+      "WREF": ["WREF_001", "WREF_002", "WREF_003", "WREF_004", "WREF_005", "WREF_007", "WREF_008", "WREF_009", "WREF_010", "WREF_011", "WREF_012", "WREF_013", "WREF_014", "WREF_015", "WREF_016", "WREF_017", "WREF_018", "WREF_019", "WREF_020", "WREF_070", "WREF_071", "WREF_072", "WREF_073", "WREF_074", "WREF_075", "WREF_076", "WREF_077", "WREF_078", "WREF_079", "WREF_080", "WREF_081", "WREF_082", "WREF_083", "WREF_084", "WREF_085", "WREF_086", "WREF_087", "WREF_088", "WREF_089"],
+      "ABBY": ["ABBY_001", "ABBY_003", "ABBY_006", "ABBY_008", "ABBY_009", "ABBY_010", "ABBY_014", "ABBY_016", "ABBY_017", "ABBY_019", "ABBY_023", "ABBY_025", "ABBY_061", "ABBY_062", "ABBY_063", "ABBY_064", "ABBY_065", "ABBY_067", "ABBY_068", "ABBY_069", "ABBY_070", "ABBY_073", "ABBY_074", "ABBY_075", "ABBY_076", "ABBY_077"]
+    }
+  }
+}
