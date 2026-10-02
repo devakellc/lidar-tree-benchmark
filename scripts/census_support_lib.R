@@ -10,11 +10,16 @@
 #                 written by an arm that persists the apexes it scores;
 #   instances  -- <nd>/<dir>/<plot>_<rung>.laz instance clouds, reduced to the
 #                 max-Z point per instance exactly as the arm does (`agl`: the
-#                 cloud keeps absolute Z, so the frozen DTM converts it);
+#                 cloud keeps absolute Z, so the frozen DTM converts it).
+#                 ForestFormer3D's cloud is the exact cloud its sweep scored;
+#                 `reader` repeats the sweep's ff3d_collapse (default merge
+#                 tolerance, as the whole-scene runs use) before agl_guard;
 #   cache      -- best_treetop_cache, the selected configuration of each arm.
 # Every directory read must carry the sealed root's stamp.
 CENSUS_INSTANCE_SOURCES <- list(
   segmentanytree = list(dir = "segmentanytree_instances", id = "PredInstance", agl = TRUE),
+  forestformer3d = list(dir = "forestformer3d_instances", agl = TRUE,
+                        reader = function(f) ff3d_collapse(f, merge_tol = 2.0)),
   ams3d   = list(dir = "ams3d_instances",   id = "crown_id", agl = FALSE),
   ptrees  = list(dir = "ptrees_instances",  id = "treeID",   agl = FALSE),
   li2012  = list(dir = "li2012_instances",  id = "treeID",   agl = FALSE),
@@ -41,7 +46,7 @@ census_cell_detections <- function(nd, arm, site, plot, rung, root, cell = NULL)
     f <- file.path(idir, sprintf("%s_%s.laz", plot, r))
     if (file.exists(f)) {
       frozen_stamp_check(idir, root)
-      det <- read_instances_laz(f, id_field = src$id)
+      det <- if (is.null(src$reader)) read_instances_laz(f, id_field = src$id) else src$reader(f)
       if (!is.null(det) && src$agl) {
         if (is.null(cell)) return(NULL)
         det <- agl_guard(det, cell$dtm)
