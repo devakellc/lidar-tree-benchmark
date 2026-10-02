@@ -66,6 +66,10 @@ admits NEON WREF and ABBY, flown in 2021 with the same sensor class, as two
 further sites. The new five-site reference keeps stems of at least 10 cm DBH:
 106 plots and 2,525 stems, against 46 plots and 699 stems in the historical
 SJER, SOAP and TEAK sweep. No detector has been scored at the new sites yet.
+The [frozen-clip study](results/frozen-clips-results.md) declares that
+population, keeps the six-stem plot gate and freezes one seeded clip per site,
+plot and density rung; every NEON arm now reads those hash-verified clips
+instead of decimating its own.
 
 The [point-cloud detector study](results/pointcloud-detector-results.md)
 compares native-density understory recovery by crown class, with a separate
@@ -132,7 +136,9 @@ and evaluation choices. The main principles are:
   resolution, window size, and smoothing; all-return density (`pdens`)
   controls thinning and prevents requests to upsample sparse inputs.
 - Compare equivalent support. Keep site, plot, density, and reference support
-  aligned across methods, and report missing or failed cells explicitly.
+  aligned across methods, and report missing or failed cells explicitly. All
+  NEON arms read one declared plot population and one sealed set of frozen
+  clips.
 - Match detections one-to-one within the mapped plot core, with a height gate.
   Pool counts before calculating rates, and error sums before calculating RMSE.
 - Keep calibration and evaluation plots separate. Density variants of one
@@ -208,6 +214,7 @@ comparison and larger-area experiments.
 
 | Workflow | Instructions and results |
 | --- | --- |
+| Plot population and frozen clips | [Frozen-clip study](results/frozen-clips-results.md); run it before any NEON arm |
 | NEON field-stem density ladder | [Density-ladder study](results/density-ladder-sweep-results.md) and [cross-model comparison](results/model-benchmark-results.md) |
 | Crown diameters and segmentation | [Crown benchmark](results/crown-segmentation-results.md) |
 | Paired optical/LiDAR fusion | [RGB-LiDAR comparison](results/rgb-lidar-fusion-results.md) and [confidence calibration](results/confidence-calibration-results.md) |
@@ -246,6 +253,7 @@ scripts and configuration.
 | USGS extraction and detection | [extract.json](scripts/extract.json), [detect_lasr_aoi.R](scripts/detect_lasr_aoi.R), [detect_lidr_aoi.R](scripts/detect_lidr_aoi.R), [shared_chm_aoi.R](scripts/shared_chm_aoi.R) |
 | Tiled point-cloud processing | [tile_aoi.R](scripts/tile_aoi.R), [detect_lasr_catalog.R](scripts/detect_lasr_catalog.R), [detect_lidr_catalog.R](scripts/detect_lidr_catalog.R) |
 | NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R), [preflight_site_extension.R](scripts/preflight_site_extension.R) |
+| NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
 | NEON density ladder | [run_sweep.R](scripts/run_sweep.R), [analyze_sweep.R](scripts/analyze_sweep.R), [compare_sites.R](scripts/compare_sites.R) |
 | Point-cloud understory detection | [detect_pc_sweep.R](scripts/detect_pc_sweep.R), [detect_pc_ladder.R](scripts/detect_pc_ladder.R) |
 | Cross-model detection analysis | [analyze_model_benchmark.R](scripts/analyze_model_benchmark.R), [compare_model_sites.R](scripts/compare_model_sites.R) |
