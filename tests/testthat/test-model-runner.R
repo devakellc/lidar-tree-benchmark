@@ -89,6 +89,7 @@ test_that("run_python_crown_arm returns NULL on stale or wrong-schema output", {
     "  case \"$1\" in",
     "    --rm) shift ;;",
     "    --gpus) shift 2 ;;",
+    "    --network) shift 2 ;;",
     "    -v) shift 2 ;;",
     "    *) break ;;",
     "  esac",
@@ -124,8 +125,13 @@ test_that("run_docker_arm runs a container and returns x,y,z; argv is well-forme
   out_abs <- normalizePath(out, mustWork = FALSE)
   mdir <- normalizePath(dirname(in_abs), mustWork = FALSE)   # == dirname(out_abs)
   expect_identical(readLines(argv),
-                   c("run", "--rm", "--gpus", "all", "-v", paste0(mdir, ":", mdir),
+                   c("run", "--rm", "--gpus", "all", "--network", "none",
+                     "-v", paste0(mdir, ":", mdir),
                      "img:tag", "python3", py, in_abs, out_abs))
+  # network = NULL keeps Docker's default bridge
+  det <- run_docker_arm("img:tag", input = file.path(d, "in.laz"), out_csv = out,
+                        cmd = c("python3", py), docker = .fake_docker(d), network = NULL)
+  expect_false("--network" %in% readLines(argv))
 })
 
 test_that("run_docker_arm: gpus=NULL omits --gpus and mounts= adds -v entries", {
