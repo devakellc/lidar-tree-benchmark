@@ -13,6 +13,11 @@ comparable to those external leaderboards and gives fusion a mask-aware
 objective. This is the evaluation backbone the consensus arm (#P1) and the
 seed→refine arm (#P3) reference.
 
+The ForestFormer3D rows in the generated tables below come from June 2026
+outer-cylinder runs. The
+[corrected-adapter re-runs](#corrected-adapter-re-runs-on-the-frozen-clips)
+supersede them and add TreeisoNet masks.
+
 Regenerate:
 
 ```sh
@@ -211,6 +216,71 @@ recall@IoU0.5 / Coverage / SQ (SQ over matched pairs only; "--" = no match).
   monotonically dominant → codominant → intermediate/understory for both arms,
   the point-mask analogue of the per-class recall gradient the apex scorer
   reports.
+
+## Corrected-adapter re-runs on the frozen clips
+
+ForestFormer3D and TreeisoNet were re-run on the declared five-site population
+of the [frozen-clip study](frozen-clips-results.md), as described in the
+[model benchmark](model-benchmark-results.md#corrected-adapter-re-runs-on-the-frozen-clips).
+ForestFormer3D now uses the indexed whole-scene adapter. TreeisoNet masks use
+the corrected export at the checkpoint's own 0.1 m voxel.
+
+```sh
+export CLAUDE_JOB_DIR=$(pwd)/work/paper_runs
+Rscript scripts/score_instances_iou.R SITES=SJER,SOAP,TEAK,WREF,ABBY \
+    RUNGS=native,8,4,2,1 APEX_PROXY=0 CORES=4
+Rscript scripts/compare_adapter_reruns.R BEFORE=work AFTER=work/paper_runs
+```
+
+ForestFormer3D masks before and after, native density, on the plots with a
+June cloud. Reference and scorer are the same for both runs:
+
+| site | plots | n_ref | June P | June R | June F1 | June PQ | re-run P | re-run R | re-run F1 | re-run PQ | June Cov | re-run Cov |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| SJER | 6 | 55 | 0.028 | 0.127 | 0.046 | 0.031 | 0.094 | 0.273 | 0.140 | 0.100 | 0.197 | 0.310 |
+| SOAP | 18 | 230 | 0.028 | 0.061 | 0.038 | 0.024 | 0.127 | 0.270 | 0.172 | 0.117 | 0.171 | 0.350 |
+| TEAK | 19 | 366 | 0.061 | 0.057 | 0.059 | 0.040 | 0.111 | 0.167 | 0.133 | 0.093 | 0.118 | 0.292 |
+
+Mask F1 roughly triples on every site, and PQ rises from 0.02–0.04 to
+0.09–0.12. The gain matches the transfer audit's diagnosis of conflicting
+stitched labels in the June adapter. The June runs also used their own native
+clips, so a small part of the change can come from the input clip.
+
+Re-run board, all five sites, native density (106 cells; n_ref 2,508 stems
+with at least one canopy point). AMS3D, Li 2012 and `ptrees` masks are from
+the same frozen clips. SegmentAnyTree has not been re-run on the frozen
+population yet, so it is not on this board:
+
+| model | cells | n_ref | P | R | F1 | Cov | SQ | PQ |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|
+| forestformer3d | 106 | 2508 | 0.104 | 0.192 | 0.135 | 0.326 | 0.647 | 0.087 |
+| li2012 | 106 | 2508 | 0.099 | 0.185 | 0.129 | 0.309 | 0.640 | 0.083 |
+| ptrees | 106 | 2508 | 0.055 | 0.208 | 0.087 | 0.337 | 0.644 | 0.056 |
+| ams3d | 106 | 2508 | 0.035 | 0.183 | 0.058 | 0.303 | 0.653 | 0.038 |
+| treeisonet | 106 | 2508 | 0.026 | 0.020 | 0.023 | 0.119 | 0.661 | 0.015 |
+
+Mask F1 down the density ladder (same 106 plots at every rung; "--" means no
+predicted mask matched):
+
+| model | native | 8 | 4 | 2 | 1 |
+|---|--:|--:|--:|--:|--:|
+| forestformer3d | 0.135 | 0.139 | 0.149 | 0.147 | 0.168 |
+| ams3d | 0.058 | 0.071 | 0.093 | 0.113 | 0.140 |
+| ptrees | 0.087 | 0.123 | 0.110 | 0.095 | 0.067 |
+| treeisonet | 0.023 | 0.014 | 0.005 | 0.001 | -- |
+
+**Re-run readings.**
+
+- ForestFormer3D now has the best native mask F1 and PQ on the five-site
+  board, narrowly ahead of Li 2012. Its mask F1 does not fall with density.
+- TreeisoNet's masks are poor at the checkpoint voxel: F1 0.023 at native
+  density and no matched mask at 1 pt/m2. Its apex pass, at
+  0.8 x 0.8 x 2.0 m, scores apex F1 0.45 on the same cells. The checkpoint
+  voxel suits much denser clouds than NEON ALS. A mask run at the apex voxel
+  is pending; until then, report TreeisoNet masks as a lower bound for this
+  arm.
+- Matched-pair SQ stays at 0.64–0.66 for every arm. The IoU 0.5 gate, not
+  mask shape, still separates the arms.
 
 ## Matching-rule sensitivity (#V2)
 

@@ -16,6 +16,11 @@ skipped by the density guard) and TEAK wrote 100 rows per arm (20 plots x
 5 rungs). ForestFormer3D has now completed its native + 8 pts/m2 arm on all
 three sites: SJER wrote 15 rows, SOAP wrote 36 rows, and TEAK wrote 40 rows.
 
+The ForestFormer3D and TreeisoNet rows above and in the generated tables below
+come from June 2026 runs that predate two adapter fixes. They are kept as
+historical results. The [corrected-adapter re-runs](#corrected-adapter-re-runs-on-the-frozen-clips)
+supersede them for both arms; quote those instead.
+
 Regenerate:
 
 ```sh
@@ -31,6 +36,99 @@ for SITE in SOAP SJER TEAK; do
 done
 Rscript scripts/compare_model_sites.R
 ```
+
+## Corrected-adapter re-runs on the frozen clips
+
+The June 2026 ForestFormer3D runs staged outer-cylinder tiles, which selected
+the upstream fallback route and stitched conflicting labels. The re-runs use
+the indexed whole-scene adapter. The TreeisoNet mask export now applies the
+2 m height cutoff in the physical height frame and leaves unsupported points
+unlabelled. Both arms were re-run on the
+[frozen clips](frozen-clips-results.md): the declared 106-plot population with
+2,525 field stems over five sites, at native density and 8/4/2/1 pts/m2. Each
+run writes a manifest with the source revision, checkpoint hashes and
+container image digest.
+
+```sh
+export CLAUDE_JOB_DIR=$(pwd)/work/paper_runs
+for SITE in SJER SOAP TEAK WREF ABBY; do
+  Rscript scripts/detect_forestformer3d_sweep.R SITE=$SITE RUNGS=native,8,4,2,1
+  Rscript scripts/detect_treeisonet_sweep.R SITE=$SITE VOXEL=0.8,0.8,2.0 MASK_VOXEL=0
+done
+for SITE in SJER SOAP TEAK; do
+  CLAUDE_JOB_DIR=$(pwd)/work/paper_runs_voxel0 \
+    Rscript scripts/detect_treeisonet_sweep.R SITE=$SITE VOXEL=0 MASKS=0 RUNGS=native
+done
+Rscript scripts/compare_adapter_reruns.R BEFORE=work AFTER=work/paper_runs \
+  VOXEL0=work/paper_runs_voxel0
+```
+
+The comparison re-scores the June native ForestFormer3D clouds and the
+re-run clouds on the same plots, population, frozen terrain and scorer. Plots
+without a June cloud are left out, so each site compares equal sets.
+
+| site | plots | field stems | June recall | June precision | June F1 | re-run recall | re-run precision | re-run F1 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| SJER | 6 | 57 | 0.614 | 0.144 | 0.233 | 0.544 | 0.232 | 0.325 |
+| SOAP | 18 | 231 | 0.407 | 0.191 | 0.260 | 0.636 | 0.352 | 0.454 |
+| TEAK | 19 | 374 | 0.305 | 0.354 | 0.327 | 0.553 | 0.448 | 0.495 |
+
+ForestFormer3D apex F1 at native density rises by 0.09 to 0.19 on every site.
+Both recall and precision improve on SOAP and TEAK; on SJER the re-run trades
+some recall for far fewer false detections.
+
+TreeisoNet's apex pass runs treeLoc only, so the export fix does not touch it.
+Its June rows changed for a different reason: the June SJER and TEAK runs used
+the checkpoint's own 0.1 m voxel, while June SOAP and the re-runs use
+0.8 x 0.8 x 2.0 m. A native-density re-run at the checkpoint voxel reproduces
+the June SJER and TEAK apex counts cell for cell:
+
+| site | plots | June F1 | re-run at checkpoint voxel | re-run at 0.8 x 0.8 x 2.0 m | cells with June apex count |
+| --- | --- | --- | --- | --- | --- |
+| SJER | 6 | 0.080 | 0.081 | 0.280 | checkpoint voxel 6 / 6 |
+| SOAP | 18 | 0.393 | 0.125 | 0.390 | 0.8 m voxel 17 / 18 |
+| TEAK | 19 | 0.120 | 0.122 | 0.373 | checkpoint voxel 19 / 19 |
+
+The June reading that TreeisoNet "works on SOAP" but collapses on SJER and
+TEAK therefore reflected the voxel setting, not site transfer. At one voxel
+setting, TreeisoNet's native F1 is 0.28 to 0.57 on all five sites. June
+reference counts differ slightly (59, 232 and 387 stems) because June used
+the earlier stem gate.
+
+Re-run ladder, both arms on the same 530 cells (106 plots, 2,525 stems; the
+equal-set guard dropped no cell):
+
+| rung | ForestFormer3D recall | precision | F1 | understory recall | TreeisoNet recall | precision | F1 | understory recall |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| native | 0.621 | 0.416 | 0.498 | 0.454 | 0.514 | 0.394 | 0.446 | 0.193 |
+| 8 | 0.587 | 0.417 | 0.487 | 0.370 | 0.525 | 0.396 | 0.452 | 0.203 |
+| 4 | 0.543 | 0.395 | 0.457 | 0.314 | 0.524 | 0.399 | 0.453 | 0.201 |
+| 2 | 0.503 | 0.388 | 0.438 | 0.269 | 0.495 | 0.403 | 0.444 | 0.191 |
+| 1 | 0.451 | 0.394 | 0.421 | 0.231 | 0.454 | 0.426 | 0.440 | 0.166 |
+
+Native F1 by site:
+
+| site | plots | field stems | ForestFormer3D | TreeisoNet |
+| --- | --- | --- | --- | --- |
+| SJER | 6 | 57 | 0.325 | 0.280 |
+| SOAP | 18 | 231 | 0.454 | 0.390 |
+| TEAK | 19 | 374 | 0.495 | 0.373 |
+| WREF | 38 | 1,063 | 0.491 | 0.393 |
+| ABBY | 25 | 800 | 0.542 | 0.571 |
+
+**Re-run readings.**
+
+- ForestFormer3D leads at native and 8 pts/m2. It finds more than twice
+  TreeisoNet's share of understory stems at native density (0.45 against 0.19).
+- ForestFormer3D loses 0.08 F1 from native to 1 pt/m2, while TreeisoNet is
+  nearly flat. The two arms are level at 4 pts/m2, and TreeisoNet is slightly
+  ahead at 2 and 1 pts/m2.
+- ABBY is the only site where TreeisoNet beats ForestFormer3D.
+- The TreeisoNet crown arm is unchanged by the fix. On the 94 SOAP stems both
+  runs matched, the equivalent-diameter RMSE is 4.97 m against 4.99 m in June.
+- These rows compare the two re-run arms only. The classical and other deep
+  arms on the same frozen population are pooled in the master tables, not
+  here.
 
 ## What this is
 
@@ -62,14 +160,12 @@ Rscript scripts/compare_model_sites.R
   lower F1 is mostly precision-limited in the open savanna, not recall-limited.
 - **`multichm` is still the most stable classical ladder arm.** It beats CHM-VWF
   on F1 at every rung and keeps recall nearly flat across density.
-- **TreeisoNet is now a real SOAP competitor rather than the old failed run
-  shown in stale report text.** With the current SOAP result CSV it stays near
-  F1 0.39-0.41 through native/8/4/2 and only weakens at rung 1. The same arm
-  does not transfer well to SJER or TEAK in the current zero-shot run.
-- **ForestFormer3D is now a three-site native + 8 comparison, not a full ladder.**
-  It is more useful than TreeisoNet off SOAP (native F1 0.25 on SJER and 0.30 on
-  TEAK), but still trails CHM-VWF at native density on every site and should stay
-  outside the full-ladder conclusions.
+- **Historical TreeisoNet and ForestFormer3D readings (June 2026).** These two
+  readings are superseded by the
+  [corrected-adapter re-runs](#corrected-adapter-re-runs-on-the-frozen-clips).
+  June TreeisoNet stayed near F1 0.39-0.41 on SOAP and failed on SJER and TEAK,
+  but those two sites ran at a different voxel setting. June ForestFormer3D
+  (native F1 0.25 on SJER and 0.30 on TEAK) used the outer-cylinder adapter.
 
 ## Generated Tables
 
@@ -256,15 +352,14 @@ Result coverage:
   drops 0.29 -> 0.23 on SJER, 0.48 -> 0.13 on SOAP, and 0.48 -> 0.07 on TEAK.
   The 8 and 4 pts/m2 rungs are the useful sparse range; 1 pts/m2 is too sparse
   for this zero-shot arm.
-- **TreeisoNet is site-specific in the current zero-shot setup.** It is stable
-  and competitive on SOAP (native F1 0.39; rung-1 F1 0.40), but it collapses on
-  SJER and TEAK (native F1 0.07 and 0.12; no meaningful rung-1 detections). The
-  current TreeisoNet conclusion should therefore be read as "works on SOAP" not
-  "general ALS transfer."
-- **ForestFormer3D is steadier than TreeisoNet off SOAP but remains weaker than
-  CHM-VWF.** Native F1 is 0.25 / 0.27 / 0.30 on SJER / SOAP / TEAK, versus
-  CHM-VWF's 0.32 / 0.38 / 0.37. At the 8 pts/m2 rung it is similar but still
-  below CHM-VWF on every site (0.25 / 0.31 / 0.31 versus 0.34 / 0.39 / 0.34).
+- **Historical (June 2026): TreeisoNet appeared site-specific.** It was
+  competitive on SOAP (native F1 0.39) and collapsed on SJER and TEAK (0.07 and
+  0.12). The re-runs trace the collapse to the checkpoint voxel used on those
+  two sites; at one setting the arm is not site-specific.
+- **Historical (June 2026): ForestFormer3D trailed CHM-VWF.** Native F1 was
+  0.25 / 0.27 / 0.30 on SJER / SOAP / TEAK, versus CHM-VWF's 0.32 / 0.38 /
+  0.37, with the outer-cylinder adapter. See the
+  [corrected-adapter re-runs](#corrected-adapter-re-runs-on-the-frozen-clips).
 - **SJER understory remains too small for strong interpretation.** The SJER
   understory count is only 2 stems, so the 1.00 SegmentAnyTree understory recall
   at native density is reported for completeness but should not be compared
