@@ -75,8 +75,8 @@ run_sat_batch <- function(image, input_dir, output_dir, timeout, label = NULL) {
   out_abs <- normalizePath(output_dir, mustWork = FALSE)
   mdirs <- unique(c(in_abs, out_abs, normalizePath(dirname(BATCH_DRIVER), mustWork = TRUE)))
   vol <- as.vector(rbind("-v", paste0(mdirs, ":", mdirs)))
-  args <- c("run", "--rm", "--gpus", "all", "--shm-size=8g", "--ipc=host",
-            vol, image, "python3", BATCH_DRIVER, in_abs, out_abs)
+  args <- c("run", "--rm", "--gpus", "all", "--network", "none", "--shm-size=8g",
+            "--ipc=host", vol, image, "python3", BATCH_DRIVER, in_abs, out_abs)
   out <- tryCatch(suppressWarnings(system2("docker", shQuote(args), stdout = TRUE,
                                            stderr = TRUE, timeout = timeout)),
                   error = function(e) NULL)
