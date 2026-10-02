@@ -105,12 +105,15 @@ run_python_crown_arm <- function(venv_python, script, input, out_csv,
 # missing output -> NULL; the reader (default = the x y z CSV parse; pass
 # read_instances_ply/read_instances_laz for a labeled-cloud output) is wrapped
 # so a throwing or NULL-returning reader -> NULL (skip cell), and any non-NULL
-# result is asserted against the detection contract.
+# result is asserted against the detection contract. Containers run without a
+# network by default: inference needs none, and per-cell bridge setup and
+# teardown is the last thing the workstation logged before its silent hangs
+# during long GPU batches. Pass network = NULL to keep Docker's default.
 run_docker_arm <- function(image, input, out_csv, extra = character(),
                            cmd = character(), mounts = NULL, gpus = "all",
                            extra_docker = character(),
                            docker = "docker", timeout = 1800, label = NULL,
-                           reader = NULL) {
+                           reader = NULL, network = "none") {
   if (is.null(cmd) || !length(cmd))
     stop("run_docker_arm: cmd must be supplied so input/out do not override an image CMD",
          call. = FALSE)
@@ -124,7 +127,8 @@ run_docker_arm <- function(image, input, out_csv, extra = character(),
   gpu <- if (!is.null(gpus) && nzchar(gpus)) c("--gpus", gpus) else character()
   # extra_docker: extra `docker run` flags before the image (e.g. --shm-size=8g
   # --ipc=host, which SAT's spawn-based clustering Pool needs).
-  args <- c("run", "--rm", gpu, extra_docker, vol, image, cmd, in_abs, out_abs, extra)
+  net <- if (!is.null(network) && nzchar(network)) c("--network", network) else character()
+  args <- c("run", "--rm", gpu, net, extra_docker, vol, image, cmd, in_abs, out_abs, extra)
   out <- tryCatch(suppressWarnings(system2(docker, shQuote(args), stdout = TRUE,
                                            stderr = TRUE, timeout = timeout)),
                   error = function(e) NULL)
