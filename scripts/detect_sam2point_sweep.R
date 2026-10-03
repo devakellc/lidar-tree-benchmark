@@ -100,7 +100,9 @@ for (pid in keep) {
   pf <- tempfile(fileext = ".csv")
   write.table(dseed[, c("x", "y", "z")], pf, sep = ",", row.names = FALSE, col.names = FALSE)
   out <- file.path(idir, sprintf("%s_%s.laz", pid, RUNG))
-  cmd <- c("run", "--rm", "--gpus", "all",
+  # No network: the image bakes in the SAM 2 checkpoint, and container network
+  # churn was part of the workstation hangs (as in run_docker_arm).
+  cmd <- c("run", "--rm", "--gpus", "all", "--network", "none",
            "-v", paste0(RUNNER, ":/workspace/run_arm.py:ro"),
            "-v", paste0(normalizePath(clip), ":/data/in.laz:ro"),
            "-v", paste0(pf, ":/data/prompts.csv:ro"),

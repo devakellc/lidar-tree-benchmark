@@ -73,6 +73,46 @@ run_python_arm <- function(venv_python, script, input, out_csv,
   det
 }
 
+# Many cells in ONE Python process (e.g. gpu/run_treeisonet_batch.py): CUDA
+# starts once per batch instead of once per cell. Long runs that start and stop
+# a GPU process every few seconds have hung the workstation. `jobs` is a list
+# of per-cell argument lists the batch driver understands, each with an
+# `output`; stale outputs are removed first. Returns, per job, whether its
+# output exists afterwards; read the outputs with the per-cell readers below.
+# The driver's per-job lines stream to this process's stdout (the run log), so
+# a batch that runs for an hour still shows progress.
+run_python_batch <- function(venv_python, script, jobs, timeout = 1800,
+                             label = NULL) {
+  if (!length(jobs)) return(logical())
+  outs <- vapply(jobs, function(j) j$output, character(1))
+  unlink(c(outs, paste0(outs, ".error")))
+  jf <- tempfile("batch_jobs_", fileext = ".json")
+  on.exit(unlink(jf), add = TRUE)
+  jsonlite::write_json(jobs, jf, auto_unbox = TRUE, digits = NA)
+  st <- tryCatch(suppressWarnings(system2(venv_python, shQuote(c(script, jf)),
+                                          stdout = "", stderr = "",
+                                          timeout = timeout)),
+                 error = function(e) 1L)
+  if (!identical(as.integer(st), 0L)) .log_python_failure(label, NULL, st)
+  for (e in paste0(outs, ".error")[file.exists(paste0(outs, ".error"))])
+    message("batch job failed: ", basename(sub("[.]error$", "", e)), ": ",
+            paste(readLines(e, warn = FALSE), collapse = " "))
+  file.exists(outs)
+}
+
+# Crown CSV (x y z crown_id) -> labelled points, or NULL; shared by the
+# per-cell and batch crown paths.
+.read_crown_csv <- function(out_csv) {
+  if (!file.exists(out_csv)) return(NULL)
+  d <- tryCatch(read.table(out_csv, header = TRUE), error = function(e) NULL)
+  if (is.null(d) || !identical(names(d), c("x", "y", "z", "crown_id")))
+    return(NULL)
+  pts <- data.frame(X = as.numeric(d$x), Y = as.numeric(d$y),
+                    Z = as.numeric(d$z), crown_id = as.integer(d$crown_id))
+  pts[is.finite(pts$X) & is.finite(pts$Y) & is.finite(pts$Z) &
+        !is.na(pts$crown_id), , drop = FALSE]
+}
+
 run_python_crown_arm <- function(venv_python, script, input, out_csv,
                                  extra = character(), timeout = 1800,
                                  label = NULL) {
@@ -86,14 +126,7 @@ run_python_crown_arm <- function(venv_python, script, input, out_csv,
     .log_python_failure(label, out, st)
     return(NULL)
   }
-  if (!file.exists(out_csv)) return(NULL)
-  d <- tryCatch(read.table(out_csv, header = TRUE), error = function(e) NULL)
-  if (is.null(d) || !identical(names(d), c("x", "y", "z", "crown_id")))
-    return(NULL)
-  pts <- data.frame(X = as.numeric(d$x), Y = as.numeric(d$y),
-                    Z = as.numeric(d$z), crown_id = as.integer(d$crown_id))
-  pts[is.finite(pts$X) & is.finite(pts$Y) & is.finite(pts$Z) &
-        !is.na(pts$crown_id), , drop = FALSE]
+  .read_crown_csv(out_csv)
 }
 
 # #19 Docker backend. Same contract as run_python_arm, but the arm runs inside a
@@ -105,12 +138,15 @@ run_python_crown_arm <- function(venv_python, script, input, out_csv,
 # missing output -> NULL; the reader (default = the x y z CSV parse; pass
 # read_instances_ply/read_instances_laz for a labeled-cloud output) is wrapped
 # so a throwing or NULL-returning reader -> NULL (skip cell), and any non-NULL
-# result is asserted against the detection contract.
+# result is asserted against the detection contract. Containers run without a
+# network by default: inference needs none, and per-cell bridge setup and
+# teardown is the last thing the workstation logged before its silent hangs
+# during long GPU batches. Pass network = NULL to keep Docker's default.
 run_docker_arm <- function(image, input, out_csv, extra = character(),
                            cmd = character(), mounts = NULL, gpus = "all",
                            extra_docker = character(),
                            docker = "docker", timeout = 1800, label = NULL,
-                           reader = NULL) {
+                           reader = NULL, network = "none") {
   if (is.null(cmd) || !length(cmd))
     stop("run_docker_arm: cmd must be supplied so input/out do not override an image CMD",
          call. = FALSE)
@@ -124,7 +160,8 @@ run_docker_arm <- function(image, input, out_csv, extra = character(),
   gpu <- if (!is.null(gpus) && nzchar(gpus)) c("--gpus", gpus) else character()
   # extra_docker: extra `docker run` flags before the image (e.g. --shm-size=8g
   # --ipc=host, which SAT's spawn-based clustering Pool needs).
-  args <- c("run", "--rm", gpu, extra_docker, vol, image, cmd, in_abs, out_abs, extra)
+  net <- if (!is.null(network) && nzchar(network)) c("--network", network) else character()
+  args <- c("run", "--rm", gpu, net, extra_docker, vol, image, cmd, in_abs, out_abs, extra)
   out <- tryCatch(suppressWarnings(system2(docker, shQuote(args), stdout = TRUE,
                                            stderr = TRUE, timeout = timeout)),
                   error = function(e) NULL)
@@ -138,4 +175,60 @@ run_docker_arm <- function(image, input, out_csv, extra = character(),
   det <- tryCatch(rd(out_abs), error = function(e) NULL)
   if (is.null(det)) return(NULL)                     # schema failure -> skip cell
   .valid_detection_or_null(det)
+}
+
+# run_docker_arm identity-mounts symlink-resolved directories, so any path
+# handed to a container as an argument must be resolved the same way, or the
+# container sees a path that exists only through a host symlink.
+container_path <- function(path) normalizePath(path, mustWork = TRUE)
+
+## ---- run provenance for GPU arms -----------------------------------------
+# Identity of what a GPU arm run depended on, written next to its outputs: the
+# container image ID, the upstream source revision plus a hash of its local
+# modifications (e.g. an applied adapter patch), and checkpoint/code hashes.
+docker_image_id <- function(image, docker = "docker") {
+  out <- tryCatch(suppressWarnings(system2(docker, shQuote(c("image", "inspect",
+    image, "--format", "{{.Id}}")), stdout = TRUE, stderr = TRUE)), error = function(e) NULL)
+  if (is.null(out) || !is.null(attr(out, "status")) || length(out) != 1L ||
+      !startsWith(out, "sha256:"))
+    stop("Missing Docker image: ", image)
+  out
+}
+
+# `paths` limits the modification hash to code, so run scratch inside the
+# checkout (staged data lists) does not change the source identity.
+git_source_identity <- function(dir, paths = ".") {
+  git <- function(...) tryCatch(suppressWarnings(system2("git", shQuote(c("-C", dir, ...)),
+    stdout = TRUE, stderr = FALSE)), error = function(e) NULL)
+  head <- git("rev-parse", "HEAD")
+  if (is.null(head) || !is.null(attr(head, "status")) || length(head) != 1L)
+    stop("Cannot read the source revision of ", dir)
+  diff <- git("diff", "HEAD", "--", paths)
+  list(commit = head, modified = length(diff) > 0L,
+       modification_md5 = digest::digest(paste(diff, collapse = "\n"), algo = "md5",
+                                         serialize = FALSE))
+}
+
+file_digests <- function(paths, algo = "sha256") {
+  if (any(!file.exists(paths))) stop("Missing run input: ", paths[!file.exists(paths)][1])
+  setNames(as.list(vapply(paths, function(p) digest::digest(file = p, algo = algo),
+                          character(1))), basename(paths))
+}
+
+# Run manifest of a resumable arm: one model identity plus one entry per pass.
+# Resuming (existing results) requires the identity that made them; a fresh
+# run starts a new manifest. Returns the identity as JSON reads it back.
+update_run_manifest <- function(path, identity, pass, resuming) {
+  identity <- jsonlite::fromJSON(jsonlite::toJSON(identity, auto_unbox = TRUE, digits = NA))
+  passes <- list()
+  if (resuming) {
+    if (!file.exists(path) ||
+        !identical(jsonlite::read_json(path, simplifyVector = TRUE)$identity, identity))
+      stop("Existing results were made with another model identity; ",
+           "move them aside to start fresh")
+    passes <- jsonlite::read_json(path, simplifyVector = FALSE)$passes
+  }
+  jsonlite::write_json(list(identity = identity, passes = c(passes, list(pass))), path,
+                       auto_unbox = TRUE, pretty = TRUE, digits = NA)
+  invisible(identity)
 }

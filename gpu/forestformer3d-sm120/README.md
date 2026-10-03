@@ -77,6 +77,11 @@ nearest-neighbor reference projection is applied to indexed scene outputs.
 
 The external driver exposes this path through `FF_LAYOUT=whole_scene`; its
 default `FF_LAYOUT=cylinders` remains available for historical reproduction.
+The NEON density-ladder arm, `scripts/detect_forestformer3d_sweep.R`, uses the
+whole-scene path by default (`LAYOUT=whole_scene`) on a staged copy of each
+frozen raw clip, checks the row-indexed export with `ff3d_scene_check()` and
+writes a run manifest plus one receipt per cell; `LAYOUT=outer_cylinders`
+reproduces the June 2026 NEON runs.
 Use a new output directory because layout and adapter sources are part of the
 cache provenance. See the [scene protocol](../../docs/forestformer-scene-assembly-protocol.md)
 and [training comparison](../../results/forestformer-scene-assembly-results.md)

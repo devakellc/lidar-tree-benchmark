@@ -479,6 +479,22 @@ frozen_stamp_check <- function(dir, root, strict = TRUE) {
   ok
 }
 
+# Per-cell apexes an arm scored, kept so later studies (the censused-subplot
+# precision) re-score them without inference. `dir` is <nd>/<arm>_detections,
+# stamped with frozen_stamp() before the workers start; one CSV of x, y, z
+# (height above ground) per cell, written atomically.
+frozen_detections_file <- function(dir, plot, rung)
+  file.path(dir, sprintf("%s__%s.csv", plot,
+                         if (length(rung) != 1L || is.na(rung)) "native" else as.character(rung)))
+persist_detections <- function(dir, plot, rung, det) {
+  assert_detection_contract(det)
+  f <- frozen_detections_file(dir, plot, rung)
+  tmp <- paste0(f, ".part")
+  write.csv(det[, c("x", "y", "z")], tmp, row.names = FALSE)
+  if (!file.rename(tmp, f)) stop("Could not persist detections to ", f)
+  invisible(f)
+}
+
 # Consumer check over other arms' artifact directories under `nd`: an absent
 # directory means that arm did not run; a present one must carry the stamp.
 frozen_check_artifacts <- function(nd, dirs, root) {

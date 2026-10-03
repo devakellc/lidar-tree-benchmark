@@ -89,6 +89,7 @@ test_that("run_python_crown_arm returns NULL on stale or wrong-schema output", {
     "  case \"$1\" in",
     "    --rm) shift ;;",
     "    --gpus) shift 2 ;;",
+    "    --network) shift 2 ;;",
     "    -v) shift 2 ;;",
     "    *) break ;;",
     "  esac",
@@ -124,8 +125,13 @@ test_that("run_docker_arm runs a container and returns x,y,z; argv is well-forme
   out_abs <- normalizePath(out, mustWork = FALSE)
   mdir <- normalizePath(dirname(in_abs), mustWork = FALSE)   # == dirname(out_abs)
   expect_identical(readLines(argv),
-                   c("run", "--rm", "--gpus", "all", "-v", paste0(mdir, ":", mdir),
+                   c("run", "--rm", "--gpus", "all", "--network", "none",
+                     "-v", paste0(mdir, ":", mdir),
                      "img:tag", "python3", py, in_abs, out_abs))
+  # network = NULL keeps Docker's default bridge
+  det <- run_docker_arm("img:tag", input = file.path(d, "in.laz"), out_csv = out,
+                        cmd = c("python3", py), docker = .fake_docker(d), network = NULL)
+  expect_false("--network" %in% readLines(argv))
 })
 
 test_that("run_docker_arm: gpus=NULL omits --gpus and mounts= adds -v entries", {
@@ -199,4 +205,52 @@ test_that("run_docker_arm honors a custom reader= (NULL skip, throw skip, valid 
   det <- do.call(run_docker_arm,
                  c(base, list(reader = function(p) data.frame(x = 1, y = 2, z = 3))))
   expect_equal(det$z, 3)
+})
+
+test_that("run_python_batch runs every job in one process and reports outputs", {
+  d <- tempfile(); dir.create(d)
+  py <- file.path(d, "batch.py")
+  writeLines(c("import json, sys",
+               "jobs = json.load(open(sys.argv[1]))",
+               "open(sys.argv[1] + '.calls', 'a').write('1')",
+               "for j in jobs:",
+               "    if j['kind'] == 'bad':",
+               "        open(j['output'] + '.error', 'w').write('boom')",
+               "    else:",
+               "        open(j['output'], 'w').write('x y z\\n1 2 3\\n')"), py)
+  outs <- file.path(d, c("a.csv", "b.csv", "c.csv"))
+  writeLines("stale", outs[2])                       # must not survive
+  jobs <- list(list(kind = "apex", output = outs[1]), list(kind = "bad", output = outs[2]),
+               list(kind = "apex", output = outs[3]))
+  expect_message(ok <- run_python_batch("python3", py, jobs, label = "t"), "b.csv: boom")
+  expect_identical(ok, c(TRUE, FALSE, TRUE))
+  expect_false(file.exists(outs[2]))
+  expect_equal(nrow(.read_detection_csv(outs[1])), 1L)
+  expect_identical(run_python_batch("python3", py, list()), logical())
+})
+
+test_that(".read_crown_csv keeps the labelled-point contract", {
+  f <- tempfile(fileext = ".csv")
+  writeLines(c("x y z crown_id", "1 2 3 1", "4 5 NaN 2"), f)
+  pts <- .read_crown_csv(f)
+  expect_identical(names(pts), c("X", "Y", "Z", "crown_id"))
+  expect_equal(nrow(pts), 1L)
+  writeLines(c("x y z", "1 2 3"), f)
+  expect_null(.read_crown_csv(f))
+  expect_null(.read_crown_csv(tempfile()))
+})
+
+test_that("the TreeisoNet batch driver records a failed job and carries on", {
+  venv <- file.path("..", "..", "gpu", ".venv", "bin", "python")
+  drv <- file.path("..", "..", "gpu", "run_treeisonet_batch.py")
+  skip_if_not(file.exists(venv) && dir.exists(file.path("..", "..", "gpu", "TreeAIBox")),
+              "TreeisoNet venv not installed")
+  d <- tempfile(); dir.create(d)
+  jobs <- list(list(kind = "nonsense", input = "x.laz", output = file.path(d, "x.csv")),
+               list(kind = "apex", input = file.path(d, "missing.laz"),
+                    output = file.path(d, "y.csv"), loc_pth = "none", loc_cfg = "none"))
+  ok <- suppressMessages(run_python_batch(venv, drv, jobs, timeout = 120))
+  expect_identical(ok, c(FALSE, FALSE))
+  expect_match(readLines(file.path(d, "x.csv.error")), "unknown job kind")
+  expect_true(file.exists(file.path(d, "y.csv.error")))
 })
