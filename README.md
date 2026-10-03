@@ -82,6 +82,15 @@ classical arms keep their order. The re-run ForestFormer3D has the highest
 censused F1 at native density, **0.67**, against **0.62** for TreeisoNet and
 **0.61** for CHM-VWF.
 
+The [master tables](results/master-tables-results.md) fix one reference per
+site for every paper table (the declared population: 106 plots and 2,525
+stems), explain each earlier per-report count, and attach paired plot-level
+bootstrap intervals to every pooled number and arm-versus-arm difference. The
+six classical arms, ForestFormer3D and TreeisoNet are in; the remaining
+learned arms are added as their re-runs on the frozen clips complete.
+ForestFormer3D is the only arm whose native-density F1 beats CHM-VWF with an
+interval excluding zero: **+0.048 [+0.028, +0.069]** on the nominal box.
+
 The [point-cloud detector study](results/pointcloud-detector-results.md)
 compares native-density understory recovery by crown class, with a separate
 two-rung density-ladder extension.
@@ -266,6 +275,7 @@ scripts and configuration.
 | Tiled point-cloud processing | [tile_aoi.R](scripts/tile_aoi.R), [detect_lasr_catalog.R](scripts/detect_lasr_catalog.R), [detect_lidr_catalog.R](scripts/detect_lidr_catalog.R) |
 | NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R), [preflight_site_extension.R](scripts/preflight_site_extension.R) |
 | NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
+| NEON master tables and intervals | [master_tables.R](scripts/master_tables.R), [master_tables_lib.R](scripts/master_tables_lib.R) |
 | NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
 | NEON density ladder | [run_sweep.R](scripts/run_sweep.R), [analyze_sweep.R](scripts/analyze_sweep.R), [compare_sites.R](scripts/compare_sites.R) |
 | Point-cloud understory detection | [detect_pc_sweep.R](scripts/detect_pc_sweep.R), [detect_pc_ladder.R](scripts/detect_pc_ladder.R) |
