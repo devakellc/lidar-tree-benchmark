@@ -154,7 +154,7 @@ scope_runs <- function(x, W, table) {
 nominal <- scope_runs(eq, W_all, "nominal box")
 
 ## ---- census-support scores ----------------------------------------------------
-# score_census_support.R writes <rule>_ladder (five ladder arms, every rung)
+# score_census_support.R writes <rule>_ladder (the ladder arms, every rung)
 # and <rule>_native (adds Li 2012); a cell scored in both is kept once.
 census_rows <- function(rule) {
   files <- file.path(d, "census_support_scores", paste0(rule, c("_ladder", "_native")),

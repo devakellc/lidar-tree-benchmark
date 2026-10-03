@@ -1,17 +1,18 @@
 # Master tables, reference populations and bootstrap intervals
 
-Checked on 2 October 2026. This study builds the tables the paper reports
+Checked on 2 October 2026; ForestFormer3D and TreeisoNet added on
+3 October. This study builds the tables the paper reports
 from: one reference population per site, one long-form table of every arm,
 site and density rung on equal support, and paired plot-level bootstrap
 intervals on every pooled number and on every arm-versus-arm difference.
 
-**Status: the infrastructure is complete; six of twelve arms are in.** The
-six classical arms re-run on the sealed frozen clips (CHM-VWF, `multichm`,
-`lmfauto`, `ptrees`, AMS3D and Li 2012) are scored here. ForestFormer3D and
-TreeisoNet are being re-run with the corrected adapters; SegmentAnyTree,
-DeepForest, Detectree2 and SAM2Point have not yet been re-run on the frozen
-clips. They appear as pending rows, never filled from older outputs, and slot
-in when their outputs on the frozen root are complete.
+**Status: eight of twelve arms are in.** The six classical arms re-run on the
+sealed frozen clips (CHM-VWF, `multichm`, `lmfauto`, `ptrees`, AMS3D and
+Li 2012) and the two learned arms re-run with corrected adapters
+(ForestFormer3D and TreeisoNet) are scored here. SegmentAnyTree is being
+re-run; DeepForest, Detectree2 and SAM2Point have not yet been re-run on the
+frozen clips. They appear as pending rows, never filled from older outputs,
+and slot in when their outputs on the frozen root are complete.
 
 ## One reference per site
 
@@ -106,11 +107,15 @@ stems), with 95% intervals:
 | `ptrees` | native | 0.712 [0.662, 0.759] | 0.215 [0.187, 0.249] | 0.331 [0.296, 0.369] |
 | AMS3D | native | 0.713 [0.665, 0.762] | 0.145 [0.126, 0.165] | 0.240 [0.214, 0.267] |
 | Li 2012 | native | 0.561 [0.510, 0.613] | 0.384 [0.352, 0.417] | 0.456 [0.426, 0.483] |
+| ForestFormer3D | native | 0.621 [0.585, 0.655] | 0.416 [0.386, 0.447] | 0.498 [0.478, 0.520] |
+| TreeisoNet | native | 0.514 [0.469, 0.562] | 0.394 [0.365, 0.424] | 0.446 [0.420, 0.470] |
 | CHM-VWF | 1 | 0.296 [0.272, 0.326] | 0.506 [0.476, 0.542] | 0.374 [0.353, 0.396] |
 | `multichm` | 1 | 0.506 [0.476, 0.536] | 0.380 [0.353, 0.410] | 0.434 [0.415, 0.453] |
 | `lmfauto` | 1 | 0.768 [0.717, 0.814] | 0.163 [0.144, 0.190] | 0.269 [0.243, 0.302] |
 | `ptrees` | 1 | 0.191 [0.170, 0.212] | 0.468 [0.433, 0.502] | 0.271 [0.250, 0.293] |
 | AMS3D | 1 | 0.399 [0.364, 0.431] | 0.483 [0.447, 0.520] | 0.437 [0.409, 0.462] |
+| ForestFormer3D | 1 | 0.451 [0.420, 0.484] | 0.394 [0.364, 0.428] | 0.421 [0.401, 0.441] |
+| TreeisoNet | 1 | 0.454 [0.404, 0.505] | 0.426 [0.395, 0.456] | 0.440 [0.410, 0.468] |
 
 Censused subplots, nearest census, the same arms on the 57 admitted plots
 (1,190 censused references):
@@ -123,11 +128,15 @@ Censused subplots, nearest census, the same arms on the 57 admitted plots
 | `ptrees` | native | 0.742 [0.701, 0.787] | 0.372 [0.311, 0.443] | 0.496 [0.439, 0.554] |
 | AMS3D | native | 0.720 [0.657, 0.779] | 0.243 [0.208, 0.282] | 0.364 [0.322, 0.404] |
 | Li 2012 | native | 0.592 [0.535, 0.651] | 0.692 [0.644, 0.747] | 0.638 [0.599, 0.676] |
+| ForestFormer3D | native | 0.661 [0.621, 0.704] | 0.675 [0.627, 0.728] | 0.668 [0.640, 0.695] |
+| TreeisoNet | native | 0.547 [0.493, 0.603] | 0.720 [0.673, 0.765] | 0.622 [0.581, 0.663] |
 | CHM-VWF | 1 | 0.327 [0.296, 0.362] | 0.867 [0.831, 0.905] | 0.475 [0.440, 0.511] |
 | `multichm` | 1 | 0.524 [0.488, 0.561] | 0.615 [0.566, 0.670] | 0.566 [0.539, 0.590] |
 | `lmfauto` | 1 | 0.782 [0.730, 0.837] | 0.261 [0.233, 0.299] | 0.392 [0.359, 0.430] |
 | `ptrees` | 1 | 0.215 [0.190, 0.244] | 0.828 [0.768, 0.885] | 0.342 [0.308, 0.378] |
 | AMS3D | 1 | 0.428 [0.385, 0.474] | 0.820 [0.778, 0.861] | 0.562 [0.522, 0.601] |
+| ForestFormer3D | 1 | 0.479 [0.439, 0.524] | 0.693 [0.642, 0.745] | 0.566 [0.532, 0.603] |
+| TreeisoNet | 1 | 0.476 [0.411, 0.543] | 0.781 [0.742, 0.820] | 0.592 [0.535, 0.643] |
 
 Paired F1 differences against CHM-VWF, nominal box, five sites:
 
@@ -138,15 +147,24 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
 | `lmfauto` | −0.064 [−0.095, −0.030] | −0.105 [−0.148, −0.063] |
 | `ptrees` | −0.120 [−0.154, −0.085] | −0.103 [−0.122, −0.083] |
 | AMS3D | −0.210 [−0.240, −0.180] | +0.063 [+0.033, +0.093] |
+| ForestFormer3D | +0.048 [+0.028, +0.069] | +0.047 [+0.022, +0.069] |
+| TreeisoNet | −0.004 [−0.018, +0.009] | +0.066 [+0.037, +0.093] |
 
-- At native density CHM-VWF, `multichm` and Li 2012 are indistinguishable on
-  F1; at 1 point/m² `multichm` and AMS3D are ahead of CHM-VWF, both with
-  intervals excluding zero.
+- At native density CHM-VWF, `multichm`, Li 2012 and TreeisoNet are
+  indistinguishable on F1. ForestFormer3D is the only arm ahead of CHM-VWF
+  (+0.048) and of Li 2012 (+0.042 [+0.023, +0.062]), with intervals
+  excluding zero.
+- At 1 point/m² `multichm`, AMS3D, TreeisoNet and ForestFormer3D are all ahead
+  of CHM-VWF, with intervals excluding zero. TreeisoNet and ForestFormer3D
+  are then indistinguishable (+0.019 [−0.004, +0.040] for TreeisoNet).
+- On the censused subplots ForestFormer3D leads at native density
+  (+0.059 [+0.020, +0.099] over CHM-VWF); its lead over Li 2012
+  (+0.029 [−0.007, +0.068]) is no longer distinguishable from zero.
 - On the same 57 plots, restricting precision to censused subplots raises it
   by 0.29 to 0.34 for CHM-VWF across rungs and by 0.08 to 0.32 for the other
-  arms, while recall moves by at most 0.024. The native-density F1 order (Li
-  2012, CHM-VWF, `multichm`, `lmfauto`, `ptrees`, AMS3D) is the same in both
-  scorings.
+  arms, while recall moves by at most 0.024. The native-density F1 order
+  (ForestFormer3D, Li 2012, TreeisoNet, CHM-VWF, `multichm`, `lmfauto`,
+  `ptrees`, AMS3D) is the same in both scorings.
 - Per-site intervals are wide at SJER (6 plots): CHM-VWF native F1 0.307
   [0.169, 0.471]. The full per-site and per-rung tables, every contrast and
   the census exact-2021 check are in the generated CSV files.
@@ -155,9 +173,7 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
 
 | Arm | Status |
 | --- | --- |
-| ForestFormer3D | re-run in progress (329 of 530 cells at the time of writing) |
-| TreeisoNet | re-run queued after ForestFormer3D |
-| SegmentAnyTree | not yet re-run on the frozen clips |
+| SegmentAnyTree | re-run on the frozen clips in progress |
 | DeepForest, Detectree2 | not yet re-run on the frozen clips |
 | SAM2Point | not yet re-run on the frozen clips |
 
