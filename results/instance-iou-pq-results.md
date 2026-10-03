@@ -274,13 +274,47 @@ predicted mask matched):
 - ForestFormer3D now has the best native mask F1 and PQ on the five-site
   board, narrowly ahead of Li 2012. Its mask F1 does not fall with density.
 - TreeisoNet's masks are poor at the checkpoint voxel: F1 0.023 at native
-  density and no matched mask at 1 pt/m2. Its apex pass, at
-  0.8 x 0.8 x 2.0 m, scores apex F1 0.45 on the same cells. The checkpoint
-  voxel suits much denser clouds than NEON ALS. A mask run at the apex voxel
-  is pending; until then, report TreeisoNet masks as a lower bound for this
-  arm.
+  density and no matched mask at 1 pt/m2. The voxel is the cause; see the
+  mask-voxel sensitivity below.
 - Matched-pair SQ stays at 0.64–0.66 for every arm. The IoU 0.5 gate, not
   mask shape, still separates the arms.
+
+### TreeisoNet mask-voxel sensitivity
+
+The headline TreeisoNet masks use the checkpoint's own 0.1 m voxel, while
+its apex pass uses 0.8 x 0.8 x 2.0 m. The masks were re-run at the apex voxel
+into a separate job root, with the apex pass unchanged (identical apex
+results on all 530 cells):
+
+```sh
+export CLAUDE_JOB_DIR=$(pwd)/work/paper_runs_maskvoxel   # links the inputs
+for SITE in SJER SOAP TEAK WREF ABBY; do
+  Rscript scripts/detect_treeisonet_sweep.R SITE=$SITE VOXEL=0.8,0.8,2.0 \
+    MASK_VOXEL=0.8,0.8,2.0
+done
+Rscript scripts/score_instances_iou.R SITES=SJER,SOAP,TEAK,WREF,ABBY \
+    RUNGS=native,8,4,2,1 APEX_PROXY=0 CORES=4
+```
+
+| mask voxel | rung | P | R | F1 | Cov | SQ | PQ |
+|---|---|--:|--:|--:|--:|--:|--:|
+| checkpoint (0.1 m) | native | 0.026 | 0.020 | 0.023 | 0.119 | 0.661 | 0.015 |
+| 0.8 x 0.8 x 2.0 m | native | 0.110 | 0.187 | 0.138 | 0.317 | 0.643 | 0.089 |
+| 0.8 x 0.8 x 2.0 m | 8 | 0.112 | 0.192 | 0.141 | 0.317 | 0.633 | 0.089 |
+| 0.8 x 0.8 x 2.0 m | 4 | 0.118 | 0.198 | 0.148 | 0.318 | 0.641 | 0.095 |
+| 0.8 x 0.8 x 2.0 m | 2 | 0.118 | 0.183 | 0.143 | 0.307 | 0.637 | 0.091 |
+| 0.8 x 0.8 x 2.0 m | 1 | 0.129 | 0.172 | 0.147 | 0.289 | 0.646 | 0.095 |
+
+At the checkpoint voxel the mask pass finds a median of 2 to 10 trees per
+clip, depending on the site; at the apex voxel it finds 104 to 302. With the
+apex voxel, TreeisoNet's masks match ForestFormer3D's on the five-site board
+(native F1 0.138 against 0.135, PQ 0.089 against 0.087) and hold steady down
+to 1 pt/m2. Native recall at IoU 0.5 is 0.32 for dominant, 0.20 for
+codominant and 0.09 for understory stems.
+
+The headline board above keeps the checkpoint voxel, the setting fixed before
+these runs. Reporting TreeisoNet masks at the apex voxel instead is a change
+of configuration, to be declared before it replaces the headline row.
 
 ## Matching-rule sensitivity (#V2)
 
