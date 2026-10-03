@@ -54,6 +54,13 @@ SJER, SOAP, and TEAK. On SOAP's common set of 18 plots and 232 field stems:
   to **0.741**, while F1 falls from **0.414** to **0.406**. Optical boxes and
   native-CHM heights are fixed across rungs; this is not a wholly sparse-input
   experiment.
+- The [native sparse epoch study](results/native-sparse-epoch-results.md)
+  compares earlier, sparser NEON flights (SJER 2017, SOAP and TEAK 2018,
+  about 4–5 first returns per m²) with the 2021 clouds decimated to the
+  bracketing rungs, on the same 586 stems. Decimation is mildly optimistic for
+  CHM-VWF and `multichm` (recall **0.03–0.05** higher than the native flight)
+  and more so for SegmentAnyTree (**0.06** at 4 and **0.19** at 8 points/m²),
+  so its sparse-rung recall is an upper bound.
 
 These are field-stem detection scores. Incomplete mapping and event-specific
 sampling footprints limit their interpretation as complete-census precision.
@@ -254,6 +261,7 @@ scripts and configuration.
 | Tiled point-cloud processing | [tile_aoi.R](scripts/tile_aoi.R), [detect_lasr_catalog.R](scripts/detect_lasr_catalog.R), [detect_lidr_catalog.R](scripts/detect_lidr_catalog.R) |
 | NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R), [preflight_site_extension.R](scripts/preflight_site_extension.R) |
 | NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
+| Native sparse epochs | [prepare_sparse_epoch.R](scripts/prepare_sparse_epoch.R), [audit_sparse_epoch.R](scripts/audit_sparse_epoch.R), [compare_sparse_epoch.R](scripts/compare_sparse_epoch.R) |
 | NEON density ladder | [run_sweep.R](scripts/run_sweep.R), [analyze_sweep.R](scripts/analyze_sweep.R), [compare_sites.R](scripts/compare_sites.R) |
 | Point-cloud understory detection | [detect_pc_sweep.R](scripts/detect_pc_sweep.R), [detect_pc_ladder.R](scripts/detect_pc_ladder.R) |
 | Cross-model detection analysis | [analyze_model_benchmark.R](scripts/analyze_model_benchmark.R), [compare_model_sites.R](scripts/compare_model_sites.R) |
