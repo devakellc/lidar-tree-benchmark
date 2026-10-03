@@ -65,11 +65,22 @@ The [Pacific Northwest preflight](results/pacific-northwest-extension-results.md
 admits NEON WREF and ABBY, flown in 2021 with the same sensor class, as two
 further sites. The new five-site reference keeps stems of at least 10 cm DBH:
 106 plots and 2,525 stems, against 46 plots and 699 stems in the historical
-SJER, SOAP and TEAK sweep. No detector has been scored at the new sites yet.
+SJER, SOAP and TEAK sweep; the classical arms, ForestFormer3D and TreeisoNet
+have been scored at the new sites, in the censused-subplot study below.
 The [frozen-clip study](results/frozen-clips-results.md) declares that
 population, keeps the six-stem plot gate and freezes one seeded clip per site,
 plot and density rung; every NEON arm now reads those hash-verified clips
 instead of decimating its own.
+
+The [censused-subplot study](results/census-support-results.md) scores
+precision only inside surveyed, censused subplots, from each plot's nearest
+full census within four years of the 2021 flights, with subplots holding
+unmapped census trees excluded. It scores 57 of the 106 plots. On identical
+detections, censused precision is 0.08–0.34 higher than nominal-box precision
+(CHM-VWF at native density: 0.78 against 0.48), and at native density the
+classical arms keep their order. The re-run ForestFormer3D has the highest
+censused F1 at native density, **0.67**, against **0.62** for TreeisoNet and
+**0.61** for CHM-VWF.
 
 The [point-cloud detector study](results/pointcloud-detector-results.md)
 compares native-density understory recovery by crown class, with a separate
@@ -215,6 +226,7 @@ comparison and larger-area experiments.
 | Workflow | Instructions and results |
 | --- | --- |
 | Plot population and frozen clips | [Frozen-clip study](results/frozen-clips-results.md); run it before any NEON arm |
+| Precision inside censused subplots | [Censused-subplot study](results/census-support-results.md) and its reviewed declarations under `docs/` |
 | NEON field-stem density ladder | [Density-ladder study](results/density-ladder-sweep-results.md) and [cross-model comparison](results/model-benchmark-results.md) |
 | Crown diameters and segmentation | [Crown benchmark](results/crown-segmentation-results.md) |
 | Paired optical/LiDAR fusion | [RGB-LiDAR comparison](results/rgb-lidar-fusion-results.md) and [confidence calibration](results/confidence-calibration-results.md) |
@@ -254,6 +266,7 @@ scripts and configuration.
 | Tiled point-cloud processing | [tile_aoi.R](scripts/tile_aoi.R), [detect_lasr_catalog.R](scripts/detect_lasr_catalog.R), [detect_lidr_catalog.R](scripts/detect_lidr_catalog.R) |
 | NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R), [preflight_site_extension.R](scripts/preflight_site_extension.R) |
 | NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
+| NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
 | NEON density ladder | [run_sweep.R](scripts/run_sweep.R), [analyze_sweep.R](scripts/analyze_sweep.R), [compare_sites.R](scripts/compare_sites.R) |
 | Point-cloud understory detection | [detect_pc_sweep.R](scripts/detect_pc_sweep.R), [detect_pc_ladder.R](scripts/detect_pc_ladder.R) |
 | Cross-model detection analysis | [analyze_model_benchmark.R](scripts/analyze_model_benchmark.R), [compare_model_sites.R](scripts/compare_model_sites.R) |

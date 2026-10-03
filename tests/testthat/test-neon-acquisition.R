@@ -65,6 +65,24 @@ test_that("year-aware reference and bounded download entry points agree", {
     expect_equal(call$buffer, 50)
     expect_identical(call$token, "fixture-token")
   }
+  # FROZEN=1 keeps the plots the sealed root declares; a stem in a plot without
+  # a plot record fails the unscoped run but is outside the frozen scope.
+  aop <- file.path(root, "scripts", "neon_download_aop.R")
+  stray <- gt[1, ]; stray$plotID <- "HARV_999"; stray$individualID <- "stray"
+  write.csv(rbind(gt, stray), file.path(nd, "ground_truth_stems.csv"), row.names = FALSE)
+  expect_error(sys.source(aop, envir = e), "plot coordinate")
+  froot <- file.path(d, "neon", "frozen_2021"); dir.create(froot)
+  e$commandArgs <- function(trailingOnly) if (trailingOnly)
+    c("SITE=HARV", "YEAR=2022", "FROZEN=1") else character()
+  expect_error(sys.source(aop, envir = e), "No sealed frozen root")
+  writeLines("manifest", file.path(froot, "clip_manifest.csv"))
+  write.csv(data.frame(site = c("HARV", "HARV"), plotID = c("HARV_001", "HARV_002"),
+                       in_adopted = c(TRUE, FALSE), in_relaxed = c(TRUE, FALSE)),
+            file.path(froot, "population.csv"), row.names = FALSE)
+  unlink(list.files(file.path(nd, "rgb"), "[.]tif$", full.names = TRUE))
+  expect_output(sys.source(aop, envir = e), "frozen root declares 1 plots")
+  expect_equal(calls[[length(calls)]]$easting, 500000)
+  write.csv(gt, file.path(nd, "ground_truth_stems.csv"), row.names = FALSE)
   before <- tools::md5sum(file.path(nd, c("ground_truth_stems.csv", "plot_centroids.csv")))
   e$commandArgs <- function(trailingOnly) if (trailingOnly) c("SITE=HARV", "YEAR=2021") else character()
   expect_error(sys.source(file.path(root, "scripts", "neon_ground_truth.R"), envir = e), "differs")
