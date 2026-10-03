@@ -137,3 +137,13 @@ test_that("score_plot exposes method='optimal' and FP-structure columns", {
   expect_equal(o$TP, 2)                   # optimal recovers both
   expect_true(all(c("fp_near", "fp_isolated") %in% names(g)))
 })
+
+test_that("score_plot scores a reference without heights on position alone", {
+  stems <- data.frame(E = c(10, 30), N = c(10, 10), crown_class = c("dominant", "intermediate"),
+                      height = c(NA, NA))                    # read.csv gives logical NA
+  det <- data.frame(x = c(10.5, 30.2), y = c(10, 10.3), z = c(40, 2))
+  sc <- score_plot(stems, det, tol_xy = 4, core_cx = 20, core_cy = 10, core_half = 20)
+  expect_identical(sc$TP, 2L)                               # no height gate without heights
+  expect_true(all(is.na(unlist(sc[c("rec_h_short", "rec_h_mid", "rec_h_tall")]))))
+  expect_identical(sc$n_h_tall, 0L)
+})

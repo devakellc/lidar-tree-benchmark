@@ -462,7 +462,9 @@ score_plot <- function(stems, det, tol_xy = 4.0, core_cx, core_cy,
   }
   # height-band stratification (CHM-relevant: a surface model sees tall trees
   # regardless of social class). Bands: short <8 m, mid 8-15 m, tall >=15 m.
-  hb     <- cut(stems$height, c(-Inf, 8, 15, Inf), labels = c("short","mid","tall"))
+  # as.numeric: a reference without heights (e.g. a DBH-only census) reads as
+  # logical NA; its stems match on position alone and fall in no height band.
+  hb     <- cut(as.numeric(stems$height), c(-Inf, 8, 15, Inf), labels = c("short","mid","tall"))
   hb_rec <- tapply(matched, hb, mean)
   for (b in c("short","mid","tall")) {
     base[[paste0("rec_h_", b)]] <- if (b %in% names(hb_rec)) hb_rec[[b]] else NA_real_
