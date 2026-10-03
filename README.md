@@ -86,8 +86,10 @@ The [master tables](results/master-tables-results.md) fix one reference per
 site for every paper table (the declared population: 106 plots and 2,525
 stems), explain each earlier per-report count, and attach paired plot-level
 bootstrap intervals to every pooled number and arm-versus-arm difference. The
-six classical arms are in; the deep-learning arms are added as their re-runs
-on the frozen clips complete.
+six classical arms, ForestFormer3D and TreeisoNet are in; the remaining
+learned arms are added as their re-runs on the frozen clips complete.
+ForestFormer3D is the only arm whose native-density F1 beats CHM-VWF with an
+interval excluding zero: **+0.048 [+0.028, +0.069]** on the nominal box.
 
 The [point-cloud detector study](results/pointcloud-detector-results.md)
 compares native-density understory recovery by crown class, with a separate
