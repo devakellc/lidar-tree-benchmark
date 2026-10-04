@@ -52,8 +52,11 @@ MT_ARMS <- data.frame(
   provenance = c("chm_vwf_detections", "multichm_detections", "lmfauto_detections",
                  "ptrees_detections", "ams3d_instances", "li2012_instances",
                  "forestformer3d_results.csv.frozen", "treeisonet_instances",
-                 "segmentanytree_results.csv.frozen", "deepforest_boxes",
-                 "detectree2_boxes", "sam2point_instances"),
+                 "segmentanytree_results.csv.frozen", "deepforest_results.csv.frozen",
+                 "detectree2_results.csv.frozen", "sam2point_instances"),
+  # The RGB arms have no density ladder: they write rung "rgb", scored once
+  # per plot against the same reference, and join the native rung here.
+  result_rung = c(rep(NA, 9), "rgb", "rgb", NA),
   stringsAsFactors = FALSE)
 
 pop  <- read.csv(file.path(ROOT, "population.csv"), stringsAsFactors = FALSE)
@@ -84,6 +87,7 @@ load_arm <- function(a) {
     if (!file.exists(f)) return(NULL)
     x <- read.csv(f, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
     x <- x[x$detector == a$arm, , drop = FALSE]
+    if (!is.na(a$result_rung)) x$rung[x$rung == a$result_rung] <- "native"
     if (nrow(x) && is.null(x$site)) x$site <- site
     x
   }))

@@ -1,18 +1,24 @@
 # Master tables, reference populations and bootstrap intervals
 
 Checked on 2 October 2026; ForestFormer3D and TreeisoNet added on
-3 October. This study builds the tables the paper reports
-from: one reference population per site, one long-form table of every arm,
-site and density rung on equal support, and paired plot-level bootstrap
-intervals on every pooled number and on every arm-versus-arm difference.
+3 October, SegmentAnyTree, DeepForest and Detectree2 on 4 October. This study
+builds the tables the paper reports from: one reference population per site,
+one long-form table of every arm, site and density rung on equal support, and
+paired plot-level bootstrap intervals on every pooled number and on every
+arm-versus-arm difference.
 
-**Status: eight of twelve arms are in.** The six classical arms re-run on the
-sealed frozen clips (CHM-VWF, `multichm`, `lmfauto`, `ptrees`, AMS3D and
-Li 2012) and the two learned arms re-run with corrected adapters
-(ForestFormer3D and TreeisoNet) are scored here. SegmentAnyTree is being
-re-run; DeepForest, Detectree2 and SAM2Point have not yet been re-run on the
-frozen clips. They appear as pending rows, never filled from older outputs,
-and slot in when their outputs on the frozen root are complete.
+**Status: eleven of twelve arms are in.** The six classical arms (CHM-VWF,
+`multichm`, `lmfauto`, `ptrees`, AMS3D and Li 2012), the three learned point
+arms (ForestFormer3D, TreeisoNet and SegmentAnyTree) and the two RGB arms
+(DeepForest and Detectree2) are scored on the sealed frozen clips. SAM2Point
+is being re-run; it appears as a pending row, never filled from older outputs,
+and slots in when its outputs on the frozen root are complete.
+
+The RGB arms have no density ladder. They are scored once per plot, with apex
+heights from the native frozen canopy model, and appear in the native rung.
+Detectree2's plot crops were corrected before this run: the earlier crops
+were too small for its 40 m tiling grid, so it had never scored the
+distributed plots or the full tower cores.
 
 ## One reference per site
 
@@ -109,6 +115,9 @@ stems), with 95% intervals:
 | Li 2012 | native | 0.561 [0.510, 0.613] | 0.384 [0.352, 0.417] | 0.456 [0.426, 0.483] |
 | ForestFormer3D | native | 0.621 [0.585, 0.655] | 0.416 [0.386, 0.447] | 0.498 [0.478, 0.520] |
 | TreeisoNet | native | 0.514 [0.469, 0.562] | 0.394 [0.365, 0.424] | 0.446 [0.420, 0.470] |
+| SegmentAnyTree | native | 0.604 [0.554, 0.652] | 0.419 [0.386, 0.451] | 0.495 [0.466, 0.522] |
+| DeepForest (RGB) | native | 0.545 [0.505, 0.585] | 0.390 [0.358, 0.423] | 0.454 [0.428, 0.478] |
+| Detectree2 (RGB) | native | 0.309 [0.276, 0.345] | 0.435 [0.398, 0.474] | 0.362 [0.334, 0.390] |
 | CHM-VWF | 1 | 0.296 [0.272, 0.326] | 0.506 [0.476, 0.542] | 0.374 [0.353, 0.396] |
 | `multichm` | 1 | 0.506 [0.476, 0.536] | 0.380 [0.353, 0.410] | 0.434 [0.415, 0.453] |
 | `lmfauto` | 1 | 0.768 [0.717, 0.814] | 0.163 [0.144, 0.190] | 0.269 [0.243, 0.302] |
@@ -116,6 +125,7 @@ stems), with 95% intervals:
 | AMS3D | 1 | 0.399 [0.364, 0.431] | 0.483 [0.447, 0.520] | 0.437 [0.409, 0.462] |
 | ForestFormer3D | 1 | 0.451 [0.420, 0.484] | 0.394 [0.364, 0.428] | 0.421 [0.401, 0.441] |
 | TreeisoNet | 1 | 0.454 [0.404, 0.505] | 0.426 [0.395, 0.456] | 0.440 [0.410, 0.468] |
+| SegmentAnyTree | 1 | 0.074 [0.063, 0.085] | 0.494 [0.431, 0.556] | 0.128 [0.110, 0.147] |
 
 Censused subplots, nearest census, the same arms on the 57 admitted plots
 (1,190 censused references):
@@ -130,6 +140,7 @@ Censused subplots, nearest census, the same arms on the 57 admitted plots
 | Li 2012 | native | 0.592 [0.535, 0.651] | 0.692 [0.644, 0.747] | 0.638 [0.599, 0.676] |
 | ForestFormer3D | native | 0.661 [0.621, 0.704] | 0.675 [0.627, 0.728] | 0.668 [0.640, 0.695] |
 | TreeisoNet | native | 0.547 [0.493, 0.603] | 0.720 [0.673, 0.765] | 0.622 [0.581, 0.663] |
+| SegmentAnyTree | native | 0.640 [0.601, 0.681] | 0.718 [0.673, 0.766] | 0.677 [0.644, 0.708] |
 | CHM-VWF | 1 | 0.327 [0.296, 0.362] | 0.867 [0.831, 0.905] | 0.475 [0.440, 0.511] |
 | `multichm` | 1 | 0.524 [0.488, 0.561] | 0.615 [0.566, 0.670] | 0.566 [0.539, 0.590] |
 | `lmfauto` | 1 | 0.782 [0.730, 0.837] | 0.261 [0.233, 0.299] | 0.392 [0.359, 0.430] |
@@ -137,6 +148,7 @@ Censused subplots, nearest census, the same arms on the 57 admitted plots
 | AMS3D | 1 | 0.428 [0.385, 0.474] | 0.820 [0.778, 0.861] | 0.562 [0.522, 0.601] |
 | ForestFormer3D | 1 | 0.479 [0.439, 0.524] | 0.693 [0.642, 0.745] | 0.566 [0.532, 0.603] |
 | TreeisoNet | 1 | 0.476 [0.411, 0.543] | 0.781 [0.742, 0.820] | 0.592 [0.535, 0.643] |
+| SegmentAnyTree | 1 | 0.080 [0.065, 0.096] | 0.857 [0.765, 0.938] | 0.146 [0.120, 0.173] |
 
 Paired F1 differences against CHM-VWF, nominal box, five sites:
 
@@ -149,22 +161,31 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
 | AMS3D | −0.210 [−0.240, −0.180] | +0.063 [+0.033, +0.093] |
 | ForestFormer3D | +0.048 [+0.028, +0.069] | +0.047 [+0.022, +0.069] |
 | TreeisoNet | −0.004 [−0.018, +0.009] | +0.066 [+0.037, +0.093] |
+| SegmentAnyTree | +0.044 [+0.021, +0.067] | −0.246 [−0.268, −0.223] |
+| DeepForest (RGB) | +0.004 [−0.014, +0.022] | — |
+| Detectree2 (RGB) | −0.089 [−0.120, −0.060] | — |
 
-- At native density CHM-VWF, `multichm`, Li 2012 and TreeisoNet are
-  indistinguishable on F1. ForestFormer3D is the only arm ahead of CHM-VWF
-  (+0.048) and of Li 2012 (+0.042 [+0.023, +0.062]), with intervals
-  excluding zero.
+- At native density CHM-VWF, `multichm`, Li 2012, TreeisoNet and DeepForest
+  are indistinguishable on F1. ForestFormer3D (+0.048) and SegmentAnyTree
+  (+0.044) are ahead of CHM-VWF with intervals excluding zero and
+  indistinguishable from each other (SegmentAnyTree −0.004 [−0.023, +0.015]).
+  Detectree2 is behind (−0.089).
+- SegmentAnyTree collapses at 1 point/m² (F1 0.128, recall 0.07); the other
+  learned arms keep F1 0.42–0.44 there.
 - At 1 point/m² `multichm`, AMS3D, TreeisoNet and ForestFormer3D are all ahead
   of CHM-VWF, with intervals excluding zero. TreeisoNet and ForestFormer3D
   are then indistinguishable (+0.019 [−0.004, +0.040] for TreeisoNet).
-- On the censused subplots ForestFormer3D leads at native density
-  (+0.059 [+0.020, +0.099] over CHM-VWF); its lead over Li 2012
-  (+0.029 [−0.007, +0.068]) is no longer distinguishable from zero.
+- On the censused subplots SegmentAnyTree (+0.068 [+0.036, +0.100] over
+  CHM-VWF) and ForestFormer3D (+0.059 [+0.020, +0.099]) lead at native
+  density and are indistinguishable from each other (+0.009 [−0.021,
+  +0.040]); ForestFormer3D's lead over Li 2012 (+0.029 [−0.007, +0.068]) is
+  no longer distinguishable from zero. The RGB arms are not in the census
+  scorer.
 - On the same 57 plots, restricting precision to censused subplots raises it
   by 0.29 to 0.34 for CHM-VWF across rungs and by 0.08 to 0.32 for the other
   arms, while recall moves by at most 0.024. The native-density F1 order
-  (ForestFormer3D, Li 2012, TreeisoNet, CHM-VWF, `multichm`, `lmfauto`,
-  `ptrees`, AMS3D) is the same in both scorings.
+  (SegmentAnyTree, ForestFormer3D, Li 2012, TreeisoNet, CHM-VWF, `multichm`,
+  `lmfauto`, `ptrees`, AMS3D) is the same in both scorings.
 - Per-site intervals are wide at SJER (6 plots): CHM-VWF native F1 0.307
   [0.169, 0.471]. The full per-site and per-rung tables, every contrast and
   the census exact-2021 check are in the generated CSV files.
@@ -173,9 +194,7 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
 
 | Arm | Status |
 | --- | --- |
-| SegmentAnyTree | re-run on the frozen clips in progress |
-| DeepForest, Detectree2 | not yet re-run on the frozen clips |
-| SAM2Point | not yet re-run on the frozen clips |
+| SAM2Point | re-run on the frozen clips in progress |
 
 When they land, the assembler includes them without code changes. The
 reports still to update then: the density-ladder study (CHM-VWF and
