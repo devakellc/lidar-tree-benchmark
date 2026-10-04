@@ -68,10 +68,7 @@ TREEISONET_VOXEL <- if (is.null(A$TREEISONET_VOXEL)) "0.8,0.8,2.0" else A$TREEIS
 SAT_IMAGE <- if (is.null(A$SAT_IMAGE)) "sat-sm120-test" else A$SAT_IMAGE
 SAT_BATCH <- is.null(A$SAT_BATCH) || A$SAT_BATCH != "0"
 SAT_CORES <- max(1L, as.integer(if (is.null(A$SAT_CORES)) 1L else A$SAT_CORES))
-FF3D_IMAGE <- if (is.null(A$FF3D_IMAGE)) "ff3d-sm120" else A$FF3D_IMAGE
 TIMEOUT <- as.numeric(if (is.null(A$TIMEOUT)) 1800 else A$TIMEOUT)
-FF3D_TIMEOUT <- as.numeric(if (is.null(A$FF3D_TIMEOUT)) 3600 else A$FF3D_TIMEOUT)
-FF3D_SPACING <- as.numeric(if (is.null(A$FF3D_SPACING)) 24 else A$FF3D_SPACING)
 FF3D_MERGE_TOL <- as.numeric(if (is.null(A$FF3D_MERGE_TOL)) 2.0 else A$FF3D_MERGE_TOL)
 dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 
@@ -262,8 +259,7 @@ cache_suffix <- function(method, row) {
   if (method == "segmentanytree")
     parts <- c(parts, sprintf("image%s", SAT_IMAGE))
   if (method == "forestformer3d")
-    parts <- c(parts, sprintf("image%s", FF3D_IMAGE), sprintf("spacing%s", FF3D_SPACING),
-               sprintf("merge%s", FF3D_MERGE_TOL))
+    parts <- c(parts, "wholescene", sprintf("merge%s", FF3D_MERGE_TOL))
   sanitize(paste(parts, collapse = "__"))
 }
 
@@ -297,8 +293,25 @@ write_det_cache <- function(det, path) {
 
 ensure_gpu_allowed <- function(method) {
   if (!SKIP_GPU) return(TRUE)
-  if (method %in% c("treeisonet", "segmentanytree", "forestformer3d")) return(FALSE)
+  if (method %in% c("treeisonet", "segmentanytree")) return(FALSE)
   TRUE
+}
+
+# Apexes persisted by detect_treeisonet_sweep.R (treeisonet_detections/), used
+# when its run manifest matches this export's voxel and confidence; otherwise
+# the driver runs here.
+persisted_treeisonet_det <- function(ctx, pid, rung) {
+  dir <- file.path(ctx$nd, "treeisonet_detections")
+  man <- file.path(ctx$nd, "treeisonet_run_manifest.json")
+  if (!dir.exists(dir) || !file.exists(man)) return(NULL)
+  m <- jsonlite::read_json(man, simplifyVector = TRUE)
+  if (!identical(as.character(m$voxel), TREEISONET_VOXEL) ||
+      !identical(as.character(m$conf), TREEISONET_CONF)) return(NULL)
+  frozen_stamp_check(dir, ctx$root)
+  f <- frozen_detections_file(dir, pid, rung_value(rung))
+  if (!file.exists(f)) return(NULL)
+  det <- read.csv(f, stringsAsFactors = FALSE)
+  data.frame(x = as.numeric(det$x), y = as.numeric(det$y), z = as.numeric(det$z))
 }
 
 treeisonet_det <- function(prep, pid, rung) {
@@ -384,44 +397,20 @@ segmentanytree_det <- function(ctx, prep, pid, rung) {
   det_to_agl(det_abs, prep$dtm)
 }
 
-ff3d_cyl_centers <- function(cx, cy, ph, spacing) {
-  k <- max(1L, ceiling((2 * ph) / spacing) + 1L)
-  off <- seq(-ph, ph, length.out = k)
-  g <- expand.grid(dx = off, dy = off)
-  data.frame(cx = cx + g$dx, cy = cy + g$dy)
-}
-
-forestformer3d_det <- function(prep, pid, rung, cx, cy, ph) {
-  repo <- file.path(.ROOT, "gpu/store/forestformer3d/ForestFormer3D")
-  ckpt <- file.path(repo, "work_dirs/clean_forestformer/epoch_3000_fix.pth")
-  entry <- file.path(.ROOT, "gpu/forestformer3d-sm120/ff3d_entry.sh")
-  patch <- file.path(.ROOT, "gpu/forestformer3d-sm120/ff3d_repo.patch")
-  driver <- file.path(.ROOT, "gpu/forestformer3d-sm120/ff3d_arm.py")
-  if (!file.exists(repo) || !file.exists(ckpt) || !file.exists(entry) || !file.exists(driver))
-    stop("ForestFormer3D assets are missing", call. = FALSE)
-  raw <- lidR::readLAS(prep$rawground)
-  if (is.null(raw) || lidR::is.empty(raw)) return(empty_det())
-  in_dir <- file.path(tempdir(), sprintf("export_ff3d_%s_%s", pid, rung))
-  unlink(in_dir, recursive = TRUE, force = TRUE)
-  dir.create(in_dir, recursive = TRUE, showWarnings = FALSE)
-  cc <- ff3d_cyl_centers(cx, cy, ph, FF3D_SPACING)
-  n_cyl <- 0L
-  for (i in seq_len(nrow(cc))) {
-    cyl <- lidR::clip_circle(raw, cc$cx[i], cc$cy[i], 16)
-    if (lidR::is.empty(cyl) || lidR::npoints(cyl) < 50) next
-    lidR::writeLAS(cyl, file.path(in_dir, sprintf("cyl_%03d.laz", n_cyl)))
-    n_cyl <- n_cyl + 1L
-  }
-  if (n_cyl == 0L) return(empty_det())
-  out_laz <- file.path(tempdir(), sprintf("export_ff3d_%s_%s.laz", pid, rung))
-  det_abs <- run_docker_arm(FF3D_IMAGE, in_dir, out_laz,
-    cmd = c("bash", entry),
-    extra = c(ckpt, repo, patch, driver),
-    mounts = c(repo, dirname(ckpt), dirname(entry)),
-    reader = function(p) ff3d_collapse(p, merge_tol = FF3D_MERGE_TOL),
-    gpus = "all", timeout = FF3D_TIMEOUT,
-    label = sprintf("%s/%s", pid, rung))
-  if (is.null(det_abs)) return(NULL)
+# ForestFormer3D apexes from the labelled clouds its whole-scene sweep persisted
+# (forestformer3d_instances/, stamped with this root), reduced exactly as the
+# sweep reduces them (ff3d_collapse, then agl_guard on the frozen DTM). The
+# export never runs ForestFormer3D itself: its old outer-cylinder staging was
+# the superseded adapter.
+persisted_forestformer3d_det <- function(ctx, prep, pid, rung) {
+  dir <- file.path(ctx$nd, "forestformer3d_instances")
+  f <- file.path(dir, sprintf("%s_%s.laz", pid, rung))
+  if (!file.exists(f))
+    stop("No persisted ForestFormer3D cloud ", f,
+         "; run detect_forestformer3d_sweep.R (whole scene) first", call. = FALSE)
+  frozen_stamp_check(dir, ctx$root)
+  det_abs <- ff3d_collapse(f, merge_tol = FF3D_MERGE_TOL)
+  if (is.null(det_abs)) stop("Unreadable ForestFormer3D cloud: ", f, call. = FALSE)
   agl_guard(det_abs, prep$dtm)
 }
 
@@ -476,9 +465,12 @@ generate_cell_det <- function(ctx, row) {
       det_lidr_li2012(las)
     },
     lasr_lmax_pc = det_lasr_lmax_pc(prep$normalized, ws_factory(A_VWF)),
-    treeisonet = treeisonet_det(prep, row$plot, rung_lbl),
+    treeisonet = {
+      det_p <- persisted_treeisonet_det(ctx, row$plot, rung_lbl)
+      if (is.null(det_p)) treeisonet_det(prep, row$plot, rung_lbl) else det_p
+    },
     segmentanytree = segmentanytree_det(ctx, prep, row$plot, rung_lbl),
-    forestformer3d = forestformer3d_det(prep, row$plot, rung_lbl, cx, cy, ph),
+    forestformer3d = persisted_forestformer3d_det(ctx, prep, row$plot, rung_lbl),
     stop("unhandled method: ", method)
   )
   if (is.null(det)) return(NULL)
