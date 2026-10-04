@@ -126,7 +126,6 @@ if (!length(included)) stop("No arm is complete on the sealed root yet")
 eq <- mt_equal_support(rows, included)
 if (length(attr(eq, "dropped")))
   stop("Included arms disagree on support: ", paste(head(attr(eq, "dropped")), collapse = ", "))
-W_all <- mt_plot_weights(eq$site, eq$plot, N_BOOT, SEED)
 
 score_scope <- function(x, W, table, scope) {
   s <- mt_boot_scores(x, W, c("detector", "rung"))
@@ -153,9 +152,19 @@ scope_runs <- function(x, W, table) {
   list(long = do.call(rbind, lapply(res, `[[`, "long")),
        contrasts = do.call(rbind, lapply(res, `[[`, "contrasts")))
 }
-# Each rung is scored on its own equal set; with complete arms all rungs share
-# the plots, so one weight matrix serves every rung.
-nominal <- scope_runs(eq, W_all, "nominal box")
+# Each rung is scored on its own equal set and resampled over its own plots:
+# a sensitivity population can lack a few cells at one rung (a decimation that
+# would upsample). Where every rung shares the plots, as in the headline
+# population, every rung gets the same draws.
+scope_by_rung <- function(x, table) {
+  parts <- lapply(unique(x$rung), function(r) {
+    xr <- x[x$rung == r, , drop = FALSE]
+    scope_runs(xr, mt_plot_weights(xr$site, xr$plot, N_BOOT, SEED), table)
+  })
+  list(long = do.call(rbind, lapply(parts, `[[`, "long")),
+       contrasts = do.call(rbind, lapply(parts, `[[`, "contrasts")))
+}
+nominal <- scope_by_rung(eq, "nominal box")
 
 ## ---- census-support scores ----------------------------------------------------
 # score_census_support.R writes <rule>_ladder (the ladder arms, every rung)
@@ -174,13 +183,12 @@ for (rule in c("nearest", "exact")) {
   x <- census_rows(rule)
   if (is.null(x) || !nrow(x)) next
   cx <- mt_equal_support(x, unique(x$detector))
-  Wc <- mt_plot_weights(cx$site, cx$plot, N_BOOT, SEED)
   label <- if (rule == "nearest") "census, nearest census (headline)" else
     "census, exact 2021 (check)"
-  census[[rule]] <- scope_runs(cx, Wc, label)
+  census[[rule]] <- scope_by_rung(cx, label)
   box <- transform(cx, TP = rect_TP, n_ref = rect_n_ref, n_det = rect_n_det,
                    tp_core = rect_tp_core, precision = rect_precision)
-  census[[paste0(rule, "_box")]] <- scope_runs(box, Wc, paste(label, "- nominal box on the same plots"))
+  census[[paste0(rule, "_box")]] <- scope_by_rung(box, paste(label, "- nominal box on the same plots"))
   one <- cx[cx$detector == cx$detector[1] & cx$rung == "native", , drop = FALSE]
   census_counts[[rule]] <- one
 }

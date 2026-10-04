@@ -190,6 +190,30 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
   [0.169, 0.471]. The full per-site and per-rung tables, every contrast and
   the census exact-2021 check are in the generated CSV files.
 
+## Sensitivity populations
+
+The six classical arms were re-run on the two sensitivity populations of the
+frozen root, each in its own job directory: `all_mapped` (116 plots,
+2,854 stems; the historical stem gate) and `relaxed` (149 plots, 2,628 stems;
+no six-stem plot gate). The learned and RGB arms have not been run on them.
+Paired F1 differences against CHM-VWF, nominal box, five sites:
+
+| Population | `multichm`, native | Li 2012, native | `multichm`, 1 point/m² | AMS3D, 1 point/m² |
+| --- | --- | --- | --- | --- |
+| `adopted` (headline) | +0.005 [−0.018, +0.028] | +0.006 [−0.009, +0.019] | +0.060 [+0.036, +0.082] | +0.063 [+0.033, +0.093] |
+| `all_mapped` | −0.003 [−0.026, +0.019] | +0.011 [−0.005, +0.029] | +0.067 [+0.044, +0.087] | +0.048 [+0.019, +0.080] |
+| `relaxed` | −0.001 [−0.022, +0.019] | −0.007 [−0.019, +0.005] | +0.031 [+0.008, +0.053] | +0.045 [+0.018, +0.072] |
+
+The classical conclusions hold in all three populations: at native density
+CHM-VWF, `multichm` and Li 2012 are indistinguishable, and at 1 point/m²
+`multichm` and AMS3D are ahead of CHM-VWF. The `relaxed` population lowers
+every arm's F1 (CHM-VWF native 0.408 against 0.450), because the plots it
+adds hold few mapped stems, so more detections fall on unmapped trees.
+
+A population can lack a cell at one rung (two SJER cells at 8 points/m² would
+need upsampling), so each rung is resampled over its own plots. In the
+headline population every rung shares the plots and the draws are unchanged.
+
 ## Pending arms
 
 | Arm | Status |
@@ -202,14 +226,18 @@ reports still to update then: the density-ladder study (CHM-VWF and
 historical D17 tables as the paper numbers), the model benchmark (every arm on
 equal support, intervals and paired contrasts), and the
 calibration/validation study (held-out F1 on the adopted population, with
-intervals over validation plots). The `all_mapped` and `relaxed` sensitivity
-rows need the arms re-run with `POP=` in their own job directories.
+intervals over validation plots). The learned and RGB arms are not yet run on
+the `all_mapped` and `relaxed` sensitivity populations.
 
 ## Reproduce
 
 ```sh
 export CLAUDE_JOB_DIR=/path/to/paper_runs   # arm outputs on the sealed root
 Rscript scripts/master_tables.R              # writes $CLAUDE_JOB_DIR/master_tables
+# sensitivity populations: the arms re-run with POP= in their own job
+# directories (ground truth, plot centroids and vst caches linked), then
+CLAUDE_JOB_DIR=/path/to/paper_runs_all_mapped Rscript scripts/master_tables.R POP=all_mapped
+CLAUDE_JOB_DIR=/path/to/paper_runs_relaxed Rscript scripts/master_tables.R POP=relaxed
 ```
 
 Outputs: `master_long.csv` (one row per table, scope, arm, rung and metric,
