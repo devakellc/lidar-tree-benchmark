@@ -223,10 +223,11 @@ SOAP (1 plot) are too small to read.
   dense apexes (lmfauto, AMS3D at native density) keep low censused
   precision, so most of their commission is real.
 - The [coverage-gap study](coverage-gap-results.md) credits isolated
-  detections co-found by other arm families instead; on the historical D17
-  population its pooled F1 gain ranged from +0.09 to +0.26 across its rule
-  grid. It remains a separate bracket and has not yet been recomputed on the
-  paper population.
+  detections co-found by other arm families instead. Recomputed on the
+  paper population, its F1 gain is +0.065 to +0.142 per arm at the default
+  rule and +0.106 to +0.135 pooled across its rule grid (+0.09 to +0.26 on the
+  historical D17 population). It remains a separate bracket from the censused
+  scores.
 
 ForestFormer3D is scored from the labelled clouds its re-run persisted,
 reduced exactly as its sweep reduces them; TreeisoNet from the apexes its

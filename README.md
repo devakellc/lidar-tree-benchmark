@@ -80,7 +80,10 @@ detections, censused precision is 0.08–0.34 higher than nominal-box precision
 (CHM-VWF at native density: 0.78 against 0.48), and at native density the
 classical arms keep their order. At native density SegmentAnyTree (**0.68**)
 and ForestFormer3D (**0.67**) have the highest censused F1, against **0.61**
-for CHM-VWF; SegmentAnyTree falls to **0.15** at 1 point/m².
+for CHM-VWF; SegmentAnyTree falls to **0.15** at 1 point/m². The
+[coverage-gap study](results/coverage-gap-results.md) brackets the same bias
+from the other side: crediting detections that two other arm families also
+find raises F1 by **+0.07 to +0.14** per arm on the paper population.
 
 The [point-cloud detector study](results/pointcloud-detector-results.md)
 compares native-density understory recovery by crown class, with a separate
