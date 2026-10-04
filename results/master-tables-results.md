@@ -1,18 +1,19 @@
 # Master tables, reference populations and bootstrap intervals
 
 Checked on 2 October 2026; ForestFormer3D and TreeisoNet added on
-3 October, SegmentAnyTree, DeepForest and Detectree2 on 4 October. This study
+3 October, SegmentAnyTree, DeepForest, Detectree2 and SAM2Point on 4 October.
+This study
 builds the tables the paper reports from: one reference population per site,
 one long-form table of every arm, site and density rung on equal support, and
 paired plot-level bootstrap intervals on every pooled number and on every
 arm-versus-arm difference.
 
-**Status: eleven of twelve arms are in.** The six classical arms (CHM-VWF,
+**Status: all twelve arms are in.** The six classical arms (CHM-VWF,
 `multichm`, `lmfauto`, `ptrees`, AMS3D and Li 2012), the three learned point
-arms (ForestFormer3D, TreeisoNet and SegmentAnyTree) and the two RGB arms
-(DeepForest and Detectree2) are scored on the sealed frozen clips. SAM2Point
-is being re-run; it appears as a pending row, never filled from older outputs,
-and slots in when its outputs on the frozen root are complete.
+arms (ForestFormer3D, TreeisoNet and SegmentAnyTree), the two RGB arms
+(DeepForest and Detectree2) and the CHM-VWF-seeded SAM2Point refiner are
+scored on the sealed frozen clips. SAM2Point runs at native density only, with
+up to 40 height-ranked CHM-VWF prompts per plot.
 
 The RGB arms have no density ladder. They are scored once per plot, with apex
 heights from the native frozen canopy model, and appear in the native rung.
@@ -118,6 +119,7 @@ stems), with 95% intervals:
 | SegmentAnyTree | native | 0.604 [0.554, 0.652] | 0.419 [0.386, 0.451] | 0.495 [0.466, 0.522] |
 | DeepForest (RGB) | native | 0.545 [0.505, 0.585] | 0.390 [0.358, 0.423] | 0.454 [0.428, 0.478] |
 | Detectree2 (RGB) | native | 0.309 [0.276, 0.345] | 0.435 [0.398, 0.474] | 0.362 [0.334, 0.390] |
+| SAM2Point (seeded) | native | 0.077 [0.063, 0.093] | 0.471 [0.415, 0.530] | 0.132 [0.110, 0.157] |
 | CHM-VWF | 1 | 0.296 [0.272, 0.326] | 0.506 [0.476, 0.542] | 0.374 [0.353, 0.396] |
 | `multichm` | 1 | 0.506 [0.476, 0.536] | 0.380 [0.353, 0.410] | 0.434 [0.415, 0.453] |
 | `lmfauto` | 1 | 0.768 [0.717, 0.814] | 0.163 [0.144, 0.190] | 0.269 [0.243, 0.302] |
@@ -164,6 +166,7 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
 | SegmentAnyTree | +0.044 [+0.021, +0.067] | −0.246 [−0.268, −0.223] |
 | DeepForest (RGB) | +0.004 [−0.014, +0.022] | — |
 | Detectree2 (RGB) | −0.089 [−0.120, −0.060] | — |
+| SAM2Point (seeded) | −0.318 [−0.352, −0.279] | — |
 
 - At native density CHM-VWF, `multichm`, Li 2012, TreeisoNet and DeepForest
   are indistinguishable on F1. ForestFormer3D (+0.048) and SegmentAnyTree
@@ -172,6 +175,11 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
   Detectree2 is behind (−0.089).
 - SegmentAnyTree collapses at 1 point/m² (F1 0.128, recall 0.07); the other
   learned arms keep F1 0.42–0.44 there.
+- SAM2Point loses most of its seeds: its CHM-VWF prompts alone score F1 0.405
+  (recall 0.354) on the same plots, while the refined masks reduce to a third
+  as many trees (recall 0.077). Its voxel size is 0.02 of the clip's unit cube,
+  about 1.4–1.8 m, so neighbouring crowns share voxels and prompts merge; the
+  setting is untuned, as in its two-plot proof of concept.
 - At 1 point/m² `multichm`, AMS3D, TreeisoNet and ForestFormer3D are all ahead
   of CHM-VWF, with intervals excluding zero. TreeisoNet and ForestFormer3D
   are then indistinguishable (+0.019 [−0.004, +0.040] for TreeisoNet).
@@ -214,14 +222,10 @@ A population can lack a cell at one rung (two SJER cells at 8 points/m² would
 need upsampling), so each rung is resampled over its own plots. In the
 headline population every rung shares the plots and the draws are unchanged.
 
-## Pending arms
+## Next steps
 
-| Arm | Status |
-| --- | --- |
-| SAM2Point | re-run on the frozen clips in progress |
-
-When they land, the assembler includes them without code changes. The
-reports still to update then: the density-ladder study (CHM-VWF and
+Every arm is complete on the headline population. The reports still to
+update from these tables: the density-ladder study (CHM-VWF and
 `multichm` ladder on the adopted population with intervals, replacing the
 historical D17 tables as the paper numbers), the model benchmark (every arm on
 equal support, intervals and paired contrasts), and the

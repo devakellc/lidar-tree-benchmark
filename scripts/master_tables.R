@@ -57,6 +57,11 @@ MT_ARMS <- data.frame(
   # The RGB arms have no density ladder: they write rung "rgb", scored once
   # per plot against the same reference, and join the native rung here.
   result_rung = c(rep(NA, 9), "rgb", "rgb", NA),
+  # SAM2Point writes its arm as "sam2point_seeded", next to the bare CHM-VWF
+  # seeds it was prompted with ("chm_vwf_seeds", a diagnostic, not an arm).
+  detector = c("chm_vwf", "multichm", "lmfauto", "ptrees", "ams3d", "li2012",
+               "forestformer3d", "treeisonet", "segmentanytree", "deepforest",
+               "detectree2", "sam2point_seeded"),
   stringsAsFactors = FALSE)
 
 pop  <- read.csv(file.path(ROOT, "population.csv"), stringsAsFactors = FALSE)
@@ -86,7 +91,8 @@ load_arm <- function(a) {
     f <- file.path(d, "neon", site, a$file)
     if (!file.exists(f)) return(NULL)
     x <- read.csv(f, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
-    x <- x[x$detector == a$arm, , drop = FALSE]
+    x <- x[x$detector == a$detector, , drop = FALSE]
+    x$detector <- rep(a$arm, nrow(x))
     if (!is.na(a$result_rung)) x$rung[x$rung == a$result_rung] <- "native"
     if (nrow(x) && is.null(x$site)) x$site <- site
     x
