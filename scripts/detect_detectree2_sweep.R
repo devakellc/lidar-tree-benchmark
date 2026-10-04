@@ -76,12 +76,15 @@ run_main <- function() {
                 MODEL, file.exists(MODEL), RUNNER))
   gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
+  # Scope to the declared population first (as the DeepForest arm does): the
+  # 2021 D17 references predate the plot-record check and still hold stems in
+  # plots that no population admits.
+  fz <- frozen_scope(d, SITE, A, gt)              # declared population + sealed root
+  gt <- fz$gt
   epsg <- neon_validate_inputs(gt, pc)
   neon_reference_epoch(gt, YEAR)
   neon_validate_acquisition(file.path(nd, "rgb"), gt, pc, "DP3.30010.001")
   neon_validate_files(rgb_tiles, epsg)
-  fz <- frozen_scope(d, SITE, A, gt)              # declared population + sealed root
-  gt <- fz$gt
   keep <- intersect(fz$plots, pc$plotID); if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   cdir <- file.path(nd, "detectree2_boxes"); dir.create(cdir, showWarnings = FALSE, recursive = TRUE)
   neon_check_manifest(file.path(cdir, "coordinate_manifest.json"),
