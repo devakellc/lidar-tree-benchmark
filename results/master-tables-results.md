@@ -177,9 +177,14 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
   learned arms keep F1 0.42–0.44 there.
 - SAM2Point loses most of its seeds: its CHM-VWF prompts alone score F1 0.405
   (recall 0.354) on the same plots, while the refined masks reduce to a third
-  as many trees (recall 0.077). Its voxel size is 0.02 of the clip's unit cube,
-  about 1.4–1.8 m, so neighbouring crowns share voxels and prompts merge; the
-  setting is untuned, as in its two-plot proof of concept.
+  as many trees (recall 0.077). The loss grows with the number of prompts in
+  a plot: plots with up to 15 prompts keep 81% of them as trees, plots with 31
+  to 40 (nearly all tower plots) keep 20%. The runner assembles masks
+  first-claim, so with many prompts the early masks absorb their neighbours'
+  points. A voxel pilot on six SOAP plots (6 to 14 prompts each) found no
+  consistent gain from finer voxels: F1 0.431 at the headline 0.02 of the
+  unit cube, 0.480 at 0.01 and 0.393 at 0.005, against 0.504 for the seeds
+  alone. The voxel is not the main cause.
 - At 1 point/m² `multichm`, AMS3D, TreeisoNet and ForestFormer3D are all ahead
   of CHM-VWF, with intervals excluding zero. TreeisoNet and ForestFormer3D
   are then indistinguishable (+0.019 [−0.004, +0.040] for TreeisoNet).
