@@ -162,6 +162,7 @@ run_main <- function() {
   res <- rbindlist(rows, fill = TRUE)
   if (!nrow(res)) { cat("no rows scored\n"); return(invisible()) }
   o <- file.path(nd, "detectree2_results.csv"); write.csv(res, o, row.names = FALSE)
+  frozen_results_stamp(o, fz)                   # root and population behind the rows
   p <- pool(res)
   cat(sprintf("\n[%s] Detectree2 (rgb): n_ref=%d recall=%.3f prec=%.3f F1=%.3f rec_und=%.3f\n",
               SITE, p$n_ref, p$recall, p$precision, p$F1, p$rec_understory))

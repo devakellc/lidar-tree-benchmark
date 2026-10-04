@@ -145,6 +145,21 @@ test_that("resumable results are tied to one sealed root and population", {
   expect_error(frozen_resume_guard(res, scope), "move them aside")
 })
 
+test_that("rewritten results record the root and population behind them", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  root <- file.path(d, "root"); dir.create(root)
+  writeLines("a", file.path(root, "clip_manifest.csv"))
+  res <- file.path(d, "deepforest_results.csv"); writeLines("x", res)
+  frozen_results_stamp(res, list(root = root, population = "adopted"))
+  id <- jsonlite::read_json(paste0(res, ".frozen"), simplifyVector = TRUE)
+  expect_identical(id$clip_manifest_sha256, frozen_root_id(root))
+  expect_identical(id$population, "adopted")
+  # Same sidecar as the resume guard writes, so consumers read both alike.
+  expect_silent(frozen_resume_guard(res, list(root = root, population = "adopted")))
+  frozen_results_stamp(res, list(root = root, population = "relaxed"))   # overwritten
+  expect_identical(jsonlite::read_json(paste0(res, ".frozen"))$population, "relaxed")
+})
+
 test_that("artifact directories carry the stamp of the root that made them", {
   d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
   root <- file.path(d, "root"); dir.create(root)

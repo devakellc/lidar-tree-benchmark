@@ -447,6 +447,15 @@ frozen_resume_guard <- function(result_file, scope) {
   invisible(id)
 }
 
+# The same sidecar for arms that rewrite their whole results file each run
+# (the RGB arms, whose box caches do not depend on the clips): the results
+# take apex heights and plots from the sealed root, so they record it.
+frozen_results_stamp <- function(result_file, scope) {
+  id <- list(clip_manifest_sha256 = frozen_root_id(scope$root), population = scope$population)
+  jsonlite::write_json(id, paste0(result_file, ".frozen"), auto_unbox = TRUE, pretty = TRUE)
+  invisible(id)
+}
+
 ## ---- provenance of per-cell artifacts -------------------------------------
 # Instance clouds and detection caches are written per cell by one arm and read
 # by others. Each such directory records the sealed root that made it in
