@@ -81,6 +81,10 @@ provenance_ok <- function(site, what) {
   }
   dir.exists(path) && frozen_stamp_check(path, ROOT, strict = FALSE)
 }
+# Results re-scored from persisted detections (rescore_population.R) carry no
+# artifact directory of their own; their <results>.frozen sidecar ties them to
+# the root and to this population instead.
+sidecar_ok <- function(site, file) provenance_ok(site, paste0(file, ".frozen"))
 
 load_arm <- function(a) {
   rungs <- strsplit(a$rungs, ",")[[1]]
@@ -98,7 +102,8 @@ load_arm <- function(a) {
     x
   }))
   have <- if (is.null(rows)) character() else paste(rows$site, rows$plot, rows$rung, sep = "::")
-  stamped <- all(vapply(SITES, provenance_ok, logical(1), what = a$provenance))
+  stamped <- all(vapply(SITES, function(site)
+    provenance_ok(site, a$provenance) || sidecar_ok(site, a$file), logical(1)))
   missing <- setdiff(need_key, have)
   status <- if (is.null(rows)) "pending re-run: no output on the root" else
     if (!stamped) "pending re-run: outputs not stamped with the sealed root" else
