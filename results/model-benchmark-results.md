@@ -71,6 +71,13 @@ Native F1 by site (intervals in `master_long.csv`):
   and `multichm` are flat, and ForestFormer3D declines gently; all three lead
   CHM-VWF by 0.05 to 0.07 at 0.6 pulses/m². AMS3D rises as density falls,
   because it splits fewer crowns, and peaks at 1.3 pulses/m².
+- The shape of the density response is consistent across sites for some
+  arms and not for others (`master_rung_contrasts.csv`, per site). From native
+  density to 0.6 pulses/m², SegmentAnyTree falls at every site (−0.33 to −0.43
+  F1, −0.09 at the open SJER savanna), ForestFormer3D falls slightly everywhere
+  (−0.02 to −0.10), TreeisoNet and `multichm` stay within ±0.05, and AMS3D
+  rises at every site. CHM-VWF, `lmfauto` and `ptrees` change sign: they gain
+  at SJER and lose at the closed-canopy sites.
 - The ordering is not stable across sites. SJER, the open savanna, is the
   hardest site for every arm except SAM2Point; ABBY is the easiest for nine of
   the twelve. At ABBY,
