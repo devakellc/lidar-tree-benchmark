@@ -15,6 +15,11 @@
 #              Counts and rates never get this allowance.
 #   differs    anything else, listing the columns that differ
 #   missing    archived but not rebuilt; extra: rebuilt but not archived
+# A PATHS line starting with "~" marks intermediate outputs (the re-detected
+# treetop caches): they are compared and reported, and a difference there is
+# reported as "intermediate" without failing the run, because lasR breaks
+# ties between equal canopy maxima differently between builds. The tables
+# built from them are compared under the rules above.
 # Absolute paths inside tables are compared from the first archive top-level
 # directory they name, so the archive's original location does not matter.
 #   Rscript scripts/compare_reproduction.R ARCHIVE=<dir> OUT=<dir> PATHS=<file>
@@ -105,14 +110,19 @@ compare_file <- function(rel) {
 }
 
 paths <- readLines(A$PATHS)
-rels <- sort(unique(unlist(lapply(paths, function(p)
+inter <- startsWith(paths, "~"); paths <- sub("^~", "", paths)
+under <- function(ps) sort(unique(unlist(lapply(ps, function(p)
   c(files_under(A$ARCHIVE, p), files_under(A$OUT, p))))))
+inter_rels <- under(paths[inter])
+rels <- under(paths)
 res <- do.call(rbind, lapply(rels, function(r) {
   x <- compare_file(r)
+  if (r %in% inter_rels && x[1] %in% c("differs", "length")) x[1] <- "intermediate"
   data.frame(path = r, status = x[1], detail = x[2], stringsAsFactors = FALSE)
 }))
 if (!is.null(A$REPORT)) write.csv(res, A$REPORT, row.names = FALSE)
-tab <- table(factor(res$status, c("identical", "equal", "length", "differs", "missing", "extra")))
+tab <- table(factor(res$status, c("identical", "equal", "length", "intermediate", "differs",
+                                  "missing", "extra")))
 cat(sprintf("%d files: %s\n", nrow(res), paste(names(tab), tab, sep = " ", collapse = ", ")))
 bad <- res[res$status %in% c("differs", "missing", "extra"), , drop = FALSE]
 if (nrow(bad)) {

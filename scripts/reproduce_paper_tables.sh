@@ -82,7 +82,9 @@ for s in "${SITE_LIST[@]}"; do
     done
   done
 done
-printf '%s\n' "${REBUILT[@]}" > "$LOGS/rebuilt_paths.txt"
+# Re-detected treetop caches are intermediate: compared, never failing.
+printf '%s\n' "${REBUILT[@]}" | sed -E 's#^(.*best_treetop(_cache|s_geojson))$#~\1#' \
+  > "$LOGS/rebuilt_paths.txt"
 for r in "${REBUILT[@]}"; do rm -rf "${W:?}/$r"; done
 
 ## 1. Learned arms on the sensitivity populations, from persisted detections.

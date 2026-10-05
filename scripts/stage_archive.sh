@@ -7,6 +7,10 @@
 # on a copy. Symlinked inputs are copied; each job directory's frozen_2021
 # link is re-created relative to the archive.
 #
+# Every .rds is rewritten as plain R vectors (portable_rds.R): the NEON
+# tables neonUtilities saves hold arrow string vectors, which read back empty
+# where arrow is not installed.
+#
 # Left out: the RGB mosaics and raw NEON tiles (public NEON data, about 16 GB;
 # a per-site rgb_tiles.csv keeps the tile extents the optical arms read), the
 # NeonTreeEvaluation coverage-check imagery, logs, figures, and superseded
@@ -79,6 +83,9 @@ for j in "${JOBS[@]}"; do
     Rscript -e "source('$REPO/scripts/coverage_lib.R'); write_rgb_tile_index('$nd', '$OUT/$j/neon/$s/rgb_tiles.csv')"
   done
 done
+
+say "portable .rds files (no arrow vectors)"
+Rscript "$REPO/scripts/portable_rds.R" "$OUT"
 
 cp "$REPO/docs/model-provenance.json" "$OUT/model-provenance.json"
 cp "$REPO/docs/reproduction-archive.md" "$OUT/README.md"
