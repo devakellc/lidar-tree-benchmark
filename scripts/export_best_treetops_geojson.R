@@ -42,6 +42,9 @@ suppressMessages({
   library(terra)
 })
 options(lidR.progress = FALSE)
+# Single-threaded lidR: lmfauto breaks height ties differently from run to run
+# under several threads, and the cached tops would not be reproducible.
+lidR::set_lidr_threads(1L)
 
 d <- .job_dir()
 source(.find("sweep_lib.R"))
