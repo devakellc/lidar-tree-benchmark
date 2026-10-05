@@ -124,3 +124,14 @@ test_that("regional leads difference the lead over a base arm between regions", 
   expect_null(mt_region_leads(x[x$site == "SJER", ], W[1, , drop = FALSE], "base",
                               list(California = "SJER", Washington = "WREF")))
 })
+
+test_that("rung contrasts pair each arm's rungs on their shared plots", {
+  x <- rbind(cells("a", "A", "p1", 6, 10, 6, 10), cells("a", "A", "p2", 4, 10, 4, 10),
+             cells("a", "A", "p1", 3, 10, 3, 10, "8"), cells("a", "A", "p2", 2, 10, 2, 10, "8"),
+             cells("a", "A", "p3", 9, 10, 9, 10, "8"))
+  r <- mt_rung_contrasts(x, list(all = "A"), n_boot = 50)
+  rec <- r[r$metric == "recall", ]
+  expect_equal(rec$rung, "8"); expect_equal(rec$estimate, (5 - 10) / 20)
+  expect_true(rec$lower <= rec$estimate && rec$upper >= rec$estimate)
+  expect_null(mt_rung_contrasts(x[x$rung == "8", ], list(all = "A")))
+})

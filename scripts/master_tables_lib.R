@@ -268,3 +268,34 @@ mt_region_leads <- function(rows, W, base, regions = MT_REGIONS, metric = "F1") 
     paste0("lead_", tolower(names(regions)))
   res
 }
+
+## ---- change across the ladder ----------------------------------------------------
+# Each arm's change from `base` (native) to every other rung it was run at,
+# on the plots both rungs share, paired over one set of plot resamples.
+# `scopes` maps a scope name to its sites; W rows are split by site.
+mt_rung_contrasts <- function(rows, scopes, base = "native", n_boot = MT_N_BOOT,
+                              seed = MT_SEED, metrics = c("recall", "precision", "F1")) {
+  out <- list()
+  for (a in unique(rows$detector)) {
+    xa <- rows[rows$detector == a, , drop = FALSE]
+    if (!base %in% xa$rung) next
+    for (r in setdiff(unique(xa$rung), base)) {
+      x <- xa[xa$rung %in% c(base, r), , drop = FALSE]
+      key <- paste(x$site, x$plot, sep = "::")
+      common <- intersect(key[x$rung == base], key[x$rung == r])
+      x <- x[key %in% common, , drop = FALSE]
+      if (!nrow(x)) next
+      W <- mt_plot_weights(x$site, x$plot, n_boot, seed)
+      site_of <- sub("::.*", "", rownames(W))
+      for (sc in names(scopes)) {
+        keep <- site_of %in% scopes[[sc]]
+        if (!any(keep)) next
+        s <- mt_boot_scores(x[x$site %in% scopes[[sc]], , drop = FALSE], W[keep, , drop = FALSE],
+                            c("detector", "rung"))
+        for (m in metrics) out[[length(out) + 1]] <- cbind(scope = sc, detector = a, rung = r,
+          mt_contrast(s, paste(a, base, sep = "|"), paste(a, r, sep = "|"), m))
+      }
+    }
+  }
+  do.call(rbind, out)
+}
