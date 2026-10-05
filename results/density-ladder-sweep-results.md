@@ -364,14 +364,16 @@ Per site × density rung (recall mc/vwf; ΔF1 = multichm − CHM-VWF):
   measurement within ±4 yr of the 2021 LiDAR; exact-2021 coverage is 48 % (TEAK),
   21 % (SOAP), **0 % (SJER, mostly 2019/2022)**. Stem *positions* are stable, but
   live status / height / canopy class carry that temporal slack — most relevant
-  at SJER. A 2021-only sensitivity cut is listed as follow-up.
+  at SJER. The [temporal-sensitivity study](temporal-sensitivity-results.md)
+  runs the 2021-only cut.
 - **Matching tolerance 4 m** is justified by NEON stem-mapping uncertainty +
   stem-base↔apex offset; the cross-site *ordering* and density *trend* are robust
   to 3–5 m (verified independently), only the absolute level shifts.
 - **The "best (res, a) per rung" are in-sample sweep optima**, pooled over all
   plots — not held out. They identify which knobs matter (resolution ≫ slope),
-  not a deployable tuned value; a calibration/validation split (plan §3.2) would
-  be the next step before quoting an operational parameter set.
+  not a deployable tuned value. The
+  [calibration/validation study](calibration-validation-results.md) gives the
+  held-out values to quote as an operational parameter set.
 - **The numbers here come from unseeded clips.** Each arm, and each run,
   decimated its own realization. The
   [frozen-clip study](frozen-clips-results.md) measured that noise: pooled F1

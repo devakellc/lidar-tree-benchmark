@@ -85,7 +85,8 @@ Native per-point masks (`mask_source = "native"`):
   normalized frozen clouds, so Z is already AGL.
 - **Treeiso** (#P5) — `treeiso_instances/<plot>_<rung>.laz` (`treeiso` extra
   dim), persisted by its own driver since #P5; now registered in `MODELS`.
-- **TreeisoNet** — still deferred (apex-only GPU results; no per-point labels).
+- **TreeisoNet** — persisted masks from the corrected export; see the
+  [corrected-adapter re-runs](#corrected-adapter-re-runs-on-the-frozen-clips).
 
 Apex-Voronoi proxy masks (`mask_source = "voronoi_apex"`, #V6): every cached
 best-configuration apex set (`best_treetop_cache`, 12 arms) additionally
