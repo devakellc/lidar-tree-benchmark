@@ -311,7 +311,8 @@ scripts and configuration.
 - [scripts](scripts/) — acquisition, processing, scoring, and export drivers.
 - [gpu](gpu/) — model adapters and runtime setup instructions.
 - [results](results/) — committed study reports and interpretation limits.
-- [docs](docs/) — methodology, study protocols, and execution guides.
+- [docs](docs/) — methodology, study protocols, execution guides, and the
+  [paper proposal](docs/paper-proposal.md).
 - [Data and code availability](docs/data-code-availability.md) — data
   sources, model licences and what the archive holds; the
   [bibliography](docs/references.bib) holds the verified references.
