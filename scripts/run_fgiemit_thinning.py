@@ -8,7 +8,10 @@ reduction, which keeps every instance whose top is at least 2 m above ground
 (prediction_*_neon.csv, metrics_neon.json). CHM-VWF follows the NEON paper
 rule (0.25 m at 8 or more first returns per m², else 0.5 m). A cell with a
 directory but no metrics is a failed attempt: the run stops rather than
-retrying it. MODE=native writes the NEON reduction for the development
+retrying it, except that a learned cell whose inference finished (exit 0,
+predictions and their filtered labels saved) and whose scoring failed is
+re-scored from those saved files without running the model again
+(rescore_cell). MODE=native writes the NEON reduction for the development
 matrix's native predictions, without inference.
 
     python scripts/run_fgiemit_thinning.py <fgiemit root> <selection dir> <out dir>
@@ -69,6 +72,39 @@ def neon_reduction(prepared, directory, arm, references):
                        timeout=600)
 
 
+def rescore_cell(cell, directory, prepared, references):
+    """Score a learned cell's saved inference again, without re-running the model.
+
+    The cell runner's tail (fgiemit_reserve_cell_v2.run_cell), from the
+    labels and apex profiles it had already written before scoring failed.
+    """
+    execution = json.loads((directory / "execution.json").read_text())
+    if execution["exit_code"] != 0:
+        raise RuntimeError(f"Inference did not finish, not retried: {directory}")
+    output = directory / "prediction_apexes.csv"
+    labels = np.loadtxt(directory / "prediction_labels.csv", skiprows=1, dtype=np.int64)
+    n_pred = len({r["instance"] for r in csv.DictReader(output.open())})
+    if n_pred != len(np.unique(labels[labels > 0])):
+        raise ValueError(f"Saved labels and apex profiles disagree: {directory}")
+    ref_rows = [r for r in references if r["plot"] == cell["plot"]]
+    write_csv(directory / "reference_apexes.csv", ref_rows, list(ref_rows[0]))
+    resources = json.loads((directory / "model_io/predictions.laz.json").read_text())
+    if cell["arm"] == "forestformer3d":
+        resources = resources[0]
+    resources["peak_host_scope"] = "native model process maximum RSS"
+    command = ["Rscript", str(REPO / "scripts/fgiemit_pilot_cell.R"), "score", str(output),
+               str(directory / "reference_apexes.csv"), cell["arm"],
+               str(directory / "prediction_labels.csv"), str(prepared / "reference.laz"),
+               str(directory / "metrics.json")]
+    with (directory / "scoring.log").open("w") as log:
+        subprocess.run(command, cwd=REPO, stdout=log, stderr=subprocess.STDOUT, check=True,
+                       timeout=600)
+    return dict(state="successful_nonempty" if n_pred else "successful_empty",
+                predictions=n_pred, inference_wall_seconds=execution["wall_seconds"],
+                resources=resources, rescored=True,
+                metrics=json.loads((directory / "metrics.json").read_text()))
+
+
 def configs(root):
     matrix = json.loads((root / "development_comparison/matrix.json").read_text())
     return {c["arm"]: c["config"] for c in matrix["cells"] if c["plot"] == "1001"}
@@ -109,16 +145,21 @@ def main(root, selection, out, runtime_dir, arms=",".join(ARMS), mode="MODE=thin
                 directory = out / "run" / plot / label / arm
                 if (directory / "result.json").exists():
                     continue
-                if directory.exists():
-                    raise RuntimeError(f"Failed earlier attempt, not retried: {directory}")
-                directory.mkdir(parents=True)
                 frdens = densities[(plot, label)]
                 cfg = dict(config[arm])
                 if arm == "chm_vwf":
                     cfg["resolution_m"] = 0.25 if frdens >= 8 else 0.5
                 cell = dict(plot=plot, arm=arm, config=cfg, frdens=frdens)
-                result = cells.run_cell(cell, directory, prepared, REPO / "gpu", runtime_dir,
-                                        references)
+                if directory.exists():
+                    saved = [directory / f for f in ("execution.json", "prediction_labels.csv",
+                                                     "prediction_apexes.csv")]
+                    if arm == "chm_vwf" or not all(f.exists() for f in saved):
+                        raise RuntimeError(f"Failed earlier attempt, not retried: {directory}")
+                    result = rescore_cell(cell, directory, prepared, references)
+                else:
+                    directory.mkdir(parents=True)
+                    result = cells.run_cell(cell, directory, prepared, REPO / "gpu", runtime_dir,
+                                            references)
                 if arm != "chm_vwf":
                     neon_reduction(prepared, directory, arm, references)
                 write_json(directory / "result.json", result)
