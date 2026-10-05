@@ -13,12 +13,25 @@ ppm <- getOption("repos")[["CRAN"]]
 
 install.packages(c("remotes", "testthat", "BH", "Rcpp", "RcppArmadillo", "progress",
                    "assertthat", "glue", "lazyeval"))
-need <- tools::package_dependencies(names(pins), db = available.packages(repos = ppm),
+db <- available.packages(repos = ppm)
+need <- tools::package_dependencies(names(pins), db = db,
                                     which = c("Depends", "Imports", "LinkingTo"),
                                     recursive = TRUE)
 need <- setdiff(unique(unlist(need)), c(names(pins), rownames(installed.packages())))
 if (length(need)) install.packages(need)
-for (p in names(pins))
+
+# Pins go in dependency order, so each builds against the pinned versions of
+# the pins it needs.
+pin_deps <- lapply(tools::package_dependencies(names(pins), db = db, recursive = TRUE,
+                                               which = c("Depends", "Imports", "LinkingTo")),
+                   intersect, names(pins))
+order <- character()
+while (length(order) < length(pins)) {
+  ready <- setdiff(names(pins)[vapply(pin_deps, function(d) all(d %in% order), TRUE)], order)
+  if (!length(ready)) stop("circular dependencies among pinned packages")
+  order <- c(order, ready)
+}
+for (p in order)
   remotes::install_version(p, pins[[p]], repos = cran, dependencies = FALSE,
                            upgrade = "never", type = "source")
 
