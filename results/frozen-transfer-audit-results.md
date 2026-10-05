@@ -157,6 +157,8 @@ native whole-scene inference with any necessary outer tiling, preserve source
 point identity, and prevent transitive same-cylinder collisions. Do not reuse
 confidence calibration fitted to the former ForestFormer3D candidate-score
 broadcast. This follow-up gates that arm, not unrelated pipeline plumbing.
+The [scene-assembly study](forestformer-scene-assembly-results.md) has since
+done it: the indexed whole-scene adapter is the one the paper's re-runs use.
 The formerly proposed eastern-site preflight follow-on is now
 [retired](../docs/harv-bart-closeout.md). No new architecture sweep is warranted
 by these adapter findings alone.

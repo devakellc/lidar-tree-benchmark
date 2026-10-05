@@ -85,7 +85,8 @@ Native per-point masks (`mask_source = "native"`):
   normalized frozen clouds, so Z is already AGL.
 - **Treeiso** (#P5) — `treeiso_instances/<plot>_<rung>.laz` (`treeiso` extra
   dim), persisted by its own driver since #P5; now registered in `MODELS`.
-- **TreeisoNet** — still deferred (apex-only GPU results; no per-point labels).
+- **TreeisoNet** — persisted masks from the corrected export; see the
+  [corrected-adapter re-runs](#corrected-adapter-re-runs-on-the-frozen-clips).
 
 Apex-Voronoi proxy masks (`mask_source = "voronoi_apex"`, #V6): every cached
 best-configuration apex set (`best_treetop_cache`, 12 arms) additionally
@@ -403,5 +404,5 @@ Readings (updated for #V6 — the previous 2-of-9 data limit is closed):
   native-mask rows.
 - **Fusion pool (#P1) now includes ptrees + AMS3D** from the persisted clouds
   (SOAP native smoke: 7 single arms + modes + k1–k7 Pareto, best fused point
-  k5 F1 0.430 vs best single 0.464); the full cross-site fusion re-synthesis
-  on the extended pool is future work.
+  k5 F1 0.430 vs best single 0.464). The five-site fusion on the full pool is
+  in the [fusion study](detector-fusion-results.md).

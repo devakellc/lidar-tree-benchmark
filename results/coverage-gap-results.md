@@ -276,11 +276,14 @@ stamp. The default (r=2, f=2) is the conservative middle.
   puts an RGB-only detector level with the best LiDAR arms, and the rgb family
   testifies for LiDAR arms where chm/pc/deep thin out, supporting its inclusion
   in fusion. Detectree2, scored over all 18 plots with zero-box plots retained,
-  has recall 0.168; fine-tuning remains its next step.
+  has recall 0.168 with its tropical/temperate checkpoint; it is not fine-tuned
+  for this benchmark.
 - **Router/fusion consequences**: k-of-N and router thresholds
-  were tuned on raw F1; with corrected metrics the precision cost of the union
-  mode shrinks substantially (most union-only detections are credited), so the
-  fusion Pareto and the router's per-cell argmax should be re-derived on F1'.
+  are tuned on raw F1; with corrected metrics the precision cost of the union
+  mode shrinks substantially (most union-only detections are credited). The
+  paper keeps credited F1 as a separate bracket, not a replacement metric, so
+  the fusion Pareto and routing labels stay on raw F1; the bracket bounds how
+  much the union mode is under-credited.
 
 ### Caveats
 

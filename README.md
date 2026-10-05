@@ -118,11 +118,13 @@ two-rung density-ladder extension.
 ### Crown delineation
 
 The [crown benchmark](results/crown-segmentation-results.md) compares growing
-rules on a shared canopy-height model (CHM) and common seed basis. On 225
-matched field stems, the random walker with a per-crown stopping rule has the
-lowest classical diameter RMSE: **2.42 m** for equivalent-circle diameter and
-**3.57 m** for maximum-caliper diameter. The corresponding lasR region-growing
-errors are **2.62 m** and **3.72 m**.
+rules on a shared canopy-height model (CHM) and common seed basis, and the
+deep instance segmenters, against NEON field crown diameters. On the frozen
+five-site population, over the 790 stems every arm matched, the random walker
+with a per-crown stopping rule and SegmentAnyTree have the lowest
+equivalent-circle diameter RMSE (**1.71 m** and **1.74 m**), and SegmentAnyTree
+the lowest maximum-caliper RMSE (**2.38 m**, against **2.83 m** for the random
+walker). Crown width holds to 2 points/m² and degrades slightly at 1.
 
 Diameter definitions matter: equivalent-circle diameter is compared with
 `ninetyCrownDiameter`, and maximum-caliper diameter with `maxCrownDiameter`.

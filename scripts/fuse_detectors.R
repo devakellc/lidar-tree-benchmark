@@ -37,9 +37,10 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #   segmentanytree-- persisted segmentanytree_instances/<plot>_<rung>.laz
 #                    (PredInstance) -> reduce_instances -> det_to_agl(frozen DTM)
 #   forestformer3d-- persisted forestformer3d_instances/<plot>_<rung>.laz
-#                    (UserData/PointSourceID) -> ff3d_collapse -> agl_guard (native+8)
-# TreeisoNet is deferred: it persists no reusable per-point/apex labels (apex-only
-# GPU results.csv), so it cannot be re-fused offline; noted in the results doc.
+#                    (UserData/PointSourceID; the whole-scene re-run, every rung)
+#                    -> ff3d_collapse -> agl_guard
+#   treeisonet    -- persisted treeisonet_detections/<plot>__<rung>.csv (the
+#                    apexes its sweep scored; already AGL)
 # All apex z are AGL (normalized clip, or DTM-converted), so the fusion height
 # gate is apples-to-apples.
 # Paired RGB modes use the completed DeepForest tile caches. Optical
@@ -143,13 +144,18 @@ materialize <- function(las, clip, dtm, frdens, res, nd, site, pid, rung) {
     if (!is.na(sat)) out$segmentanytree <- tryCatch({
       det <- read_instances_laz(sat, id_field = SAT_ID_FIELD)
       if (is.null(det)) NULL else det_to_agl(det, dtm) }, error = function(e) NULL)
-    if (rung %in% c("native", "8")) {
-      ff <- inst_path(file.path(nd, "forestformer3d_instances"), pid, rung)
-      if (!is.na(ff)) out$forestformer3d <- tryCatch({
-        det <- ff3d_collapse(ff, merge_tol = MERGE_TOL)
-        if (is.null(det)) NULL else agl_guard(det, dtm) }, error = function(e) NULL)
-    }
+    ff <- inst_path(file.path(nd, "forestformer3d_instances"), pid, rung)
+    if (!is.na(ff)) out$forestformer3d <- tryCatch({
+      det <- ff3d_collapse(ff, merge_tol = MERGE_TOL)
+      if (is.null(det)) NULL else agl_guard(det, dtm) }, error = function(e) NULL)
   }
+  # TreeisoNet: the apexes its sweep scored (normalized clip, so already AGL).
+  ti <- frozen_detections_file(file.path(nd, "treeisonet_detections"), pid,
+                               if (rung == "native") NA else rung)
+  if (file.exists(ti)) out$treeisonet <- tryCatch({
+    det <- read.csv(ti, stringsAsFactors = FALSE)
+    data.frame(x = as.numeric(det$x), y = as.numeric(det$y), z = as.numeric(det$z))
+  }, error = function(e) NULL)
   out[!vapply(out, is.null, logical(1))]            # drop arms that did not run
 }
 
@@ -295,7 +301,7 @@ run_site <- function(site) {
 
 ## ---- pooled report (fusion vs best single arm; Pareto) --------------------
 ARMS_ALL <- c("chm_vwf", "multichm", "li2012", "ptrees", "ams3d",
-              "segmentanytree", "forestformer3d", "deepforest")
+              "segmentanytree", "forestformer3d", "treeisonet", "deepforest")
 print_report <- function(res) {
   iou_pool <- function(sub) {                       # pooled IoU recall@.5 / cov / PQ
     TP <- sum(sub$iou_TP); FN <- sum(sub$iou_FN); FP <- sum(sub$iou_FP)
