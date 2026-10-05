@@ -252,3 +252,196 @@ test_that("standalone preparation replays offline and rejects tampered outputs",
   expect_equal(attr(third, "status"), 1L)
   expect_true(any(grepl("Cache contract differs", third)))
 })
+
+test_that("only a reviewed declaration naming the exact bundle admits it", {
+  f <- support_fixture(); b <- support_build(f)
+  expect_setequal(b$blockers, c("datum_review_pending", "flight_provenance_pending"))
+  decl <- list(name = "synthetic-2022", resolved_blockers = c("datum_review_pending",
+                                                              "flight_provenance_pending"),
+               admitted = data.frame(plot = b$plot, event = b$event,
+                                     support_id = neon_support_identity(b)))
+  a <- neon_admit_support(b, decl)
+  expect_true(a$evaluation_ready)
+  expect_length(a$blockers, 0)
+  expect_identical(a$admission$declaration, "synthetic-2022")
+  expect_identical(a$admission$prepared_support_id, neon_support_identity(b))
+  out <- score_neon_support(a, data.frame(x = 500010, y = 4700010, z = 15), det_epsg = 32618)
+  expect_equal(out$TP, 1)
+  # A different bundle, an unlisted plot or a remaining blocker stays diagnostic.
+  stale <- decl; stale$admitted$support_id <- "0"
+  expect_error(neon_admit_support(b, stale), "not admitted")
+  partial <- decl; partial$resolved_blockers <- "datum_review_pending"
+  expect_error(neon_admit_support(b, partial), "flight_provenance_pending")
+  geometry <- decl; geometry$resolved_blockers <- c(decl$resolved_blockers, "empty_reference_interior")
+  expect_error(neon_admit_support(b, geometry), "non-review blocker")
+  f$mt$stemDistance <- sqrt(1000); f$mt$stemAzimuth <- atan2(30, 10) * 180 / pi
+  conflict <- support_build(f)
+  decl$admitted$support_id <- neon_support_identity(conflict)
+  expect_error(neon_admit_support(conflict, decl), "measurement_subplot_conflict")
+})
+
+test_that("preparation handles a census year without measurements and a shared location cache", {
+  f <- support_fixture(); f$pp$utmZone <- "18N"
+  f$ai$date <- "2021-07-14"                       # the 2022 event lists no tree records
+  root <- tempfile(); dir.create(root)
+  on.exit(unlink(root, recursive = TRUE))
+  vst <- file.path(root, "neon/SOAP/vst"); dir.create(vst, recursive = TRUE)
+  saveRDS(list(vst_apparentindividual = f$ai, vst_perplotperyear = f$pp,
+               vst_mappingandtagging = f$mt), file.path(vst, "soap_vst_allyears.rds"))
+  cache <- file.path(root, "cache"); dir.create(cache)
+  for (i in seq_len(nrow(f$points))) {
+    p <- f$points[i, ]
+    loc <- list(locationName = p$ptloc, locationUtmEasting = p$easting,
+      locationUtmNorthing = p$northing, locationUtmZone = 18L, locationUtmHemisphere = "N",
+      locationProperties = data.frame(locationPropertyName = c("Value for Geodetic datum",
+        "Value for Coordinate uncertainty"), locationPropertyValue = c("WGS84", as.character(p$unc))))
+    jsonlite::write_json(list(location = p$ptloc, status = 200L, data = loc),
+      file.path(cache, paste0(p$ptloc, ".json")), auto_unbox = TRUE, pretty = TRUE)
+  }
+  out <- file.path(root, "SOAP_2022")
+  script <- normalizePath(file.path("..", "..", "scripts", "neon_reference_support.R"))
+  res <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+    c(shQuote(script), "SITE=SOAP", "YEAR=2022", paste0("OUT=", shQuote(out)),
+      paste0("LOCATION_CACHE=", shQuote(cache))),
+    env = paste0("CLAUDE_JOB_DIR=", shQuote(root)), stdout = TRUE, stderr = TRUE))
+  expect_null(attr(res, "status"), info = paste(res, collapse = "\n"))
+  s <- read.csv(file.path(out, "event_support_summary.csv"))
+  expect_identical(s$geometry_status, "measured_corners")
+  expect_equal(s$n_target, 0)
+  expect_true(length(list.files(file.path(out, "locations"))) > 0)   # copied from the cache
+})
+
+test_that("a complete block of 100 m2 subplots is the surveyed 20 m square", {
+  f <- support_fixture()
+  # Distributed plots survey only the outer corners and centre (31, 33, 41, 49, 51).
+  f$points <- f$points[sub(".*[.]", "", f$points$ptloc) %in% c("31", "33", "41", "49", "51"), ]
+  f$pp$subplotsSampled <- "31_100|32_100|40_100|41_100"; f$pp$totalSampledAreaTrees <- 400
+  expect_identical(unname(neon_merge_100_blocks(c("31_100", "32_100", "40_100", "41_100"))),
+                   rep("31_400", 4))
+  expect_identical(unname(neon_merge_100_blocks(c("31_100", "32_100", "40_100"))),
+                   c("31_100", "32_100", "40_100"))         # incomplete block stays as listed
+  g <- neon_event_geometry(f$pp, f$points, 32618)
+  expect_identical(g$subplots$subplotID, "31_400")
+  expect_equal(as.numeric(sf::st_area(g$footprint)), 400)
+  # A stem recorded in 32_100 checks against the block, not missing corners.
+  f$ai$subplotID <- "32_100"
+  f$mt$pointID <- "41"; f$mt$stemDistance <- 3; f$mt$stemAzimuth <- 0
+  b <- support_build(f)
+  expect_false(b$references$subplot_conflict)
+  expect_true(b$references$reference_selected)
+  f$pp$subplotsSampled <- "31_100|32_100|40_100"; f$pp$totalSampledAreaTrees <- 300
+  expect_error(neon_event_geometry(f$pp, f$points, 32618), "Missing subplot corner: 31_100")
+})
+
+test_that("a census event joined across the year boundary keeps its measurements", {
+  f <- support_fixture()
+  f$pp$date <- "2020-07-13"; f$pp$eventID <- "vst_HARV_2020"
+  f$ai$eventID <- "vst_HARV_2020"; f$ai$date <- "2021-03-02"   # measured the next spring
+  by_year <- neon_event_references(f$ai, f$pp, f$mt, f$points, 2020, 32618)
+  expect_equal(nrow(by_year), 0L)                                # protocol: nothing dated 2020
+  spring <- neon_event_references(f$ai, f$pp, f$mt, f$points, 2021, 32618)
+  expect_identical(spring$exclusion, "census_epoch_mismatch")
+  by_event <- neon_event_references(f$ai, f$pp, f$mt, f$points, 2020, 32618, join = "census_event")
+  expect_true(by_event$reference_eligible)
+  expect_identical(by_event$measurement_date, "2021-03-02")
+})
+
+test_that("subplot exclusion removes subplots holding missing targets from precision", {
+  f <- support_fixture()
+  # stem2 is a census target in 23_400 without any mapping record.
+  f$ai <- rbind(f$ai, transform(f$ai, individualID = "stem2", subplotID = "23_400"))
+  b <- support_build(f)
+  expect_true("incomplete_target_references" %in% b$blockers)
+  x <- neon_subplot_exclusion(b)
+  expect_identical(x$missing_reference_policy$excluded_subplots, "23_400")
+  expect_equal(x$missing_reference_policy$n_missing_targets, 1)
+  expect_setequal(x$blockers, c("datum_review_pending", "flight_provenance_pending"))
+  expect_lt(x$interior_area_m2, b$interior_area_m2 / 2 + 1)        # one 400 m2 square left
+  expect_true(x$references$reference_selected[x$references$individualID == "stem1"])
+  # a detection in the excluded subplot no longer counts against precision
+  decl <- list(name = "synthetic", resolved_blockers = c("datum_review_pending", "flight_provenance_pending"),
+               admitted = data.frame(plot = x$plot, event = x$event, support_id = neon_support_identity(x)))
+  a <- neon_admit_support(x, decl)
+  det <- data.frame(x = c(500010, 500030), y = c(4700010, 4700010), z = 15)
+  s <- score_neon_support(a, det, det_epsg = 32618)
+  expect_equal(c(s$TP, s$n_det, s$precision), c(1, 1, 1))
+  # without the policy the declaration cannot clear the missing reference
+  decl$admitted$support_id <- neon_support_identity(b)
+  expect_error(neon_admit_support(b, decl), "incomplete_target_references")
+  decl$resolved_blockers <- c(decl$resolved_blockers, "incomplete_target_references")
+  expect_error(neon_admit_support(b, decl), "non-review blocker")
+})
+
+test_that("a missing target in an unknown subplot fails the plot closed", {
+  f <- support_fixture()
+  f$ai <- rbind(f$ai, transform(f$ai, individualID = "stem2", subplotID = NA_character_))
+  x <- neon_subplot_exclusion(support_build(f))
+  expect_true("unlocatable_missing_reference" %in% x$blockers)
+  expect_equal(x$missing_reference_policy$n_unlocatable, 1)
+  decl <- list(name = "synthetic", resolved_blockers = c("datum_review_pending", "flight_provenance_pending"),
+               admitted = data.frame(plot = x$plot, event = x$event, support_id = neon_support_identity(x)))
+  expect_error(neon_admit_support(x, decl), "unlocatable_missing_reference")
+})
+
+test_that("a missing target in a merged distributed block empties the plot", {
+  f <- support_fixture()
+  f$points <- f$points[sub(".*[.]", "", f$points$ptloc) %in% c("31", "33", "41", "49", "51"), ]
+  f$pp$subplotsSampled <- "31_100|32_100|40_100|41_100"; f$pp$totalSampledAreaTrees <- 400
+  f$ai$subplotID <- "32_100"; f$mt$pointID <- "41"; f$mt$stemDistance <- 3; f$mt$stemAzimuth <- 0
+  f$ai <- rbind(f$ai, transform(f$ai, individualID = "stem2", subplotID = "40_100"))
+  x <- neon_subplot_exclusion(support_build(f))
+  expect_identical(x$missing_reference_policy$excluded_subplots, "31_400")
+  expect_equal(x$interior_area_m2, 0)
+  expect_true("empty_reference_interior" %in% x$blockers)
+  expect_false(any(x$references$reference_selected))
+})
+
+test_that("subplot exclusion works in a session without sf attached", {
+  f <- support_fixture()
+  f$ai <- rbind(f$ai, transform(f$ai, individualID = "stem2", subplotID = "23_400"))
+  path <- tempfile(fileext = ".rds"); on.exit(unlink(path))
+  saveRDS(support_build(f), path)
+  lib <- normalizePath(file.path("..", "..", "scripts", "neon_reference_support_lib.R"))
+  code <- sprintf('source("%s"); b <- neon_subplot_exclusion(readRDS("%s")); cat(b$missing_reference_policy$excluded_subplots)',
+                  lib, path)
+  out <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), c("-e", shQuote(code)),
+                                  stdout = TRUE, stderr = TRUE))
+  expect_null(attr(out, "status"), info = paste(out, collapse = "\n"))
+  expect_true(any(grepl("23_400", out)))
+})
+
+test_that("a mapped target without height stays a position-only reference", {
+  f <- support_fixture()
+  # stem2: mapped in 23_400 (from point 23) but its height is missing.
+  f$ai <- rbind(f$ai, transform(f$ai, individualID = "stem2", subplotID = "23_400", height = NA))
+  f$mt <- rbind(f$mt, transform(f$mt, individualID = "stem2", pointID = "23"))
+  b <- support_build(f)
+  expect_identical(b$references$exclusion[b$references$individualID == "stem2"], "invalid_height")
+  x <- neon_subplot_exclusion(b)
+  r <- x$references[x$references$individualID == "stem2", ]
+  expect_true(r$reference_selected && r$height_unknown)
+  expect_length(x$missing_reference_policy$excluded_subplots, 0)
+  expect_equal(x$missing_reference_policy$n_height_unknown, 1)
+  expect_equal(x$interior_area_m2, b$interior_area_m2)
+  # matched on position alone: an apex far above twice any stem height still counts
+  decl <- list(name = "synthetic", resolved_blockers = c("datum_review_pending", "flight_provenance_pending"),
+               admitted = data.frame(plot = x$plot, event = x$event, support_id = neon_support_identity(x)))
+  a <- neon_admit_support(x, decl)
+  det <- data.frame(x = c(500010, 500030 + 0.2), y = c(4700010, 4700010 + 0.2), z = c(15, 60))
+  s <- score_neon_support(a, det, det_epsg = 32618)
+  expect_equal(c(s$TP, s$n_ref), c(2, 2))
+  # the strict sensitivity removes its subplot instead
+  st <- neon_subplot_exclusion(b, strict = TRUE)
+  expect_identical(st$missing_reference_policy$excluded_subplots, "23_400")
+  expect_identical(st$missing_reference_policy$name, "subplot_exclusion_strict")
+  expect_false(any(st$references$height_unknown))
+})
+
+test_that("a heightless reference outside its recorded subplot is a conflict", {
+  f <- support_fixture()
+  f$ai <- rbind(f$ai, transform(f$ai, individualID = "stem2", subplotID = "21_400", height = NA))
+  f$mt <- rbind(f$mt, transform(f$mt, individualID = "stem2", pointID = "23"))   # mapped in 23_400
+  x <- neon_subplot_exclusion(support_build(f))
+  expect_true(x$references$subplot_conflict[x$references$individualID == "stem2"])
+  expect_true("measurement_subplot_conflict" %in% x$blockers)
+})

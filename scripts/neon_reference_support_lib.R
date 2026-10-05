@@ -30,12 +30,34 @@ neon_event_subplots <- function(event) {
       neon_support_flagged(event$dataQF)) stop("Incomplete or quality-flagged census event")
   ids <- trimws(strsplit(event$subplotsSampled, "|", fixed = TRUE)[[1]])
   if (!length(ids) || anyDuplicated(ids) || any(!nzchar(ids))) stop("Missing or duplicate subplots")
-  corners <- lapply(ids, neon_subplot_corners)
+  invisible(lapply(ids, neon_subplot_corners))     # every listed encoding must be supported
   areas <- as.numeric(vapply(strsplit(ids, "_", fixed = TRUE), `[`, character(1), 2))
   if (!is.finite(event$totalSampledAreaTrees) ||
       abs(sum(areas) - event$totalSampledAreaTrees) > 1e-6) stop("Census sampled-area mismatch")
-  names(corners) <- ids
+  member_of <- neon_merge_100_blocks(ids)
+  geom_ids <- unique(unname(member_of))
+  corners <- lapply(geom_ids, neon_subplot_corners)
+  names(corners) <- geom_ids
+  attr(corners, "member_of") <- member_of
   corners
+}
+
+# A complete 2 x 2 block of 100 m2 subplots (anchors a, a+1, a+9, a+10) is the
+# same 20 m square as the 400 m2 subplot anchored at a; NEON encodes distributed
+# plots both ways, but surveys only the square's outer corners and centre. The
+# block is therefore drawn from the surveyed corners a, a+2, a+20, a+18 and each
+# member subplot maps to it; incomplete blocks keep their own 100 m2 corners.
+# Returns the geometry subplot for every listed subplot, named by listed ID.
+neon_merge_100_blocks <- function(ids) {
+  member_of <- setNames(ids, ids)
+  small <- ids[grepl("^[0-9]+_100$", ids)]       # malformed IDs fail in neon_subplot_corners
+  anchors <- as.integer(sub("_100$", "", small))
+  for (a in sort(anchors)) {
+    block <- paste0(a + c(0L, 1L, 9L, 10L), "_100")
+    if (all(block %in% small) && all(member_of[block] == block))
+      member_of[block] <- paste0(a, "_400")
+  }
+  member_of
 }
 
 neon_event_geometry <- function(event, locations, epsg) {
@@ -62,7 +84,8 @@ neon_event_geometry <- function(event, locations, epsg) {
   if (abs(sum(as.numeric(sf::st_area(g))) - as.numeric(sf::st_area(union))) > 1e-5)
     stop("Overlapping sampled subplots")
   list(footprint = union, subplots = sf::st_sf(subplotID = names(corners), geometry = g),
-       anchors = unique(do.call(rbind, used)), nominal_area = event$totalSampledAreaTrees)
+       anchors = unique(do.call(rbind, used)), nominal_area = event$totalSampledAreaTrees,
+       member_of = attr(corners, "member_of"))
 }
 
 neon_latest_mapping <- function(mt) {
@@ -81,14 +104,24 @@ neon_latest_mapping <- function(mt) {
   if (is.null(out)) mt[FALSE, , drop = FALSE] else out
 }
 
-neon_event_references <- function(ai, pp, mt, locations, year, epsg) {
+# join = "measurement_year" (the protocol) keeps measurements dated in `year`;
+# "census_event" keeps every measurement of the census events whose plot record
+# is dated in `year`, whatever the measurement date (one WREF census ran from
+# September 2020 to April 2021 under its 2020 event).
+neon_event_references <- function(ai, pp, mt, locations, year, epsg,
+                                  join = c("measurement_year", "census_event")) {
+  join <- match.arg(join)
   neon_support_require(ai, c("plotID", "individualID", "date", "eventID", "subplotID",
     "growthForm", "plantStatus", "stemDiameter", "height", "canopyPosition", "dataQF"), "Measurements")
   neon_support_require(pp, c("plotID", "eventID", "date", "subplotsSampled"), "Census records")
   neon_support_require(locations, c("ptloc", "easting", "northing", "epsg", "unc"), "Named points")
   if (anyDuplicated(locations$ptloc)) stop("Ambiguous named-point coordinates")
   year <- neon_year(year)
-  a <- as.data.frame(ai[!is.na(ai$date) & substr(as.character(ai$date), 1, 4) == year, ])
+  a <- if (join == "measurement_year")
+    as.data.frame(ai[!is.na(ai$date) & substr(as.character(ai$date), 1, 4) == year, ]) else {
+    census <- unique(pp$eventID[!is.na(pp$date) & substr(as.character(pp$date), 1, 4) == year])
+    as.data.frame(ai[!is.na(ai$date) & ai$eventID %in% census, ])
+  }
   a$reference_row <- seq_len(nrow(a))
   a$measurement_date <- as.character(a$date)
   a$exclusion <- rep("", nrow(a))
@@ -171,9 +204,10 @@ neon_build_support <- function(event, references, locations, epsg) {
   refs$inside_interior <- neon_support_inside(refs$E, refs$N, core)
   refs$boundary_uncertain <- valid & !refs$inside_interior &
     neon_support_inside(refs$E, refs$N, sf::st_buffer(geometry$footprint, margin))
-  refs$subplot_conflict <- FALSE
+  refs$subplot_conflict <- rep(FALSE, nrow(refs))
   for (i in which(valid)) {
-    subplot <- sf::st_geometry(geometry$subplots[geometry$subplots$subplotID == refs$subplotID[i], ])
+    gid <- geometry$member_of[[refs$subplotID[i]]]
+    subplot <- sf::st_geometry(geometry$subplots[geometry$subplots$subplotID == gid, ])
     refs$subplot_conflict[i] <- !neon_support_inside(refs$E[i], refs$N[i],
                                                     sf::st_buffer(subplot, refs$pos_unc[i]))
   }
@@ -191,7 +225,67 @@ neon_build_support <- function(event, references, locations, epsg) {
     boundary_margin_m = margin, nominal_area_m2 = geometry$nominal_area,
     measured_area_m2 = as.numeric(sf::st_area(geometry$footprint)),
     interior_area_m2 = as.numeric(sf::st_area(core)), blockers = blockers,
-    evaluation_ready = FALSE)
+    member_of = geometry$member_of, evaluation_ready = FALSE)
+}
+
+# Missing-reference policy "subplot_exclusion" (declared 2026-10-01). A census
+# target without a usable mapped position (no coordinates, an unusable or
+# flagged mapping, an unknown or unlisted subplot, an unresolved duplicate)
+# still stands in its subplot, where a correct detection would count as a
+# false positive; every geometry subplot holding one leaves the precision
+# interior before erosion. A target that has a position but no usable height
+# stays a reference: its height is set missing, so greedy_match pairs it on
+# position alone, and it is flagged `height_unknown`. Recall keeps the
+# references inside the remaining interior. A missing target whose subplot is
+# unknown or not sampled makes the plot unscorable (fail closed).
+# strict = TRUE is the declared sensitivity "subplot_exclusion_strict": every
+# target that is not a reference, heightless ones included, removes its subplot.
+NEON_MISSING_POLICIES <- c("subplot_exclusion", "subplot_exclusion_strict")
+neon_subplot_exclusion <- function(support, strict = FALSE) {
+  refs <- support$references
+  member <- support$member_of
+  if (is.null(member)) member <- setNames(support$subplots$subplotID, support$subplots$subplotID)
+  geom <- sf::st_geometry(support$subplots)   # loads sf before any sf subsetting
+  blockers <- setdiff(support$blockers, c("incomplete_target_references", "empty_reference_interior"))
+  refs$height_unknown <- rep(FALSE, nrow(refs))
+  if (!strict) {
+    heightless <- refs$target_population & !refs$reference_eligible & refs$exclusion == "invalid_height"
+    refs$height[heightless] <- NA_real_
+    refs$height_unknown <- heightless
+    refs$reference_eligible[heightless] <- TRUE
+    for (i in which(heightless)) {               # the checks build_support ran on references
+      sp <- geom[support$subplots$subplotID == member[[refs$subplotID[i]]]]
+      refs$subplot_conflict[i] <- !neon_support_inside(refs$E[i], refs$N[i],
+                                                       sf::st_buffer(sp, refs$pos_unc[i]))
+    }
+    outside <- heightless & !refs$inside_sampled &
+      !neon_support_inside(refs$E, refs$N, sf::st_buffer(support$footprint, support$boundary_margin_m))
+    if (any(refs$subplot_conflict[heightless])) blockers <- c(blockers, "measurement_subplot_conflict")
+    if (any(outside)) blockers <- c(blockers, "references_outside_sampled_footprint")
+  }
+  missing <- refs$target_population & !refs$reference_eligible
+  ids <- refs$subplotID[missing]
+  known <- !is.na(ids) & ids %in% names(member)
+  excluded <- sort(unique(unname(member[ids[known]])))
+  keep <- geom[!support$subplots$subplotID %in% excluded]
+  core <- if (length(keep))
+    sf::st_buffer(sf::st_union(keep), -support$boundary_margin_m) else NULL
+  empty <- is.null(core) || any(sf::st_is_empty(core))
+  refs$inside_interior <- if (empty) rep(FALSE, nrow(refs)) else
+    neon_support_inside(refs$E, refs$N, core)
+  refs$reference_selected <- refs$reference_eligible & refs$inside_interior & !refs$subplot_conflict
+  if (any(!known)) blockers <- c(blockers, "unlocatable_missing_reference")
+  if (empty || !any(refs$reference_selected)) blockers <- c(blockers, "empty_reference_interior")
+  support$missing_reference_policy <- list(
+    name = if (strict) "subplot_exclusion_strict" else "subplot_exclusion",
+    n_missing_targets = sum(missing), n_unlocatable = sum(!known),
+    n_height_unknown = sum(refs$height_unknown),
+    excluded_subplots = excluded, interior_area_before_m2 = support$interior_area_m2)
+  support$references <- refs
+  if (!empty) support$core <- core
+  support$interior_area_m2 <- if (empty) 0 else as.numeric(sf::st_area(core))
+  support$blockers <- unique(blockers)
+  support
 }
 
 neon_support_identity <- function(support) {
@@ -216,6 +310,35 @@ neon_check_support_rows <- function(df) {
   if (any(vapply(split(df$support_id, key), function(x) length(unique(x)) != 1L, logical(1))))
     stop("Different reference support within the same plot")
   invisible(TRUE)
+}
+
+# Admission under a reviewed declaration (protocol: "a separate reviewed
+# declaration admits support"). The declaration names the blockers it resolves,
+# with its evidence, and lists the exact support identities it admits. Only
+# review blockers can be resolved; geometry and reference-placement blockers
+# cannot. The admitted bundle records the declaration and becomes scorable.
+# Incomplete target references are not resolvable by declaration; only the
+# declared missing-reference policy (neon_subplot_exclusion) clears them.
+NEON_RESOLVABLE_BLOCKERS <- c("datum_review_pending", "flight_provenance_pending")
+neon_admit_support <- function(support, declaration) {
+  neon_support_require(as.data.frame(declaration$admitted), c("plot", "event", "support_id"),
+                       "Admission declaration")
+  if (!length(declaration$name) || !nzchar(declaration$name)) stop("Unnamed admission declaration")
+  resolved <- as.character(declaration$resolved_blockers)
+  if (any(!resolved %in% NEON_RESOLVABLE_BLOCKERS))
+    stop("Declaration resolves a non-review blocker: ",
+         paste(setdiff(resolved, NEON_RESOLVABLE_BLOCKERS), collapse = ", "))
+  adm <- as.data.frame(declaration$admitted)
+  row <- adm[adm$plot == support$plot & adm$event == support$event, , drop = FALSE]
+  if (nrow(row) != 1L || !identical(row$support_id, neon_support_identity(support)))
+    stop("Support bundle ", support$plot, "/", support$event, " is not admitted by ", declaration$name)
+  left <- setdiff(support$blockers, resolved)
+  if (length(left)) stop("Unresolved support blockers for ", support$plot, ": ", paste(left, collapse = ", "))
+  support$admission <- list(declaration = declaration$name, resolved = intersect(support$blockers, resolved),
+                            prepared_support_id = row$support_id)
+  support$blockers <- character()
+  support$evaluation_ready <- TRUE
+  support
 }
 
 score_neon_support <- function(support, det, det_epsg = NULL, tol_xy = 4, ...) {

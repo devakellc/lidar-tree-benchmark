@@ -72,7 +72,8 @@ The [Pacific Northwest preflight](results/pacific-northwest-extension-results.md
 admits NEON WREF and ABBY, flown in 2021 with the same sensor class, as two
 further sites. The new five-site reference keeps stems of at least 10 cm DBH:
 106 plots and 2,525 stems, against 46 plots and 699 stems in the historical
-SJER, SOAP and TEAK sweep.
+SJER, SOAP and TEAK sweep; the classical and learned arms have been scored at
+the new sites, in the censused-subplot study below.
 The [frozen-clip study](results/frozen-clips-results.md) declares that
 population, keeps the six-stem plot gate and freezes one seeded clip per site,
 plot and density rung; every NEON arm now reads those hash-verified clips
@@ -86,6 +87,19 @@ supersedes their June 2026 rows. On the same 530 cells, native-density F1 is
 arms are near **0.42–0.44**. ForestFormer3D's June SOAP F1 of 0.26 rises to
 0.45 on the same plots. The June TreeisoNet failure on SJER and TEAK came from
 a different voxel setting on those sites.
+
+The [censused-subplot study](results/census-support-results.md) scores
+precision only inside surveyed, censused subplots, from each plot's nearest
+full census within four years of the 2021 flights, with subplots holding
+unmapped census trees excluded. It scores 57 of the 106 plots. On identical
+detections, censused precision is 0.08–0.34 higher than nominal-box precision
+(CHM-VWF at native density: 0.78 against 0.48), and at native density the
+classical arms keep their order. At native density SegmentAnyTree (**0.68**)
+and ForestFormer3D (**0.67**) have the highest censused F1, against **0.61**
+for CHM-VWF; SegmentAnyTree falls to **0.15** at 1 point/m². The
+[coverage-gap study](results/coverage-gap-results.md) brackets the same bias
+from the other side: crediting detections that two other arm families also
+find raises F1 by **+0.07 to +0.14** per arm on the paper population.
 
 The [point-cloud detector study](results/pointcloud-detector-results.md)
 compares native-density understory recovery by crown class, with a separate
@@ -231,6 +245,7 @@ comparison and larger-area experiments.
 | Workflow | Instructions and results |
 | --- | --- |
 | Plot population and frozen clips | [Frozen-clip study](results/frozen-clips-results.md); run it before any NEON arm |
+| Precision inside censused subplots | [Censused-subplot study](results/census-support-results.md) and its reviewed declarations under `docs/` |
 | NEON field-stem density ladder | [Density-ladder study](results/density-ladder-sweep-results.md) and [cross-model comparison](results/model-benchmark-results.md) |
 | Crown diameters and segmentation | [Crown benchmark](results/crown-segmentation-results.md) |
 | Paired optical/LiDAR fusion | [RGB-LiDAR comparison](results/rgb-lidar-fusion-results.md) and [confidence calibration](results/confidence-calibration-results.md) |
@@ -270,6 +285,7 @@ scripts and configuration.
 | Tiled point-cloud processing | [tile_aoi.R](scripts/tile_aoi.R), [detect_lasr_catalog.R](scripts/detect_lasr_catalog.R), [detect_lidr_catalog.R](scripts/detect_lidr_catalog.R) |
 | NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R), [preflight_site_extension.R](scripts/preflight_site_extension.R) |
 | NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
+| NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
 | Native sparse epochs | [prepare_sparse_epoch.R](scripts/prepare_sparse_epoch.R), [audit_sparse_epoch.R](scripts/audit_sparse_epoch.R), [compare_sparse_epoch.R](scripts/compare_sparse_epoch.R) |
 | NEON density ladder | [run_sweep.R](scripts/run_sweep.R), [analyze_sweep.R](scripts/analyze_sweep.R), [compare_sites.R](scripts/compare_sites.R) |
 | Point-cloud understory detection | [detect_pc_sweep.R](scripts/detect_pc_sweep.R), [detect_pc_ladder.R](scripts/detect_pc_ladder.R) |

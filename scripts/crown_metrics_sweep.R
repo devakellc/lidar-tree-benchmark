@@ -127,8 +127,6 @@ BEST_TOPS <- if (is.null(A$BEST_TOPS)) {
 SAT_IMAGE <- if (is.null(A$SAT_IMAGE)) "sat-sm120-test" else A$SAT_IMAGE
 TREEISONET_CONF <- if (is.null(A$TREEISONET_CONF)) "0.22" else A$TREEISONET_CONF
 TREEISONET_VOXEL <- if (is.null(A$TREEISONET_VOXEL)) "0.8,0.8,2.0" else A$TREEISONET_VOXEL
-FF3D_IMAGE <- if (is.null(A$FF3D_IMAGE)) "ff3d-sm120" else A$FF3D_IMAGE
-FF3D_SPACING <- as.numeric(if (is.null(A$FF3D_SPACING)) 24 else A$FF3D_SPACING)
 FF3D_MERGE_TOL <- as.numeric(if (is.null(A$FF3D_MERGE_TOL)) 2.0 else A$FF3D_MERGE_TOL)
 # RUNGS: density ladder (issue #33). "native" -> no decimation (rung NA); the
 # numeric rungs are pts/m^2 targets passed to frozen_clip's seeded homogenize.
@@ -305,9 +303,7 @@ selection_cache_path <- function(site, pid, sel) {
   if (method == "segmentanytree")
     parts <- c(parts, sprintf("image%s", SAT_IMAGE))
   if (method == "forestformer3d")
-    parts <- c(parts, sprintf("image%s", FF3D_IMAGE),
-               sprintf("spacing%s", FF3D_SPACING),
-               sprintf("merge%s", FF3D_MERGE_TOL))
+    parts <- c(parts, "wholescene", sprintf("merge%s", FF3D_MERGE_TOL))
   file.path(nd, "best_treetop_cache",
             paste0(sanitize_cache_part(paste(parts, collapse = "__")), ".csv"))
 }

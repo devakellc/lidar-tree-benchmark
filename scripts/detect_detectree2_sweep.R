@@ -59,6 +59,33 @@ cover_tile <- function(cx, cy) {
     if (cx >= e[1] && cx <= e[2] && cy >= e[3] && cy <= e[4]) return(t) }
   NA_character_
 }
+
+# The runner tiles each crop with Detectree2's default grid: 40 m tiles with a
+# 10 m buffer, placed only where tile plus buffer fit inside the image. Tile
+# centres start 10 m in from the crop edge, and a crop of half-width H holds
+# ceiling((2H - 60) / 40) tiles per axis. A crop of exactly 60 m therefore holds
+# none (the distributed plots used to fail) and an 80 m crop holds one tile,
+# which misses part of a tower core. dt2_crop_half() gives the half-width
+# whose tile centres cover the core of half-width `ph`: 35 m for one tile per
+# axis (distributed plots), 55 m for two (tower plots).
+DT2_TILE <- 40; DT2_BUFFER <- 10
+dt2_crop_half <- function(ph) {
+  n <- ceiling((2 * ph + 2) / DT2_TILE)
+  half <- (DT2_TILE * (n - 1) + 2 * DT2_BUFFER + DT2_TILE) / 2 + 5
+  stopifnot(half >= ph + DT2_BUFFER + 1, half <= DT2_TILE * n + DT2_BUFFER + 1 - ph)
+  half
+}
+
+# The crop window from every RGB tile it overlaps: a plot near a tile edge
+# would otherwise get a cut-off image.
+dt2_window <- function(tiles, xmin, xmax, ymin, ymax) {
+  hit <- Filter(function(t) { e <- as.vector(terra::ext(terra::rast(t)))
+    e[1] < xmax && e[2] > xmin && e[3] < ymax && e[4] > ymin }, tiles)
+  if (!length(hit)) return(NULL)
+  parts <- lapply(hit, function(t)
+    terra::crop(terra::rast(t), terra::ext(xmin, xmax, ymin, ymax)))
+  if (length(parts) == 1L) parts[[1]] else do.call(terra::merge, unname(parts))
+}
 # `cell` is the plot's native frozen cell (frozen_clip); NULL = unusable cell.
 plot_chm <- function(cell, epsg) {
   if (is.null(cell)) return(NULL)
@@ -76,17 +103,21 @@ run_main <- function() {
                 MODEL, file.exists(MODEL), RUNNER))
   gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
+  # Scope to the declared population first (as the DeepForest arm does): the
+  # 2021 D17 references predate the plot-record check and still hold stems in
+  # plots that no population admits.
+  fz <- frozen_scope(d, SITE, A, gt)              # declared population + sealed root
+  gt <- fz$gt
   epsg <- neon_validate_inputs(gt, pc)
   neon_reference_epoch(gt, YEAR)
   neon_validate_acquisition(file.path(nd, "rgb"), gt, pc, "DP3.30010.001")
   neon_validate_files(rgb_tiles, epsg)
-  fz <- frozen_scope(d, SITE, A, gt)              # declared population + sealed root
-  gt <- fz$gt
   keep <- intersect(fz$plots, pc$plotID); if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   cdir <- file.path(nd, "detectree2_boxes"); dir.create(cdir, showWarnings = FALSE, recursive = TRUE)
   neon_check_manifest(file.path(cdir, "coordinate_manifest.json"),
     list(year = YEAR, epsg = epsg, sources = neon_file_signature(rgb_tiles),
-         plots = unname(tools::md5sum(file.path(nd, "plot_centroids.csv")))),
+         plots = unname(tools::md5sum(file.path(nd, "plot_centroids.csv"))),
+         crop = sprintf("grid %d m tiles, %d m buffer, core-covering half-width", DT2_TILE, DT2_BUFFER)),
     list.files(cdir, "[.]csv$", full.names = TRUE))
   rows <- list(); deq <- numeric(0); fcd <- numeric(0)
   for (pid in keep) {
@@ -99,8 +130,8 @@ run_main <- function() {
     tif <- cover_tile(cx, cy); if (is.na(tif)) next
     ocsv <- file.path(cdir, paste0(pid, ".csv"))
     if (!file.exists(ocsv)) {
-      cropf <- tempfile(fileext = ".tif"); h <- ph + 20
-      ok <- tryCatch({ r <- terra::crop(terra::rast(tif), terra::ext(cx - h, cx + h, cy - h, cy + h))
+      cropf <- tempfile(fileext = ".tif"); h <- dt2_crop_half(ph)
+      ok <- tryCatch({ r <- dt2_window(rgb_tiles, cx - h, cx + h, cy - h, cy + h)
         terra::writeRaster(r, cropf, overwrite = TRUE); TRUE }, error = function(e) FALSE)
       if (!ok) next
       st <- tryCatch(system2(PYTHON, c(shQuote(RUNNER), shQuote(cropf), shQuote(ocsv),
@@ -131,6 +162,7 @@ run_main <- function() {
   res <- rbindlist(rows, fill = TRUE)
   if (!nrow(res)) { cat("no rows scored\n"); return(invisible()) }
   o <- file.path(nd, "detectree2_results.csv"); write.csv(res, o, row.names = FALSE)
+  frozen_results_stamp(o, fz)                   # root and population behind the rows
   p <- pool(res)
   cat(sprintf("\n[%s] Detectree2 (rgb): n_ref=%d recall=%.3f prec=%.3f F1=%.3f rec_und=%.3f\n",
               SITE, p$n_ref, p$recall, p$precision, p$F1, p$rec_understory))

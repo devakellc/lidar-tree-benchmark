@@ -27,7 +27,11 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # Install: lidRplugins from a patched source clone (rgeos/rgdal/EBImage stripped
 #   from DESCRIPTION) -- see docs/superpowers/plans/2026-06-07-lidrplugins-competitor-arm.md Task 1.
 # Output: $CLAUDE_JOB_DIR/neon/<SITE>/lidrplugins_results.csv (one row per
-#         plot x rung x detector).
+#         plot x rung x detector), plus the apexes each detector scored per
+#         cell in <detector>_detections/<plot>__<rung>.csv (stamped with the
+#         sealed root) for re-scoring without inference. chm_vwf here is the
+#         model benchmark's CHM-VWF configuration: density-derived res (0.25 m
+#         at >= 8 first returns per m2, else 0.5 m) and a = 0.10.
 suppressMessages({ library(lidR); library(lidRplugins); library(sf)
                    library(data.table); library(parallel) })
 options(lidR.progress = FALSE)
@@ -130,6 +134,7 @@ run_main <- function() {
   # ptrees instance clouds record the sealed root that made them; a directory
   # made on other clips must be moved aside first.
   frozen_stamp(file.path(nd, "ptrees_instances"), fz$root)
+  for (nm in ARMS) frozen_stamp(file.path(nd, paste0(nm, "_detections")), fz$root)
 
   run_plot <- function(pid) {
     ci <- pc[pc$plotID == pid, ][1, ]
@@ -159,6 +164,7 @@ run_main <- function() {
       for (nm in names(dets)) {
         det <- dets[[nm]]
         if (is.null(det)) next                  # crash -> skip this detector/cell
+        persist_detections(file.path(nd, paste0(nm, "_detections")), pid, rung, det)
         sc <- tryCatch(score_plot(stems, det, tol_xy = TOL, core_cx = cx,
                                   core_cy = cy, core_half = ph),
                        error = function(e) NULL)
