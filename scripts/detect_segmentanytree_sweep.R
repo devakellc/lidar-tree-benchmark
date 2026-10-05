@@ -153,7 +153,10 @@ run_main <- function() {
     cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
     if (nrow(stems) < 1) next
-    native_pdens <- NA_real_
+    # Native density from the sealed root, so a pass without native still
+    # applies the no-upsampling guard (as the ForestFormer3D sweep does).
+    np <- frozen_clip(NULL, SITE, pid, NA, cx, cy, ph, fz$root)
+    native_pdens <- if (is.null(np)) NA_real_ else np$pdens
     batch_in  <- file.path(tempdir(), sprintf("sat_%s_batch_in", pid))
     batch_out <- file.path(tempdir(), sprintf("sat_%s_batch_out", pid))
     unlink(c(batch_in, batch_out), recursive = TRUE, force = TRUE)
@@ -164,8 +167,7 @@ run_main <- function() {
       prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
       pdens <- prep$pdens; frdens <- prep$frdens
-      if (is.na(rung)) native_pdens <- pdens
-      else if (is.na(native_pdens) || rung >= native_pdens) next
+      if (!is.na(rung) && (is.na(native_pdens) || rung >= native_pdens)) next
       tag  <- ifelse(is.na(rung), "native", as.character(rung))
       key <- cell_key(SITE, pid, tag)
       if (key %in% done && has_persisted_instance(pid, tag)) {
