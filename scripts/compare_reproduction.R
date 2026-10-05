@@ -18,10 +18,10 @@
 #   differs    anything else, listing the columns that differ
 #   missing    archived but not rebuilt; extra: rebuilt but not archived
 # A PATHS line starting with "~" marks intermediate outputs (the re-detected
-# treetop caches): they are compared and reported, and a difference there is
-# reported as "intermediate" without failing the run, because lasR breaks
-# ties between equal canopy maxima differently between builds. The tables
-# built from them are compared under the rules above.
+# treetop caches, the native QL2 cross-check's per-plot rows and the figure
+# images; reproduce_paper_tables.sh says why): they are compared and reported,
+# and a difference there is reported as "intermediate" without failing the
+# run. The tables built from them are compared under the rules above.
 # Absolute paths inside tables are compared from the first archive top-level
 # directory they name, so the archive's original location does not matter.
 #   Rscript scripts/compare_reproduction.R ARCHIVE=<dir> OUT=<dir> PATHS=<file>

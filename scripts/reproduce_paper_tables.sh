@@ -73,6 +73,7 @@ REBUILT=(
   paper_runs/neon/best_treetops_geojson paper_runs/neon/crown_compare_tables.md
   paper_runs/neon/adapter_before_after sparse_2018/compare_report
   paper_runs/sensitivity paper_runs/neon/native_ql2_vs_decimated.csv
+  paper_runs/neon/native_ql2_paired.csv
 )
 for n in 1 2 3 4 5 6 7; do
   REBUILT+=("paper_runs/figures/figure_$n.csv" "paper_runs/figures/figure_$n.png")
@@ -92,9 +93,13 @@ for s in "${SITE_LIST[@]}"; do
     done
   done
 done
-# Re-detected treetop caches and the figure images are intermediate: compared,
-# never failing (the numbers each figure plots are its strict CSV).
-printf '%s\n' "${REBUILT[@]}" | sed -E 's#^(.*(best_treetop(_cache|s_geojson)|\.png))$#~\1#' \
+# Intermediate outputs are compared but never fail the run: the re-detected
+# treetop caches; the native QL2 cross-check's per-plot rows, whose height
+# errors on the dense 3DEP clouds move by a few centimetres between lasR runs
+# (its pooled and paired tables are strict); and the figure images (the
+# numbers each figure plots are its strict CSV).
+printf '%s\n' "${REBUILT[@]}" |
+  sed -E 's#^(.*(best_treetop(_cache|s_geojson)|ql2_detect_results\.csv|\.png))$#~\1#' \
   > "$LOGS/rebuilt_paths.txt"
 for r in "${REBUILT[@]}"; do rm -rf "${W:?}/$r"; done
 
@@ -181,6 +186,7 @@ for s in "${SITE_LIST[@]}"; do
 done
 run "$P" native_ql2_crosscheck scripts/native_ql2_crosscheck.R SITES=SOAP,SJER,TEAK \
   POP=adopted CACHE_JOB="$W"
+run "$P" native_ql2_paired scripts/native_ql2_paired.R
 
 ## 11. The paper's figures.
 run "$P" figures scripts/paper_figures.R

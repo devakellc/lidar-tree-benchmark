@@ -40,6 +40,11 @@ The treetop caches the export step re-detects are intermediate: lasR can
 break a tie between equal canopy maxima differently in another build, moving
 one apex by a cell, so differences there are reported as `intermediate` and
 do not fail the run; the tables built from them are held to the rules above.
+The native QL2 cross-check's per-plot rows are intermediate too: on the dense
+3DEP clouds (30–65 pulses/m²) its apex heights move by a few centimetres
+between lasR runs without changing a detection or a match, and its pooled and
+paired tables are strict. The figure images are intermediate; the numbers
+each figure plots are in its strict CSV.
 
 ## Layout
 
