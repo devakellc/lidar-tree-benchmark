@@ -48,4 +48,15 @@ RUN git clone https://github.com/Jean-Romain/lidRplugins /tmp/lidRplugins \
       write.dcf(d, f)' \
  && R CMD INSTALL /tmp/lidRplugins && rm -rf /tmp/lidRplugins
 
+# EBImage from Bioconductor 3.18 (the release for R 4.3), as on the benchmark
+# workstation: lidR's marker-free watershed crowns need it, and without it the
+# crown study drops that segmenter.
+RUN apt-get update && apt-get install -y --no-install-recommends libfftw3-dev \
+ && rm -rf /var/lib/apt/lists/* \
+ && Rscript -e 'install.packages(c("BiocGenerics", "EBImage"), \
+      repos = c(BioC = "https://bioconductor.org/packages/3.18/bioc", CRAN = getOption("repos")[["CRAN"]])); \
+      v <- c(BiocGenerics = "0.48.1", EBImage = "4.44.0"); \
+      got <- vapply(names(v), function(p) as.character(packageVersion(p)), ""); \
+      if (any(got != v)) stop("EBImage versions differ: ", paste(names(v), got, collapse = ", "))'
+
 WORKDIR /repo

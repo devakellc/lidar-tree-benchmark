@@ -32,12 +32,13 @@ Counts, rates and text must match exactly. Lengths in metres (coordinates,
 apex heights, diameters and their errors) may differ by up to 1 cm: lasR's
 canopy-model maxima vary by about a millimetre from run to run, even
 single-threaded, which moves apex heights and height errors without changing
-a detection or a match. The report marks such files `length` and gives the
-largest difference. The treetop caches the export step re-detects are
-intermediate: lasR can break a tie between equal canopy maxima differently in
-another build, moving one apex by a cell, so differences there are reported
-as `intermediate` and do not fail the run; the tables built from them are
-held to the rules above.
+a detection or a match. Summed crown overlaps measured on the canopy model
+(`iou_sum_*` in the fusion tables) inherit that noise and may differ by up to
+0.01. The report marks such files `length` and gives the largest difference.
+The treetop caches the export step re-detects are intermediate: lasR can
+break a tie between equal canopy maxima differently in another build, moving
+one apex by a cell, so differences there are reported as `intermediate` and
+do not fail the run; the tables built from them are held to the rules above.
 
 ## Layout
 

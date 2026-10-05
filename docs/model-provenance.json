@@ -55,6 +55,7 @@
       "rlas": "1.9.2",
       "lidRplugins": "0.4.0 from https://github.com/Jean-Romain/lidRplugins commit 567592acea4363dce635eb39e6ed3fbedfe5cee9, with rgeos, rgdal, EBImage and rgl removed from Imports",
       "crownsegmentr": "1.0.1",
+      "EBImage": "4.44.0 (Bioconductor 3.18), for lidR's marker-free watershed",
       "terra": "1.8-29",
       "sf": "1.0-19",
       "data.table": "1.18.4",

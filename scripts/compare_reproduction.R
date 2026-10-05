@@ -12,7 +12,9 @@
 #              0.01 m): lasR's canopy-model maxima vary by about a millimetre
 #              from run to run, single-threaded too, which moves apex heights
 #              and height errors but has not changed a detection or a match.
-#              Counts and rates never get this allowance.
+#              Counts and rates never get this allowance. Summed crown
+#              overlaps measured on that canopy model (iou_sum_*) inherit
+#              the same noise and are allowed OVERLAP_TOL (default 0.01).
 #   differs    anything else, listing the columns that differ
 #   missing    archived but not rebuilt; extra: rebuilt but not archived
 # A PATHS line starting with "~" marks intermediate outputs (the re-detected
@@ -23,16 +25,18 @@
 # Absolute paths inside tables are compared from the first archive top-level
 # directory they name, so the archive's original location does not matter.
 #   Rscript scripts/compare_reproduction.R ARCHIVE=<dir> OUT=<dir> PATHS=<file>
-#     [REPORT=<csv>] [TOL=1e-8] [LENGTH_TOL=0.01]
+#     [REPORT=<csv>] [TOL=1e-8] [LENGTH_TOL=0.01] [OVERLAP_TOL=0.01]
 # Exits 1 when any file differs, is missing or is extra.
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
 for (k in c("ARCHIVE", "OUT", "PATHS")) if (is.null(A[[k]])) stop(k, "= is required")
 TOL <- if (is.null(A$TOL)) 1e-8 else as.numeric(A$TOL)
 LENGTH_TOL <- if (is.null(A$LENGTH_TOL)) 0.01 else as.numeric(A$LENGTH_TOL)
+OVERLAP_TOL <- if (is.null(A$OVERLAP_TOL)) 0.01 else as.numeric(A$OVERLAP_TOL)
 # Columns holding lengths in metres; everything else (counts, rates, scores)
 # must match within TOL.
 LENGTH_COL <- "^(x|y|z|X|Y|Z)$|height|_h$|^h_|rmse|bias|mae|diam|d_eq|d_caliper|_m$"
+OVERLAP_COL <- "^iou_sum_"
 TOPS <- list.dirs(A$ARCHIVE, recursive = FALSE, full.names = FALSE)
 
 files_under <- function(root, rel) {
@@ -56,6 +60,7 @@ num_diff <- function(a, b, name) {
   if (!length(rel) || max(rel) <= TOL) return("")
   ab <- max(abs(a[ok] - b[ok]))
   if (grepl(LENGTH_COL, name) && ab <= LENGTH_TOL) return(sprintf("length %.2g m", ab))
+  if (grepl(OVERLAP_COL, name) && ab <= OVERLAP_TOL) return(sprintf("length %.2g IoU", ab))
   sprintf("max difference %.3g (relative %.3g)", ab, max(rel))
 }
 
