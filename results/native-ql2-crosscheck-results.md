@@ -45,8 +45,8 @@ intervals:
 - For CHM-VWF the two sources agree: decimating another sensor's dense survey
   to the same target gives the same recall, precision and F1 within ±0.035.
 - `multichm` scores slightly lower on the decimated 3DEP clouds, mostly
-  through precision (−0.030 [−0.058, −0.003]); its many-layer CHM picks up
-  more spurious maxima from the other survey's point distribution.
+  through precision (−0.030 [−0.058, −0.003]); the interval of the F1
+  difference just reaches zero.
 - Whether decimation predicts a true native QL2 flight is answered by the
   [native sparse epoch study](native-sparse-epoch-results.md), which uses
   NEON's own earlier, sparser flights; there, decimation is mildly optimistic.
