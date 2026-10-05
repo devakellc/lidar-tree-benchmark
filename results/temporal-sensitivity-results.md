@@ -6,6 +6,57 @@ bias, by re-scoring on the **exact-2021** stem subset and comparing to the
 [`density-ladder-sweep-results.md`](density-ladder-sweep-results.md) baseline.
 Implements GitHub **issue #5**. Last run: 2026-06-05.*
 
+## Five sites, every arm
+
+Checked on 5 October 2026 on the frozen five-site population, for the paper.
+`paper_sensitivity.R MODE=exact2021` re-scores every arm's persisted
+detections on the sealed clips twice: against the adopted reference (each stem
+paired with its measurement nearest 2021 within four years) and against only
+the stems measured in 2021, on the plots that hold any. The re-scored baseline
+reproduces every arm's own result rows (4,664 cells, no difference).
+
+The exact-2021 subset covers 44 of the 106 plots and 1,318 of their 1,557
+stems: 11 California plots (234 stems; SJER has no 2021 census) and 33
+Washington plots (1,084 stems). Native density, five sites, the same 44 plots
+for both cuts, paired plot-bootstrap intervals:
+
+| Arm | F1, ±4 yr | F1, exact 2021 | Δ recall | Δ precision | Δ F1 |
+| --- | --- | --- | --- | --- | --- |
+| CHM-VWF | 0.445 | 0.430 | +0.033 [+0.014, +0.063] | −0.040 [−0.064, −0.020] | −0.015 [−0.029, −0.004] |
+| `multichm` | 0.425 | 0.391 | +0.013 [+0.002, +0.028] | −0.048 [−0.076, −0.023] | −0.033 [−0.059, −0.014] |
+| `lmfauto` | 0.363 | 0.346 | +0.044 [+0.019, +0.081] | −0.024 [−0.038, −0.012] | −0.017 [−0.029, −0.007] |
+| `ptrees` | 0.317 | 0.288 | +0.027 [+0.008, +0.056] | −0.025 [−0.039, −0.013] | −0.029 [−0.047, −0.015] |
+| AMS3D | 0.238 | 0.212 | +0.019 [+0.002, +0.045] | −0.019 [−0.029, −0.010] | −0.027 [−0.042, −0.014] |
+| Li 2012 | 0.455 | 0.435 | +0.040 [+0.016, +0.076] | −0.036 [−0.056, −0.019] | −0.020 [−0.034, −0.009] |
+| ForestFormer3D | 0.479 | 0.430 | +0.003 [−0.010, +0.017] | −0.058 [−0.095, −0.029] | −0.049 [−0.085, −0.022] |
+| TreeisoNet | 0.449 | 0.429 | +0.033 [+0.013, +0.063] | −0.039 [−0.063, −0.019] | −0.020 [−0.036, −0.007] |
+| SegmentAnyTree | 0.495 | 0.468 | +0.036 [+0.016, +0.066] | −0.043 [−0.070, −0.021] | −0.026 [−0.048, −0.010] |
+| DeepForest | 0.440 | 0.412 | +0.026 [+0.009, +0.051] | −0.041 [−0.066, −0.022] | −0.027 [−0.047, −0.013] |
+| Detectree2 | 0.362 | 0.350 | +0.018 [+0.006, +0.034] | −0.047 [−0.081, −0.022] | −0.012 [−0.027, 0.000] |
+| SAM2Point | 0.077 | 0.077 | +0.001 [−0.003, +0.006] | −0.048 [−0.087, −0.016] | +0.000 [−0.007, +0.008] |
+
+**Readings.**
+
+- Recall is the clean temporal signal. It rises by 0.01 to 0.04 for every
+  arm except ForestFormer3D and SAM2Point: a stem measured in 2021 stands as
+  the laser saw it, while a stem measured up to four years away may have
+  grown, died or fallen.
+- Precision falls for every arm, by 0.02 to 0.06, and F1 with it. That is a
+  property of the subset, not of time: the stems not measured in 2021 are
+  still trees, so their detections now count against precision. The
+  exact-2021 F1 is therefore a lower bound, not a better estimate.
+- ForestFormer3D is the exception: its recall does not rise, and its F1 falls
+  most (−0.049), enough to erase its native lead over CHM-VWF on these 44
+  plots (0.430 against 0.430). SegmentAnyTree keeps its lead.
+- The ±4-year reference does not change the conclusions it supports: arms
+  move by a few hundredths in the same direction. ForestFormer3D drops from
+  second to fourth; TreeisoNet and CHM-VWF swap places 0.001 apart; the other
+  arms keep their order. `paper_runs/sensitivity/` holds every rung and scope
+  (`exact2021_pooled.csv`, `exact2021_delta.csv`).
+
+The sections below are the historical June 2026 check: CHM-VWF only, on the
+three-site population.
+
 ---
 
 ## Why this check exists
