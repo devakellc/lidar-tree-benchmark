@@ -76,8 +76,9 @@ Native F1 by site (intervals in `master_long.csv`):
   density to 0.6 pulses/m², SegmentAnyTree falls at every site (−0.33 to −0.43
   F1, −0.09 at the open SJER savanna), ForestFormer3D falls slightly everywhere
   (−0.02 to −0.10), TreeisoNet and `multichm` stay within ±0.05, and AMS3D
-  rises at every site. CHM-VWF, `lmfauto` and `ptrees` change sign: they gain
-  at SJER and lose at the closed-canopy sites.
+  rises at every site. CHM-VWF, `lmfauto` and `ptrees` change sign between
+  sites: CHM-VWF and `ptrees` gain at SJER and lose at the closed-canopy
+  sites, while `lmfauto` gains only at TEAK.
 - The ordering is not stable across sites. SJER, the open savanna, is the
   hardest site for every arm except SAM2Point; ABBY is the easiest for nine of
   the twelve. At ABBY,
