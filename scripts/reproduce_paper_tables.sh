@@ -86,9 +86,11 @@ printf '%s\n' "${REBUILT[@]}" > "$LOGS/rebuilt_paths.txt"
 for r in "${REBUILT[@]}"; do rm -rf "${W:?}/$r"; done
 
 ## 1. Learned arms on the sensitivity populations, from persisted detections.
+# SegmentAnyTree never completed one relaxed cell (SJER_004 at 1 point/m²);
+# the rescore lists it and the master tables keep that arm pending there.
 for pop in all_mapped relaxed; do
   run "$W/paper_runs_$pop" "rescore_$pop" scripts/rescore_population.R POP=$pop \
-    SOURCES="$P,$W/paper_runs_new_relaxed,$W/paper_runs_new_allmapped"
+    SOURCES="$P,$W/paper_runs_new_relaxed,$W/paper_runs_new_allmapped" ALLOW_MISSING=1
 done
 
 ## 2. Precision inside censused subplots: headline and strict declarations.

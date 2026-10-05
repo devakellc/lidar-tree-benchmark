@@ -23,7 +23,7 @@ source(.find("census_support_lib.R"))
 #   CLAUDE_JOB_DIR=<the population's job dir> Rscript scripts/rescore_population.R \
 #     POP=relaxed SOURCES=<job dir>,<job dir> \
 #     [ARMS=forestformer3d,treeisonet,segmentanytree,sam2point]
-#     [SITES=SJER,SOAP,TEAK,WREF,ABBY] [FROZEN_ROOT=...] [TOL=4]
+#     [SITES=SJER,SOAP,TEAK,WREF,ABBY] [FROZEN_ROOT=...] [TOL=4] [ALLOW_MISSING=1]
 # Writes neon/<SITE>/<arm>_results.csv in the target job directory, with the
 # <results>.frozen sidecar of the root and population, and stops listing any
 # cell whose detections no source holds.
@@ -97,6 +97,11 @@ for (site in SITES) {
                 fz$population, nrow(res), p$F1, p$n_ref))
   }
 }
-if (length(missing))
-  stop(length(missing), " cells have no persisted detections in SOURCES: ",
-       paste(head(missing, 20), collapse = "; "), call. = FALSE)
+# ALLOW_MISSING=1 lists such cells and exits cleanly: the arm's results then
+# lack them, and master_tables.R reports the arm as pending on that population.
+if (length(missing)) {
+  msg <- paste0(length(missing), " cells have no persisted detections in SOURCES: ",
+                paste(head(missing, 20), collapse = "; "))
+  if (!identical(A$ALLOW_MISSING, "1")) stop(msg, call. = FALSE)
+  message(msg)
+}
