@@ -98,10 +98,11 @@ TreeisoNet is therefore an upper bound until they run on the same flights.
    zero-shot, reach mask F1 of 0.58 and 0.65 on the three FGI-EMIT reserve
    plots. The dataset paper reports 0.65 and 0.73 for the same two
    architectures trained on FGI-EMIT and scored on other plots, which is
-   context and not a like-for-like comparison. The control exposed an adapter
-   defect, and the re-runs a voxel setting, that had both looked like domain
-   shift. The paper reports them as a caution for zero-shot benchmarks, with
-   the checkpoint provenance audit alongside.
+   context and not a like-for-like comparison (see the
+   [FGI-EMIT transfer report](../results/fgi-emit-external-results.md)). The
+   control exposed an adapter defect, and the re-runs a voxel setting, that
+   had both looked like domain shift. The paper reports them as a caution for
+   zero-shot benchmarks, with the checkpoint provenance audit alongside.
 6. Evaluation sensitivity: matching rule, tolerance, stem-position jitter and
    temporal gap.
 7. Apex versus mask scoring, in the main text only if the stem-derived mask
@@ -115,9 +116,10 @@ the nominal-box values on the same 57 plots beside them as lower bounds. Of
 the 1,190 censused references, 1,055 are at WREF and ABBY; SJER keeps two
 admitted plots and SOAP one. The censused table is therefore mainly a Pacific
 Northwest result, and the paper says so. On those 57 plots the nine LiDAR
-arms keep the same order at native density in both scorings. Against the full
-106-plot nominal table the order differs: ForestFormer3D and SegmentAnyTree
-swap places, and TreeisoNet moves above CHM-VWF and `multichm`.
+arms keep the same F1 order at native density in both scorings. In the full
+106-plot nominal table the F1 order differs: ForestFormer3D is ahead of
+SegmentAnyTree, and TreeisoNet, CHM-VWF and `multichm` appear in the reverse
+order.
 
 **Development and replication regions.** WREF and ABBY in Washington were
 added after the detectors had been run on the three California sites, and
@@ -333,9 +335,10 @@ GitHub issue labelled `pre-paper`.
     paper-run detections. The calibration/validation table is either re-run
     on the adopted population or replaced by the regional split of step 14.
     The native 3DEP cross-check cannot be re-scored from those detections:
-    its detector is re-run on the cached 3DEP clouds against the adopted
-    stems of the three California sites, and it stays a three-site result.
-    Every regenerated report gives its rungs as measured pulses/m².
+    its detector is re-run on 3DEP clouds against the adopted stems of the
+    three California sites, and it stays a three-site result. Clouds are
+    cached for 40 of the 43 adopted plots; three need a new pull. Every
+    regenerated report gives its rungs as measured pulses/m².
 14. **Extend the master tables.** Add crown-class and height-band strata with
     intervals, the California and Washington regional tables, the
     rank-stability statistic with a plot-bootstrap interval, and the
