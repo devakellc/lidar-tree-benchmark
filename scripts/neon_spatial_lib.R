@@ -44,7 +44,7 @@ neon_location_frame <- function(location) {
 neon_assert_crs <- function(spatial, expected = NULL, label = "Spatial input") {
   crs <- sf::st_crs(spatial)
   if (is.na(crs) || isTRUE(sf::st_is_longlat(crs)) ||
-      !crs$units_gdal %in% c("metre", "meter", "m") ||
+      !tolower(crs$units_gdal) %in% c("metre", "meter", "m") || # D17 WKT says "Meter"
       isTRUE(crs == sf::st_crs(3857)))
     stop(label, " requires a declared projected metric CRS")
   if (!is.null(expected) && !isTRUE(crs == sf::st_crs(expected)))
@@ -68,6 +68,16 @@ neon_validate_inputs <- function(gt, pc, spatial = NULL) {
     stop("Stem and plot UTM zones disagree")
   if (!is.null(spatial)) neon_assert_crs(spatial, epsg, "LiDAR/RGB")
   epsg
+}
+
+# Stems mapped in plots that have no plot-level record (no centroid) cannot be
+# placed in a scoring frame. At D17 they also carry no measurement, so none is
+# live; dropping them is safe only under that condition, which is enforced.
+neon_drop_unframed_stems <- function(gt, pc) {
+  unframed <- is.finite(gt$E) & is.finite(gt$N) & !gt$plotID %in% pc$plotID
+  if (any(unframed & gt$live %in% TRUE))
+    stop("Live mapped stems lack plot coordinate metadata")
+  list(kept = gt[!unframed, , drop = FALSE], dropped = gt[unframed, , drop = FALSE])
 }
 
 neon_transform_xy <- function(x, y, from, to) {

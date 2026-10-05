@@ -16,18 +16,23 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # Matches stems to treetops on 2D POSITION ONLY (no height gate -> unbiased
 # height comparison) within a tight tolerance, at native density, modal params.
 # Reports bias, RMSE, MAE, R^2 and a linear fit, pooled and per site / crown
-# class, and writes a field-vs-apex scatter. Usage:
+# class, and writes a field-vs-apex scatter. Plots, the stem gate and the native
+# clip come from the sealed frozen-clip root (freeze_clips.R): POP= picks the
+# declared population (default adopted), FROZEN_ROOT= another root. Usage:
 #   Rscript scripts/validate_heights.R [SITES=SJER,SOAP,TEAK] [TOL=3] [RES=0.5]
 #                                      [A=0.10] [MEAS_YEAR=2021] [OUT=pairs.csv]
+#                                      [POP=adopted] [FROZEN_ROOT=...]
 # MEAS_YEAR (optional, issue #5): restrict to stems whose nearest field
 # measurement is in that exact year, so signed height bias can be compared
-# exact-year vs the +/-4 yr baseline. Default unchanged. When MEAS_YEAR is set
+# exact-year vs the +/-4 yr baseline. The height and MEAS_YEAR filters select
+# stems only; the plots stay the population's. When MEAS_YEAR is set
 # the pairs default to a distinct height_pairs_<YEAR>.csv (never overwriting the
 # baseline height_pairs.csv); OUT overrides the path explicitly.
 suppressMessages({ library(lidR); library(lasR); library(terra); library(sf) })
 options(lidR.progress = FALSE)
 d <- .job_dir()
 source(.find("sweep_lib.R"))
+source(.find("model_bench_lib.R"))   # frozen_scope, frozen_clip
 
 args <- strsplit(commandArgs(TRUE), "="); A <- setNames(lapply(args,`[`,2), sapply(args,`[`,1))
 SITES <- strsplit(if (is.null(A$SITES)) "SJER,SOAP,TEAK" else A$SITES, ",")[[1]]
@@ -44,28 +49,25 @@ collect_site <- function(site) {
   nd  <- file.path(d, "neon", site)
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"))
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"))
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E) & !is.na(gt$height), ]
+  fz  <- frozen_scope(d, site, A, gt)     # declared population + sealed root
+  gt  <- fz$gt[!is.na(fz$gt$height), ]
   if (!is.na(MEAS_YEAR)) {
     nb <- nrow(gt)
     gt <- gt[!is.na(gt$meas_year) & gt$meas_year == MEAS_YEAR, ]
     cat(sprintf("[%s] MEAS_YEAR=%d : kept %d of %d height stems\n",
                 site, MEAS_YEAR, nrow(gt), nb))
   }
-  laz <- list.files(file.path(nd, "lidar"), pattern="\\.laz$", recursive=TRUE, full.names=TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
-  keep <- names(table(gt$plotID))[table(gt$plotID) >= 6]
-  keep <- intersect(keep, pc$plotID)
-  tmp  <- file.path(tempdir(), "hv"); dir.create(tmp, showWarnings = FALSE)
+  invisible(neon_validate_inputs(gt, pc))
+  keep <- intersect(fz$plots, pc$plotID)
   pairs <- list()
   for (pid in keep) {
     ci <- pc[pc$plotID == pid, ][1, ]; cx <- ci$easting; cy <- ci$northing
     ph <- plot_half(ci$plotType)
     stems <- gt[gt$plotID == pid & abs(gt$E-cx) <= ph & abs(gt$N-cy) <= ph, ]
     if (!nrow(stems)) next
-    prep <- tryCatch(prepare_clip(ctg, cx, cy, NA, tmp, core_half = ph), error=function(e) NULL)
+    prep <- frozen_clip(NULL, site, pid, NA, cx, cy, ph, fz$root)   # hash-verified
     if (is.null(prep)) next
-    det <- tryCatch(detect_lasr(prep$file, RES, AA, prep$frdens), error=function(e) NULL)
-    unlink(prep$file)
+    det <- tryCatch(detect_lasr(prep$normalized, RES, AA, prep$frdens), error=function(e) NULL)
     if (is.null(det) || !nrow(det)) next
     # POSITION-ONLY match (no height gate) within TOL
     m <- greedy_match(stems$E, stems$N, det$x, det$y, TOL)

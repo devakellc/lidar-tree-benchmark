@@ -1,9 +1,10 @@
 # NEON benchmark sites — field data & LiDAR acquisitions
 
 Reference for the three **Domain D17 (Pacific Southwest)** sites used in the
-density-ladder sweep and follow-on analyses, plus the eastern preflight.
+density-ladder sweep and follow-on analyses, the two **Domain D16 (Pacific
+Northwest)** sites admitted to extend it, and the retired eastern preflight.
 The three D17 sites share **UTM zone 11N / EPSG:32611** for NEON woody-vegetation
-and AOP LiDAR products. That frame does not apply to HARV or BART.
+and AOP LiDAR products. That frame does not apply to WREF, ABBY, HARV or BART.
 
 **Field ground truth:** NEON Woody Plant Vegetation Structure `DP1.10098.001`.
 Nominal plot dimensions do not establish census coverage: forest tower plots
@@ -38,14 +39,19 @@ paired with the **2021** NEON AOP acquisition (±4 yr nearest field measurement)
 
 | Site | All portal acquisition months | Benchmark acquisition | Sensor (benchmark year) | Native all-return pts/m² | Native first-return pts/m² |
 |------|------------------------------|----------------------|-------------------------|:------------------------:|:--------------------------:|
-| SJER | 2013-06, 2017-03, 2018-03, 2019-03, **2021-03**, 2023-04, 2024-04 | **2021-03** | Optech Galaxy Prime (~20 pts/m² class) | 16.3 | 9.0 |
-| SOAP | 2013-06, 2017-07, 2018-06, 2019-06, **2021-07**, 2023-06, 2023-07, 2024-06, 2026-04 | **2021-07** | Optech Galaxy Prime (~20 pts/m² class) | 18.2 | 11.9 |
-| TEAK | 2013-06, 2017-06, 2018-06, 2019-06, **2021-07**, 2023-07, 2024-06 | **2021-07** | Optech Galaxy Prime (~20 pts/m² class) | 19.2 | 11.9 |
+| SJER | 2013-06, 2017-03, 2018-03, 2019-03, **2021-03**, 2023-04, 2024-04 | **2021-03** | RIEGL Q780 2220855, payload P3C1 | 16.3 | 9.0 |
+| SOAP | 2013-06, 2017-07, 2018-06, 2019-06, **2021-07**, 2023-06, 2023-07, 2024-06, 2026-04 | **2021-07** | Optech Galaxy Prime 5060445, payload P1C2 | 18.2 | 11.9 |
+| TEAK | 2013-06, 2017-06, 2018-06, 2019-06, **2021-07**, 2023-07, 2024-06 | **2021-07** | Optech Galaxy Prime 5060445, payload P1C2 | 19.2 | 11.9 |
 
 **Sensor timeline (NEON airborne).** Optech Gemini era (2013–2020) yields
-~4–6 pts/m² at these sites; **2021+ Galaxy Prime** is the first acquisition
-that clears the repository's >8 pts/m² design threshold. Pre-2021 site-years
-remain on the portal but are not used in the benchmark pipeline.
+~4–6 pts/m² at these sites; the 2021 acquisitions are the first to clear the
+repository's >8 pts/m² design threshold. They come from two instruments: NEON's
+2021 L3 discrete-LiDAR processing reports state that SOAP and TEAK were "flown
+with Teledyne Optech Galaxy Prime 5060445 as part of payload P1C2" and SJER
+"with RIEGL LASER MEASUREMENT SYSTEMS Q780 2220855 as part of payload P3C1".
+SJER's tiles also come from a different processing chain (LAS 1.3, point
+format 3, against LAS 1.4, point format 7 at SOAP and TEAK). Pre-2021
+site-years remain on the portal but are not used in the benchmark pipeline.
 
 **Download:** `Rscript scripts/neon_download_lidar.R SITE=<CODE> YEAR=2021`
 (after `neon_ground_truth.R`).
@@ -83,6 +89,27 @@ field coverage:
 
 SJER field stems were mostly measured in **2022 and 2024**, not 2021; treat its
 sweep metrics as carrying the full ±4 yr temporal slack.
+
+## Pacific Northwest extension (D16)
+
+WREF and ABBY, in Washington, passed the
+[extension preflight](../results/pacific-northwest-extension-results.md) on
+2026-10-01. Both use **UTM zone 10N / EPSG:32610** for field and LiDAR data;
+do not mix their coordinates with the D17 frame.
+
+| Code | Site name | Forest type | 2021 LiDAR | Sensor | Header tile all / first returns per m² | Admitted plots / core stems, all mapped | Same, DBH ≥ 10 cm |
+|------|-----------|-------------|------------|--------|:--------------------------------------:|:---------------------------------------:|:-----------------:|
+| **WREF** | Wind River Experimental Forest | Old-growth Douglas-fir / western hemlock | **2021-07** | Optech Galaxy Prime 5060445 | 18.7 / 9.8 | 38 / 1,081 | 38 / 1,063 |
+| **ABBY** | Abby Road | Managed Douglas-fir | **2021-07** | Optech Galaxy Prime 5060445 | 16.3 / 10.1 | 32 / 1,074 | 25 / 800 |
+
+Seven ABBY distributed plots are young stands of saplings below 10 cm DBH
+without a NEON canopy position, so the frozen five-site population uses the
+DBH ≥ 10 cm gate at every site. Tower plots sample 800 m² of trees and
+distributed plots 400 m², as at D17. WREF distributed plots were censused in
+2019 and 2022, ABBY distributed plots in 2017, 2019 and 2024.
+
+**Download:** `Rscript scripts/neon_ground_truth.R SITE=<CODE> YEAR=2021`, then
+`Rscript scripts/neon_download_lidar.R SITE=<CODE> YEAR=2021`.
 
 ## Eastern broadleaf preflight
 

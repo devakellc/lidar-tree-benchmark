@@ -36,9 +36,10 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #
 # Usage:
 #   Rscript scripts/detect_sam2point_sweep.R SITE=SOAP PLOTS=SOAP_031,SOAP_021 \
-#     MAXPROMPTS=40 IMAGE=sam2point-sm120:test
-# Reads the frozen normalized clips; writes work/neon/<SITE>/sam2point_results.csv
-# + persists sam2point_instances/<plot>_<rung>.laz.
+#     MAXPROMPTS=40 IMAGE=sam2point-sm120:test [POP=adopted] [FROZEN_ROOT=...]
+# Reads the sealed frozen root's normalized clips for the declared population's
+# plots (freeze_clips.R; an upsampled or unusable cell is skipped); writes
+# work/neon/<SITE>/sam2point_results.csv + persists sam2point_instances/<plot>_<rung>.laz.
 suppressMessages({ library(lidR); library(data.table) })
 options(lidR.progress = FALSE, lidR.verbose = FALSE)
 d <- .job_dir()
@@ -57,14 +58,15 @@ IMAGE <- if (!is.null(A$IMAGE)) A$IMAGE else "sam2point-sm120:test"
 RUNNER <- normalizePath(Find(file.exists, c("gpu/sam2point-sm120/run_sam2point_arm.py",
             file.path(getwd(), "gpu/sam2point-sm120/run_sam2point_arm.py"))), mustWork = FALSE)
 nd <- file.path(d, "neon", SITE)
-fz <- function(pid, f) file.path(nd, "frozen", SITE, pid, RUNG, f)
 
 gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
 pc <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
-gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), , drop = FALSE]
-keep <- intersect(unique(gt$plotID), pc$plotID)
+fz <- frozen_scope(d, SITE, A, gt)                # declared population + sealed root
+gt <- fz$gt
+keep <- intersect(fz$plots, pc$plotID)
 if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
-idir <- file.path(nd, "sam2point_instances"); dir.create(idir, showWarnings = FALSE, recursive = TRUE)
+idir <- file.path(nd, "sam2point_instances")
+frozen_stamp(idir, fz$root)            # a directory made on other clips must be moved aside
 
 score_one <- function(stems, det, cx, cy, ph, label) {
   sc <- tryCatch(score_plot(stems, det, tol_xy = TOL, core_cx = cx, core_cy = cy,
@@ -78,16 +80,16 @@ rows <- list()
 for (pid in keep) {
   ci <- pc[pc$plotID == pid, ][1, ]; cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
   stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, , drop = FALSE]
-  clip <- fz(pid, "clip_normalized.laz"); if (!file.exists(clip) || !nrow(stems)) next
+  if (!nrow(stems)) next
+  cell <- frozen_clip(NULL, SITE, pid, RUNG, cx, cy, ph, fz$root)  # hash-verified
+  if (is.null(cell)) next                               # upsampled / unusable cell
+  clip <- cell$normalized
   # Density-derived res/dens (CLAUDE.md: CHM resolution + the <8 pts/m^2 pre-LM
   # smoothing branch must be functions of measured first-return density, never
-  # hardcoded). Read frdens from the frozen clip's manifest via the SAME helper
-  # frozen_clip() writes (frozen_dir owns the layout), then derive res exactly as
-  # CHM-VWF/multichm_seed_tops does and pass frdens as dens so detect_lasr's
+  # hardcoded). frdens comes from the frozen cell's manifest; derive res exactly
+  # as CHM-VWF/multichm_seed_tops does and pass frdens as dens so detect_lasr's
   # smoothing branch fires on sparse rungs.
-  mf <- file.path(frozen_dir(file.path(nd, "frozen"), SITE, pid, RUNG), "manifest.json")
-  frdens <- tryCatch(as.numeric(jsonlite::read_json(mf, simplifyVector = TRUE)$frdens),
-                     error = function(e) NA_real_)
+  frdens <- as.numeric(cell$frdens)
   res <- if (!is.na(frdens) && frdens >= 8) 0.25 else 0.5  # density-derived, as CHM-VWF
   det <- tryCatch(detect_lasr(clip, res, VWF_A, frdens), error = function(e) NULL)
   if (is.null(det) || !nrow(det)) next
@@ -98,7 +100,9 @@ for (pid in keep) {
   pf <- tempfile(fileext = ".csv")
   write.table(dseed[, c("x", "y", "z")], pf, sep = ",", row.names = FALSE, col.names = FALSE)
   out <- file.path(idir, sprintf("%s_%s.laz", pid, RUNG))
-  cmd <- c("run", "--rm", "--gpus", "all",
+  # No network: the image bakes in the SAM 2 checkpoint, and container network
+  # churn was part of the workstation hangs (as in run_docker_arm).
+  cmd <- c("run", "--rm", "--gpus", "all", "--network", "none",
            "-v", paste0(RUNNER, ":/workspace/run_arm.py:ro"),
            "-v", paste0(normalizePath(clip), ":/data/in.laz:ro"),
            "-v", paste0(pf, ":/data/prompts.csv:ro"),

@@ -60,6 +60,81 @@ Rscript scripts/coverage_gap.R SITE=TEAK CORES=1
 # -> work/neon/<SITE>/coverage_gap.csv (pool() -> precision_cred / F1_cred)
 ```
 
+## Recomputed on the frozen five-site population
+
+Checked on 4 October 2026. The crediting was re-run on the declared `adopted`
+population of the [frozen-clip study](frozen-clips-results.md): 106 plots and
+2,525 stems over SJER, SOAP, TEAK, WREF and ABBY, with every arm's detections
+from its re-run on the sealed root. The learned point arms come from their
+persisted outputs (ForestFormer3D's whole-scene clouds, TreeisoNet's apexes,
+SegmentAnyTree's instance clouds), and both RGB arms are present at every
+site. Each arm is scored at its best tested rung per site, as on the
+leaderboard; CHM-VWF's configuration comes from the frozen adopted sweep.
+
+```sh
+export CLAUDE_JOB_DIR=$(pwd)/work/paper_runs   # re-run arms on the sealed root
+# sweep_results.csv per site: run_sweep.R on the frozen root, adopted population
+Rscript scripts/export_best_treetops_geojson.R SITES=SJER,SOAP,TEAK,WREF,ABBY
+Rscript scripts/coverage_gap.R SITES=SJER,SOAP,TEAK,WREF,ABBY CORES=8 LADDER=1
+```
+
+Five sites pooled (`CRED_R` = 2 m, `MIN_FAM` = 2; prec' and F1' are the
+credited values):
+
+| Arm | n_ref | Recall | Precision | F1 | Prec' | F1' | ΔF1 | Credited / eligible |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| SegmentAnyTree | 2525 | 0.590 | 0.438 | 0.503 | 0.648 | 0.618 | +0.115 | 1014 / 1326 |
+| ForestFormer3D | 2525 | 0.616 | 0.416 | 0.497 | 0.609 | 0.613 | +0.116 | 1089 / 1541 |
+| Li 2012 | 2525 | 0.561 | 0.384 | 0.456 | 0.641 | 0.598 | +0.142 | 1385 / 1686 |
+| CHM-VWF | 2496 | 0.492 | 0.458 | 0.474 | 0.763 | 0.598 | +0.124 | 988 / 1095 |
+| TreeisoNet | 2525 | 0.521 | 0.420 | 0.465 | 0.694 | 0.595 | +0.130 | 1149 / 1317 |
+| DeepForest (RGB) | 2525 | 0.545 | 0.390 | 0.454 | 0.611 | 0.576 | +0.122 | 1173 / 1499 |
+| `multichm` | 2525 | 0.546 | 0.393 | 0.457 | 0.599 | 0.571 | +0.114 | 1087 / 1464 |
+| AMS3D | 2525 | 0.590 | 0.392 | 0.471 | 0.548 | 0.568 | +0.097 | 1003 / 1525 |
+| `ptrees` | 2525 | 0.539 | 0.384 | 0.448 | 0.598 | 0.567 | +0.119 | 1176 / 1551 |
+| `lmfauto` | 2525 | 0.604 | 0.295 | 0.396 | 0.431 | 0.503 | +0.107 | 1536 / 2364 |
+| Detectree2 (RGB) | 2525 | 0.309 | 0.435 | 0.362 | 0.688 | 0.427 | +0.065 | 580 / 716 |
+
+CHM-VWF's reference is smaller because two TEAK plots lack its selected
+configuration: the sweep derives the CHM resolution from each plot's density,
+and theirs gives a different resolution, so those cells are skipped. The
+equal set below drops the same two plots.
+
+| CHM-VWF rung | Recall | Precision | F1 | Prec' | F1' | ΔF1 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| native | 0.464 | 0.438 | 0.450 | 0.762 | 0.577 | +0.126 |
+| 8 | 0.327 | 0.500 | 0.395 | 0.856 | 0.473 | +0.078 |
+| 4 | 0.328 | 0.499 | 0.396 | 0.853 | 0.473 | +0.078 |
+| 2 | 0.311 | 0.499 | 0.383 | 0.846 | 0.455 | +0.072 |
+| 1 | 0.296 | 0.506 | 0.374 | 0.845 | 0.439 | +0.065 |
+
+Rule sensitivity, pooled ΔF1 over all leaderboard cells:
+
+| `CRED_R` | `MIN_FAM` = 1 | `MIN_FAM` = 2 |
+| --- | ---: | ---: |
+| 1.5 m | +0.133 | +0.106 |
+| 2 m | +0.135 | +0.114 |
+| 3 m | +0.119 | +0.110 |
+
+**Readings.**
+
+- The credited F1 gain is +0.065 to +0.142 per arm at the default rule and
+  +0.106 to +0.135 pooled across the rule grid, against +0.09 to +0.26 on the
+  historical D17 population. The populations differ (two more sites and the
+  10 cm DBH gate), so the two brackets are not directly comparable.
+- The top two hold: SegmentAnyTree and ForestFormer3D lead both raw and
+  credited. Lower down the order changes: credited, Li 2012 moves above
+  CHM-VWF, and DeepForest above `multichm` and AMS3D. On the equal set of
+  104 plots every arm shares, the credited order is the same except that
+  `ptrees` and AMS3D swap.
+- For CHM-VWF the gain shrinks with density, from +0.126 at native to +0.065
+  at 1 point/m².
+- Detectree2 gains least (+0.065) although 81% of its eligible false
+  positives are credited: crediting raises precision only, and its recall
+  is 0.31.
+
+The tables below are the historical three-site run on the D17 population.
+
 ## What this is
 
 Each arm testifies **at its best tested operating point**: detections come

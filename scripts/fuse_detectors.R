@@ -51,10 +51,12 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #   Rscript scripts/fuse_detectors.R SITES=SOAP,SJER,TEAK RUNGS=native CORES=1
 #   Rscript scripts/fuse_detectors.R SITE=SOAP RUNGS=native,8,4,2,1 CORES=1
 # RGB=0 disables optical modes; PLOTS=... OUT=... provides a bounded smoke run.
-# (CORES=1: detect_lasr uses lasR exec, which can drop dense cells under fork.)
+# POP= picks a sensitivity population and FROZEN_ROOT= another sealed root.
+# (CORES=1 default; plots run on fresh workers, see plot_lapply in sweep_lib.R.)
 # Reads (read-only): work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv},
-#   the cached field crown widths vst rds, the frozen normalized clips + DTMs, and
-#   the persisted deep instance clouds.
+#   the cached field crown widths vst rds, the sealed frozen root (normalized
+#   clips + DTMs of the declared population's plots; freeze_clips.R), and the
+#   persisted deep instance clouds.
 # Writes: work/neon/<SITE>/fusion_results.csv (one row per
 #   site x plot x rung x config; pool distance cols with pool(), IoU cols by SUM).
 suppressMessages({ library(lidR); library(data.table); library(parallel) })
@@ -80,6 +82,8 @@ OVERSTORY_FRAC  <- as.numeric(if (is.null(A$OVERSTORY_FRAC)) 0.5 else A$OVERSTOR
 FUSE_R    <- as.numeric(if (is.null(A$FUSE_R)) 4.0 else A$FUSE_R)      # apex Voronoi radius
 FALLBACK_R <- as.numeric(if (is.null(A$FALLBACK_R)) 2.0 else A$FALLBACK_R)
 CANOPY_MIN <- as.numeric(if (is.null(A$CANOPY_MIN)) 2.0 else A$CANOPY_MIN)
+# The declared population supplies the plot gate; MINTREES only drops plots
+# with fewer gated stems in the scored core.
 MINTREES  <- as.integer(if (is.null(A$MINTREES)) 1 else A$MINTREES)
 CHM_ARMS  <- c("chm_vwf", "multichm")           # overstory family for the layered mode
 SAT_ID_FIELD <- "PredInstance"
@@ -99,7 +103,6 @@ field_crowns <- function(site) {
   ai$dist21 <- abs(ai$year - 2021); ai <- ai[order(ai$individualID, ai$dist21), ]
   ai[!duplicated(ai$individualID), c("individualID", "maxCrownDiameter")]
 }
-fz <- function(nd, site, pid, rung, f) file.path(nd, "frozen", site, pid, rung, f)
 inst_path <- function(idir, pid, rung) {
   cand <- file.path(idir, paste0(pid, "_", rung, c(".laz", ".las")))
   hit <- cand[file.exists(cand)]; if (length(hit)) hit[1] else NA_character_
@@ -151,7 +154,7 @@ materialize <- function(las, clip, dtm, frdens, res, nd, site, pid, rung) {
 }
 
 ## ---- per (plot, rung) fusion + dual scoring ------------------------------
-run_plot <- function(site, pid, pc, gt, nd, calibration = NULL) {
+run_plot <- function(site, pid, pc, gt, nd, root, calibration = NULL) {
   ci <- pc[pc$plotID == pid, ][1, ]
   cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
   stems <- gt[gt$plotID == pid &
@@ -161,8 +164,10 @@ run_plot <- function(site, pid, pc, gt, nd, calibration = NULL) {
                   stems$maxCrownDiameter / 2, FALLBACK_R)
   ref_class <- setNames(as.character(stems$crown_class),
                         as.character(seq_len(nrow(stems))))
+  # Optical apex heights come from the hash-verified native cell at every rung.
+  native <- if (RGB) frozen_clip(NULL, site, pid, NA, cx, cy, ph, root) else NULL
   optical <- if (RGB) tryCatch(
-    deepforest_plot_detections(nd, site, pid, cx, cy, ph + TOL, YEAR),
+    deepforest_plot_detections(nd, site, native$normalized, cx, cy, ph + TOL, YEAR),
     error = function(e) {
       warning("RGB unavailable for ", site, "/", pid, ": ", conditionMessage(e), call. = FALSE)
       NULL
@@ -179,15 +184,14 @@ run_plot <- function(site, pid, pc, gt, nd, calibration = NULL) {
   }
   rows <- list()
   for (rung in RUNGS) {
-    clip <- fz(nd, site, pid, rung, "clip_normalized.laz")
-    if (!file.exists(clip)) next
+    cell <- frozen_clip(NULL, site, pid, rung, cx, cy, ph, root)  # hash-verified
+    if (is.null(cell)) next                         # upsampled / unusable cell
+    clip <- cell$normalized
     las <- tryCatch(suppressWarnings(lidR::readLAS(clip)), error = function(e) NULL)
     if (is.null(las) || lidR::is.empty(las)) next
-    frdens <- tryCatch(jsonlite::read_json(fz(nd, site, pid, rung, "manifest.json"),
-                       simplifyVector = TRUE)$frdens, error = function(e) NA_real_)
-    if (is.null(frdens) || is.na(frdens)) frdens <- 8
+    frdens <- cell$frdens
     res <- if (frdens >= 8) 0.25 else 0.5
-    dtm <- fz(nd, site, pid, rung, "ground_dtm.tif")
+    dtm <- cell$dtm
 
     arms <- materialize(las, clip, dtm, frdens, res, nd, site, pid, rung)
     n_arms <- length(arms)
@@ -246,20 +250,28 @@ run_plot <- function(site, pid, pc, gt, nd, calibration = NULL) {
   rbindlist(rows, fill = TRUE)
 }
 
+# Other arms' instance clouds must carry the sealed root's stamp (frozen_stamp);
+# an absent directory means that arm did not run. Checked for every site before
+# any site runs, outside the per-site error handler, so stale clouds stop the run
+# (frozen_check_artifacts).
+ARTIFACT_DIRS <- c("li2012_instances", "ptrees_instances", "ams3d_instances",
+                   "segmentanytree_instances", "forestformer3d_instances")
+
 run_site <- function(site) {
   nd <- file.path(d, "neon", site)
   gtf <- file.path(nd, "ground_truth_stems.csv"); pcf <- file.path(nd, "plot_centroids.csv")
   if (!file.exists(gtf) || !file.exists(pcf)) {
     cat(sprintf("[%s] no ground truth / centroids -- skipped\n", site)); return(NULL) }
   gt <- read.csv(gtf, stringsAsFactors = FALSE); pc <- read.csv(pcf, stringsAsFactors = FALSE)
-  gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), , drop = FALSE]
+  fz <- frozen_scope(d, site, A, gt)              # declared population + sealed root
+  gt <- fz$gt
   gt <- gt[, setdiff(names(gt), "maxCrownDiameter"), drop = FALSE]
   gt <- merge(gt, field_crowns(site), by = "individualID", all.x = TRUE)
   if (is.null(gt$maxCrownDiameter)) gt$maxCrownDiameter <- NA_real_
-  plots <- intersect(unique(gt$plotID), pc$plotID)
+  plots <- intersect(fz$plots, pc$plotID)
   if (!is.null(PLOTS)) plots <- intersect(plots, PLOTS)
-  cat(sprintf("[%s] fusing %d plots over rungs {%s}\n", site, length(plots),
-              paste(RUNGS, collapse = ",")))
+  cat(sprintf("[%s] fusing %d plots (%s) over rungs {%s}\n", site, length(plots),
+              fz$population, paste(RUNGS, collapse = ",")))
   if (!length(plots)) return(NULL)
   calibration <- NULL
   cf <- file.path(nd, "confidence_calibration.csv")
@@ -269,9 +281,9 @@ run_site <- function(site) {
       calibration <- ca[which(ca$arm == "deepforest" & ca$rung == "native" &
                           ca$rgb_year == YEAR & is.finite(ca$raw) & is.finite(ca$label)), , drop = FALSE]
   }
-  res_list <- mclapply(plots, function(p)
-    tryCatch(run_plot(site, p, pc, gt, nd, calibration),
-             error = function(e) { message("  ", p, " failed: ", conditionMessage(e)); NULL }),
+  res_list <- plot_lapply(plots, function(p)
+    tryCatch(run_plot(site, p, pc, gt, nd, fz$root, calibration),
+             error = skip_failed_plot(p)),   # frozen integrity errors still stop
     mc.cores = CORES, mc.preschedule = FALSE)
   res <- rbindlist(Filter(Negate(is.null), res_list), fill = TRUE)
   if (!nrow(res)) { cat(sprintf("[%s] no cells fused\n", site)); return(NULL) }
@@ -389,8 +401,11 @@ rgb_summary <- function(res) {
 
 run_main <- function() {
   t0 <- Sys.time(); all_res <- list()
+  for (site in SITES) frozen_check_artifacts(file.path(d, "neon", site), ARTIFACT_DIRS,
+                                             frozen_root(d, A$FROZEN_ROOT))
   for (site in SITES) {
     r <- tryCatch(run_site(site), error = function(e) {
+      if (inherits(e, "frozen_integrity_error")) stop(e)   # never skip a bad root
       message("site ", site, " failed: ", conditionMessage(e)); NULL })
     if (!is.null(r)) all_res[[site]] <- r
   }

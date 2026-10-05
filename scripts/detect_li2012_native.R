@@ -13,14 +13,15 @@ if (!length(bs)) stop("bootstrap.R not found", call. = FALSE)
 source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 
 # Native-only Li 2012 arm (#R10) of the NEON model benchmark. Runs lidR's
-# li2012 point-cloud segmenter on the SAME native frozen clip per plot,
+# li2012 point-cloud segmenter on the SAME native frozen clip per plot (the
+# sealed root from freeze_clips.R, over its declared population),
 # collapses per-point treeID through the bridge's reduce_instances(), and
 # scores against field stems with the existing harness. Native-only by design:
 # li2012 is the dense-input sub-canopy test; decimated rungs are meaningless for
 # a point segmenter, and CHM-VWF/ptrees/ams3d already carry the full ladder.
 #
 # Usage:  Rscript scripts/detect_li2012_native.R [SITE=SOAP] [PLOTS=ALL]
-#             [CORES=6] [TOL=4]
+#             [CORES=6] [TOL=4] [POP=adopted] [FROZEN_ROOT=...]
 # Output: $CLAUDE_JOB_DIR/neon/<SITE>/li2012_results.csv (one row per plot,
 #         detector "li2012", rung "native").
 suppressMessages({ library(lidR); library(data.table); library(parallel) })
@@ -63,22 +64,22 @@ SITE  <- if (is.null(A$SITE))  "SOAP" else A$SITE
 PLOTS <- if (is.null(A$PLOTS) || A$PLOTS == "ALL") NULL else strsplit(A$PLOTS, ",")[[1]]
 CORES <- as.integer(if (is.null(A$CORES)) 6 else A$CORES)
 TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
-MINTREES <- 6
 
 run_main <- function() {
   nd  <- file.path(d, "neon", SITE)
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"),     stringsAsFactors = FALSE)
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
-  counts <- table(gt$plotID)
-  keep   <- names(counts)[counts >= MINTREES]
+  fz  <- frozen_scope(d, SITE, A, gt)     # declared population + sealed root
+  gt  <- fz$gt
+  invisible(neon_validate_inputs(gt, pc))
+  keep   <- fz$plots
   if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   keep   <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] li2012 plots: %d (%s)\n", SITE, length(keep),
+  cat(sprintf("[%s] li2012 plots (%s): %d (%s)\n", SITE, fz$population, length(keep),
               paste(keep, collapse = ",")))
+  # Instance clouds record the sealed root that made them; a directory made on
+  # other clips must be moved aside first.
+  frozen_stamp(file.path(nd, "li2012_instances"), fz$root)
 
   run_plot <- function(pid) {
     ci <- pc[pc$plotID == pid, ][1, ]
@@ -86,9 +87,7 @@ run_main <- function() {
     ph <- plot_half(ci$plotType)
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
     if (nrow(stems) < 1) return(NULL)
-    prep <- tryCatch(frozen_clip(ctg, SITE, pid, NA, cx, cy, ph,
-                                 out_root = file.path(nd, "frozen")),
-                     error = function(e) NULL)
+    prep <- frozen_clip(NULL, SITE, pid, NA, cx, cy, ph, fz$root)
     if (is.null(prep)) return(NULL)
     las <- tryCatch(readLAS(prep$normalized), error = function(e) NULL)
     if (is.null(las) || is.empty(las)) return(NULL)
@@ -106,10 +105,13 @@ run_main <- function() {
                      n_apex = nrow(det)), sc)
   }
 
-  res_list <- mclapply(keep, function(p)
+  res_list <- plot_lapply(keep, function(p)
                 tryCatch(run_plot(p), error = function(e) {
-                  message("plot ", p, " failed: ", conditionMessage(e)); NULL }),
+                  message("plot ", p, " failed: ", conditionMessage(e)); e }),
                 mc.cores = CORES, mc.preschedule = FALSE)
+  # A failed plot (e.g. a frozen cell that no longer matches its hash) must not
+  # leave the population silently smaller.
+  stop_failed_plots(keep, res_list)
   results <- do.call(rbind, Filter(Negate(is.null), res_list))
   if (is.null(results) || !nrow(results)) { cat("no li2012 results\n"); return(invisible()) }
   results$tp_core <- round(results$precision * results$n_det)

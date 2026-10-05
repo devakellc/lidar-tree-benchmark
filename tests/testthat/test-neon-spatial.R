@@ -25,6 +25,13 @@ test_that("field metadata and spatial headers must agree", {
   expect_error(neon_validate_inputs(f$gt, f$pc, sf::st_crs(32611)), "differs")
   for (bad in c(4326, 3857, 2276, NA))
     expect_error(neon_assert_crs(sf::st_crs(bad)), "projected metric")
+  # D17 SOAP and TEAK tile WKT spells the unit "Meter"; it is still EPSG:32611.
+  wkt <- sf::st_crs(32611)$wkt
+  at <- regexpr("CONVERSION[", wkt, fixed = TRUE)
+  d17 <- sf::st_crs(paste0(substr(wkt, 1, at - 1), gsub("\"metre\"", "\"Meter\"",
+                                                          substring(wkt, at), fixed = TRUE)))
+  expect_identical(d17$units_gdal, "Meter")
+  expect_true(neon_assert_crs(d17, 32611) == sf::st_crs(32611))
   f$gt$epsg <- 32619
   expect_error(neon_validate_inputs(f$gt, f$pc), "Stem and plot")
   f <- field_fixture()
@@ -114,4 +121,15 @@ test_that("LiDAR and RGB headers reject a mismatched site frame", {
   f <- field_fixture()
   neon_acquisition_manifest(file.path(d, "lidar"), "DP1.30003.001", 2022, 32618)
   expect_error(neon_read_catalog(c(laz, wrong), f$gt, f$pc, file.path(d, "lidar")), "differs")
+})
+
+test_that("only non-live mapped stems without a plot record are dropped", {
+  pc <- data.frame(plotID = "SOAP_001")
+  gt <- data.frame(plotID = c("SOAP_001", "SOAP_005", "SOAP_005"), E = c(1, 2, NA), N = 1,
+                   live = c(TRUE, FALSE, FALSE))
+  x <- neon_drop_unframed_stems(gt, pc)
+  expect_identical(x$kept$plotID, c("SOAP_001", "SOAP_005"))   # unmapped stem stays
+  expect_identical(nrow(x$dropped), 1L)
+  gt$live[2] <- TRUE
+  expect_error(neon_drop_unframed_stems(gt, pc), "Live mapped stems")
 })

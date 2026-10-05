@@ -1,0 +1,18 @@
+{
+  "reviewed": "2026-10-01",
+  "resolves": ["datum_review_pending", "flight_provenance_pending"],
+  "datum": "Field named points come from the NEON locations API, which declares the geodetic datum WGS84 and gives UTM coordinates in each site's zone (EPSG:32611 at SJER, SOAP and TEAK; EPSG:32610 at WREF and ABBY). The 2021 discrete-LiDAR tiles carry the same EPSG in their headers, and the NEON L3 processing reports state that all products are referenced to ITRF00 and projected to that UTM zone. The ITRF00 and WGS84 realizations differ at the centimetre level, far below the 4 m matching tolerance and the 0.5-1 m uncertainty margin applied to every footprint and mapped stem. The vertical datum correction NEON lists (about 0.6 m) affects elevations only; the scorer uses heights above the frozen ground model.",
+  "flight": "Every clip comes from the sealed frozen root built from the RELEASE-2026 2021 tiles of one flight campaign per site, listed below from NEON's L3 discrete-LiDAR processing reports. Tower and distributed plots of a site share that campaign; the census events admitted are dated within four years of it.",
+  "flights": [
+    {"site": "SJER", "campaign": "2021_SJER_5", "sensor": "RIEGL Q780 2220855, payload P3C1", "flight_days": ["2021-03-31"],
+     "source": "2021_SJER_5_L3_discrete_lidar_processing.pdf", "sha256": "a38818efcdd755fe299244fd2880e8f8ffb49eb2e39325faf357af301156ceb4"},
+    {"site": "SOAP", "campaign": "2021_SOAP_5", "sensor": "Teledyne Optech Galaxy Prime 5060445, payload P1C2", "flight_days": ["2021-07-12", "2021-07-13"],
+     "source": "2021_SOAP_5_L3_discrete_lidar_processing.pdf", "sha256": "99f914e8c31bf338f744d943e3f4ec7ab286b28719caaf839f9ef6a97f788a81"},
+    {"site": "TEAK", "campaign": "2021_TEAK_5", "sensor": "Teledyne Optech Galaxy Prime 5060445, payload P1C2", "flight_days": ["2021-07-13", "2021-07-14"],
+     "source": "2021_TEAK_5_L3_discrete_lidar_processing.pdf", "sha256": "756471f8972e8ad35ddfbd161ec56ed87f3f4a16f237d4fab6c6b91e6f296d43"},
+    {"site": "WREF", "campaign": "2021_WREF_4", "sensor": "Teledyne Optech Galaxy Prime 5060445, payload P1C2", "flight_days": ["2021-07-18", "2021-07-19", "2021-07-23", "2021-07-24"],
+     "source": "NEON 2021 L3 discrete-LiDAR processing report, as recorded in results/pacific-northwest-extension-results.md"},
+    {"site": "ABBY", "campaign": "2021_ABBY_4", "sensor": "Teledyne Optech Galaxy Prime 5060445, payload P1C2", "flight_days": ["2021-07-19", "2021-07-24"],
+     "source": "NEON 2021 L3 discrete-LiDAR processing report, as recorded in results/pacific-northwest-extension-results.md"}
+  ]
+}

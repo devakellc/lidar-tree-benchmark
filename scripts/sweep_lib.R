@@ -24,6 +24,56 @@ BUF       <- 25             # LiDAR clip buffer beyond the plot core (edge crown
 # requires event-specific sampled-subplot support; retain these legacy bounds.
 plot_half <- function(plotType) ifelse(plotType == "tower", 20, 10)
 
+## ---- per-plot parallel map on fresh worker processes -----------------------
+# Drop-in for parallel::mclapply in every arm that runs lasR. Forked workers
+# inherit the parent's GDAL/PROJ state, and lasR's GeoPackage, raster and JSON
+# I/O then fails at random (2-5% of calls in a 16-way stress test, with
+# sqlite, "cannot open SpatRaster" and JSON parse errors); arms that catch the
+# error drop the cell silently. Sequential runs and fresh PSOCK workers never
+# failed. Workers attach the caller's packages, run lidR single-threaded and
+# receive every global object; a closure FUN carries its own environment.
+plot_lapply <- function(X, FUN, ..., mc.cores = 1L, mc.preschedule = FALSE) {
+  cores <- min(as.integer(mc.cores), length(X))
+  if (cores <= 1L) return(lapply(X, FUN, ...))
+  cl <- parallel::makePSOCKcluster(cores, outfile = "")   # keep workers' messages
+  on.exit(parallel::stopCluster(cl), add = TRUE)
+  parallel::clusterCall(cl, function(pkgs, job, opts) {
+    for (p in pkgs) suppressMessages(library(p, character.only = TRUE))
+    if (nzchar(job)) Sys.setenv(CLAUDE_JOB_DIR = job)
+    options(opts)
+    if ("lidR" %in% pkgs) lidR::set_lidr_threads(1L)
+    invisible(NULL)
+  }, rev(.packages()), Sys.getenv("CLAUDE_JOB_DIR"), options()[grep("^lidR", names(options()))])
+  globals <- setdiff(ls(globalenv(), all.names = TRUE), ".Random.seed")
+  parallel::clusterExport(cl, globals, envir = globalenv())
+  # parLapplyLB re-raises a worker error as a plain error, losing its class, so
+  # workers return frozen-root integrity failures as values and the parent
+  # re-raises them. The wrapper's environment holds only FUN.
+  wrap_env <- new.env(parent = globalenv()); wrap_env$f <- FUN
+  wrap <- function(x, ...) tryCatch(f(x, ...), frozen_integrity_error = function(e) e)
+  environment(wrap) <- wrap_env
+  res <- parallel::parLapplyLB(cl, X, wrap, ...)
+  bad <- Find(function(r) inherits(r, "frozen_integrity_error"), res)
+  if (!is.null(bad)) stop(bad)
+  res
+}
+
+# Per-plot error handler for arms that skip a failed plot: it reports the plot
+# and returns NULL, but a frozen-root integrity failure always propagates.
+skip_failed_plot <- function(p) function(e) {
+  if (inherits(e, "frozen_integrity_error")) stop(e)
+  message("plot ", p, " failed: ", conditionMessage(e))
+  NULL
+}
+
+# For arms whose handler returns the error object: stops when any plot came
+# back as something other than NULL (no reference stems) or a data.frame.
+stop_failed_plots <- function(keep, res) {
+  failed <- keep[!vapply(res, function(r) is.null(r) || is.data.frame(r), logical(1))]
+  if (length(failed)) stop("plots failed: ", paste(failed, collapse = ","), call. = FALSE)
+  invisible(res)
+}
+
 ## ---- variable-window allometry (Popescu & Wynne), clamped to [lo, hi] -----
 ws_factory <- function(a, lo = 3, hi = 5) {
   force(a); force(lo); force(hi)
@@ -412,7 +462,9 @@ score_plot <- function(stems, det, tol_xy = 4.0, core_cx, core_cy,
   }
   # height-band stratification (CHM-relevant: a surface model sees tall trees
   # regardless of social class). Bands: short <8 m, mid 8-15 m, tall >=15 m.
-  hb     <- cut(stems$height, c(-Inf, 8, 15, Inf), labels = c("short","mid","tall"))
+  # as.numeric: a reference without heights (e.g. a DBH-only census) reads as
+  # logical NA; its stems match on position alone and fall in no height band.
+  hb     <- cut(as.numeric(stems$height), c(-Inf, 8, 15, Inf), labels = c("short","mid","tall"))
   hb_rec <- tapply(matched, hb, mean)
   for (b in c("short","mid","tall")) {
     base[[paste0("rec_h_", b)]] <- if (b %in% names(hb_rec)) hb_rec[[b]] else NA_real_

@@ -14,6 +14,7 @@ suppressMessages({ library(data.table); library(lidR); library(terra)
 if (!length(.spatial_source)) stop("neon_spatial_lib.R not found")
 source(.spatial_source[1], local = TRUE)
 source(file.path(dirname(.spatial_source[1]), "neon_reference_support_lib.R"), local = TRUE)
+source(file.path(dirname(.spatial_source[1]), "site_extension_lib.R"), local = TRUE)
 rm(.spatial_source, .spatial_ofile)
 
 ## ---- universal reducer: labelled points -> data.frame(x,y,z) -------------
@@ -193,8 +194,11 @@ score_crowns_against_field <- function(diam_table, apex, stems, field_cd,
 # decimation is reproducible across arms and runs without external deps.
 # All key characters are ASCII (0-127), so XOR only touches the low 7 bits;
 # h is kept as a double with %% 2^32 wrapping to avoid R's signed int32 limits.
-seed_for <- function(site, plot, rung) {
+# A non-zero `salt` draws an independent realization (decimation-noise
+# replicates); salt 0 keeps the key, and so every seed, unchanged.
+seed_for <- function(site, plot, rung, salt = 0L) {
   key <- paste(site, plot, ifelse(is.na(rung), "native", rung), sep = "|")
+  if (!identical(as.integer(salt), 0L)) key <- paste(key, as.integer(salt), sep = "|")
   h <- 2166136261                                  # FNV offset basis (uint32)
   for (b in utf8ToInt(key)) {
     h_low <- as.integer(h %% 128)
@@ -224,29 +228,53 @@ frozen_dir <- function(out_root, site, plot, rung) {
 # raw-with-ground and the normalized variant from that SAME decimated set, plus
 # a TIN DTM and a JSON manifest. Caches under out_root; reuses on re-call.
 # rung = NA means native (no decimation). Returns a list with file paths +
-# densities, or NULL if the clip is unusable.
+# densities, or NULL if the clip is unusable. lidR runs single-threaded here:
+# the TIN normalization of a dense native clip differs by up to about 1 cm
+# between thread counts, so the bytes would otherwise depend on the machine.
+# The clip is made canonical before decimation, because seeded sampling picks
+# points by position: repeated reads of one tile region can return gpstime one
+# ulp apart, which reorders a gpstime-sorted clip. Coordinates are snapped to
+# the LAS grid, gpstime is rounded to the microsecond and points are sorted by
+# gpstime, return number and X, Y, Z (unique in NEON clips). Keeping time order
+# first keeps the LAZ files about 40% smaller than a purely spatial order.
+# A sealed root (frozen_sealed) is read-only: cells come from frozen_read,
+# never from the catalog, so every arm reads the bytes the freeze recorded.
+FROZEN_LIDR_THREADS <- 1L
+FROZEN_POINT_ORDER <- c("gpstime", "ReturnNumber", "X", "Y", "Z")
+frozen_canonical <- function(las) {               # modifies las@data by reference
+  lidR::las_quantize(las, by_reference = TRUE)
+  if ("gpstime" %in% names(las@data))
+    data.table::set(las@data, j = "gpstime", value = round(las@data$gpstime, 6))
+  data.table::setorderv(las@data, intersect(FROZEN_POINT_ORDER, names(las@data)))
+  invisible(las)
+}
 frozen_clip <- function(ctg, site, plot, rung, cx, cy, core_half, out_root,
-                        buffer = 25) {
+                        buffer = 25, salt = 0L) {
+  if (frozen_sealed(out_root))
+    return(frozen_read(out_root, site, plot, rung, cx, cy, core_half, buffer))
   contract <- neon_clip_contract(ctg, site, plot, rung, cx, cy, core_half, buffer)
+  seed <- seed_for(site, plot, rung, salt)
   rdir <- frozen_dir(out_root, site, plot, rung)
-  fp <- list(rawground   = file.path(rdir, "clip_rawground.laz"),
-             normalized  = file.path(rdir, "clip_normalized.laz"),
-             dtm         = file.path(rdir, "ground_dtm.tif"),
-             manifest    = file.path(rdir, "manifest.json"))
+  fp <- frozen_files(rdir)
   if (file.exists(fp$manifest)) {                    # cached -> reuse verbatim
     mf <- jsonlite::read_json(fp$manifest, simplifyVector = TRUE)
     neon_verify_clip(mf, contract, unlist(fp[c("rawground", "normalized", "dtm")]))
+    if (!identical(as.integer(mf$seed), seed))
+      stop("Frozen clip seed differs from the requested realization; use a separate output root")
     return(c(fp, list(pdens = mf$pdens, frdens = mf$frdens, seed = mf$seed)))
   }
   if (any(file.exists(unlist(fp)))) stop("Incomplete frozen cache; use a separate output root")
-  dir.create(rdir, showWarnings = FALSE, recursive = TRUE)
+  threads <- lidR::get_lidr_threads()
+  lidR::set_lidr_threads(FROZEN_LIDR_THREADS)
+  on.exit(lidR::set_lidr_threads(threads), add = TRUE)
   half <- core_half + buffer
   las  <- lidR::clip_rectangle(ctg, cx - half, cy - half, cx + half, cy + half)
   if (lidR::is.empty(las) || lidR::npoints(las) < 100) return(NULL)
-  seed <- seed_for(site, plot, rung)
+  frozen_canonical(las)
   if (!is.na(rung)) { set.seed(seed)
     las <- lidR::decimate_points(las, lidR::homogenize(density = rung, res = 5)) }
   if (sum(las$Classification == 2L) < 10) return(NULL)   # need ground for DTM
+  dir.create(rdir, showWarnings = FALSE, recursive = TRUE)
   dtm <- lidR::rasterize_terrain(las, res = 1, algorithm = lidR::tin())
   nrm <- lidR::normalize_height(las, lidR::tin(), na.rm = TRUE)
   nrm <- lidR::filter_poi(nrm, Z >= -1, Z < 80)
@@ -256,15 +284,242 @@ frozen_clip <- function(ctg, site, plot, rung, cx, cy, core_half, out_root,
   lidR::writeLAS(las, fp$rawground)
   lidR::writeLAS(nrm, fp$normalized)
   terra::writeRaster(dtm, fp$dtm, overwrite = TRUE)
+  # Full-precision densities, so a cache hit returns exactly what the first
+  # call returned (a rounded frdens could cross the 8 pts/m2 gates).
   jsonlite::write_json(list(site = site, plot = plot,
                             rung = ifelse(is.na(rung), "native", rung),
-                            seed = seed, n_raw = lidR::npoints(las),
+                            seed = seed, seed_salt = as.integer(salt),
+                            n_raw = lidR::npoints(las),
                             n_norm = lidR::npoints(nrm),
-                            pdens = round(pdens, 3), frdens = round(frdens, 3),
+                            pdens = pdens, frdens = frdens,
                             buffer = buffer, core_half = core_half,
+                            lidr_threads = FROZEN_LIDR_THREADS,
+                            point_order = FROZEN_POINT_ORDER,
                             coordinate_contract = contract),
                        fp$manifest, auto_unbox = TRUE, pretty = TRUE, digits = NA)
   c(fp, list(pdens = pdens, frdens = frdens, seed = seed))
+}
+
+frozen_files <- function(rdir)
+  list(rawground  = file.path(rdir, "clip_rawground.laz"),
+       normalized = file.path(rdir, "clip_normalized.laz"),
+       dtm        = file.path(rdir, "ground_dtm.tif"),
+       manifest   = file.path(rdir, "manifest.json"))
+
+## ---- the declared frozen root: population + clip manifest ----------------
+# freeze_clips.R writes one root holding population.csv (the declared plot
+# population), clip_manifest.csv (one row per site x plot x rung, with SHA-256
+# of every file) and freeze_contract.json. The clip manifest seals the root.
+# Arms take the root from FROZEN_ROOT= (default below) and never write to it.
+FROZEN_RUNGS <- c(8, 4, 2, 1)
+FROZEN_FILE_KEYS <- c("rawground", "normalized", "dtm", "manifest")
+frozen_root <- function(d, root = NULL) {
+  if (!is.null(root) && nzchar(root)) return(root)
+  file.path(d, "neon", "frozen_2021")
+}
+frozen_sealed <- function(out_root) file.exists(file.path(out_root, "clip_manifest.csv"))
+
+# Integrity failures of the sealed root carry their own class, so that arms
+# which skip a failed plot still stop on them (see skip_failed_plot()).
+frozen_stop <- function(fmt, ...)
+  stop(structure(class = c("frozen_integrity_error", "error", "condition"),
+                 list(message = sprintf(fmt, ...), call = sys.call(-1))))
+
+# Per-process memo of parsed manifests and verified cells, keyed by file path,
+# size and modification time, so repeated reads of one cell hash it once.
+.frozen_memo <- new.env(parent = emptyenv())
+frozen_file_key <- function(paths) {
+  info <- file.info(paths)
+  paste(paths, info$size, as.numeric(info$mtime), collapse = "|")
+}
+
+frozen_clip_manifest <- function(out_root) {
+  path <- file.path(out_root, "clip_manifest.csv")
+  if (!file.exists(path)) frozen_stop("Frozen root has no clip manifest: %s", out_root)
+  key <- frozen_file_key(path)
+  if (!is.null(.frozen_memo[[key]])) return(.frozen_memo[[key]])
+  cm <- read.csv(path, colClasses = c(rung = "character"), stringsAsFactors = FALSE)
+  if (anyDuplicated(paste(cm$site, cm$plot, cm$rung)))
+    frozen_stop("Duplicate cells in the clip manifest")
+  assign(key, cm, envir = .frozen_memo)
+  cm
+}
+
+# Reads one sealed cell. The requested geometry must equal the frozen one and
+# every file must match its recorded SHA-256; a cell recorded as unusable
+# returns NULL, as frozen_clip does when it cannot build the clip.
+frozen_read <- function(out_root, site, plot, rung, cx, cy, core_half, buffer = 25,
+                        manifest = frozen_clip_manifest(out_root)) {
+  seg <- basename(frozen_dir("", site, plot, rung))
+  row <- manifest[manifest$site == site & manifest$plot == plot & manifest$rung == seg, ,
+                  drop = FALSE]
+  if (nrow(row) != 1L)
+    frozen_stop("Frozen root is sealed; %s/%s/%s is not in its clip manifest", site, plot, seg)
+  if (any(abs(c(row$cx - cx, row$cy - cy, row$core_half - core_half, row$buffer - buffer)) > 1e-6))
+    frozen_stop("Frozen clip geometry differs from the request for %s/%s/%s", site, plot, seg)
+  if (!identical(row$status, "ok")) return(NULL)
+  fp <- frozen_files(frozen_dir(out_root, site, plot, rung))
+  key <- frozen_file_key(unlist(fp[FROZEN_FILE_KEYS]))
+  if (is.null(.frozen_memo[[key]])) {
+    got <- vapply(FROZEN_FILE_KEYS, function(k) frozen_sha256(fp[[k]]), character(1))
+    want <- unlist(row[paste0(FROZEN_FILE_KEYS, "_sha256")], use.names = FALSE)
+    if (!identical(unname(got), want))
+      frozen_stop("Frozen clip bytes differ from the clip manifest for %s/%s/%s", site, plot, seg)
+    assign(key, TRUE, envir = .frozen_memo)
+  }
+  mf <- jsonlite::read_json(fp$manifest, simplifyVector = TRUE)   # full-precision densities
+  c(fp, list(pdens = mf$pdens, frdens = mf$frdens, seed = mf$seed))
+}
+
+# Hashes every file of the "ok" cells and writes clip_manifest.csv, which seals
+# the root. `cells` holds one row per site x plot x rung with status, geometry,
+# seed and densities (freeze_clips.R builds it).
+frozen_seal <- function(out_root, cells) {
+  if (frozen_sealed(out_root)) stop("Frozen root is already sealed: ", out_root)
+  if (anyDuplicated(paste(cells$site, cells$plot, cells$rung)))
+    stop("Duplicate cells; not sealing")
+  for (k in FROZEN_FILE_KEYS) cells[[paste0(k, "_sha256")]] <- NA_character_
+  ok <- which(cells$status == "ok")
+  for (i in ok) {
+    fp <- frozen_files(frozen_dir(out_root, cells$site[i], cells$plot[i], cells$rung[i]))
+    for (k in FROZEN_FILE_KEYS) cells[i, paste0(k, "_sha256")] <- frozen_sha256(fp[[k]])
+  }
+  if (anyNA(cells[ok, paste0(FROZEN_FILE_KEYS, "_sha256")]))
+    stop("A frozen file is missing; not sealing")
+  cells <- cells[order(cells$site, cells$plot,
+                       match(cells$rung, c("native", FROZEN_RUNGS))), , drop = FALSE]
+  rownames(cells) <- NULL
+  write.csv(cells, file.path(out_root, "clip_manifest.csv"), row.names = FALSE)
+  invisible(cells)
+}
+
+frozen_sha256 <- function(path)
+  if (file.exists(path)) digest::digest(file = path, algo = "sha256") else NA_character_
+
+# Declared populations. `gate` is the stem gate of site_extension_lib.R and
+# `min_trees` the whole-plot live-tree gate of the historical sweep, applied
+# after the stem gate. Every population also needs one gated stem in the core.
+FROZEN_POPULATIONS <- data.frame(
+  population = c("adopted", "all_mapped", "relaxed"),
+  gate       = c("dbh10", "all_mapped", "dbh10"),
+  min_trees  = c(6L, 6L, 1L),
+  role       = c("headline", "sensitivity: historical stem gate",
+                 "sensitivity: no six-stem plot gate"),
+  stringsAsFactors = FALSE)
+
+frozen_population_spec <- function(population) {
+  spec <- FROZEN_POPULATIONS[FROZEN_POPULATIONS$population == population, , drop = FALSE]
+  if (nrow(spec) != 1L) stop("Unknown population: ", population)
+  spec
+}
+
+# The live mapped reference of one population: the stem gate of
+# site_extension_lib.R. Callers still cut to the plot core, as score_plot does.
+frozen_reference <- function(gt, population = "adopted")
+  ext_gate(ext_live_trees(gt), frozen_population_spec(population)$gate)
+
+# Entry point for every arm: the sealed root, the declared plots of `site` and
+# the gated reference. `A` holds the parsed KEY=VALUE args; FROZEN_ROOT= picks
+# another root and POP= a sensitivity population (default "adopted").
+frozen_scope <- function(d, site, A, gt) {
+  root <- frozen_root(d, A$FROZEN_ROOT)
+  if (!frozen_sealed(root))
+    stop("No sealed frozen root at ", root, "; run scripts/freeze_clips.R first")
+  population <- if (is.null(A$POP)) "adopted" else A$POP
+  pop <- frozen_population(root, site, population)
+  list(root = root, population = population, plots = pop$plotID,
+       gt = frozen_reference(gt, population))
+}
+
+# Resumable arms keep cells from earlier runs. A sidecar <result_file>.frozen
+# records which sealed root and population produced them; resuming against
+# another root or population stops instead of mixing clips. Call once before
+# reading the old results; it writes the sidecar for a fresh file.
+frozen_resume_guard <- function(result_file, scope) {
+  id <- list(clip_manifest_sha256 = frozen_root_id(scope$root), population = scope$population)
+  side <- paste0(result_file, ".frozen")
+  if (file.exists(result_file)) {
+    old <- if (file.exists(side)) jsonlite::read_json(side, simplifyVector = TRUE)
+    if (!identical(old, id))
+      frozen_stop(paste("Results in %s come from another frozen root or population;",
+                        "move them aside to start fresh"), result_file)
+  } else jsonlite::write_json(id, side, auto_unbox = TRUE, pretty = TRUE)
+  invisible(id)
+}
+
+# The same sidecar for arms that rewrite their whole results file each run
+# (the RGB arms, whose box caches do not depend on the clips): the results
+# take apex heights and plots from the sealed root, so they record it.
+frozen_results_stamp <- function(result_file, scope) {
+  id <- list(clip_manifest_sha256 = frozen_root_id(scope$root), population = scope$population)
+  jsonlite::write_json(id, paste0(result_file, ".frozen"), auto_unbox = TRUE, pretty = TRUE)
+  invisible(id)
+}
+
+## ---- provenance of per-cell artifacts -------------------------------------
+# Instance clouds and detection caches are written per cell by one arm and read
+# by others. Each such directory records the sealed root that made it in
+# <dir>/frozen_root.sha256 (the SHA-256 of the root's clip manifest).
+# Producers call frozen_stamp() before writing: it stamps a new or empty
+# directory and stops when the directory holds files made on other clips, so
+# historical artifacts are moved aside, never overwritten. Consumers call
+# frozen_stamp_check(), which stops (or returns FALSE with strict = FALSE) for
+# a directory without the current root's stamp.
+FROZEN_STAMP <- "frozen_root.sha256"
+frozen_root_id <- function(root) frozen_sha256(file.path(root, "clip_manifest.csv"))
+
+frozen_stamp <- function(dir, root) {
+  id <- frozen_root_id(root)
+  if (is.na(id)) stop("No sealed frozen root at ", root)
+  stamp <- file.path(dir, FROZEN_STAMP)
+  held <- setdiff(list.files(dir, recursive = TRUE), FROZEN_STAMP)
+  if (length(held) && !frozen_stamp_check(dir, root, strict = FALSE))
+    frozen_stop("%s holds artifacts made on other clips; move it aside to start fresh", dir)
+  dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  writeLines(id, stamp)
+  invisible(id)
+}
+
+frozen_stamp_check <- function(dir, root, strict = TRUE) {
+  stamp <- file.path(dir, FROZEN_STAMP)
+  ok <- file.exists(stamp) && identical(readLines(stamp, warn = FALSE)[1], frozen_root_id(root))
+  if (!ok && strict)
+    frozen_stop("%s was not made on the frozen root %s; re-run the arm that writes it", dir, root)
+  ok
+}
+
+# Per-cell apexes an arm scored, kept so later studies (the censused-subplot
+# precision) re-score them without inference. `dir` is <nd>/<arm>_detections,
+# stamped with frozen_stamp() before the workers start; one CSV of x, y, z
+# (height above ground) per cell, written atomically.
+frozen_detections_file <- function(dir, plot, rung)
+  file.path(dir, sprintf("%s__%s.csv", plot,
+                         if (length(rung) != 1L || is.na(rung)) "native" else as.character(rung)))
+persist_detections <- function(dir, plot, rung, det) {
+  assert_detection_contract(det)
+  f <- frozen_detections_file(dir, plot, rung)
+  tmp <- paste0(f, ".part")
+  write.csv(det[, c("x", "y", "z")], tmp, row.names = FALSE)
+  if (!file.rename(tmp, f)) stop("Could not persist detections to ", f)
+  invisible(f)
+}
+
+# Consumer check over other arms' artifact directories under `nd`: an absent
+# directory means that arm did not run; a present one must carry the stamp.
+frozen_check_artifacts <- function(nd, dirs, root) {
+  for (x in file.path(nd, dirs)) if (dir.exists(x)) frozen_stamp_check(x, root)
+  invisible(TRUE)
+}
+
+# Plots of one site in one population, from the root's population.csv.
+frozen_population <- function(out_root, site, population = "adopted") {
+  frozen_population_spec(population)
+  path <- file.path(out_root, "population.csv")
+  if (!file.exists(path)) stop("Frozen root has no population: ", out_root)
+  pop <- read.csv(path, stringsAsFactors = FALSE)
+  col <- paste0("in_", population)
+  if (!col %in% names(pop)) stop("Population not declared in ", path, ": ", population)
+  pop[pop$site == site & pop[[col]], , drop = FALSE]
 }
 
 ## ---- canonical pooler: sum counts, never average rates -------------------

@@ -1,0 +1,169 @@
+{
+  "name": "paper-2021-census-support-exact-v2",
+  "rule": "exact 2021 census",
+  "role": "check",
+  "policy": "measured_subplots_uncertainty_interior_v1",
+  "join": "census_event",
+  "missing_reference_policy": "subplot_exclusion",
+  "resolved_blockers": ["datum_review_pending", "flight_provenance_pending"],
+  "evidence": {
+    "reviewed": "2026-10-01",
+    "resolves": ["datum_review_pending", "flight_provenance_pending"],
+    "datum": "Field named points come from the NEON locations API, which declares the geodetic datum WGS84 and gives UTM coordinates in each site's zone (EPSG:32611 at SJER, SOAP and TEAK; EPSG:32610 at WREF and ABBY). The 2021 discrete-LiDAR tiles carry the same EPSG in their headers, and the NEON L3 processing reports state that all products are referenced to ITRF00 and projected to that UTM zone. The ITRF00 and WGS84 realizations differ at the centimetre level, far below the 4 m matching tolerance and the 0.5-1 m uncertainty margin applied to every footprint and mapped stem. The vertical datum correction NEON lists (about 0.6 m) affects elevations only; the scorer uses heights above the frozen ground model.",
+    "flight": "Every clip comes from the sealed frozen root built from the RELEASE-2026 2021 tiles of one flight campaign per site, listed below from NEON's L3 discrete-LiDAR processing reports. Tower and distributed plots of a site share that campaign; the census events admitted are dated within four years of it.",
+    "flights": [
+      {
+        "site": "SJER",
+        "campaign": "2021_SJER_5",
+        "sensor": "RIEGL Q780 2220855, payload P3C1",
+        "flight_days": "2021-03-31",
+        "source": "2021_SJER_5_L3_discrete_lidar_processing.pdf",
+        "sha256": "a38818efcdd755fe299244fd2880e8f8ffb49eb2e39325faf357af301156ceb4"
+      },
+      {
+        "site": "SOAP",
+        "campaign": "2021_SOAP_5",
+        "sensor": "Teledyne Optech Galaxy Prime 5060445, payload P1C2",
+        "flight_days": ["2021-07-12", "2021-07-13"],
+        "source": "2021_SOAP_5_L3_discrete_lidar_processing.pdf",
+        "sha256": "99f914e8c31bf338f744d943e3f4ec7ab286b28719caaf839f9ef6a97f788a81"
+      },
+      {
+        "site": "TEAK",
+        "campaign": "2021_TEAK_5",
+        "sensor": "Teledyne Optech Galaxy Prime 5060445, payload P1C2",
+        "flight_days": ["2021-07-13", "2021-07-14"],
+        "source": "2021_TEAK_5_L3_discrete_lidar_processing.pdf",
+        "sha256": "756471f8972e8ad35ddfbd161ec56ed87f3f4a16f237d4fab6c6b91e6f296d43"
+      },
+      {
+        "site": "WREF",
+        "campaign": "2021_WREF_4",
+        "sensor": "Teledyne Optech Galaxy Prime 5060445, payload P1C2",
+        "flight_days": ["2021-07-18", "2021-07-19", "2021-07-23", "2021-07-24"],
+        "source": "NEON 2021 L3 discrete-LiDAR processing report, as recorded in results/pacific-northwest-extension-results.md"
+      },
+      {
+        "site": "ABBY",
+        "campaign": "2021_ABBY_4",
+        "sensor": "Teledyne Optech Galaxy Prime 5060445, payload P1C2",
+        "flight_days": ["2021-07-19", "2021-07-24"],
+        "source": "NEON 2021 L3 discrete-LiDAR processing report, as recorded in results/pacific-northwest-extension-results.md"
+      }
+    ]
+  },
+  "admitted": [
+    {
+      "site": "TEAK",
+      "plot": "TEAK_043",
+      "event": "vst_TEAK_2021",
+      "year": 2021,
+      "support_id": "3a9a660cbefff7c37fc667ee29dda1268d21962dbc4ac52b3d8e6553c6ab398c"
+    },
+    {
+      "site": "TEAK",
+      "plot": "TEAK_047",
+      "event": "vst_TEAK_2021",
+      "year": 2021,
+      "support_id": "3dbe5b82d9e1cc9dfb5e4b63950688cfbcc7836a96a2ced12d7bea4471765c6f"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_073",
+      "event": "vst_WREF_2021",
+      "year": 2021,
+      "support_id": "82105afb3ec5083bc05d42cc1797ae2a82653fc6a51c1c7d940249193a257620"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_075",
+      "event": "vst_WREF_2021",
+      "year": 2021,
+      "support_id": "9b50a7b133a87e105cdacf66207fded47236b018ae8c65f887d385384cec5e55"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_076",
+      "event": "vst_WREF_2021",
+      "year": 2021,
+      "support_id": "367c90a2a748e649f7eb497cf3869c8ac749efdb184406457455950204447535"
+    },
+    {
+      "site": "WREF",
+      "plot": "WREF_077",
+      "event": "vst_WREF_2021",
+      "year": 2021,
+      "support_id": "e435aec21dec05b6319dd43bd9053ddeee03122d69477208edd916932a2a5fa5"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_061",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "bb8ff3ede0d1d5f053d5abf7f8668cb518fa5431cf3ed4681e3656468d2f16d9"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_062",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "2bc885dfc6ca591caff037b01df463777dd21ebee8b0e1812974813017811bc3"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_063",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "0447d7900a5d9dfc5dff36c6a0f05e0433adb694741bc49aa9453e5817c7ee2e"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_064",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "0455cae6074cf0da717d41ba915db4fb4584c78857335b9226f9b6c2acba65f5"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_067",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "e07785b6d68084ef197717a676cee75d1488bc5ccae17b3693e78f672de7b496"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_068",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "0a3c0839ab64b27cdaa446f99c23c040a6543b105b3343272e1abc242a99cb5b"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_069",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "008b03162d1cdc46bfd25cc9bfdf266eab9439fb35d0297240d576f0486f77dc"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_070",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "2ecb01eee21d44928b5e6c3fb8bb4a70afd9b55d03590ad964075f35a9abd8d7"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_073",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "1d6d512b1338d277db60cd8c251791db38a32c717299ca993cbe5ae08b025dba"
+    },
+    {
+      "site": "ABBY",
+      "plot": "ABBY_076",
+      "event": "vst_ABBY_2021",
+      "year": 2021,
+      "support_id": "71aa28ab2c23cfd8b35ef99381980b604fab4c30c25e12f14dfa621f94903c82"
+    }
+  ]
+}

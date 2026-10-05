@@ -54,12 +54,62 @@ SJER, SOAP, and TEAK. On SOAP's common set of 18 plots and 232 field stems:
   to **0.741**, while F1 falls from **0.414** to **0.406**. Optical boxes and
   native-CHM heights are fixed across rungs; this is not a wholly sparse-input
   experiment.
+- The [native sparse epoch study](results/native-sparse-epoch-results.md)
+  compares earlier, sparser NEON flights (SJER 2017, SOAP and TEAK 2018,
+  about 4–5 first returns per m²) with the 2021 clouds decimated to the
+  bracketing rungs, on the same 586 stems. Decimation is mildly optimistic for
+  CHM-VWF and `multichm` (recall **0.03–0.05** higher than the native flight)
+  and more so for SegmentAnyTree (**0.06** at 4 and **0.19** at 8 points/m²),
+  so its sparse-rung recall is an upper bound.
 
 These are field-stem detection scores. Incomplete mapping and event-specific
 sampling footprints limit their interpretation as complete-census precision.
 The [reference-support audit](results/neon-reference-support-results.md)
 documents those limits. Historical three-site and paired SOAP studies use
 separate reference populations; compare methods within each study.
+
+The [Pacific Northwest preflight](results/pacific-northwest-extension-results.md)
+admits NEON WREF and ABBY, flown in 2021 with the same sensor class, as two
+further sites. The new five-site reference keeps stems of at least 10 cm DBH:
+106 plots and 2,525 stems, against 46 plots and 699 stems in the historical
+SJER, SOAP and TEAK sweep; the classical and learned arms have been scored at
+the new sites, in the censused-subplot study below.
+The [frozen-clip study](results/frozen-clips-results.md) declares that
+population, keeps the six-stem plot gate and freezes one seeded clip per site,
+plot and density rung; every NEON arm now reads those hash-verified clips
+instead of decimating its own.
+
+ForestFormer3D and TreeisoNet have been re-run on all five sites with
+corrected adapters; the
+[re-run comparison](results/model-benchmark-results.md#corrected-adapter-re-runs-on-the-frozen-clips)
+supersedes their June 2026 rows. On the same 530 cells, native-density F1 is
+**0.50** for ForestFormer3D and **0.45** for TreeisoNet. At 1 point/m², both
+arms are near **0.42–0.44**. ForestFormer3D's June SOAP F1 of 0.26 rises to
+0.45 on the same plots. The June TreeisoNet failure on SJER and TEAK came from
+a different voxel setting on those sites.
+
+The [censused-subplot study](results/census-support-results.md) scores
+precision only inside surveyed, censused subplots, from each plot's nearest
+full census within four years of the 2021 flights, with subplots holding
+unmapped census trees excluded. It scores 57 of the 106 plots. On identical
+detections, censused precision is 0.08–0.34 higher than nominal-box precision
+(CHM-VWF at native density: 0.78 against 0.48), and at native density the
+classical arms keep their order. At native density SegmentAnyTree (**0.68**)
+and ForestFormer3D (**0.67**) have the highest censused F1, against **0.61**
+for CHM-VWF; SegmentAnyTree falls to **0.15** at 1 point/m². The
+[coverage-gap study](results/coverage-gap-results.md) brackets the same bias
+from the other side: crediting detections that two other arm families also
+find raises F1 by **+0.07 to +0.14** per arm on the paper population.
+
+The [master tables](results/master-tables-results.md) fix one reference per
+site for every paper table (the declared population: 106 plots and 2,525
+stems), explain each earlier per-report count, and attach paired plot-level
+bootstrap intervals to every pooled number and arm-versus-arm difference. All
+twelve classical, learned point, RGB and promptable arms are in.
+ForestFormer3D (**+0.048 [+0.028, +0.069]**) and SegmentAnyTree
+(**+0.044 [+0.021, +0.067]**) are the arms whose native-density F1 beats
+CHM-VWF with intervals excluding zero on the nominal box; SegmentAnyTree falls
+to F1 0.13 at 1 point/m².
 
 The [point-cloud detector study](results/pointcloud-detector-results.md)
 compares native-density understory recovery by crown class, with a separate
@@ -126,7 +176,9 @@ and evaluation choices. The main principles are:
   resolution, window size, and smoothing; all-return density (`pdens`)
   controls thinning and prevents requests to upsample sparse inputs.
 - Compare equivalent support. Keep site, plot, density, and reference support
-  aligned across methods, and report missing or failed cells explicitly.
+  aligned across methods, and report missing or failed cells explicitly. All
+  NEON arms read one declared plot population and one sealed set of frozen
+  clips.
 - Match detections one-to-one within the mapped plot core, with a height gate.
   Pool counts before calculating rates, and error sums before calculating RMSE.
 - Keep calibration and evaluation plots separate. Density variants of one
@@ -202,6 +254,8 @@ comparison and larger-area experiments.
 
 | Workflow | Instructions and results |
 | --- | --- |
+| Plot population and frozen clips | [Frozen-clip study](results/frozen-clips-results.md); run it before any NEON arm |
+| Precision inside censused subplots | [Censused-subplot study](results/census-support-results.md) and its reviewed declarations under `docs/` |
 | NEON field-stem density ladder | [Density-ladder study](results/density-ladder-sweep-results.md) and [cross-model comparison](results/model-benchmark-results.md) |
 | Crown diameters and segmentation | [Crown benchmark](results/crown-segmentation-results.md) |
 | Paired optical/LiDAR fusion | [RGB-LiDAR comparison](results/rgb-lidar-fusion-results.md) and [confidence calibration](results/confidence-calibration-results.md) |
@@ -239,7 +293,11 @@ scripts and configuration.
 | Toy crown products | [segment_lasr.R](scripts/segment_lasr.R), [segment_lidr.R](scripts/segment_lidr.R), [compare_crowns.R](scripts/compare_crowns.R) |
 | USGS extraction and detection | [extract.json](scripts/extract.json), [detect_lasr_aoi.R](scripts/detect_lasr_aoi.R), [detect_lidr_aoi.R](scripts/detect_lidr_aoi.R), [shared_chm_aoi.R](scripts/shared_chm_aoi.R) |
 | Tiled point-cloud processing | [tile_aoi.R](scripts/tile_aoi.R), [detect_lasr_catalog.R](scripts/detect_lasr_catalog.R), [detect_lidr_catalog.R](scripts/detect_lidr_catalog.R) |
-| NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R) |
+| NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R), [preflight_site_extension.R](scripts/preflight_site_extension.R) |
+| NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
+| NEON master tables and intervals | [master_tables.R](scripts/master_tables.R), [master_tables_lib.R](scripts/master_tables_lib.R) |
+| NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
+| Native sparse epochs | [prepare_sparse_epoch.R](scripts/prepare_sparse_epoch.R), [audit_sparse_epoch.R](scripts/audit_sparse_epoch.R), [compare_sparse_epoch.R](scripts/compare_sparse_epoch.R) |
 | NEON density ladder | [run_sweep.R](scripts/run_sweep.R), [analyze_sweep.R](scripts/analyze_sweep.R), [compare_sites.R](scripts/compare_sites.R) |
 | Point-cloud understory detection | [detect_pc_sweep.R](scripts/detect_pc_sweep.R), [detect_pc_ladder.R](scripts/detect_pc_ladder.R) |
 | Cross-model detection analysis | [analyze_model_benchmark.R](scripts/analyze_model_benchmark.R), [compare_model_sites.R](scripts/compare_model_sites.R) |
@@ -255,6 +313,9 @@ scripts and configuration.
 - [results](results/) — committed study reports and interpretation limits.
 - [docs](docs/) — methodology, study protocols, execution guides, and the
   [paper proposal](docs/paper-proposal.md).
+- [Data and code availability](docs/data-code-availability.md) — data
+  sources, model licences and what the archive holds; the
+  [bibliography](docs/references.bib) holds the verified references.
 - [data](data/) — tracked GeoJSON site, plot, stem, and AOI context.
 - [tests](tests/) — regression tests for scoring, data handling, and workflows.
 
@@ -275,3 +336,17 @@ git diff --check
 Python/GPU tests use the environment required by the affected model or workflow;
 raster tests additionally require `rasterio`. Test success checks implementation
 contracts; performance claims require the corresponding data and study runs.
+
+## License
+
+The code and documentation in this repository are released under the
+[MIT License](LICENSE). Components and data keep their own terms:
+
+- [external/treeiso](external/treeiso/) is vendored under its own MIT License
+  ([LICENSE](external/treeiso/LICENSE)).
+- NEON field and airborne data are released under CC0 1.0; USGS 3DEP point
+  clouds are public domain.
+- FGI-EMIT data are licensed CC BY-NC-SA 4.0 and are not redistributed here.
+- Model checkpoints and container images used by the GPU arms remain under
+  their upstream licences; this repository pins their hashes but does not
+  redistribute them.

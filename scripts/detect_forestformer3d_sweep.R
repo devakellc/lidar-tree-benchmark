@@ -1,19 +1,30 @@
 #!/usr/bin/env Rscript
-# ForestFormer3D (#M8) density-ladder arm. Tiles each plot core into 16 m-radius
-# cylinders, runs FF3D zero-shot ONCE per plot over all cylinders in the
-# ff3d-sm120 container (RAW-WITH-GROUND frozen clip), cross-block dedups the
-# instances, reduces to apex detections, and scores against field stems. SOAP,
-# native + 8 only (the heaviest arm). Serial -- one GPU.
+# ForestFormer3D (#M8) density-ladder arm. Runs FF3D zero-shot in the ff3d-sm120
+# container on the RAW-WITH-GROUND frozen clip (sealed root and declared
+# population of freeze_clips.R), reduces instances to apex detections and
+# scores against field stems. Serial -- one GPU.
 #
-#   rawground.laz --clip_circle(16) x N--> in_dir/cyl_*.laz
-#     --run_docker_arm(ff3d-sm120, ff3d_entry.sh)--> merged.laz
-#     --ff3d_collapse(dedup_blocks + reduce)--> apex(x,y,z UTM)
+# LAYOUT=whole_scene (default) is the indexed native path of the scene-assembly
+# study: the whole clip is one scene, and the export keeps every input row in
+# order with its instance ID, so no outer assembly or merge is involved.
+# LAYOUT=outer_cylinders reproduces the historical June runs (16 m cylinders
+# over the core, cross-block apex dedup); it is kept for reproduction only.
+#
+#   rawground.laz (staged copy) --run_docker_arm(ff3d-sm120)--> scene.laz
+#     --ff3d_scene_check--> --ff3d_collapse--> apex(x,y,z UTM)
 #     --agl_guard(ground_dtm.tif)--> apex(z AGL) --score_plot.
+#
+# The model checkout is copied to a per-run workspace, because upstream writes
+# data/ and work_dirs/ inside it. Every run writes
+# forestformer3d_run_manifest.json (image ID, upstream revision and local
+# modification hash, checkpoint and code hashes, frozen root, population) and
+# every cell a receipt next to its persisted instance cloud.
 #
 # Usage:
 #   Rscript scripts/detect_forestformer3d_sweep.R [SITE=SOAP] [PLOTS=ALL]
-#     [SPACING=24] [MERGE_TOL=2.0] [TOL=4] [IMAGE=ff3d-sm120]
-#     [REPO=<abs>] [CKPT=<abs>] [TIMEOUT=3600] [RUNGS=native,8]
+#     [LAYOUT=whole_scene|outer_cylinders] [SPACING=24] [MERGE_TOL=2.0] [TOL=4]
+#     [IMAGE=ff3d-sm120] [REPO=<abs>] [CKPT=<abs>] [TIMEOUT=3600]
+#     [RUNGS=native,8] [POP=adopted] [FROZEN_ROOT=...]
 # Output: $CLAUDE_JOB_DIR/neon/<SITE>/forestformer3d_results.csv (row per plot x rung).
 suppressMessages({ library(lidR); library(data.table) })
 options(lidR.progress = FALSE)
@@ -36,13 +47,15 @@ MERGE_TOL<- as.numeric(if (is.null(A$MERGE_TOL)) 2.0 else A$MERGE_TOL)
 TOL      <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
 IMAGE    <- if (is.null(A$IMAGE)) "ff3d-sm120" else A$IMAGE
 TIMEOUT  <- as.numeric(if (is.null(A$TIMEOUT)) 3600 else A$TIMEOUT)
+LAYOUT   <- if (is.null(A$LAYOUT)) "whole_scene" else A$LAYOUT
+if (!LAYOUT %in% c("whole_scene", "outer_cylinders"))
+  stop("LAYOUT must be whole_scene or outer_cylinders", call. = FALSE)
 RADIUS   <- 16
 RUNGS_RAW <- if (is.null(A$RUNGS)) c("native", "8") else
   strsplit(A$RUNGS, ",")[[1]]
 RUN_NATIVE <- any(tolower(RUNGS_RAW) == "native")
 RUNGS <- as.numeric(RUNGS_RAW[tolower(RUNGS_RAW) != "native"])
 RUNGS <- RUNGS[is.finite(RUNGS)]
-MINTREES <- 6
 REPO  <- if (is.null(A$REPO)) file.path(.ROOT, "gpu/store/forestformer3d/ForestFormer3D") else A$REPO
 CKPT  <- if (is.null(A$CKPT)) file.path(REPO, "work_dirs/clean_forestformer/epoch_3000_fix.pth") else A$CKPT
 ENTRY <- file.path(.ROOT, "gpu/forestformer3d-sm120/ff3d_entry.sh")
@@ -66,18 +79,46 @@ cyl_centers <- function(cx, cy, ph, spacing) {
 
 run_main <- function() {
   stopifnot(file.exists(ENTRY), file.exists(DRIVER), file.exists(CKPT), file.exists(REPO))
+  CKPT <- container_path(CKPT)              # seen by the container; mounts are resolved
   nd  <- file.path(d, "neon", SITE)
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"),     stringsAsFactors = FALSE)
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
-  counts <- table(gt$plotID); keep <- names(counts)[counts >= MINTREES]
+  fz  <- frozen_scope(d, SITE, A, gt)     # declared population + sealed root
+  gt  <- fz$gt
+  invisible(neon_validate_inputs(gt, pc))
+  keep <- fz$plots
   if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   keep <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] forestformer3d plots: %d (image=%s spacing=%g merge_tol=%g)\n",
-              SITE, length(keep), IMAGE, SPACING, MERGE_TOL))
+  cat(sprintf("[%s] forestformer3d plots (%s): %d (image=%s layout=%s)\n",
+              SITE, fz$population, length(keep), IMAGE, LAYOUT))
+
+  # Run provenance. Results are resumable: the results file is tied to its
+  # sealed root and population, the model identity must match the one that
+  # made the existing rows, and each pass is appended to the manifest.
+  result_file <- file.path(nd, "forestformer3d_results.csv")
+  frozen_resume_guard(result_file, fz)
+  results <- if (file.exists(result_file))
+    read.csv(result_file, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
+  update_run_manifest(file.path(nd, "forestformer3d_run_manifest.json"),
+    identity = list(layout = LAYOUT, image = IMAGE, image_id = docker_image_id(IMAGE),
+      source = git_source_identity(REPO, c("configs", "oneformer3d", "tools")),
+      checkpoint = list(file = basename(CKPT), md5 = unname(tools::md5sum(CKPT)),
+                        sha256 = digest::digest(file = CKPT, algo = "sha256")),
+      frozen_root = frozen_root_id(fz$root), population = fz$population,
+      cylinders = if (LAYOUT == "outer_cylinders")
+        list(radius = RADIUS, spacing = SPACING, merge_tol = MERGE_TOL)),
+    pass = list(rungs = as.list(RUNGS_RAW), timeout = TIMEOUT,
+      started = format(Sys.time(), tz = "UTC", usetz = TRUE),
+      code = file_digests(c(ENTRY, PATCH, DRIVER, file.path(dirname(DRIVER), "ff3d_export.py"),
+                            .find("detect_forestformer3d_sweep.R"), .find("io_bridge.R"),
+                            .find("model_runner.R")))),
+    resuming = !is.null(results))
+  done <- if (is.null(results)) character() else paste(results$plot, results$rung)
+  ws <- file.path(tempdir(), "ff3d_model")
+  if (system2("rsync", shQuote(c("-a", "--exclude=.git", "--exclude=data",
+        "--exclude=work_dirs", "--exclude=__pycache__", paste0(REPO, "/"),
+        paste0(ws, "/")))) != 0L)
+    stop("Cannot isolate the ForestFormer3D workspace")
 
   # Durable per-point instance dir the #34 crown-diameter arm
   # (crown_metrics_deepmodel.R) consumes: the merged per-cylinder labelled LAZ
@@ -85,56 +126,76 @@ run_main <- function() {
   # successful (plot, rung) is persisted here as <plot>_<rung>.laz so the crown arm
   # can re-derive ff3d_crown_table (dedup_blocks + crown_diameter_table +
   # instance_apex) from the SAME labelling without re-running the container.
+  # The directory records the sealed root that made it; one made on other clips
+  # must be moved aside first.
   inst_dir <- file.path(nd, "forestformer3d_instances")
-  dir.create(inst_dir, recursive = TRUE, showWarnings = FALSE)
+  frozen_stamp(inst_dir, fz$root)
 
-  out <- list()
   for (pid in keep) {                       # SERIAL -- one GPU
     ci <- pc[pc$plotID == pid, ][1, ]
     cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
     if (nrow(stems) < 1) next
-    native_pdens <- NA_real_; ncell <- 0L
+    # Native density from the sealed root, so a pass without native still
+    # applies the no-upsampling guard (the root also records upsampled cells).
+    np <- frozen_clip(NULL, SITE, pid, NA, cx, cy, ph, fz$root)
+    native_pdens <- if (is.null(np)) NA_real_ else np$pdens
+    ncell <- 0L; nskip <- 0L; out <- list()
     for (rung in c(if (RUN_NATIVE) NA_real_ else numeric(), RUNGS)) {
-      prep <- tryCatch(frozen_clip(ctg, SITE, pid, rung, cx, cy, ph,
-                                   out_root = file.path(nd, "frozen")),
-                       error = function(e) NULL)
+      prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
       pdens <- prep$pdens; frdens <- prep$frdens
-      if (is.na(rung)) native_pdens <- pdens
-      else if (is.na(native_pdens) || rung >= native_pdens) next
+      if (!is.na(rung) && (is.na(native_pdens) || rung >= native_pdens)) next
       tag <- ifelse(is.na(rung), "native", as.character(rung))
-      # tile the raw clip into cylinders
-      raw <- tryCatch(lidR::readLAS(prep$rawground), error = function(e) NULL)
-      if (is.null(raw) || lidR::is.empty(raw)) next
-      in_dir <- file.path(tempdir(), sprintf("ff3d_%s_%s", pid, tag))
-      unlink(in_dir, recursive = TRUE); dir.create(in_dir, recursive = TRUE)
-      cc <- cyl_centers(cx, cy, ph, SPACING); n_cyl <- 0L
-      for (i in seq_len(nrow(cc))) {
-        cyl <- lidR::clip_circle(raw, cc$cx[i], cc$cy[i], RADIUS)
-        if (lidR::is.empty(cyl) || lidR::npoints(cyl) < 50) next
-        lidR::writeLAS(cyl, file.path(in_dir, sprintf("cyl_%03d.laz", n_cyl)))
-        n_cyl <- n_cyl + 1L
+      dest <- file.path(inst_dir, sprintf("%s_%s.laz", pid, tag))
+      if (paste(pid, tag) %in% done && file.exists(dest) &&
+          file.exists(sub("[.]laz$", ".receipt.json", dest))) {
+        nskip <- nskip + 1L; next           # finished in an earlier pass
       }
-      if (n_cyl == 0L) next
+      cell <- file.path(tempdir(), sprintf("ff3d_%s_%s", pid, tag))
+      unlink(cell, recursive = TRUE); dir.create(cell, recursive = TRUE)
+      if (LAYOUT == "whole_scene") {
+        # A staged copy: the container mounts its input directory, never the root.
+        input <- file.path(cell, "rawground.laz"); n_cyl <- 1L
+        if (!file.copy(prep$rawground, input)) stop("Cannot stage ", prep$rawground)
+      } else {                              # historical cylinder tiling
+        raw <- tryCatch(lidR::readLAS(prep$rawground), error = function(e) NULL)
+        if (is.null(raw) || lidR::is.empty(raw)) next
+        input <- cell
+        cc <- cyl_centers(cx, cy, ph, SPACING); n_cyl <- 0L
+        for (i in seq_len(nrow(cc))) {
+          cyl <- lidR::clip_circle(raw, cc$cx[i], cc$cy[i], RADIUS)
+          if (lidR::is.empty(cyl) || lidR::npoints(cyl) < 50) next
+          lidR::writeLAS(cyl, file.path(cell, sprintf("cyl_%03d.laz", n_cyl)))
+          n_cyl <- n_cyl + 1L
+        }
+        if (n_cyl == 0L) next
+      }
       out_laz <- file.path(tempdir(), sprintf("ff3d_%s_%s.laz", pid, tag))
-      # run_docker_arm passes no env, so REPO/PATCH/DRIVER ride in `extra` as
-      # positional args (entry.sh reads $3..$6); all are identity-mounted.
-      det_abs <- run_docker_arm(IMAGE, in_dir, out_laz,
+      t0 <- Sys.time()
+      # run_docker_arm passes no env, so the workspace/PATCH/DRIVER ride in
+      # `extra` as positional args (entry.sh reads $3..$6); all identity-mounted.
+      det_abs <- run_docker_arm(IMAGE, input, out_laz,
                    cmd    = c("bash", ENTRY),
-                   extra  = c(CKPT, REPO, PATCH, DRIVER),
-                   mounts = c(REPO, dirname(CKPT), dirname(ENTRY)),
+                   extra  = c(CKPT, ws, PATCH, DRIVER),
+                   mounts = c(ws, dirname(CKPT), dirname(ENTRY)),
                    reader = function(p) ff3d_collapse(p, merge_tol = MERGE_TOL),
                    gpus = "all", timeout = TIMEOUT,
                    label = sprintf("%s/%s", pid, tag))
+      seconds <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
       if (is.null(det_abs)) next            # container crash/schema -> skip cell
-      # Persist the merged per-cylinder labelled LAZ for the #34 crown arm before
-      # the next rung reuses out_laz in tempdir (same UserData/PointSourceID schema
-      # ff3d_collapse just read, so the crown arm reads it identically).
-      if (file.exists(out_laz))
-        tryCatch(file.copy(out_laz,
-                           file.path(inst_dir, sprintf("%s_%s.laz", pid, tag)),
-                           overwrite = TRUE), error = function(e) FALSE)
+      if (LAYOUT == "whole_scene") ff3d_scene_check(out_laz, input)   # no fallback
+      # Persist the labelled cloud for the crown and IoU/PQ arms (same
+      # UserData/PointSourceID schema ff3d_collapse just read), with the
+      # driver's export receipt and this cell's receipt.
+      if (!file.copy(out_laz, dest, overwrite = TRUE)) stop("Cannot persist ", dest)
+      if (file.exists(paste0(out_laz, ".json")))
+        file.copy(paste0(out_laz, ".json"), paste0(dest, ".json"), overwrite = TRUE)
+      jsonlite::write_json(list(layout = LAYOUT, input_sha256 = frozen_sha256(prep$rawground),
+                                output_sha256 = frozen_sha256(dest), seconds = seconds,
+                                n_apex = nrow(det_abs)),
+                           sub("[.]laz$", ".receipt.json", dest), auto_unbox = TRUE,
+                           pretty = TRUE, digits = NA)
       det <- agl_guard(det_abs, prep$dtm)
       if (is.null(det)) next                # wholesale off-DTM (frame bug) -> skip
       sc <- tryCatch(score_plot(stems, det, tol_xy = TOL, core_cx = cx,
@@ -143,20 +204,27 @@ run_main <- function() {
       if (is.null(sc)) next
       out[[length(out) + 1]] <- cbind(data.frame(site = SITE, plot = pid,
         plotType = ci$plotType, detector = "forestformer3d", rung = tag,
-        pdens = round(pdens, 2), frdens = round(frdens, 2),
+        pdens = round(pdens, 2), frdens = round(frdens, 2), layout = LAYOUT,
         n_cyl = n_cyl, n_apex = nrow(det)), sc)
       ncell <- ncell + 1L
     }
-    cat(sprintf("  %s: %d cells\n", pid, ncell))
+    cat(sprintf("  %s: %d cells, %d already done\n", pid, ncell, nskip))
+    if (length(out)) {                      # write after every plot: a crash loses one plot
+      new <- do.call(rbind, out)
+      new$tp_core <- round(new$precision * new$n_det)
+      results <- if (is.null(results)) new else
+        rbind(results[!paste(results$plot, results$rung) %in% paste(new$plot, new$rung), ,
+                      drop = FALSE], new)
+      done <- paste(results$plot, results$rung)
+      tmp <- paste0(result_file, ".tmp")
+      write.csv(results, tmp, row.names = FALSE)
+      if (!file.rename(tmp, result_file)) stop("Cannot write ", result_file)
+    }
   }
-  results <- do.call(rbind, out)
   if (is.null(results) || !nrow(results)) {
     cat("no forestformer3d results\n"); return(invisible())
   }
-  results$tp_core <- round(results$precision * results$n_det)
-  write.csv(results, file.path(nd, "forestformer3d_results.csv"), row.names = FALSE)
-  cat(sprintf("[%s] forestformer3d DONE: %d rows -> %s\n", SITE, nrow(results),
-              file.path(nd, "forestformer3d_results.csv")))
+  cat(sprintf("[%s] forestformer3d DONE: %d rows -> %s\n", SITE, nrow(results), result_file))
 }
 
 if (sys.nframe() == 0L) run_main()

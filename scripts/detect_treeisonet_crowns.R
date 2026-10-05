@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
 # TreeisoNet treeOff crown arm (#20). Runs the treeOff crown driver
 # (gpu/run_treeisonet_crowns.py) on the native normalized frozen clip per SOAP
-# plot (SERIAL, single GPU), reduces the per-point instances to apexes + crown
+# plot (sealed root and declared population from freeze_clips.R; SERIAL, single
+# GPU), reduces the per-point instances to apexes + crown
 # diameters (the bridge's reduce_instances + crown_diameter_table on the labeled
 # CANOPY points), matches apexes to field stems (greedy_match with a height
 # gate), and joins NEON field crown diameter. Output is schema-compatible with
@@ -14,7 +15,9 @@
 #
 # Usage:
 #   Rscript scripts/detect_treeisonet_crowns.R [SITE=SOAP] [PLOTS=ALL]
-#       [CONF=0.22] [TOL=4] [HMIN=2]
+#       [CONF=0.22] [TOL=4] [HMIN=2] [POP=adopted] [FROZEN_ROOT=...] [BATCH=1]
+#   BATCH=1 (default) runs every plot in ONE Python process
+#   (gpu/run_treeisonet_batch.py); BATCH=0 starts one process per plot.
 # Output: $CLAUDE_JOB_DIR/neon/<SITE>/treeisonet_crown_metrics.csv
 suppressMessages({ library(lidR); library(data.table); library(grDevices) })
 options(lidR.progress = FALSE)
@@ -41,9 +44,11 @@ PLOTS <- if (is.null(A$PLOTS) || A$PLOTS == "ALL") NULL else strsplit(A$PLOTS, "
 CONF  <- if (is.null(A$CONF))  "0.22" else A$CONF
 TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
 HMIN  <- if (is.null(A$HMIN)) "2" else A$HMIN
-MINTREES <- 6
+MINTREES <- 6    # field-crown-diameter stems per plot (crown sub-population)
 VENV  <- file.path(.ROOT, "gpu/.venv/bin/python")
 DRV   <- file.path(.ROOT, "gpu/run_treeisonet_crowns.py")
+DRV_BATCH <- file.path(.ROOT, "gpu/run_treeisonet_batch.py")
+BATCH <- is.null(A$BATCH) || A$BATCH != "0"   # one GPU process per site (default)
 LOC   <- file.path(.ROOT, "gpu/store/treeaibox/als_treeloc.pth")
 LCFG  <- Sys.glob(file.path(.ROOT, "gpu/store/treeaibox/*reclamation*treeloc*.json"))[1]
 OFF   <- file.path(.ROOT, "gpu/store/treeaibox/als_treeoff.pth")
@@ -63,38 +68,53 @@ field_crowns <- function(site) {
 
 run_main <- function() {
   stopifnot(file.exists(VENV), file.exists(DRV), file.exists(LOC), !is.na(LCFG),
-            file.exists(OFF), !is.na(OCFG))
+            file.exists(OFF), !is.na(OCFG), !BATCH || file.exists(DRV_BATCH))
   nd <- file.path(d, "neon", SITE)
   gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc <- read.csv(file.path(nd, "plot_centroids.csv"),     stringsAsFactors = FALSE)
-  gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
+  fz <- frozen_scope(d, SITE, A, gt)      # declared population + sealed root
+  gt <- fz$gt
+  invisible(neon_validate_inputs(gt, pc))
   gt <- gt[, setdiff(names(gt), c("maxCrownDiameter", "ninetyCrownDiameter")), drop = FALSE]
   neon_reference_epoch(gt, 2021) # This historical crown join is still nearest-to-2021.
   gt <- merge(gt, field_crowns(SITE), by = "individualID", all.x = TRUE)
   gt <- gt[!is.na(gt$maxCrownDiameter) | !is.na(gt$ninetyCrownDiameter), ]
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
+  # Crown sub-population: the declared plots that also hold >= MINTREES gated
+  # stems with a field crown diameter.
   counts <- table(gt$plotID); keep <- names(counts)[counts >= MINTREES]
+  keep <- intersect(fz$plots, keep)
   if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   keep <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] treeisonet crowns: %d plots w/ field CD (conf=%s)\n",
-              SITE, length(keep), CONF))
+  cat(sprintf("[%s] treeisonet crowns (%s): %d plots w/ field CD (conf=%s)\n",
+              SITE, fz$population, length(keep), CONF))
 
-  rows <- list()
-  for (pid in keep) {                       # SERIAL -- single GPU
+  # Collect the plots, run the crown driver once per site (BATCH=1: one GPU
+  # process, CUDA started once), then match each plot's crowns.
+  cells <- list()
+  for (pid in keep) {
     ci <- pc[pc$plotID == pid, ][1, ]; cx <- ci$easting; cy <- ci$northing
     ph <- plot_half(ci$plotType)
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
     if (nrow(stems) < 1) next
-    prep <- tryCatch(frozen_clip(ctg, SITE, pid, NA, cx, cy, ph,
-                                 out_root = file.path(nd, "frozen")),
-                     error = function(e) NULL)
+    prep <- frozen_clip(NULL, SITE, pid, NA, cx, cy, ph, fz$root)
     if (is.null(prep)) next
-    ocsv <- file.path(tempdir(), sprintf("ticr_%s.csv", pid))
-    pts <- run_python_crown_arm(VENV, DRV, prep$normalized, ocsv,
-      extra = c(LOC, LCFG, OFF, OCFG, "0", CONF, HMIN), timeout = 900,
-      label = pid)
+    cells[[pid]] <- list(stems = stems, input = prep$normalized,
+                         ocsv = file.path(tempdir(), sprintf("ticr_%s.csv", pid)))
+  }
+  if (BATCH) {
+    jobs <- lapply(cells, function(cl) list(kind = "crowns", input = cl$input,
+      output = cl$ocsv, loc_pth = LOC, loc_cfg = LCFG, off_pth = OFF, off_cfg = OCFG,
+      voxel = "0", conf = as.numeric(CONF), hmin = as.numeric(HMIN)))
+    cat(sprintf("[%s] batch: %d plots in one process\n", SITE, length(jobs)))
+    run_python_batch(VENV, DRV_BATCH, unname(jobs), timeout = 900 * max(1L, length(jobs)),
+                     label = sprintf("%s crowns batch", SITE))
+  }
+  rows <- list()
+  for (pid in names(cells)) {
+    stems <- cells[[pid]]$stems
+    pts <- if (BATCH) .read_crown_csv(cells[[pid]]$ocsv) else
+      run_python_crown_arm(VENV, DRV, cells[[pid]]$input, cells[[pid]]$ocsv,
+        extra = c(LOC, LCFG, OFF, OCFG, "0", CONF, HMIN), timeout = 900, label = pid)
     if (is.null(pts) || !nrow(pts)) next
     dt  <- as.data.table(pts)
     ap  <- dt[, .(x = X[which.max(Z)], y = Y[which.max(Z)], z = max(Z)), by = crown_id]

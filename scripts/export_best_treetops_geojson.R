@@ -16,14 +16,18 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # best-scoring tested configuration for each site. "Best" means pooled F1 from
 # the cached benchmark metric CSVs. For CHM-VWF we use the richer sweep grid
 # (rung x chm_res x vwf_a); for the other arms we use each detector's tested
-# rung(s). Detections are regenerated from the cached frozen clips and cached as
-# per-cell CSVs so GPU-backed arms can resume.
+# rung(s). Detections are regenerated from the sealed frozen-clip root
+# (freeze_clips.R; default work/neon/frozen_2021, hash-verified) and cached as
+# per-cell CSVs under work/neon/<SITE>/best_treetop_cache/ so GPU-backed arms
+# can resume. The cache is stamped with the root's clip-manifest SHA-256 and a
+# cache made on other clips is refused. Selection and export cover the plots
+# of the root's declared population only (POP=, default adopted).
 #
 # Usage:
 #   Rscript scripts/export_best_treetops_geojson.R \
 #     [SITES=SJER,SOAP,TEAK] [METHODS=ALL|chm_vwf,multichm,...] \
 #     [OUT=work/neon/best_treetops_geojson] [EXTENT=core|recall|all] \
-#     [FORCE=0] [SKIP_GPU=0]
+#     [FORCE=0] [SKIP_GPU=0] [POP=adopted] [FROZEN_ROOT=...]
 #
 # Writes:
 #   OUT/<detector>.geojson
@@ -64,10 +68,7 @@ TREEISONET_VOXEL <- if (is.null(A$TREEISONET_VOXEL)) "0.8,0.8,2.0" else A$TREEIS
 SAT_IMAGE <- if (is.null(A$SAT_IMAGE)) "sat-sm120-test" else A$SAT_IMAGE
 SAT_BATCH <- is.null(A$SAT_BATCH) || A$SAT_BATCH != "0"
 SAT_CORES <- max(1L, as.integer(if (is.null(A$SAT_CORES)) 1L else A$SAT_CORES))
-FF3D_IMAGE <- if (is.null(A$FF3D_IMAGE)) "ff3d-sm120" else A$FF3D_IMAGE
 TIMEOUT <- as.numeric(if (is.null(A$TIMEOUT)) 1800 else A$TIMEOUT)
-FF3D_TIMEOUT <- as.numeric(if (is.null(A$FF3D_TIMEOUT)) 3600 else A$FF3D_TIMEOUT)
-FF3D_SPACING <- as.numeric(if (is.null(A$FF3D_SPACING)) 24 else A$FF3D_SPACING)
 FF3D_MERGE_TOL <- as.numeric(if (is.null(A$FF3D_MERGE_TOL)) 2.0 else A$FF3D_MERGE_TOL)
 dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 
@@ -172,6 +173,8 @@ metric_rows <- function(site, method) {
   f <- metric_file_for(site, method)
   if (!file.exists(f)) return(NULL)
   r <- read.csv(f, stringsAsFactors = FALSE)
+  # Select and export over the declared population's plots only.
+  r <- r[r$plot %in% site_context(site)$plots, , drop = FALSE]
   if (!nrow(r)) return(NULL)
   family <- METHOD_REGISTRY$family[match(method, METHOD_REGISTRY$method)]
   if (family == "chm_sweep") {
@@ -234,11 +237,10 @@ site_context <- function(site) {
   nd <- file.path(d, "neon", site)
   pc <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
   gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  if (!length(laz)) stop("no LAZ files under ", file.path(nd, "lidar"), call. = FALSE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
-  ctx <- list(site = site, nd = nd, pc = pc, ctg = ctg,
+  fz <- frozen_scope(d, site, A, gt)      # declared population + sealed root
+  invisible(neon_validate_inputs(fz$gt, pc))
+  frozen_stamp(detection_cache_dir(nd, fz$root), fz$root)  # once per site, in the parent
+  ctx <- list(site = site, nd = nd, pc = pc, root = fz$root, plots = fz$plots,
               epsg = neon_field_epsg(pc))
   assign(site, ctx, .site_cache)
   ctx
@@ -257,17 +259,22 @@ cache_suffix <- function(method, row) {
   if (method == "segmentanytree")
     parts <- c(parts, sprintf("image%s", SAT_IMAGE))
   if (method == "forestformer3d")
-    parts <- c(parts, sprintf("image%s", FF3D_IMAGE), sprintf("spacing%s", FF3D_SPACING),
-               sprintf("merge%s", FF3D_MERGE_TOL))
+    parts <- c(parts, "wholescene", sprintf("merge%s", FF3D_MERGE_TOL))
   sanitize(paste(parts, collapse = "__"))
 }
+
+# Per-cell detections are cached in one directory per site. site_context()
+# stamps it with the sealed root (frozen_stamp): a cache holding files made on
+# other clips is refused, never reused; move it aside to keep it.
+# crown_metrics_sweep.R (SEED_POLICY=best) checks the same stamp before reading.
+detection_cache_dir <- function(nd, root) file.path(nd, "best_treetop_cache")
 
 cell_cache_path <- function(ctx, method, row) {
   parts <- c(method, ctx$site, row$plot, as.character(row$rung))
   suffix <- cache_suffix(method, row)
   if (nzchar(suffix)) parts <- c(parts, suffix)
-  dir.create(file.path(ctx$nd, "best_treetop_cache"), recursive = TRUE, showWarnings = FALSE)
-  file.path(ctx$nd, "best_treetop_cache", paste0(sanitize(paste(parts, collapse = "__")), ".csv"))
+  file.path(detection_cache_dir(ctx$nd, ctx$root),
+            paste0(sanitize(paste(parts, collapse = "__")), ".csv"))
 }
 
 read_det_cache <- function(path) {
@@ -286,8 +293,25 @@ write_det_cache <- function(det, path) {
 
 ensure_gpu_allowed <- function(method) {
   if (!SKIP_GPU) return(TRUE)
-  if (method %in% c("treeisonet", "segmentanytree", "forestformer3d")) return(FALSE)
+  if (method %in% c("treeisonet", "segmentanytree")) return(FALSE)
   TRUE
+}
+
+# Apexes persisted by detect_treeisonet_sweep.R (treeisonet_detections/), used
+# when its run manifest matches this export's voxel and confidence; otherwise
+# the driver runs here.
+persisted_treeisonet_det <- function(ctx, pid, rung) {
+  dir <- file.path(ctx$nd, "treeisonet_detections")
+  man <- file.path(ctx$nd, "treeisonet_run_manifest.json")
+  if (!dir.exists(dir) || !file.exists(man)) return(NULL)
+  m <- jsonlite::read_json(man, simplifyVector = TRUE)
+  if (!identical(as.character(m$voxel), TREEISONET_VOXEL) ||
+      !identical(as.character(m$conf), TREEISONET_CONF)) return(NULL)
+  frozen_stamp_check(dir, ctx$root)
+  f <- frozen_detections_file(dir, pid, rung_value(rung))
+  if (!file.exists(f)) return(NULL)
+  det <- read.csv(f, stringsAsFactors = FALSE)
+  data.frame(x = as.numeric(det$x), y = as.numeric(det$y), z = as.numeric(det$z))
 }
 
 treeisonet_det <- function(prep, pid, rung) {
@@ -303,14 +327,16 @@ treeisonet_det <- function(prep, pid, rung) {
                  timeout = TIMEOUT, label = sprintf("%s/%s", pid, rung))
 }
 
+# Instance clouds persisted by detect_segmentanytree_sweep.R, read only from a
+# directory stamped with this root (a directory made on other clips stops the
+# run; an absent one means SAT runs here). The unstamped legacy
+# sat_batch_salvage/ outputs are no longer read: nothing ties them to the root.
 persisted_segmentanytree_det <- function(ctx, prep, pid, rung) {
+  dir <- file.path(ctx$nd, "segmentanytree_instances")
+  if (!dir.exists(dir)) return(NULL)
+  frozen_stamp_check(dir, ctx$root)
   stem <- sprintf("%s_%s", pid, rung)
-  candidates <- c(
-    file.path(ctx$nd, "segmentanytree_instances", paste0(stem, ".laz")),
-    file.path(ctx$nd, "segmentanytree_instances", paste0(stem, ".las")),
-    file.path(ctx$nd, "sat_batch_salvage", pid, paste0("sat_", stem, "_out.laz")),
-    file.path(ctx$nd, "sat_batch_salvage", pid, paste0("sat_", stem, "_out.las"))
-  )
+  candidates <- file.path(dir, paste0(stem, c(".laz", ".las")))
   hit <- candidates[file.exists(candidates)]
   if (!length(hit)) return(NULL)
   det_abs <- read_instances_laz(hit[1], id_field = "PredInstance")
@@ -371,44 +397,20 @@ segmentanytree_det <- function(ctx, prep, pid, rung) {
   det_to_agl(det_abs, prep$dtm)
 }
 
-ff3d_cyl_centers <- function(cx, cy, ph, spacing) {
-  k <- max(1L, ceiling((2 * ph) / spacing) + 1L)
-  off <- seq(-ph, ph, length.out = k)
-  g <- expand.grid(dx = off, dy = off)
-  data.frame(cx = cx + g$dx, cy = cy + g$dy)
-}
-
-forestformer3d_det <- function(prep, pid, rung, cx, cy, ph) {
-  repo <- file.path(.ROOT, "gpu/store/forestformer3d/ForestFormer3D")
-  ckpt <- file.path(repo, "work_dirs/clean_forestformer/epoch_3000_fix.pth")
-  entry <- file.path(.ROOT, "gpu/forestformer3d-sm120/ff3d_entry.sh")
-  patch <- file.path(.ROOT, "gpu/forestformer3d-sm120/ff3d_repo.patch")
-  driver <- file.path(.ROOT, "gpu/forestformer3d-sm120/ff3d_arm.py")
-  if (!file.exists(repo) || !file.exists(ckpt) || !file.exists(entry) || !file.exists(driver))
-    stop("ForestFormer3D assets are missing", call. = FALSE)
-  raw <- lidR::readLAS(prep$rawground)
-  if (is.null(raw) || lidR::is.empty(raw)) return(empty_det())
-  in_dir <- file.path(tempdir(), sprintf("export_ff3d_%s_%s", pid, rung))
-  unlink(in_dir, recursive = TRUE, force = TRUE)
-  dir.create(in_dir, recursive = TRUE, showWarnings = FALSE)
-  cc <- ff3d_cyl_centers(cx, cy, ph, FF3D_SPACING)
-  n_cyl <- 0L
-  for (i in seq_len(nrow(cc))) {
-    cyl <- lidR::clip_circle(raw, cc$cx[i], cc$cy[i], 16)
-    if (lidR::is.empty(cyl) || lidR::npoints(cyl) < 50) next
-    lidR::writeLAS(cyl, file.path(in_dir, sprintf("cyl_%03d.laz", n_cyl)))
-    n_cyl <- n_cyl + 1L
-  }
-  if (n_cyl == 0L) return(empty_det())
-  out_laz <- file.path(tempdir(), sprintf("export_ff3d_%s_%s.laz", pid, rung))
-  det_abs <- run_docker_arm(FF3D_IMAGE, in_dir, out_laz,
-    cmd = c("bash", entry),
-    extra = c(ckpt, repo, patch, driver),
-    mounts = c(repo, dirname(ckpt), dirname(entry)),
-    reader = function(p) ff3d_collapse(p, merge_tol = FF3D_MERGE_TOL),
-    gpus = "all", timeout = FF3D_TIMEOUT,
-    label = sprintf("%s/%s", pid, rung))
-  if (is.null(det_abs)) return(NULL)
+# ForestFormer3D apexes from the labelled clouds its whole-scene sweep persisted
+# (forestformer3d_instances/, stamped with this root), reduced exactly as the
+# sweep reduces them (ff3d_collapse, then agl_guard on the frozen DTM). The
+# export never runs ForestFormer3D itself: its old outer-cylinder staging was
+# the superseded adapter.
+persisted_forestformer3d_det <- function(ctx, prep, pid, rung) {
+  dir <- file.path(ctx$nd, "forestformer3d_instances")
+  f <- file.path(dir, sprintf("%s_%s.laz", pid, rung))
+  if (!file.exists(f))
+    stop("No persisted ForestFormer3D cloud ", f,
+         "; run detect_forestformer3d_sweep.R (whole scene) first", call. = FALSE)
+  frozen_stamp_check(dir, ctx$root)
+  det_abs <- ff3d_collapse(f, merge_tol = FF3D_MERGE_TOL)
+  if (is.null(det_abs)) stop("Unreadable ForestFormer3D cloud: ", f, call. = FALSE)
   agl_guard(det_abs, prep$dtm)
 }
 
@@ -427,8 +429,7 @@ generate_cell_det <- function(ctx, row) {
   ci <- ctx$pc[ctx$pc$plotID == row$plot, ][1, ]
   cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
   rung_lbl <- as.character(row$rung)
-  prep <- frozen_clip(ctx$ctg, ctx$site, row$plot, rung_value(rung_lbl), cx, cy, ph,
-                      out_root = file.path(ctx$nd, "frozen"))
+  prep <- frozen_clip(NULL, ctx$site, row$plot, rung_value(rung_lbl), cx, cy, ph, ctx$root)
   if (is.null(prep)) return(NULL)
   det <- switch(method,
     chm_vwf = detect_lasr(prep$normalized, as.numeric(row$chm_res),
@@ -464,9 +465,12 @@ generate_cell_det <- function(ctx, row) {
       det_lidr_li2012(las)
     },
     lasr_lmax_pc = det_lasr_lmax_pc(prep$normalized, ws_factory(A_VWF)),
-    treeisonet = treeisonet_det(prep, row$plot, rung_lbl),
+    treeisonet = {
+      det_p <- persisted_treeisonet_det(ctx, row$plot, rung_lbl)
+      if (is.null(det_p)) treeisonet_det(prep, row$plot, rung_lbl) else det_p
+    },
     segmentanytree = segmentanytree_det(ctx, prep, row$plot, rung_lbl),
-    forestformer3d = forestformer3d_det(prep, row$plot, rung_lbl, cx, cy, ph),
+    forestformer3d = persisted_forestformer3d_det(ctx, prep, row$plot, rung_lbl),
     stop("unhandled method: ", method)
   )
   if (is.null(det)) return(NULL)
@@ -548,8 +552,7 @@ segmentanytree_batch_features <- function(ctx, rows, sel) {
     ci <- ctx$pc[ctx$pc$plotID == row$plot, ][1, ]
     cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
     rung_lbl <- as.character(row$rung)
-    prep <- frozen_clip(ctx$ctg, ctx$site, row$plot, rung_value(rung_lbl), cx, cy, ph,
-                        out_root = file.path(ctx$nd, "frozen"))
+    prep <- frozen_clip(NULL, ctx$site, row$plot, rung_value(rung_lbl), cx, cy, ph, ctx$root)
     if (is.null(prep)) next
 
     if (is.null(det)) {
@@ -615,7 +618,7 @@ segmentanytree_batch_features <- function(ctx, rows, sel) {
         det_to_layer(ctx, cell$row, sel, det)
       }
       one_layers <- if (SAT_CORES > 1L && length(cells) > 1L)
-        parallel::mclapply(cells, run_single,
+        plot_lapply(cells, run_single,
                            mc.cores = min(SAT_CORES, length(cells)),
                            mc.preschedule = FALSE) else lapply(cells, run_single)
       for (lyr in one_layers)

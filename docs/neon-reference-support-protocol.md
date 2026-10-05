@@ -4,6 +4,15 @@
 The declarations below document the retired study, not authorization to resume
 it. Existing safeguards and diagnostic-only status remain unchanged.
 
+**Reused on 2026-10-01** for the paper's five sites (SJER, SOAP, TEAK, WREF,
+ABBY) by the
+[censused-subplot precision study](../results/census-support-results.md).
+For the paper the headline support of a plot is its nearest all-growth-forms
+census within four years of the 2021 flights, joined by census event (all
+measurements of the event, whatever their date); the exact 2021 census is a
+check. Amendments are recorded under Geometry and Boundaries and Scoring
+Contract. HARV and BART stay retired.
+
 This is a score-blind reference audit, not a detector comparison. Preserve all
 historical inputs and rectangular scores. HARV remains development; BART is
 held out. Do not freeze eligibility or run inference from these diagnostics.
@@ -34,8 +43,14 @@ Use the guide's Figure 2 point numbering: 100 m2 subplot corners are the
 southwest anchor plus offsets 0, 1, 10, 9; 400 m2 corners use 0, 2, 20, 18.
 Fetch all four named-point coordinates, preserve their API records and use
 their measured quadrilateral. Never synthesize missing corners from a plot
-centroid, a tower label or an area total. Four 100 m2 subplots also support
-20 m tower plots; the historical tower-size default is not used for geometry.
+centroid, a tower label or an area total. Amendment of 2026-10-01: a complete
+2 x 2 block of 100 m2 subplots (anchors a, a+1, a+9, a+10) is the same square
+as the 400 m2 subplot anchored at a. NEON lists distributed plots both ways but
+surveys only their outer corners and centre, so such a block is drawn from the
+surveyed corners a, a+2, a+20, a+18 and each member subplot checks against it.
+Incomplete blocks keep their own 100 m2 corners and fail closed without them.
+Four 100 m2 subplots also support 20 m tower plots; the historical tower-size
+default is not used for geometry.
 
 The listed subplot areas must sum to the event's sampled tree area. Reject
 duplicates, overlaps, invalid geometries and missing coordinate uncertainty.
@@ -57,6 +72,19 @@ recall. Precision counts only detections inside the interior. Unsampled
 quadrants are never precision denominators. Even inside sampled polygons,
 unmatched detections can represent trees outside the target population;
 reference-relative precision is not independently verified tree precision.
+
+Missing-reference policy (amendment of 2026-10-01): subplot exclusion. A
+census target without a usable mapped position (no coordinates, an unusable
+or flagged mapping, an unknown or unlisted subplot, an unresolved duplicate)
+still stands in its subplot, so every sampled subplot holding one is removed
+from the precision interior before erosion; for a merged 2 x 2 block that is
+the whole block. A target with a position but no usable height stays a
+reference matched on position alone, flagged `height_unknown`. Recall keeps
+the references inside the remaining interior. A missing target whose subplot
+is unknown or not sampled makes the plot unscorable. The declared
+sensitivity `subplot_exclusion_strict` also removes the subplots of
+heightless targets. Missing references are never imputed, and a declaration
+cannot clear them without one of these policies.
 
 Record geometry, event, population, uncertainty policy, input hashes and code
 identity with outputs. Reject stale support caches and mixed-support pooling.

@@ -17,10 +17,9 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # The canonical density-ladder pipeline (run_sweep.R -> density-ladder-sweep-
 # results.md) scores CHM-VWF only (lasR local_maximum_raster on a pit_fill CHM).
 # This adds a parallel `multichm` arm (Eysn-style multi-layer CHM local maxima,
-# lidRplugins::multichm) built on the SAME prepare_clip lasR-based path the
-# cached CHM-VWF sweep_results.csv was built on -- identical clip provenance
-# (clip -> decimate_points -> normalize_height), so the head-to-head stays
-# internally consistent (unlike the frozen-clip pitfree model benchmark).
+# lidRplugins::multichm) read from the SAME sealed frozen-clip root and
+# declared population as run_sweep.R's CHM-VWF ladder (freeze_clips.R), so the
+# head-to-head scores identical bytes per plot x rung.
 #
 # Per plot x density rung {native, 8, 4, 2, 1 pts/m^2}, with the same
 # no-upsampling guard (rung target vs the plot's native all-return density) and
@@ -29,22 +28,22 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # 0.5 m) and the clamped variable window ws_factory(0.10) -- same discipline as
 # detect_lidrplugins_sweep.R::det_multichm; there is no chm_res/vwf_a grid here.
 #
-# Dependency note: this arm needs only lidR + lidRplugins (prepare_clip uses lidR
-# only and we never call lasR's local_maximum_raster(ws = f)), so CRAN lasR is
-# fine -- the lasR pre-devel build is NOT required to run the multichm arm. The
-# CHM-VWF baseline comes from the cached sweep_results.csv via analyze_multichm_sweep.R.
+# Dependency note: this arm needs only lidR + lidRplugins (we never call lasR's
+# local_maximum_raster(ws = f)), so CRAN lasR is fine -- the lasR pre-devel
+# build is NOT required to run the multichm arm. The CHM-VWF baseline comes
+# from the cached sweep_results.csv via analyze_multichm_sweep.R.
 #
 # Usage:
 #   Rscript scripts/detect_multichm_sweep.R [SITE=SOAP] [PLOTS=ALL] [CORES=8]
-#       [TOL=4] [A=0.10]
+#       [TOL=4] [A=0.10] [POP=adopted] [FROZEN_ROOT=...] [OUT=...]
 # Output: $CLAUDE_JOB_DIR/neon/<SITE>/multichm_sweep_results.csv (one row per
-#         plot x rung).
+#         plot x rung), or OUT.
 suppressMessages({ library(lidR); library(lidRplugins); library(sf)
                    library(data.table); library(parallel) })
 options(lidR.progress = FALSE)
 d <- .job_dir()
-source(.find("sweep_lib.R"))        # prepare_clip, plot_half, score_plot, ws_factory
-source(.find("model_bench_lib.R"))  # assert_detection_contract
+source(.find("sweep_lib.R"))        # plot_half, score_plot, ws_factory
+source(.find("model_bench_lib.R"))  # frozen_scope, frozen_clip, assert_detection_contract
 
 ## ---- tops sf -> (x,y,z) detection contract -------------------------------
 # Pull lowercase x,y,z from a locate_trees() sf. multichm geometry is 2-D, so
@@ -81,25 +80,21 @@ PLOTS <- if (is.null(A$PLOTS) || A$PLOTS == "ALL") NULL else strsplit(A$PLOTS, "
 CORES <- as.integer(if (is.null(A$CORES)) 8 else A$CORES)
 TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
 A_VWF <- as.numeric(if (is.null(A$A))   0.10 else A$A)
-RUNGS    <- c(8, 4, 2, 1)        # native is added per-plot as the top rung
-MINTREES <- 6                    # min live trees to sweep a plot (matches run_sweep.R)
+RUNGS    <- FROZEN_RUNGS         # native is added per-plot as the top rung
 
 run_main <- function() {
   nd  <- file.path(d, "neon", SITE)
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"),     stringsAsFactors = FALSE)
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
-  counts <- table(gt$plotID)
-  keep   <- names(counts)[counts >= MINTREES]
+  fz  <- frozen_scope(d, SITE, A, gt)     # declared population + sealed root
+  gt  <- fz$gt
+  invisible(neon_validate_inputs(gt, pc))
+  out_csv <- if (is.null(A$OUT)) file.path(nd, "multichm_sweep_results.csv") else A$OUT
+  keep   <- fz$plots
   if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   keep   <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] multichm plots: %d (%s)\n", SITE, length(keep),
+  cat(sprintf("[%s] multichm plots (%s): %d (%s)\n", SITE, fz$population, length(keep),
               paste(keep, collapse = ",")))
-
-  tmpdir <- file.path(tempdir(), "multichm"); dir.create(tmpdir, showWarnings = FALSE)
 
   run_plot <- function(pid) {
     ci <- pc[pc$plotID == pid, ][1, ]
@@ -111,18 +106,17 @@ run_main <- function() {
     out <- list(); native_pdens <- NA_real_
     # native first (rung = NA) -> captures native density; then decimated rungs.
     for (rung in c(NA, RUNGS)) {
-      prep <- tryCatch(prepare_clip(ctg, cx, cy, rung, tmpdir, core_half = ph),
-                       error = function(e) NULL)
+      prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
       pdens <- prep$pdens; frdens <- prep$frdens
       if (is.na(rung)) native_pdens <- pdens
       # no-upsampling guard: rung TARGET vs the plot's NATIVE all-return density.
-      else if (is.na(native_pdens) || rung >= native_pdens) { unlink(prep$file); next }
-      las <- tryCatch(readLAS(prep$file), error = function(e) NULL)
-      if (is.null(las) || is.empty(las)) { unlink(prep$file); next }
+      else if (is.na(native_pdens) || rung >= native_pdens) next
+      las <- tryCatch(readLAS(prep$normalized), error = function(e) NULL)
+      if (is.null(las) || is.empty(las)) next
       res <- if (frdens >= 8) 0.25 else 0.5      # density-derived, like CHM-VWF
       det <- det_multichm_run(las, res = res, a = A_VWF)
-      if (is.null(det)) { unlink(prep$file); next }  # detector crash -> skip cell
+      if (is.null(det)) next                     # detector crash -> skip cell
       sc <- score_plot(stems, det, tol_xy = TOL, core_cx = cx, core_cy = cy,
                        core_half = ph)
       sc <- cbind(data.frame(site = SITE, plot = pid, plotType = ci$plotType,
@@ -130,16 +124,18 @@ run_main <- function() {
                              pdens = round(pdens, 2), frdens = round(frdens, 2),
                              chm_res = res, n_apex = nrow(det)), sc)
       out[[length(out) + 1]] <- sc
-      unlink(prep$file)
     }
     if (!length(out)) return(NULL)
     do.call(rbind, out)
   }
 
   t0 <- Sys.time()
-  res_list <- mclapply(keep, function(p) tryCatch(run_plot(p), error = function(e) {
-                message("plot ", p, " failed: ", conditionMessage(e)); NULL }),
-                mc.cores = CORES, mc.preschedule = FALSE)
+  # Fresh workers: a dead forked worker would come back as NULL, like a plot
+  # without stems.
+  res_list <- plot_lapply(keep, function(p) tryCatch(run_plot(p), error = function(e) {
+                message("plot ", p, " failed: ", conditionMessage(e)); e }),
+                mc.cores = CORES)
+  stop_failed_plots(keep, res_list)
   results <- do.call(rbind, Filter(Negate(is.null), res_list))
   dt <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
   if (is.null(results) || !nrow(results)) {
@@ -148,9 +144,9 @@ run_main <- function() {
   }
   # core true positives for the precision denominator (poolers recover them here).
   results$tp_core <- round(results$precision * results$n_det)
-  write.csv(results, file.path(nd, "multichm_sweep_results.csv"), row.names = FALSE)
+  write.csv(results, out_csv, row.names = FALSE)
   cat(sprintf("[%s] multichm DONE: %d rows in %.1f min -> %s\n", SITE, nrow(results),
-              dt, file.path(nd, "multichm_sweep_results.csv")))
+              dt, out_csv))
 
   cat("\noverall recall/precision by rung (pooled; res density-derived, a=0.10):\n")
   agg <- do.call(rbind, lapply(c("native", "8", "4", "2", "1"), function(rl) {
