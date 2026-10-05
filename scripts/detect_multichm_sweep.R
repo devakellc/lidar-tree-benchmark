@@ -80,7 +80,6 @@ PLOTS <- if (is.null(A$PLOTS) || A$PLOTS == "ALL") NULL else strsplit(A$PLOTS, "
 CORES <- as.integer(if (is.null(A$CORES)) 8 else A$CORES)
 TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
 A_VWF <- as.numeric(if (is.null(A$A))   0.10 else A$A)
-RUNGS    <- FROZEN_RUNGS         # native is added per-plot as the top rung
 
 run_main <- function() {
   nd  <- file.path(d, "neon", SITE)
@@ -105,7 +104,7 @@ run_main <- function() {
     if (nrow(stems) < 1) return(NULL)
     out <- list(); native_pdens <- NA_real_
     # native first (rung = NA) -> captures native density; then decimated rungs.
-    for (rung in c(NA, RUNGS)) {
+    for (rung in c(NA, frozen_root_rungs(fz$root))) {
       prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
       pdens <- prep$pdens; frdens <- prep$frdens
