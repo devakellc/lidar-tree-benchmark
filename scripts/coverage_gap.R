@@ -26,17 +26,23 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # is visible, never hidden. Recall/TP are untouched: an unmapped tree can never
 # become a TP, it just stops counting against the arm.
 #
-# Detections per arm come from the best_treetop_cache written by
-# export_best_treetops_geojson.R -- each arm at its best tested configuration
-# (one rung per site), i.e. exactly the cells behind the leaderboard -- plus the
-# RGB arms' persisted crown boxes (deepforest_boxes/ tile CSVs,
-# detectree2_boxes/<plot>.csv; apex z from the native frozen CHM as in
+# Detections per arm come from the best_treetop_cache written (and stamped with
+# the sealed root) by export_best_treetops_geojson.R -- each arm at its best
+# tested configuration (one rung per site), i.e. exactly the cells behind the
+# leaderboard -- plus the RGB arms' persisted crown boxes (deepforest_boxes/
+# tile CSVs, detectree2_boxes/<plot>.csv; apex z from the native frozen CHM as in
 # detect_deepforest_sweep.R). Witness evidence is treated as rung-independent:
 # a tree's physical existence does not depend on the decimation rung, so every
 # arm testifies at its own best operating point. LADDER=1 additionally
 # regenerates the canonical CHM-VWF detector (detect_lasr, density-derived res,
-# a=0.10) on every frozen rung so the per-rung bias curve is measured on one arm
-# (detector = "chm_vwf_ladder"; witnesses unchanged).
+# a=0.10) on every usable frozen rung of the plot (native + FROZEN_RUNGS; the
+# sealed root has no upsampled cells) so the per-rung bias curve is measured on
+# one arm (detector = "chm_vwf_ladder"; witnesses unchanged).
+#
+# Plots, scored stems and clips come from the sealed frozen root and declared
+# population (freeze_clips.R; POP=, FROZEN_ROOT=). Credit eligibility keeps
+# EVERY live mapped stem of the plot, whatever the population's DBH gate: a
+# mapped stem below the gate still explains a detection on it.
 #
 # A CRED_R x MIN_FAM sensitivity grid (fp_cred_r*_f* columns) is carried per
 # cell so the report can show how the credit moves with the rule's strictness.
@@ -44,11 +50,12 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # Usage:
 #   Rscript scripts/coverage_gap.R SITE=SOAP
 #   Rscript scripts/coverage_gap.R SITES=SOAP,SJER,TEAK CORES=1 LADDER=1
-# (CORES=1 default: the ladder path runs lasR exec, which drops dense cells
-#  under fork -- see the repo memory on mclapply + lasR.)
+#     [POP=adopted] [FROZEN_ROOT=...] [MINTREES=1]
+# (CORES=1 default; plots run on fresh workers, see plot_lapply in sweep_lib.R,
+#  because lasR exec dropped dense cells in forked workers.)
 # Reads (read-only): work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv},
-#   best_treetop_cache/, deepforest_boxes/, detectree2_boxes/, and the frozen
-#   normalized clips + manifests.
+#   best_treetop_cache/, deepforest_boxes/, detectree2_boxes/, and the sealed
+#   frozen root's normalized clips + manifests.
 # Writes: work/neon/<SITE>/coverage_gap.csv (one row per site x plot x cell;
 #   pool with pool() -- fp_credited feeds precision_cred/F1_cred).
 suppressMessages({ library(lidR); library(data.table); library(parallel) })
@@ -70,6 +77,8 @@ MIN_FAM  <- as.integer(if (is.null(A$MIN_FAM)) 2 else A$MIN_FAM)
 VWF_A    <- as.numeric(if (is.null(A$VWF_A)) 0.10 else A$VWF_A)
 CHM_RES  <- as.numeric(if (is.null(A$CHM_RES)) 0.5 else A$CHM_RES)
 LADDER   <- is.null(A$LADDER) || A$LADDER != "0"
+# The declared population supplies the plot gate; MINTREES only drops plots
+# with fewer gated stems in the scored core.
 MINTREES <- as.integer(if (is.null(A$MINTREES)) 1 else A$MINTREES)
 SELECTION <- if (is.null(A$SELECTION))
   file.path(d, "neon", "best_treetops_geojson", "best_treetop_selection.csv") else
@@ -79,16 +88,11 @@ SENS_F   <- c(1L, 2L)                   # min-witness-family sensitivity
 
 LIDAR_ARMS <- names(FAMILY_MAP)[!FAMILY_MAP %in% "rgb"]
 
-frozen_norm_path <- function(nd, site, pid, rung)
-  file.path(nd, "frozen", site, pid, rung, "clip_normalized.laz")
-frozen_manifest  <- function(nd, site, pid, rung)
-  file.path(nd, "frozen", site, pid, rung, "manifest.json")
-
-# native frozen CHM for the optical arms' apex z (detect_deepforest_sweep.R)
-plot_chm <- function(nd, site, pid) {
-  clip <- frozen_norm_path(nd, site, pid, "native")
-  if (!file.exists(clip)) return(NULL)
-  las <- tryCatch(suppressWarnings(lidR::readLAS(clip)), error = function(e) NULL)
+# native frozen CHM for the optical arms' apex z (detect_deepforest_sweep.R);
+# `cell` is the plot's native frozen cell (frozen_clip), NULL when unusable.
+plot_chm <- function(cell) {
+  if (is.null(cell)) return(NULL)
+  las <- tryCatch(suppressWarnings(lidR::readLAS(cell$normalized)), error = function(e) NULL)
   if (is.null(las) || lidR::is.empty(las)) return(NULL)
   tryCatch(suppressWarnings(
     lidR::rasterize_canopy(las, res = CHM_RES, algorithm = lidR::p2r())),
@@ -106,12 +110,12 @@ site_deepforest_boxes <- function(nd) {
 }
 
 ## ---- per-plot: materialize every cell, build the witness pool, credit ------
-run_plot <- function(site, pid, pc, gt, nd, df_boxes, sel) {
+run_plot <- function(site, pid, pc, gt, nd, df_boxes, sel, root, mapped) {
   ci <- pc[pc$plotID == pid, ][1, ]
   cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
-  pstems <- gt[gt$plotID == pid, , drop = FALSE]
-  stems <- pstems[abs(pstems$E - cx) <= ph &
-                  abs(pstems$N - cy) <= ph, , drop = FALSE]
+  pstems <- mapped[mapped$plotID == pid, , drop = FALSE]   # every live mapped stem
+  stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph &
+              abs(gt$N - cy) <= ph, , drop = FALSE]        # the population's core
   if (nrow(stems) < MINTREES) return(NULL)
 
   ## 1. cells: every arm's cached best-configuration detections (+ optical).
@@ -133,7 +137,7 @@ run_plot <- function(site, pid, pc, gt, nd, df_boxes, sel) {
   ## the plot's stems stay in the recall denominator exactly as in
   ## detect_deepforest_sweep.R. A missing detectree2_boxes/<plot>.csv means the
   ## arm never ran there (cell skipped), an empty one means it found nothing.
-  chm <- plot_chm(nd, site, pid)
+  chm <- plot_chm(frozen_clip(NULL, site, pid, NA, cx, cy, ph, root))
   if (!is.null(chm)) {
     if (!is.null(df_boxes)) {
       bp <- df_boxes[abs(df_boxes$x - cx) <= ph + TOL &
@@ -193,16 +197,13 @@ run_plot <- function(site, pid, pc, gt, nd, df_boxes, sel) {
   ## 4. CHM-VWF density ladder: regenerate the canonical detector per frozen
   ## rung so the bias curve is measured against density on one arm.
   if (LADDER) {
-    rungs <- basename(Sys.glob(file.path(nd, "frozen", site, pid, "*")))
-    for (rung in rungs) {
-      clip <- frozen_norm_path(nd, site, pid, rung)
-      if (!file.exists(clip)) next
-      frdens <- tryCatch(jsonlite::read_json(frozen_manifest(nd, site, pid, rung),
-                                             simplifyVector = TRUE)$frdens,
-                         error = function(e) NA_real_)
-      if (is.null(frdens) || is.na(frdens)) frdens <- 8
+    for (rung in c("native", as.character(FROZEN_RUNGS))) {
+      cell <- frozen_clip(NULL, site, pid, rung, cx, cy, ph, root)  # hash-verified
+      if (is.null(cell)) next                       # upsampled / unusable cell
+      frdens <- cell$frdens
       res <- if (frdens >= 8) 0.25 else 0.5
-      det <- tryCatch(detect_lasr(clip, res, VWF_A, frdens), error = function(e) NULL)
+      det <- tryCatch(detect_lasr(cell$normalized, res, VWF_A, frdens),
+                      error = function(e) NULL)
       if (is.null(det)) next
       fps <- fp_points(stems, det, tol_xy = TOL, core_cx = cx, core_cy = cy,
                        core_half = ph, elig_stems = pstems)
@@ -213,6 +214,12 @@ run_plot <- function(site, pid, pc, gt, nd, df_boxes, sel) {
 }
 
 ## ---- per-site driver ------------------------------------------------------
+# The apex cache must carry the sealed root's stamp (frozen_stamp): detections
+# made on other clips stop the run instead of being credited. Checked for every
+# site before any site runs, outside the per-site error handler
+# (frozen_check_artifacts).
+ARTIFACT_DIRS <- "best_treetop_cache"
+
 run_site <- function(site) {
   nd <- file.path(d, "neon", site)
   gtf <- file.path(nd, "ground_truth_stems.csv")
@@ -221,20 +228,21 @@ run_site <- function(site) {
     cat(sprintf("[%s] no ground truth / centroids -- skipped\n", site)); return(NULL) }
   gt <- read.csv(gtf, stringsAsFactors = FALSE)
   pc <- read.csv(pcf, stringsAsFactors = FALSE)
-  gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), , drop = FALSE]
+  fz <- frozen_scope(d, site, A, gt)              # declared population + sealed root
+  mapped <- frozen_reference(gt, "all_mapped")    # credit eligibility: any DBH
+  gt <- fz$gt
   df_boxes <- site_deepforest_boxes(nd)
   sel <- read_selection(SELECTION, site)
-  plots <- intersect(unique(gt$plotID), pc$plotID)
-  cat(sprintf("[%s] crediting %d plots (rgb boxes: %s; selection: %s; ladder: %s)\n",
-              site, length(plots),
+  plots <- intersect(fz$plots, pc$plotID)
+  cat(sprintf("[%s] crediting %d plots (%s; rgb boxes: %s; selection: %s; ladder: %s)\n",
+              site, length(plots), fz$population,
               if (is.null(df_boxes)) "none" else nrow(df_boxes),
               if (is.null(sel)) "glob fallback" else sprintf("%d arms", nrow(sel)),
               if (LADDER) "on" else "off"))
   if (!length(plots)) return(NULL)
-  res_list <- mclapply(plots, function(p)
-    tryCatch(run_plot(site, p, pc, gt, nd, df_boxes, sel),
-             error = function(e) { message("  ", p, " failed: ",
-                                            conditionMessage(e)); NULL }),
+  res_list <- plot_lapply(plots, function(p)
+    tryCatch(run_plot(site, p, pc, gt, nd, df_boxes, sel, fz$root, mapped),
+             error = skip_failed_plot(p)),   # frozen integrity errors still stop
     mc.cores = CORES, mc.preschedule = FALSE)
   res <- rbindlist(Filter(Negate(is.null), res_list), fill = TRUE)
   if (!nrow(res)) { cat(sprintf("[%s] no cells scored\n", site)); return(NULL) }
@@ -316,8 +324,11 @@ print_report <- function(res) {
 
 run_main <- function() {
   t0 <- Sys.time(); all_res <- list()
+  for (site in SITES) frozen_check_artifacts(file.path(d, "neon", site), ARTIFACT_DIRS,
+                                             frozen_root(d, A$FROZEN_ROOT))
   for (site in SITES) {
     r <- tryCatch(run_site(site), error = function(e) {
+      if (inherits(e, "frozen_integrity_error")) stop(e)   # never skip a bad root
       message("site ", site, " failed: ", conditionMessage(e)); NULL })
     if (!is.null(r)) all_res[[site]] <- r
   }

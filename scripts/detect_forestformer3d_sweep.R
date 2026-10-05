@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
 # ForestFormer3D (#M8) density-ladder arm. Tiles each plot core into 16 m-radius
 # cylinders, runs FF3D zero-shot ONCE per plot over all cylinders in the
-# ff3d-sm120 container (RAW-WITH-GROUND frozen clip), cross-block dedups the
+# ff3d-sm120 container (RAW-WITH-GROUND frozen clip from the sealed root and
+# declared population of freeze_clips.R), cross-block dedups the
 # instances, reduces to apex detections, and scores against field stems. SOAP,
 # native + 8 only (the heaviest arm). Serial -- one GPU.
 #
@@ -14,6 +15,7 @@
 #   Rscript scripts/detect_forestformer3d_sweep.R [SITE=SOAP] [PLOTS=ALL]
 #     [SPACING=24] [MERGE_TOL=2.0] [TOL=4] [IMAGE=ff3d-sm120]
 #     [REPO=<abs>] [CKPT=<abs>] [TIMEOUT=3600] [RUNGS=native,8]
+#     [POP=adopted] [FROZEN_ROOT=...]
 # Output: $CLAUDE_JOB_DIR/neon/<SITE>/forestformer3d_results.csv (row per plot x rung).
 suppressMessages({ library(lidR); library(data.table) })
 options(lidR.progress = FALSE)
@@ -42,7 +44,6 @@ RUNGS_RAW <- if (is.null(A$RUNGS)) c("native", "8") else
 RUN_NATIVE <- any(tolower(RUNGS_RAW) == "native")
 RUNGS <- as.numeric(RUNGS_RAW[tolower(RUNGS_RAW) != "native"])
 RUNGS <- RUNGS[is.finite(RUNGS)]
-MINTREES <- 6
 REPO  <- if (is.null(A$REPO)) file.path(.ROOT, "gpu/store/forestformer3d/ForestFormer3D") else A$REPO
 CKPT  <- if (is.null(A$CKPT)) file.path(REPO, "work_dirs/clean_forestformer/epoch_3000_fix.pth") else A$CKPT
 ENTRY <- file.path(.ROOT, "gpu/forestformer3d-sm120/ff3d_entry.sh")
@@ -69,15 +70,14 @@ run_main <- function() {
   nd  <- file.path(d, "neon", SITE)
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"),     stringsAsFactors = FALSE)
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
-  counts <- table(gt$plotID); keep <- names(counts)[counts >= MINTREES]
+  fz  <- frozen_scope(d, SITE, A, gt)     # declared population + sealed root
+  gt  <- fz$gt
+  invisible(neon_validate_inputs(gt, pc))
+  keep <- fz$plots
   if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   keep <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] forestformer3d plots: %d (image=%s spacing=%g merge_tol=%g)\n",
-              SITE, length(keep), IMAGE, SPACING, MERGE_TOL))
+  cat(sprintf("[%s] forestformer3d plots (%s): %d (image=%s spacing=%g merge_tol=%g)\n",
+              SITE, fz$population, length(keep), IMAGE, SPACING, MERGE_TOL))
 
   # Durable per-point instance dir the #34 crown-diameter arm
   # (crown_metrics_deepmodel.R) consumes: the merged per-cylinder labelled LAZ
@@ -85,8 +85,10 @@ run_main <- function() {
   # successful (plot, rung) is persisted here as <plot>_<rung>.laz so the crown arm
   # can re-derive ff3d_crown_table (dedup_blocks + crown_diameter_table +
   # instance_apex) from the SAME labelling without re-running the container.
+  # The directory records the sealed root that made it; one made on other clips
+  # must be moved aside first.
   inst_dir <- file.path(nd, "forestformer3d_instances")
-  dir.create(inst_dir, recursive = TRUE, showWarnings = FALSE)
+  frozen_stamp(inst_dir, fz$root)
 
   out <- list()
   for (pid in keep) {                       # SERIAL -- one GPU
@@ -96,9 +98,7 @@ run_main <- function() {
     if (nrow(stems) < 1) next
     native_pdens <- NA_real_; ncell <- 0L
     for (rung in c(if (RUN_NATIVE) NA_real_ else numeric(), RUNGS)) {
-      prep <- tryCatch(frozen_clip(ctg, SITE, pid, rung, cx, cy, ph,
-                                   out_root = file.path(nd, "frozen")),
-                       error = function(e) NULL)
+      prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
       pdens <- prep$pdens; frdens <- prep$frdens
       if (is.na(rung)) native_pdens <- pdens

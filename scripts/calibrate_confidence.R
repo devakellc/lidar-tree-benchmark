@@ -37,16 +37,18 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # Each arm's raw score is min-max normalized per arm to a predicted probability
 # in [0,1] (the uncalibrated p); isotonic recalibration then maps it to precision.
 #
-# Detections are materialized from the SAME frozen cells as #P1 (native, equal
-# set), labelled TP/FP with greedy_match restricted to the plot core (mirroring
+# Detections are materialized from the SAME sealed frozen cells as #P1 (native,
+# equal set; the declared population's plots, freeze_clips.R), labelled TP/FP
+# with greedy_match restricted to the plot core (mirroring
 # score_plot's precision denominator). A detection is TP if it is the matched
 # detection for some core stem, else (in-core, unmatched) FP; buffer detections
 # are ignored.
 #
 # Usage:
-#   Rscript scripts/calibrate_confidence.R SITES=SOAP,SJER,TEAK
-# Reads: work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv}, the frozen
-#   normalized clips + DTMs, and the persisted deep instance clouds.
+#   Rscript scripts/calibrate_confidence.R SITES=SOAP,SJER,TEAK [POP=adopted]
+#     [FROZEN_ROOT=...]
+# Reads: work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv}, the sealed
+#   frozen root's normalized clips + DTMs, and the persisted deep instance clouds.
 # Writes: work/neon/<SITE>/confidence_calibration.csv (one row per detection:
 #   site,plot,arm,raw,prob,label) and work/neon/<SITE>/confidence_lookup.csv (the
 #   per-arm isotonic knots and raw-score scale for deployment). Fusion benchmarks
@@ -74,7 +76,6 @@ SAT_ID_FIELD <- "PredInstance"
 ARMS <- c("chm_vwf", "multichm", "li2012", "segmentanytree", "forestformer3d", "deepforest")
 YEAR <- if (is.null(A$YEAR)) "2021" else A$YEAR
 
-fz <- function(nd, site, pid, f) file.path(nd, "frozen", site, pid, RUNG, f)
 inst_path <- function(idir, pid) {
   cand <- file.path(idir, paste0(pid, "_", RUNG, c(".laz", ".las")))
   hit <- cand[file.exists(cand)]; if (length(hit)) hit[1] else NA_character_
@@ -171,31 +172,42 @@ label_dets <- function(det, stems, cx, cy, ph) {
 }
 
 ## ---- per-site driver ------------------------------------------------------
+# Deep arms' instance clouds must carry the sealed root's stamp (frozen_stamp);
+# an absent directory means that arm did not run. Checked for every site before
+# any site runs, outside the per-site error handler (frozen_check_artifacts).
+# Only SegmentAnyTree and ForestFormer3D are read from disk; the other arms
+# detect on the frozen clip here.
+ARTIFACT_DIRS <- intersect(paste0(ARMS, "_instances"),
+                           c("segmentanytree_instances", "forestformer3d_instances"))
+
 run_site <- function(site, arms = ARMS) {
   nd <- file.path(d, "neon", site)
   gtf <- file.path(nd, "ground_truth_stems.csv"); pcf <- file.path(nd, "plot_centroids.csv")
   if (!file.exists(gtf) || !file.exists(pcf)) return(NULL)
   gt <- read.csv(gtf, stringsAsFactors = FALSE); pc <- read.csv(pcf, stringsAsFactors = FALSE)
-  gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), , drop = FALSE]
-  plots <- intersect(unique(gt$plotID), pc$plotID)
+  fz <- frozen_scope(d, site, A, gt)              # declared population + sealed root
+  gt <- fz$gt
+  plots <- intersect(fz$plots, pc$plotID)
   one_plot <- function(pid) {
     ci <- pc[pc$plotID == pid, ][1, ]; cx <- ci$easting; cy <- ci$northing
     ph <- plot_half(ci$plotType)
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, , drop = FALSE]
     if (!nrow(stems)) return(NULL)
-    clip <- fz(nd, site, pid, "clip_normalized.laz")
-    if (!file.exists(clip)) return(NULL)
+    cell <- frozen_clip(NULL, site, pid, RUNG, cx, cy, ph, fz$root)  # hash-verified
+    if (is.null(cell)) return(NULL)                 # upsampled / unusable cell
+    clip <- cell$normalized
     las <- tryCatch(suppressWarnings(lidR::readLAS(clip)), error = function(e) NULL)
     if (is.null(las) || lidR::is.empty(las)) return(NULL)
-    frdens <- tryCatch(jsonlite::read_json(fz(nd, site, pid, "manifest.json"),
-                       simplifyVector = TRUE)$frdens, error = function(e) NA_real_)
-    if (is.null(frdens) || is.na(frdens)) frdens <- 8
+    frdens <- cell$frdens
     res <- if (frdens >= 8) 0.25 else 0.5
-    dtm <- fz(nd, site, pid, "ground_dtm.tif")
+    dtm <- cell$dtm
+    # Optical apex heights always come from the native cell.
+    native <- if ("deepforest" %in% arms)
+      frozen_clip(NULL, site, pid, NA, cx, cy, ph, fz$root) else NULL
     out <- list()
     for (arm in arms) {
       det <- tryCatch(if (arm == "deepforest")
-        deepforest_plot_detections(nd, site, pid, cx, cy, ph + TOL, YEAR) else
+        deepforest_plot_detections(nd, site, native$normalized, cx, cy, ph + TOL, YEAR) else
         arm_dets(arm, las, clip, dtm, frdens, res, nd, pid),
                       error = function(e) NULL)
       lab <- label_dets(det, stems, cx, cy, ph)
@@ -208,8 +220,8 @@ run_site <- function(site, arms = ARMS) {
     rbindlist(out)
   }
   res <- rbindlist(Filter(Negate(is.null),
-            mclapply(plots, function(p) tryCatch(one_plot(p),
-              error = function(e) { message("  ", p, ": ", conditionMessage(e)); NULL }),
+            plot_lapply(plots, function(p) tryCatch(one_plot(p),
+              error = skip_failed_plot(p)),   # frozen integrity errors still stop
               mc.cores = CORES, mc.preschedule = FALSE)))
   if (!nrow(res)) { cat(sprintf("[%s] no detections labelled\n", site)); return(NULL) }
   res <- res[is.finite(res$raw), ]
@@ -254,6 +266,8 @@ report <- function(res, oos = oos_calibrated(res)) {
 
 run_main <- function() {
   t0 <- Sys.time(); all_res <- list()
+  if (!FROM_CACHE) for (site in SITES)
+    frozen_check_artifacts(file.path(d, "neon", site), ARTIFACT_DIRS, frozen_root(d, A$FROZEN_ROOT))
   for (site in SITES) {
     r <- tryCatch(if (FROM_CACHE) {
       path <- file.path(d, "neon", site, "confidence_calibration.csv")
@@ -268,6 +282,7 @@ run_main <- function() {
       }
       cached
     } else run_site(site), error = function(e) {
+      if (inherits(e, "frozen_integrity_error")) stop(e)   # never skip a bad root
       message("site ", site, " failed: ", conditionMessage(e)); NULL })
     if (!is.null(r)) all_res[[site]] <- r
   }

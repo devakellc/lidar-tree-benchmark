@@ -27,7 +27,8 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # metrics.R then unions these per-model CSVs with the #7 CHM arms, the #30 3-D
 # arms, and the TreeisoNet negative result and pools per algorithm.
 #
-# This arm consumes PERSISTED GPU instance artefacts (it NEVER runs a container):
+# This arm consumes PERSISTED GPU instance artefacts (it NEVER runs a container)
+# from directories stamped with the sealed root (frozen_stamp_check):
 #   SegmentAnyTree  -> work/neon/<SITE>/segmentanytree_instances/<plot>_<rung>.laz
 #                      (merged per-point LAS with the PredInstance extra dim;
 #                      see detect_segmentanytree_sweep.R for the merged-LAS
@@ -47,7 +48,7 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # Both LAS variants keep ABSOLUTE UTM Z, but the crown diameter (a horizontal X/Y
 # convex hull) is invariant to the Z datum; only the apex z feeds the matching
 # height gate, where the field stem heights are AGL. The instance LAS is therefore
-# converted to AGL at its apex via the cached frozen clip's ground_dtm.tif (the
+# converted to AGL at its apex via the sealed frozen cell's ground_dtm.tif (the
 # same det_to_agl the detection arms use) before matching, so the height gate is
 # apples-to-apples. A plot whose DTM or instance LAS is absent is SKIPPED with a
 # message -- never fabricated.
@@ -60,12 +61,14 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # Usage:
 #   Rscript scripts/crown_metrics_deepmodel.R SITE=SOAP
 #   Rscript scripts/crown_metrics_deepmodel.R SITES=SOAP,SJER,TEAK CORES=4 TOL=4
+#     [POP=adopted] [FROZEN_ROOT=...]
 #
 # Reads (read-only): work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv},
 #   the cached field-crown widths work/neon/<SITE>/vst/<site>_vst_allyears.rds,
-#   the cached frozen clips' ground DTM
-#   work/neon/<SITE>/frozen/<SITE>/<plot>/<rung>/ground_dtm.tif (reused, never
-#   regenerated), and the persisted instance clouds above.
+#   the ground DTM of each sealed frozen cell (freeze_clips.R; default root
+#   work/neon/frozen_2021, hash-verified, never regenerated), and the persisted
+#   instance clouds above. Plots and the stem gate come from the root's declared
+#   population (POP=, default adopted).
 # Writes (NEW per-model files, never overwrites the #7/#30 CSVs):
 #   work/neon/<SITE>/segmentanytree_crown_metrics.csv
 #   work/neon/<SITE>/forestformer3d_crown_metrics.csv  (one row per matched tree,
@@ -89,7 +92,7 @@ SITES <- if (!is.null(A$SITES)) {
 CORES <- as.integer(if (is.null(A$CORES)) 4 else A$CORES)
 TOL   <- as.numeric(if (is.null(A$TOL))  4 else A$TOL)
 MERGE_TOL <- as.numeric(if (is.null(A$MERGE_TOL)) 2.0 else A$MERGE_TOL)
-MINTREES  <- 6
+MINTREES  <- 6   # crown sub-population: >= 6 gated stems with a field crown diameter
 # Crown diameter is scored at ONE rung per plot to keep the pooled table one row
 # per matched tree (matching #30, which crown-scores native only) -- mixing rungs
 # would double-count a stem. Default native; RUNGS=native,8 widens it (each rung
@@ -169,20 +172,22 @@ instance_path <- function(idir, pid, rung) {
   if (length(hit)) hit[1] else NA_character_
 }
 
-# Match model_bench_lib.R::frozen_clip(), whose callers pass
-# out_root = work/neon/<SITE>/frozen and which writes out_root/<SITE>/<plot>/<rung>.
-frozen_dtm_path <- function(nd, site, pid, rung) {
-  file.path(nd, "frozen", site, pid, rung, "ground_dtm.tif")
+# The ground DTM of the sealed frozen cell the cloud was inferred on, read
+# through frozen_clip() (model_bench_lib.R) so its bytes are hash-verified.
+# NULL when the cell is recorded as unusable or upsampled.
+frozen_dtm <- function(root, site, pid, rung, cx, cy, ph) {
+  prep <- frozen_clip(NULL, site, pid, rung, cx, cy, ph, root)
+  if (is.null(prep)) NULL else prep$dtm
 }
 
 ## ---- per-plot deep-model crown benchmark ---------------------------------
 # For one model and one plot: for every rung with a persisted instance cloud,
 # load (diam, apex) from the SAME labelling, convert the apex z to AGL via the
-# cached frozen DTM (absolute UTM Z -> height above ground, matching the field
+# sealed frozen DTM (absolute UTM Z -> height above ground, matching the field
 # stem height gate), match to the plot-core stems with the shared
 # score_crowns_against_field glue, and return canonical-cols rows. The rung is
 # only used to locate the cloud + its DTM; one matched tree per stem per cell.
-run_plot_model <- function(site, pid, mname, model, pc, gt, fc, nd) {
+run_plot_model <- function(site, pid, mname, model, pc, gt, fc, nd, root) {
   ci <- pc[pc$plotID == pid, ][1, ]
   cx <- ci$easting; cy <- ci$northing
   ph <- plot_half(ci$plotType)
@@ -199,9 +204,9 @@ run_plot_model <- function(site, pid, mname, model, pc, gt, fc, nd) {
     sg <- tryCatch(model$load(ipath), error = function(e) NULL)
     if (is.null(sg)) next                           # unreadable/schema -> skip
     if (!nrow(sg$apex)) next                        # ran-but-empty -> no crowns
-    # The cached frozen DTM lives alongside the clip the cloud was inferred on.
-    dtm <- frozen_dtm_path(nd, site, pid, rung)
-    if (!file.exists(dtm)) next                     # no DTM -> cannot AGL-gate
+    # The frozen DTM lives alongside the clip the cloud was inferred on.
+    dtm <- frozen_dtm(root, site, pid, rung, cx, cy, ph)
+    if (is.null(dtm)) next                          # no DTM -> cannot AGL-gate
     apex_agl <- tryCatch(det_to_agl(sg$apex, dtm), error = function(e) NULL)
     if (is.null(apex_agl) || !nrow(apex_agl)) next  # all apexes off-DTM -> skip
     r <- score_crowns_against_field(sg$diam, apex_agl, stems, fc, tol = TOL,
@@ -218,26 +223,29 @@ run_plot_model <- function(site, pid, mname, model, pc, gt, fc, nd) {
 }
 
 ## ---- per-site, per-model driver -------------------------------------------
-# Mirrors crown_metrics_3d.R::run_site: live & is_tree stems, authoritative rds
-# crown-diameter join (drop any pre-existing CD cols first), >=MINTREES plots,
-# mclapply over plots, write the NEW per-model crown-metrics CSV. Returns a named
-# list of per-model result frames (only models that produced rows).
+# Mirrors crown_metrics_3d.R::run_site: the declared population's gated stems,
+# authoritative rds crown-diameter join (drop any pre-existing CD cols first),
+# the population's plots with >=MINTREES stems carrying a field crown diameter,
+# plot_lapply over plots, write the NEW per-model crown-metrics CSV. Returns a
+# named list of per-model result frames (only models that produced rows).
 run_site <- function(site) {
   nd  <- file.path(d, "neon", site)
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
+  fz  <- frozen_scope(d, site, A, gt)     # declared population + sealed root
+  gt  <- fz$gt
   gt  <- gt[, setdiff(names(gt),
                       c("maxCrownDiameter", "ninetyCrownDiameter")), drop = FALSE]
   fc  <- field_crowns(site)
   gt  <- merge(gt, fc, by = "individualID", all.x = TRUE)
   gt  <- gt[!is.na(gt$maxCrownDiameter) | !is.na(gt$ninetyCrownDiameter), ]
+  invisible(neon_validate_inputs(gt, pc))
 
   counts <- table(gt$plotID)
   keep <- names(counts)[counts >= MINTREES]
-  keep <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] plots with >=%d stems w/ field CD: %d (%s)\n",
-              site, MINTREES, length(keep), paste(keep, collapse = ",")))
+  keep <- intersect(intersect(fz$plots, keep), pc$plotID)
+  cat(sprintf("[%s] %s plots with >=%d stems w/ field CD: %d (%s)\n",
+              site, fz$population, MINTREES, length(keep), paste(keep, collapse = ",")))
   if (!length(keep)) return(NULL)
 
   out <- list()
@@ -249,11 +257,15 @@ run_site <- function(site) {
                   site, mname, model$dir))
       next
     }
-    res_list <- mclapply(keep, function(p)
-      tryCatch(run_plot_model(site, p, mname, model, pc, gt, fc, nd),
+    frozen_stamp_check(idir, fz$root)    # instance clouds made on these clips only
+    res_list <- plot_lapply(keep, function(p)
+      tryCatch(run_plot_model(site, p, mname, model, pc, gt, fc, nd, fz$root),
                error = function(e) { message("  ", mname, "/", p, " failed: ",
-                                              conditionMessage(e)); NULL }),
+                                              conditionMessage(e)); e }),
       mc.cores = CORES, mc.preschedule = FALSE)
+    # Missing artefacts are skipped inside run_plot_model; an error (e.g. a
+    # frozen DTM that no longer matches its hash) must stop the run.
+    stop_failed_plots(keep, res_list)
     res <- do.call(rbind, Filter(Negate(is.null), res_list))
     if (is.null(res) || !nrow(res)) {
       cat(sprintf("[%s] %s: no crowns matched\n", site, mname)); next }
@@ -304,11 +316,12 @@ print_tables <- function(res) {
 ## ---- run ------------------------------------------------------------------
 run_main <- function() {
   t0 <- Sys.time()
-  all_res <- list()
+  all_res <- list(); failed <- character()
   for (site in SITES) {
     r <- tryCatch(run_site(site), error = function(e) {
-      message("site ", site, " failed: ", conditionMessage(e)); NULL })
-    if (!is.null(r)) all_res[[site]] <- do.call(rbind, r)
+      message("site ", site, " failed: ", conditionMessage(e)); e })
+    if (inherits(r, "error")) failed <- c(failed, site)
+    else if (!is.null(r)) all_res[[site]] <- do.call(rbind, r)
   }
   res <- do.call(rbind, all_res)
   dt <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
@@ -324,6 +337,8 @@ run_main <- function() {
     cat("instance clouds under work/neon/<SITE>/{segmentanytree,",
         "forestformer3d}_instances/.\n", sep = "")
   }
+  # Other sites still finish, write and print; a failed site must not pass silently.
+  if (length(failed)) stop("sites failed: ", paste(failed, collapse = ","), call. = FALSE)
 }
 
 if (sys.nframe() == 0L) run_main()

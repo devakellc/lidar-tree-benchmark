@@ -40,10 +40,13 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #      F1 + understory recall, and emit the routing table the workflow ships with.
 #
 # Usage:
-#   Rscript scripts/route_detectors.R SITES=SOAP,SJER,TEAK
+#   Rscript scripts/route_detectors.R SITES=SOAP,SJER,TEAK [FROZEN_ROOT=...]
 # Reads: work/neon/<SITE>/{sweep_results,multichm_sweep_results,
-#   segmentanytree_results,li2012_results,forestformer3d_results}.csv and the
-#   frozen normalized clips. Writes: work/neon/<SITE>/router_policy.csv
+#   segmentanytree_results,li2012_results,forestformer3d_results}.csv, the
+#   plot centroids, and the normalized clips of the sealed frozen-clip root
+#   (freeze_clips.R; default work/neon/frozen_2021, hash-verified). A scored cell
+#   missing from that root stops the run: the CSVs were made on another root.
+#   Writes: work/neon/<SITE>/router_policy.csv
 #   (per-cell features + oracle label + held-out router prediction) and prints the
 #   fitted CART + the policy comparison behind results/detector-routing-results.md.
 suppressMessages({ library(lidR); library(data.table); library(rpart) })
@@ -58,6 +61,9 @@ A     <- setNames(lapply(args, `[`, 2), sapply(args, `[`, 1))
 SITES <- if (!is.null(A$SITES)) strsplit(A$SITES, ",")[[1]] else
   if (!is.null(A$SITE)) A$SITE else c("SOAP", "SJER", "TEAK")
 VWF_A   <- as.numeric(if (is.null(A$VWF_A)) 0.10 else A$VWF_A)
+FROZEN_ROOT <- frozen_root(d, A$FROZEN_ROOT)
+if (!frozen_sealed(FROZEN_ROOT))
+  stop("No sealed frozen root at ", FROZEN_ROOT, "; run scripts/freeze_clips.R first")
 CORE_ARMS <- c("chm_vwf", "multichm", "segmentanytree")  # the equal-set ladder
 FEATURES  <- c("frdens", "pdens", "rumple", "cover", "height_cv", "gap", "mean_ht")
 # canonical CHM resolution rule (matches the benchmark): fine when dense.
@@ -125,10 +131,14 @@ build_site <- function(site) {
   # deploy-time features per surviving cell (frdens/pdens carried on the rows)
   meta <- unique(guarded[guarded$arm == "chm_vwf",
                          c(CELL_KEYS, "frdens", "pdens")])
+  pc <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
   feats <- rbindlist(lapply(seq_len(nrow(cells)), function(i) {
     cl <- cells[i, ]
-    clip <- file.path(nd, "frozen", site, cl$plot, cl$rung, "clip_normalized.laz")
-    ff <- if (file.exists(clip)) clip_features(clip) else NULL
+    ci <- pc[pc$plotID == cl$plot, ][1, ]
+    # Hash-verified sealed cell; NULL when recorded as upsampled or unusable.
+    prep <- frozen_clip(NULL, site, cl$plot, cl$rung, ci$easting, ci$northing,
+                        plot_half(ci$plotType), FROZEN_ROOT)
+    ff <- if (!is.null(prep)) clip_features(prep$normalized) else NULL
     if (is.null(ff)) return(NULL)
     cbind(cl, ff)
   }), fill = TRUE)

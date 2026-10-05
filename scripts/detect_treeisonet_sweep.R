@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 # TreeisoNet (#M7) density-ladder arm. Runs the headless TreeisoNet apex driver
-# (gpu/run_treeisonet.py) on the NORMALIZED frozen clip per plot x density rung,
-# SERIALLY (single GPU -- no mclapply contention), scoring against field stems
+# (gpu/run_treeisonet.py) on the NORMALIZED frozen clip per plot x density rung
+# (sealed root and declared population from freeze_clips.R), SERIALLY (single GPU -- no mclapply contention), scoring against field stems
 # with the existing harness. Apex-only (treeLoc -> postPeakExtraction ->
 # local-canopy-max z-snap); the treeOff crown variant is issue #20. `conf` is a
 # fixed zero-shot threshold, calibrated once (NOT per plot). Normalized Z is
@@ -10,7 +10,7 @@
 #
 # Usage:
 #   Rscript scripts/detect_treeisonet_sweep.R [SITE=SOAP] [PLOTS=ALL]
-#       [CONF=0.22] [VOXEL=0] [TOL=4]
+#       [CONF=0.22] [VOXEL=0] [TOL=4] [POP=adopted] [FROZEN_ROOT=...]
 #   VOXEL may be a scalar isotropic override or "x,y,z" (e.g. 0.8,0.8,2.0).
 # Requires the venv + weights from gpu/setup_treeisonet_env.sh + gpu/mirror_weights.sh.
 # Output: $CLAUDE_JOB_DIR/neon/<SITE>/treeisonet_results.csv (one row per
@@ -40,7 +40,7 @@ PLOTS <- if (is.null(A$PLOTS) || A$PLOTS == "ALL") NULL else strsplit(A$PLOTS, "
 CONF  <- if (is.null(A$CONF))  "0.22" else A$CONF
 VOXEL <- if (is.null(A$VOXEL)) "0" else A$VOXEL
 TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
-RUNGS <- c(8, 4, 2, 1); MINTREES <- 6
+RUNGS <- FROZEN_RUNGS
 VENV  <- file.path(.ROOT, "gpu/.venv/bin/python")
 DRV   <- file.path(.ROOT, "gpu/run_treeisonet.py")
 LOC   <- file.path(.ROOT, "gpu/store/treeaibox/als_treeloc.pth")
@@ -51,16 +51,14 @@ run_main <- function() {
   nd  <- file.path(d, "neon", SITE)
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"),     stringsAsFactors = FALSE)
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
-  counts <- table(gt$plotID)
-  keep   <- names(counts)[counts >= MINTREES]
+  fz  <- frozen_scope(d, SITE, A, gt)     # declared population + sealed root
+  gt  <- fz$gt
+  invisible(neon_validate_inputs(gt, pc))
+  keep   <- fz$plots
   if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   keep   <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] treeisonet plots: %d (conf=%s voxel=%s)\n",
-              SITE, length(keep), CONF, VOXEL))
+  cat(sprintf("[%s] treeisonet plots (%s): %d (conf=%s voxel=%s)\n",
+              SITE, fz$population, length(keep), CONF, VOXEL))
 
   out <- list()
   for (pid in keep) {                       # SERIAL -- one GPU, no contention
@@ -70,9 +68,7 @@ run_main <- function() {
     if (nrow(stems) < 1) next
     native_pdens <- NA_real_; ncell <- 0L
     for (rung in c(NA, RUNGS)) {
-      prep <- tryCatch(frozen_clip(ctg, SITE, pid, rung, cx, cy, ph,
-                                   out_root = file.path(nd, "frozen")),
-                       error = function(e) NULL)
+      prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
       pdens <- prep$pdens; frdens <- prep$frdens
       if (is.na(rung)) native_pdens <- pdens

@@ -25,10 +25,11 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # crown-diameter RMSE degrades with sparsity the way detection recall does, or
 # stays flat once the dominant canopy surface is resolved. This script now sweeps
 # the SAME density rungs as the model benchmark (native -> 8 -> 4 -> 2 -> 1
-# pts/m^2, RUNGS arg) on the SAME frozen per-(site,plot,rung) clips: frozen_clip()
-# (model_bench_lib.R) decimates ONCE per cell -- seeded by seed_for() and cached
-# under work/neon/<SITE>/frozen/ -- and returns the normalized clip + frdens/pdens,
-# so the crown arms score the IDENTICAL bytes the detection ladder scores. A
+# pts/m^2, RUNGS arg) on the SAME frozen per-(site,plot,rung) clips: the sealed
+# frozen-clip root written by freeze_clips.R (seeded by seed_for(), hash-verified
+# by frozen_clip() in model_bench_lib.R) returns the normalized clip +
+# frdens/pdens, so the crown arms score the IDENTICAL bytes the detection ladder
+# scores. A
 # pit-free CHM is rebuilt from each rung's frozen normalized clip, and the
 # treetop seeds are re-derived per rung (CHM-VWF lmf for every arm; multichm as
 # the issue #31 alternative seed for the two lidR segmenters). The output CSV
@@ -85,11 +86,13 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #           RUNGS=native,8,4,2,1 TOL=4 RES=0.5 A=0.10
 #   Rscript scripts/crown_metrics_sweep.R SITES=SJER,SOAP,TEAK CORES=1 \
 #           SEED_POLICY=best OUT=crown_metrics_best_results.csv
+#   Both accept POP= (declared population, default adopted) and FROZEN_ROOT=.
 #
-# Reads (read-only): work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv}
-#   the LiDAR catalog work/neon/<SITE>/lidar/, and the cached field-crown widths
-#   from work/neon/<SITE>/vst/<site>_vst_allyears.rds. Frozen clips are cached
-#   under work/neon/<SITE>/frozen/ (shared with the detection ladder, #6/#38).
+# Reads (read-only): work/neon/<SITE>/{ground_truth_stems.csv,plot_centroids.csv},
+#   the cached field-crown widths from work/neon/<SITE>/vst/<site>_vst_allyears.rds,
+#   and the sealed frozen-clip root (default work/neon/frozen_2021, shared with
+#   every detection arm). Plots and the stem gate come from its declared
+#   population; the crown gate below keeps a crown sub-population of it.
 # Writes (NEW files, never overwrites a shared input):
 #   work/neon/<SITE>/crown_metrics_results.csv  (one row per matched tree,
 #       carrying a `rung` column for the density ladder)
@@ -102,7 +105,7 @@ suppressMessages({
 options(lidR.progress = FALSE, lidR.verbose = FALSE)
 d <- .job_dir()
 source(.find("sweep_lib.R"))
-source(.find("model_bench_lib.R"))   # frozen_clip / seed_for (issue #33 ladder)
+source(.find("model_bench_lib.R"))   # frozen_scope / frozen_clip (issue #33 ladder)
 
 ## ---- args (KEY=VALUE positional, per repo convention) --------------------
 args  <- strsplit(commandArgs(TRUE), "=")
@@ -134,7 +137,8 @@ RUNGS_RAW <- if (is.null(A$RUNGS)) c("native", "8", "4", "2", "1") else
              strsplit(A$RUNGS, ",")[[1]]
 RUNGS <- lapply(RUNGS_RAW, function(x)
   if (tolower(x) == "native") NA_real_ else as.numeric(x))
-MINTREES <- 6
+MINTREES <- 6   # crown sub-population: >= 6 gated stems with a field crown diameter
+FROZEN_ROOT <- frozen_root(d, A$FROZEN_ROOT)
 RW_TIMEOUT <- 120          # seconds; random-walker solve is timeboxed per plot
 TH_CR      <- 0.55         # random_walker_thcr stop rule: drop crown-k pixels
                            # below TH_CR * seed-k apex height (matches dalponte2016)
@@ -308,6 +312,18 @@ selection_cache_path <- function(site, pid, sel) {
             paste0(sanitize_cache_part(paste(parts, collapse = "__")), ".csv"))
 }
 
+# export_best_treetops_geojson.R stamps the cache with the sealed root
+# (frozen_stamp). Cached seeds made on other clips are never used: a cache that
+# exists without this root's stamp stops the run. With no cache at all, best
+# mode stops and the default mode runs without the SegmentAnyTree seed set.
+detection_cache_dir <- function(site) file.path(d, "neon", site, "best_treetop_cache")
+detection_cache_ok <- function(site) {
+  dir <- detection_cache_dir(site)
+  dir.exists(dir) && frozen_stamp_check(dir, FROZEN_ROOT)
+}
+check_detection_cache <- function(site)
+  frozen_stamp_check(detection_cache_dir(site), FROZEN_ROOT)
+
 cached_tops_for_selection <- function(site, pid, sel, crs) {
   f <- selection_cache_path(site, pid, sel)
   tops <- det_cache_to_tops(f, crs)
@@ -340,20 +356,22 @@ best_seed_tops <- function(site, pid, rung_lbl, crs) {
 }
 
 segmentanytree_cached_tops <- function(site, pid, rung_lbl, crs) {
-  f <- file.path(d, "neon", site, "best_treetop_cache",
+  if (!detection_cache_ok(site)) return(NULL)
+  f <- file.path(detection_cache_dir(site),
                  sprintf("segmentanytree__%s__%s__%s__image%s.csv",
                          site, pid, rung_lbl, SAT_IMAGE))
   det_cache_to_tops(f, crs)
 }
 
 ## ---- per-(plot, rung) crown benchmark ------------------------------------
-# rung: NA = native (no decimation), else a pts/m^2 target. The clip is provided
-# by frozen_clip() (model_bench_lib.R), the SAME seeded+cached decimation the
-# detection ladder scores, so the crown arms run on identical bytes per rung. The
+# rung: NA = native (no decimation), else a pts/m^2 target. `prep` is the
+# sealed frozen_clip() cell (model_bench_lib.R) the caller read, the SAME seeded
+# decimation the detection ladder scores, so the crown arms run on identical
+# bytes per rung. The
 # pit-free CHM is rebuilt from this rung's frozen NORMALIZED clip and seeds are
 # re-derived per rung (density-appropriate); rung_lbl ("native"/"8"/...) is
 # carried into every output row.
-run_plot <- function(site, pid, rung, rung_lbl, ctg, pc, gt, tmpdir, froot) {
+run_plot <- function(site, pid, rung, rung_lbl, prep, pc, gt, tmpdir) {
   ci <- pc[pc$plotID == pid, ][1, ]
   cx <- ci$easting; cy <- ci$northing
   ph <- plot_half(ci$plotType)
@@ -361,8 +379,6 @@ run_plot <- function(site, pid, rung, rung_lbl, ctg, pc, gt, tmpdir, froot) {
               abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
   if (nrow(stems) < 1) return(NULL)
 
-  prep <- tryCatch(frozen_clip(ctg, site, pid, rung, cx, cy, core_half = ph,
-                               out_root = froot), error = function(e) NULL)
   if (is.null(prep)) return(NULL)
   las <- tryCatch(readLAS(prep$normalized, select = "xyzr"),
                   error = function(e) NULL)
@@ -633,7 +649,8 @@ run_site <- function(site) {
   nd  <- file.path(d, "neon", site)
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
+  fz  <- frozen_scope(d, site, A, gt)     # declared population + sealed root
+  gt  <- fz$gt
   ## join field crown diameter from the rds; keep stems with non-NA field CD.
   ## neon_ground_truth.R now also writes maxCrownDiameter/ninetyCrownDiameter, so
   ## a freshly regenerated ground_truth_stems.csv may already carry them. Drop any
@@ -647,15 +664,13 @@ run_site <- function(site) {
   gt  <- merge(gt, fc, by = "individualID", all.x = TRUE)
   gt  <- gt[!is.na(gt$maxCrownDiameter) | !is.na(gt$ninetyCrownDiameter), ]
 
-  laz <- list.files(file.path(nd, "lidar"), pattern = "\\.laz$",
-                    recursive = TRUE, full.names = TRUE)
-  ctg <- neon_read_catalog(laz, gt, pc, file.path(nd, "lidar"))
+  invisible(neon_validate_inputs(gt, pc))
 
   counts <- table(gt$plotID)
   keep <- names(counts)[counts >= MINTREES]
-  keep <- intersect(keep, pc$plotID)
-  cat(sprintf("[%s] plots with >=%d stems w/ field CD: %d (%s)\n",
-              site, MINTREES, length(keep), paste(keep, collapse = ",")))
+  keep <- intersect(intersect(fz$plots, keep), pc$plotID)
+  cat(sprintf("[%s] %s plots with >=%d stems w/ field CD: %d (%s)\n",
+              site, fz$population, MINTREES, length(keep), paste(keep, collapse = ",")))
   if (!length(keep)) return(NULL)
   best_rung <- NULL
   if (SEED_POLICY == "best") {
@@ -664,26 +679,30 @@ run_site <- function(site) {
       cat(sprintf("[%s] no best-treetop selection rows; skipping\n", site))
       return(NULL)
     }
+    check_detection_cache(site)
     best_rung <- as.character(best_rows$rung[1])
     cat(sprintf("[%s] best-seed source: %s rung %s (F1 %.3f)\n",
                 site, best_rows$method[1], best_rung, as.numeric(best_rows$F1[1])))
+  } else if (!detection_cache_ok(site)) {
+    cat(sprintf("[%s] no best_treetop_cache; no SegmentAnyTree seeds\n", site))
   }
 
-  tmpdir <- file.path(tempdir(), paste0("crown_", site))
+  tmpdir <- file.path(tempdir(), paste0("crown_", site))   # CHM scratch only
   dir.create(tmpdir, showWarnings = FALSE)
-  froot <- file.path(nd, "frozen")    # shared with the detection ladder (#6/#38)
 
-  ## Per-plot worker over the density ladder. Native is run first so its
+  ## Per-plot worker over the density ladder. Native is read first so its
   ## all-return density is the no-upsampling guard: a numeric rung whose target
   ## meets/exceeds the plot's native density would "upsample" (homogenize cannot
-  ## add points), so it is skipped -- the same guard run_sweep.R applies. Seeds
+  ## add points), so it is skipped -- the same guard run_sweep.R applies (the
+  ## sealed root also records such cells as upsampled and serves NULL). Seeds
   ## are re-derived per rung inside run_plot, so each rung scores on a
-  ## density-appropriate CHM + treetop set.
+  ## density-appropriate CHM + treetop set. Frozen cells are read here, outside
+  ## the per-rung skip, so an integrity failure stops the plot.
   per_plot <- function(p) {
-    np <- tryCatch(frozen_clip(ctg, site, p, NA, pc$easting[pc$plotID == p][1],
-                               pc$northing[pc$plotID == p][1],
-                               core_half = plot_half(pc$plotType[pc$plotID == p][1]),
-                               out_root = froot), error = function(e) NULL)
+    ci <- pc[pc$plotID == p, ][1, ]
+    clip <- function(rung) frozen_clip(NULL, site, p, rung, ci$easting, ci$northing,
+                                       plot_half(ci$plotType), fz$root)
+    np <- clip(NA)
     native_pdens <- if (is.null(np)) NA_real_ else np$pdens
     rows <- list()
     for (i in seq_along(RUNGS)) {
@@ -691,7 +710,9 @@ run_site <- function(site) {
       if (tolower(lbl) == "native") lbl <- "native"
       if (SEED_POLICY == "best" && as.character(lbl) != best_rung) next
       if (!is.na(rung) && (is.na(native_pdens) || rung >= native_pdens)) next
-      r <- tryCatch(run_plot(site, p, rung, lbl, ctg, pc, gt, tmpdir, froot),
+      prep <- if (is.na(rung)) np else clip(rung)
+      # Segmenter/scoring failures stay a per-rung skip, as before.
+      r <- tryCatch(run_plot(site, p, rung, lbl, prep, pc, gt, tmpdir),
                     error = function(e) { message("  plot ", p, " rung ", lbl,
                       " failed: ", conditionMessage(e)); NULL })
       if (!is.null(r)) rows[[length(rows) + 1]] <- r
@@ -699,11 +720,14 @@ run_site <- function(site) {
     if (!length(rows)) return(NULL)
     do.call(rbind, rows)
   }
-  res_list <- mclapply(keep, function(p)
+  res_list <- plot_lapply(keep, function(p)
     tryCatch(per_plot(p),
              error = function(e) { message("  plot ", p, " failed: ",
-                                            conditionMessage(e)); NULL }),
+                                            conditionMessage(e)); e }),
     mc.cores = CORES, mc.preschedule = FALSE)
+  # A failed plot (e.g. a frozen cell that no longer matches its hash) must not
+  # leave the population silently smaller.
+  stop_failed_plots(keep, res_list)
   res <- do.call(rbind, Filter(Negate(is.null), res_list))
   if (is.null(res) || !nrow(res)) { cat(sprintf("[%s] no crowns matched\n", site)); return(NULL) }
 
@@ -771,11 +795,10 @@ frdens_by_rung <- function(res) {
   for (i in seq_len(nrow(res))) {
     site <- res$site[i]; plot <- res$plot[i]; rung <- res$rung[i]
     # Reconstruct the manifest path via the SAME helper frozen_clip() writes
-    # through (model_bench_lib.R), with the SAME out_root the run_site() caller
-    # passed (froot = d/neon/<SITE>/frozen). frozen_dir() owns the layout, so
-    # this reader can never drift from the writer again.
-    froot <- file.path(d, "neon", site, "frozen")
-    mf <- file.path(frozen_dir(froot, site, plot, rung), "manifest.json")
+    # through (model_bench_lib.R), with the SAME sealed root run_site() read
+    # (FROZEN_ROOT). frozen_dir() owns the layout, so this reader can never
+    # drift from the writer again.
+    mf <- file.path(frozen_dir(FROZEN_ROOT, site, plot, rung), "manifest.json")
     if (!file.exists(mf)) next
     fd <- tryCatch(jsonlite::read_json(mf, simplifyVector = TRUE)$frdens,
                    error = function(e) NULL)
@@ -915,11 +938,12 @@ print_seed_sensitivity <- function(res) {
 
 ## ---- run ------------------------------------------------------------------
 t0 <- Sys.time()
-all_res <- list()
+all_res <- list(); failed_sites <- character()
 for (site in SITES) {
   r <- tryCatch(run_site(site), error = function(e) {
-    message("site ", site, " failed: ", conditionMessage(e)); NULL })
-  if (!is.null(r)) all_res[[site]] <- r
+    message("site ", site, " failed: ", conditionMessage(e)); e })
+  if (inherits(r, "error")) failed_sites <- c(failed_sites, site)
+  else if (!is.null(r)) all_res[[site]] <- r
 }
 res <- do.call(rbind, all_res)
 dt <- as.numeric(difftime(Sys.time(), t0, units = "mins"))
@@ -934,3 +958,6 @@ if (!is.null(res) && nrow(res)) {
   print_seed_sensitivity(res)
   plot_density_robustness(res)          # RMSE/bias vs frdens PNGs (issue #33)
 }
+# Other sites still finish, print and plot; a failed site must not pass silently.
+if (length(failed_sites))
+  stop("sites failed: ", paste(failed_sites, collapse = ","), call. = FALSE)

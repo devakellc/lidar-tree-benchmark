@@ -24,15 +24,18 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # pretrained weights are tropical-trained, so CA-conifer transfer is the tested
 # unknown this arm measures.
 #
-# Per plot: crop the covering RGB tile -> runner -> crown polygon centroids +
-# d_eq -> filter to core -> apex Z from the frozen-clip CHM -> score_plot
-# (detector="detectree2", rung="rgb"). Crown d_eq distribution is reported vs
-# field maxCrownDiameter on matched stems.
+# Per plot of the declared population: crop the covering RGB tile -> runner ->
+# crown polygon centroids + d_eq -> filter to core -> apex Z from the CHM of the
+# plot's native cell in the sealed frozen root -> score_plot (detector=
+# "detectree2", rung="rgb"). A plot whose native cell is unusable (no CHM) is
+# skipped, as in detect_deepforest_sweep.R, rather than scored with every apex
+# floored to 2 m. Crown d_eq distribution is reported vs field maxCrownDiameter
+# on matched stems.
 #
 # Usage: Rscript scripts/detect_detectree2_sweep.R SITE=SOAP \
-#          MODEL=~/.detectree2_models/250312_flexi.pth
-# Env: PYTHON=~/miniconda3/envs/detectree2/bin/python. Reads rgb/ + frozen clips;
-# writes work/neon/<SITE>/detectree2_results.csv.
+#          MODEL=~/.detectree2_models/250312_flexi.pth [POP=adopted] [FROZEN_ROOT=...]
+# Env: PYTHON=~/miniconda3/envs/detectree2/bin/python. Reads rgb/ + the sealed
+# frozen root (freeze_clips.R); writes work/neon/<SITE>/detectree2_results.csv.
 suppressMessages({ library(lidR); library(terra); library(data.table) })
 options(lidR.progress = FALSE, lidR.verbose = FALSE)
 d <- .job_dir()
@@ -56,10 +59,10 @@ cover_tile <- function(cx, cy) {
     if (cx >= e[1] && cx <= e[2] && cy >= e[3] && cy <= e[4]) return(t) }
   NA_character_
 }
-plot_chm <- function(pid, epsg) {
-  clip <- file.path(nd, "frozen", SITE, pid, "native", "clip_normalized.laz")
-  if (!file.exists(clip)) return(NULL)
-  las <- tryCatch(suppressWarnings(lidR::readLAS(clip)), error = function(e) NULL)
+# `cell` is the plot's native frozen cell (frozen_clip); NULL = unusable cell.
+plot_chm <- function(cell, epsg) {
+  if (is.null(cell)) return(NULL)
+  las <- tryCatch(suppressWarnings(lidR::readLAS(cell$normalized)), error = function(e) NULL)
   if (is.null(las) || lidR::is.empty(las)) return(NULL)
   neon_assert_crs(las, epsg, "Frozen CHM source")
   tryCatch(suppressWarnings(lidR::rasterize_canopy(las, res = CHM_RES, algorithm = lidR::p2r())),
@@ -77,8 +80,9 @@ run_main <- function() {
   neon_reference_epoch(gt, YEAR)
   neon_validate_acquisition(file.path(nd, "rgb"), gt, pc, "DP3.30010.001")
   neon_validate_files(rgb_tiles, epsg)
-  gt <- gt[gt$live & gt$is_tree & !is.na(gt$E), , drop = FALSE]
-  keep <- intersect(unique(gt$plotID), pc$plotID); if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
+  fz <- frozen_scope(d, SITE, A, gt)              # declared population + sealed root
+  gt <- fz$gt
+  keep <- intersect(fz$plots, pc$plotID); if (!is.null(PLOTS)) keep <- intersect(keep, PLOTS)
   cdir <- file.path(nd, "detectree2_boxes"); dir.create(cdir, showWarnings = FALSE, recursive = TRUE)
   neon_check_manifest(file.path(cdir, "coordinate_manifest.json"),
     list(year = YEAR, epsg = epsg, sources = neon_file_signature(rgb_tiles),
@@ -89,6 +93,9 @@ run_main <- function() {
     ci <- pc[pc$plotID == pid, ][1, ]; cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, , drop = FALSE]
     if (!nrow(stems)) next
+    chm <- plot_chm(frozen_clip(NULL, SITE, pid, NA, cx, cy, ph, fz$root), epsg)
+    if (is.null(chm)) {                                # native cell unusable/empty
+      cat(sprintf("[%s] %s: no native frozen CHM -> skipped\n", SITE, pid)); next }
     tif <- cover_tile(cx, cy); if (is.na(tif)) next
     ocsv <- file.path(cdir, paste0(pid, ".csv"))
     if (!file.exists(ocsv)) {
@@ -109,9 +116,8 @@ run_main <- function() {
       cat(sprintf("[%s] %s: 0 crowns\n", SITE, pid))
     }
     bp <- b[abs(b$x - cx) <= ph + TOL & abs(b$y - cy) <= ph + TOL, , drop = FALSE]
-    chm <- plot_chm(pid, epsg)
-    z <- if (!is.null(chm) && nrow(bp)) as.numeric(terra::extract(chm, cbind(bp$x, bp$y))[, 1]) else rep(NA_real_, nrow(bp))
-    z[!is.finite(z)] <- 2.0
+    z <- if (nrow(bp)) as.numeric(terra::extract(chm, cbind(bp$x, bp$y))[, 1]) else numeric(0)
+    z[!is.finite(z)] <- 2.0                              # off-CHM crowns: floor at min_height
     det <- data.frame(x = bp$x, y = bp$y, z = z)
     sc <- tryCatch(score_plot(stems, det, tol_xy = TOL, core_cx = cx, core_cy = cy, core_half = ph),
                    error = function(e) NULL)
