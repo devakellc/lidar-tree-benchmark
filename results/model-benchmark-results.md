@@ -84,6 +84,10 @@ Native F1 by site (intervals in `master_long.csv`):
   the twelve. At ABBY,
   TreeisoNet, SegmentAnyTree, Li 2012 and CHM-VWF are within 0.015 of each
   other.
+- DeepForest is not zero-shot at SJER and TEAK: its model was retrained on
+  hand annotations that include those two sites (see the
+  [detector table](detector-table.md)). Its SOAP and Washington scores are
+  independent of its training sites.
 - Recall by crown class, regions, rank stability and censused precision are
   in the [master tables](master-tables-results.md).
 
