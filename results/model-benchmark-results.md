@@ -29,19 +29,20 @@ Native density, nominal box, five sites:
 | AMS3D | 0.713 | 0.145 | 0.240 [0.214, 0.267] | −0.210 [−0.240, −0.180] |
 | SAM2Point | 0.077 | 0.471 | 0.132 [0.110, 0.157] | −0.318 [−0.352, −0.279] |
 
-F1 down the ladder, the eight full-ladder arms (intervals in
-`master_long.csv`; paired changes from native in `master_rung_contrasts.csv`):
+F1 down the ladder, the eight full-ladder arms, with the rung at the USGS QL2
+floor frozen in its own root (intervals in `master_long.csv`; paired changes
+from native in `master_rung_contrasts.csv`):
 
-| Arm | native (9.8) | 8 (4.7) | 4 (2.5) | 2 (1.3) | 1 (0.6) | Lead over CHM-VWF at 0.6 [95%] |
-| --- | --- | --- | --- | --- | --- | --- |
-| ForestFormer3D | 0.498 | 0.487 | 0.457 | 0.438 | 0.421 | +0.047 [+0.022, +0.069] |
-| SegmentAnyTree | 0.495 | 0.487 | 0.469 | 0.376 | 0.128 | −0.246 [−0.268, −0.223] |
-| TreeisoNet | 0.446 | 0.452 | 0.453 | 0.444 | 0.440 | +0.066 [+0.037, +0.093] |
-| `multichm` | 0.456 | 0.451 | 0.441 | 0.440 | 0.434 | +0.060 [+0.036, +0.082] |
-| CHM-VWF | 0.450 | 0.395 | 0.396 | 0.383 | 0.374 | — |
-| AMS3D | 0.240 | 0.313 | 0.389 | 0.459 | 0.437 | +0.063 [+0.033, +0.093] |
-| `ptrees` | 0.331 | 0.444 | 0.414 | 0.360 | 0.271 | −0.103 [−0.122, −0.083] |
-| `lmfauto` | 0.386 | 0.340 | 0.284 | 0.262 | 0.269 | −0.105 [−0.148, −0.063] |
+| Arm | native (9.8) | 8 (4.7) | 4 (2.5) | QL2 3.2 (2.0) | 2 (1.3) | 1 (0.6) | Lead over CHM-VWF at 0.6 [95%] |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ForestFormer3D | 0.498 | 0.487 | 0.457 | 0.452 | 0.438 | 0.421 | +0.047 [+0.022, +0.069] |
+| SegmentAnyTree | 0.495 | 0.487 | 0.469 | 0.449 | 0.376 | 0.128 | −0.246 [−0.268, −0.223] |
+| TreeisoNet | 0.446 | 0.452 | 0.453 | 0.449 | 0.444 | 0.440 | +0.066 [+0.037, +0.093] |
+| `multichm` | 0.456 | 0.451 | 0.441 | 0.449 | 0.440 | 0.434 | +0.060 [+0.036, +0.082] |
+| CHM-VWF | 0.450 | 0.395 | 0.396 | 0.392 | 0.383 | 0.374 | — |
+| AMS3D | 0.240 | 0.313 | 0.389 | 0.412 | 0.459 | 0.437 | +0.063 [+0.033, +0.093] |
+| `ptrees` | 0.331 | 0.444 | 0.414 | 0.405 | 0.360 | 0.271 | −0.103 [−0.122, −0.083] |
+| `lmfauto` | 0.386 | 0.340 | 0.284 | 0.273 | 0.262 | 0.269 | −0.105 [−0.148, −0.063] |
 
 Native F1 by site (intervals in `master_long.csv`):
 
@@ -66,8 +67,10 @@ Native F1 by site (intervals in `master_long.csv`):
   SegmentAnyTree, lead CHM-VWF by about 0.05 F1, with intervals that exclude
   zero. `multichm`, Li 2012, DeepForest and TreeisoNet are indistinguishable
   from CHM-VWF.
-- Down the ladder the arms part. SegmentAnyTree holds to 2.5 pulses/m² and
-  collapses below it (0.376 at 1.3 and 0.128 at 0.6 pulses/m²). TreeisoNet
+- Down the ladder the arms part. SegmentAnyTree holds to the QL2 floor of
+  2.0 pulses/m², where it is level with `multichm`, TreeisoNet and
+  ForestFormer3D and +0.058 [+0.036, +0.081] over CHM-VWF, and collapses below
+  it (0.376 at 1.3 and 0.128 at 0.6 pulses/m²). TreeisoNet
   and `multichm` are flat, and ForestFormer3D declines gently; all three lead
   CHM-VWF by 0.05 to 0.07 at 0.6 pulses/m². AMS3D rises as density falls,
   because it splits fewer crowns, and peaks at 1.3 pulses/m².

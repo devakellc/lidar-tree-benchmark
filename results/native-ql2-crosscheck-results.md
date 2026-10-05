@@ -24,6 +24,7 @@ and `multichm`.
 export CLAUDE_JOB_DIR=$(pwd)/work/paper_runs
 Rscript scripts/native_ql2_crosscheck.R SITES=SOAP,SJER,TEAK POP=adopted \
     CACHE_JOB=$(pwd)/work      # reuse the provenance-checked 3DEP clouds
+Rscript scripts/native_ql2_paired.R   # paired plot bootstrap of the two sources
 ```
 
 None of the covering 3DEP surveys is at QL2 density: their median first-return
@@ -31,22 +32,28 @@ density is 47 (SOAP), 31 (TEAK) and 5.7 (SJER) pulses/m². No native QL2
 comparison is therefore possible here. The test is the cross-source one: the
 3DEP cloud decimated to 2 points/m² against the NEON cloud decimated to the
 same target, on the same plots and stems, with paired plot-bootstrap
-intervals:
+intervals (1,000 resamples). The 3DEP decimation is seeded per plot
+(`seed_for(site, plot, "3DEP-2")`) and both detectors read the same
+realization:
 
 | Detector | Source | Recall | Precision | F1 | 3DEP minus NEON, F1 [95%] |
 | --- | --- | --- | --- | --- | --- |
-| CHM-VWF | 3DEP decimated | 0.304 | 0.431 | 0.356 | +0.002 [−0.034, +0.035] |
+| CHM-VWF | 3DEP decimated | 0.289 | 0.413 | 0.340 | −0.014 [−0.047, +0.016] |
 | CHM-VWF | NEON decimated | 0.296 | 0.441 | 0.354 | |
-| `multichm` | 3DEP decimated | 0.521 | 0.307 | 0.386 | −0.028 [−0.059, 0.000] |
+| `multichm` | 3DEP decimated | 0.518 | 0.306 | 0.384 | −0.030 [−0.055, −0.006] |
 | `multichm` | NEON decimated | 0.539 | 0.337 | 0.414 | |
 
 **Readings.**
 
-- For CHM-VWF the two sources agree: decimating another sensor's dense survey
-  to the same target gives the same recall, precision and F1 within ±0.035.
+- For CHM-VWF the two sources agree within the interval: decimating another
+  sensor's dense survey to the same target changes F1 by −0.014, and recall by
+  −0.008 [−0.035, +0.018].
 - `multichm` scores slightly lower on the decimated 3DEP clouds, mostly
-  through precision (−0.030 [−0.058, −0.003]); the interval of the F1
-  difference just reaches zero.
+  through precision (−0.031 [−0.056, −0.006]); its F1 difference excludes
+  zero.
+- One decimation realization moves these differences by about 0.015: an
+  earlier unseeded run of the same check gave +0.002 for CHM-VWF and −0.028
+  for `multichm`.
 - Whether decimation predicts a true native QL2 flight is answered by the
   [native sparse epoch study](native-sparse-epoch-results.md), which uses
   NEON's own earlier, sparser flights; there, decimation is mildly optimistic.

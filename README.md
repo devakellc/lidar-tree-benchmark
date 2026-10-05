@@ -44,17 +44,20 @@ every arm on one declared population of five NEON sites (SJER, SOAP and TEAK
 in California; WREF and ABBY in Washington; 106 plots and 2,525 field stems).
 The [frozen-clip study](results/frozen-clips-results.md) fixes hash-verified
 clips at native density (median 9.8 first-return pulses/m²) and at four
-decimated rungs (4.7, 2.5, 1.3 and 0.6 pulses/m²). Every pooled number and
+decimated rungs (4.7, 2.5, 1.3 and 0.6 pulses/m²), plus a rung at the USGS
+QL2 floor (2.0 pulses/m²) frozen in its own root. Every pooled number and
 arm-versus-arm difference carries a paired plot-bootstrap interval.
 
 - At native density ForestFormer3D (F1 **0.498**) and SegmentAnyTree
   (**0.495**) lead CHM variable-window filtering (CHM-VWF, **0.450**) by
   **+0.048 [+0.028, +0.069]** and **+0.044 [+0.021, +0.067]**. `multichm`,
   Li 2012, DeepForest and TreeisoNet are indistinguishable from CHM-VWF.
-- SegmentAnyTree collapses below 2.5 pulses/m² (F1 **0.13** at
-  0.6 pulses/m²). TreeisoNet, `multichm` and ForestFormer3D hold, and lead
-  CHM-VWF by 0.05–0.07 at 0.6 pulses/m². Native rank predicts rank down to
-  2.5 pulses/m² (Spearman 0.76) and not below (−0.05 at 1.3 pulses/m²).
+- SegmentAnyTree holds to the QL2 floor (F1 **0.449** at 2.0 pulses/m², level
+  with `multichm`, TreeisoNet and ForestFormer3D) and collapses below it
+  (**0.38** at 1.3 and **0.13** at 0.6 pulses/m²). TreeisoNet, `multichm` and
+  ForestFormer3D hold, and lead CHM-VWF by 0.05–0.07 at 0.6 pulses/m². Native
+  rank predicts rank down to the QL2 floor (Spearman 0.71) and not below
+  (−0.05 at 1.3 pulses/m²).
 - CHM-VWF is flat across density on the California sites but loses
   0.07–0.10 F1 in Washington; one density curve does not describe every site.
   See the [density-ladder study](results/density-ladder-sweep-results.md).
@@ -315,6 +318,8 @@ scripts and configuration.
 | NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R), [preflight_site_extension.R](scripts/preflight_site_extension.R) |
 | NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
 | NEON master tables and intervals | [master_tables.R](scripts/master_tables.R), [master_tables_lib.R](scripts/master_tables_lib.R) |
+| Paper sensitivities, figures and compute cost | [paper_sensitivity.R](scripts/paper_sensitivity.R), [paper_figures.R](scripts/paper_figures.R), [compute_cost.sh](scripts/compute_cost.sh), [compute_cost_cell.R](scripts/compute_cost_cell.R) |
+| Native 3DEP cross-check | [native_ql2_crosscheck.R](scripts/native_ql2_crosscheck.R), [native_ql2_paired.R](scripts/native_ql2_paired.R), [ept_discovery.R](scripts/ept_discovery.R) |
 | Reproduction archive and table rebuild | [stage_archive.sh](scripts/stage_archive.sh), [reproduce_paper_tables.sh](scripts/reproduce_paper_tables.sh), [compare_reproduction.R](scripts/compare_reproduction.R), [reproduce/Dockerfile](reproduce/Dockerfile) |
 | NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
 | Native sparse epochs | [prepare_sparse_epoch.R](scripts/prepare_sparse_epoch.R), [audit_sparse_epoch.R](scripts/audit_sparse_epoch.R), [compare_sparse_epoch.R](scripts/compare_sparse_epoch.R) |

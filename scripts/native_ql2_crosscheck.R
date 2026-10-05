@@ -64,6 +64,7 @@ suppressMessages({
   library(sf); library(jsonlite)
 })
 options(lidR.progress = FALSE)
+lidR::set_lidr_threads(1L)    # TIN normalization moves by ~1 cm with the thread count
 
 src_dir <- dirname(sub("^--file=", "",
                        grep("^--file=", commandArgs(FALSE), value = TRUE)[1]))
@@ -123,14 +124,23 @@ resolve_ept <- function(site) {
   if (length(ok)) ok[1] else NA_character_
 }
 
-# Read the native horizontal SRS (EPSG code) from an ept.json.
-ept_srs <- function(url) {
+# Read the native horizontal SRS (EPSG code) from an ept.json. The value is
+# recorded beside the EPT candidates (ept_srs.json, keyed by URL) on first
+# read, so a re-score of cached clouds runs offline.
+ept_srs <- function(url, cache_dir) {
+  f <- file.path(cache_dir, "ept_srs.json")
+  if (file.exists(f)) {
+    rec <- jsonlite::fromJSON(f)
+    if (identical(rec$url, url)) return(as.integer(rec$srs))
+  }
   j <- tryCatch(jsonlite::fromJSON(url), error = function(e) NULL)
   if (is.null(j)) return(NA_integer_)
   s <- j$srs
-  if (!is.null(s$horizontal) && nzchar(as.character(s$horizontal)))
-    return(as.integer(s$horizontal))
-  NA_integer_
+  if (is.null(s$horizontal) || !nzchar(as.character(s$horizontal))) return(NA_integer_)
+  code <- as.integer(s$horizontal)
+  dir.create(cache_dir, showWarnings = FALSE, recursive = TRUE)
+  writeLines(jsonlite::toJSON(list(url = url, srs = code), auto_unbox = TRUE, pretty = TRUE), f)
+  code
 }
 
 # Provenance manifest for a cached per-plot laz. The cache key is NOT just the
@@ -220,12 +230,13 @@ pull_plot <- function(cx, cy, pad, ept_url, ept_epsg, out_laz) {
 # branch (frdens<4) while NEON dec2 is pooled at res=0.5 -- a resolution confound
 # that contaminates the "sensor difference" delta. With it, the residual delta is
 # genuinely sensor/return-structure, not CHM resolution.
-detect_on <- function(src_las, rung, pad, res_override = NA_real_) {
+detect_on <- function(src_las, rung, pad, res_override = NA_real_, seed = NA) {
   l <- src_las
   area0 <- (2 * pad)^2
   pdens_native <- npoints(src_las) / area0
   if (!is.na(rung)) {
     if (pdens_native <= rung) return(NULL)             # never upsample
+    if (!is.na(seed)) set.seed(seed)
     l <- decimate_points(l, homogenize(density = rung, res = 5))
   }
   if (sum(l$Classification == 2L) < 10) return(NULL)
@@ -258,12 +269,13 @@ detect_on <- function(src_las, rung, pad, res_override = NA_real_) {
 # matching the cached multichm dec2 rung (multichm_sweep_results.csv rung==2,
 # which is itself density-derived at 0.5 m), so the equivalence test stays
 # resolution-consistent the same way the CHM-VWF arm is res-pinned to 0.5 m.
-detect_on_multichm <- function(src_las, rung, pad) {
+detect_on_multichm <- function(src_las, rung, pad, seed = NA) {
   l <- src_las
   area0 <- (2 * pad)^2
   pdens_native <- npoints(src_las) / area0
   if (!is.na(rung)) {
     if (pdens_native <= rung) return(NULL)             # never upsample
+    if (!is.na(seed)) set.seed(seed)
     l <- decimate_points(l, homogenize(density = rung, res = 5))
   }
   if (sum(l$Classification == 2L) < 10) return(NULL)
@@ -289,7 +301,7 @@ run_site <- function(site) {
   ept_url <- resolve_ept(site)
   cat(sprintf("\n########## %s  EPT=%s\n", site, ept_url))
   if (is.na(ept_url)) { cat("  no EPT URL resolved; skipping\n"); return(NULL) }
-  ept_epsg <- ept_srs(ept_url)
+  ept_epsg <- ept_srs(ept_url, file.path(CACHE, "neon", site, "ql2"))
   if (is.na(ept_epsg)) { cat("  could not read SRS from ept.json; skipping\n")
     return(NULL) }
   cat(sprintf("  native EPT SRS = EPSG:%d ; reproject -> %s\n", ept_epsg, OUTCRS))
@@ -372,16 +384,19 @@ run_site <- function(site) {
                      native_dec2 = list(rung = 2,        res = 0.5))
     got_any <- FALSE
     # Two detectors per variant (issue #39): the CHM-VWF baseline (detect_on, res
-    # pinned per the variant) and multichm (detect_on_multichm). Each detector
-    # decimates its OWN realization for native_dec2 (homogenize is random) and is
-    # compared only to its OWN cached NEON dec2 rung downstream -- a within-
-    # detector equivalence test, never cross-detector.
+    # pinned per the variant) and multichm (detect_on_multichm). Both read the
+    # same seeded native_dec2 realization (seed_for(site, plot, "3DEP-2"), so a
+    # rerun decimates identically), and each is compared only to its OWN cached
+    # NEON dec2 rung downstream -- a within-detector equivalence test, never
+    # cross-detector.
     for (vn in names(variants)) {
+      seed <- if (is.na(variants[[vn]]$rung)) NA else
+        seed_for(site, pid, paste0("3DEP-", variants[[vn]]$rung))
       for (dn in c("chm_vwf", "multichm")) {
         v <- if (dn == "chm_vwf")
-          detect_on(las, variants[[vn]]$rung, PAD, res_override = variants[[vn]]$res)
+          detect_on(las, variants[[vn]]$rung, PAD, res_override = variants[[vn]]$res, seed = seed)
         else
-          detect_on_multichm(las, variants[[vn]]$rung, PAD)
+          detect_on_multichm(las, variants[[vn]]$rung, PAD, seed = seed)
         if (is.null(v)) { cat(sprintf("  %s [%s/%s]: skip\n", pid, vn, dn)); next }
         sc <- score_plot(stems_o, v$det, tol_xy = TOL, core_cx = cx_o,
                          core_cy = cy_o, core_half = ph)

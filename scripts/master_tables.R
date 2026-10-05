@@ -493,10 +493,14 @@ md <- c(md, "### Arm status", "", "| Arm | Status | Cells |", "| --- | --- | ---
 writeLines(md, file.path(OUT, "master_tables.md"))
 
 code <- vapply(c("master_tables.R", "master_tables_lib.R", "model_bench_lib.R"), .find, character(1))
-jsonlite::write_json(list(population = POP, sites = SITES, n_boot = N_BOOT, seed = SEED,
-                          clip_manifest_sha256 = root_id, included = included,
-                          code_md5 = unname(tools::md5sum(code))),
-                     file.path(OUT, "master_contract.json"), auto_unbox = TRUE, pretty = TRUE)
+contract <- list(population = POP, sites = SITES, n_boot = N_BOOT, seed = SEED,
+                 clip_manifest_sha256 = root_id, included = included,
+                 code_md5 = unname(tools::md5sum(code)))
+if (length(parts) > 1)                       # rungs from their own roots (RUNG_JOBS)
+  contract$rung_roots <- lapply(parts[-1], function(x)
+    list(rungs = I(x$rungs), clip_manifest_sha256 = x$id))
+jsonlite::write_json(contract, file.path(OUT, "master_contract.json"), auto_unbox = TRUE,
+                     pretty = TRUE)
 print(arm_status, row.names = FALSE)
 cat(sprintf("wrote %s (%d rows), contrasts (%d rows), reference_population (%d rows)\n",
             file.path(OUT, "master_long.csv"), nrow(long), nrow(contrasts), nrow(ref)))

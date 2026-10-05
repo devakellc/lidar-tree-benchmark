@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Stages the reproduction archive of the frozen-root NEON benchmark: the sealed
-# frozen clips and populations, every arm's per-cell results and persisted
-# detections, the census-support bundles, the sparse-epoch roots and the June
-# artifacts the adapter comparison re-scores. The layout mirrors the work
-# directory, so reproduce_paper_tables.sh runs the paper's commands unchanged
-# on a copy. Symlinked inputs are copied; each job directory's frozen_2021
-# link is re-created relative to the archive.
+# frozen clips and populations (the 2021 root and the QL2-rung root), every
+# arm's per-cell results and persisted detections, the census-support bundles,
+# the sparse-epoch roots, the June artifacts the adapter comparison re-scores
+# and the native 3DEP clouds of the QL2 cross-check. The layout mirrors the
+# work directory, so reproduce_paper_tables.sh runs the paper's commands
+# unchanged on a copy. Symlinked inputs are copied; each job directory's
+# frozen-root links are re-created relative to the archive.
 #
 # Every .rds is rewritten as plain R vectors (portable_rds.R): the NEON
 # tables neonUtilities saves hold arrow string vectors, which read back empty
@@ -13,8 +14,8 @@
 #
 # Left out: the RGB mosaics and raw NEON tiles (public NEON data, about 16 GB;
 # a per-site rgb_tiles.csv keeps the tile extents the optical arms read), the
-# NeonTreeEvaluation coverage-check imagery, logs, figures, and superseded
-# copies of re-run outputs.
+# NeonTreeEvaluation coverage-check imagery, logs, scratch figures, and
+# superseded copies of re-run outputs.
 #
 #   bash scripts/stage_archive.sh OUT=<new dir> [WORK=work]
 #
@@ -39,11 +40,14 @@ SITES=(SJER SOAP TEAK WREF ABBY)
 JUNE_SITES=(SJER SOAP TEAK)
 # Job directories run on the sealed 2021 root: the headline population, the
 # two sensitivity populations, the new-plot runs they were re-scored from,
-# and the TreeisoNet voxel and mask-voxel sensitivity runs.
+# and the TreeisoNet voxel and mask-voxel sensitivity runs; and the QL2-rung
+# run on its own root.
 JOBS=(paper_runs paper_runs_all_mapped paper_runs_relaxed paper_runs_new_relaxed
-      paper_runs_new_allmapped paper_runs_voxel0 paper_runs_maskvoxel)
+      paper_runs_new_allmapped paper_runs_voxel0 paper_runs_maskvoxel paper_runs_ql2)
+ROOTS=(frozen_2021 frozen_2021_ql2)
+QL2_SITES=(SJER SOAP TEAK)
 SPARSE=(sparse_2017 sparse_2018 sparse_compare_2021)
-EXCL=(--exclude=/neon/frozen_2021 --exclude=rgb/ --exclude=lidar/ --exclude=figs/
+EXCL=(--exclude=/neon/frozen_2021 --exclude=/neon/frozen_2021_ql2 --exclude=rgb/ --exclude=lidar/ --exclude=figs/
       --exclude=chain/ --exclude=.rumdl_cache/ --exclude=sjer_header_check/ --exclude=nte/
       --exclude='*.log' --exclude='*.nohup' --exclude='*.progress'
       --exclude='master_tables.*/' --exclude='*.prev' --exclude='*.oldcrop-*'
@@ -54,8 +58,20 @@ EXCL=(--exclude=/neon/frozen_2021 --exclude=rgb/ --exclude=lidar/ --exclude=figs
 say() { echo "$(date '+%F %T') $*"; }
 mkdir -p "$OUT/neon"
 
-say "sealed root"
-rsync -a "$WORK/neon/frozen_2021/" "$OUT/neon/frozen_2021/"
+for r in "${ROOTS[@]}"; do
+  [ -f "$WORK/neon/$r/clip_manifest.csv" ] || { echo "no sealed root $WORK/neon/$r" >&2; exit 1; }
+  say "sealed root $r"
+  rsync -a "$WORK/neon/$r/" "$OUT/neon/$r/"
+done
+
+say "native 3DEP clouds (QL2 cross-check)"
+# The cached per-plot pulls with their provenance sidecars, the EPT candidate
+# list and the EPT's recorded SRS, so the cross-check re-scores them offline.
+for s in "${QL2_SITES[@]}"; do
+  mkdir -p "$OUT/neon/$s/ql2"
+  rsync -a --include='*.laz' --include='*.laz.json' --include='ept_candidates.csv' \
+    --include='ept_srs.json' --exclude='*' "$WORK/neon/$s/ql2/" "$OUT/neon/$s/ql2/"
+done
 
 say "June artifacts (adapter before/after)"
 # (June crown rows exist for SOAP only, the site of the June treeOff arm.)
@@ -70,9 +86,9 @@ for j in "${JOBS[@]}" "${SPARSE[@]}"; do
   [ -d "$WORK/$j" ] || { echo "missing job directory $WORK/$j" >&2; exit 1; }
   say "job $j"
   rsync -aL "${EXCL[@]}" "$WORK/$j/" "$OUT/$j/"
-  if [ -e "$WORK/$j/neon/frozen_2021" ]; then
-    ln -s ../../neon/frozen_2021 "$OUT/$j/neon/frozen_2021"
-  fi
+  for r in "${ROOTS[@]}"; do
+    [ ! -e "$WORK/$j/neon/$r" ] || ln -s "../../neon/$r" "$OUT/$j/neon/$r"
+  done
 done
 
 say "RGB tile extents"

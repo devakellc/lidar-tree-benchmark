@@ -2,7 +2,7 @@
 
 Checked on 2 October 2026; ForestFormer3D and TreeisoNet added on
 3 October, SegmentAnyTree, DeepForest, Detectree2 and SAM2Point on 4 October;
-crown classes, regions and rank stability on 5 October. This study
+crown classes, regions, rank stability and the QL2 rung on 5 October. This study
 builds the tables the paper reports from: one reference population per site,
 one long-form table of every arm, site and density rung on equal support, and
 paired plot-level bootstrap intervals on every pooled number and on every
@@ -113,13 +113,14 @@ and every table row carries the rung's five-site median in pulses/m²:
 | native | 17.9 | 9.8 [8.5, 11.6] |
 | 8 | 8.4 | 4.7 [4.4, 5.4] |
 | 4 | 4.4 | 2.5 [2.3, 2.8] |
+| 3.2 (QL2 rung) | 3.5 | 2.0 [1.8, 2.3] |
 | 2 | 2.2 | 1.3 [1.2, 1.4] |
 | 1 | 1.1 | 0.6 [0.6, 0.7] |
 
 The ratio of all to first returns differs by site (WREF and ABBY have fewer
 pulses per point than D17), so a rung's pulse density varies by site: 4.4 to
 5.6 pulses/m² at rung 8. The USGS 3DEP QL2 floor of 2 pulses/m² falls between
-rungs 4 and 2.
+rungs 4 and 2; the [QL2 rung](#the-ql2-rung) sits on it.
 
 ## Headline tables
 
@@ -222,6 +223,61 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
 - Per-site intervals are wide at SJER (6 plots): CHM-VWF native F1 0.307
   [0.169, 0.471]. The full per-site and per-rung tables, every contrast and
   the census exact-2021 check are in the generated CSV files.
+
+## The QL2 rung
+
+The USGS 3DEP QL2 specification is an aggregate nominal density of at least
+2 pulses/m². A sixth rung was declared for it before any arm ran
+([QL2 rung declaration](../docs/ql2-rung-declaration.md)) and frozen in its
+own root with the same population, native clips, seeds and provider as the
+2021 root. Its all-return target of 3.2 points/m² puts the five-site median
+at 2.0 pulses/m² [1.8, 2.3]: 2.3 to 2.5 at the California sites and 1.8 to 1.9
+at WREF and ABBY. The eight full-ladder arms ran on it with the paper runs'
+configurations; the classical arms' native cells on the new root repeat the
+paper runs' counts exactly (530 cells).
+
+F1 around the floor, nominal box, five sites (interval at the QL2 rung):
+
+| Arm | Rung 4 (2.5 pulses/m²) | QL2 rung (2.0) | Rung 2 (1.3) | Censused, QL2 rung |
+| --- | --- | --- | --- | --- |
+| CHM-VWF | 0.396 | 0.392 [0.365, 0.416] | 0.383 | 0.495 |
+| `multichm` | 0.441 | 0.449 [0.431, 0.469] | 0.440 | 0.603 |
+| `lmfauto` | 0.284 | 0.273 [0.243, 0.309] | 0.262 | 0.391 |
+| `ptrees` | 0.414 | 0.405 [0.383, 0.427] | 0.360 | 0.526 |
+| AMS3D | 0.389 | 0.412 [0.388, 0.437] | 0.459 | 0.589 |
+| ForestFormer3D | 0.457 | 0.452 [0.431, 0.473] | 0.438 | 0.615 |
+| TreeisoNet | 0.453 | 0.449 [0.422, 0.473] | 0.444 | 0.629 |
+| SegmentAnyTree | 0.469 | 0.449 [0.426, 0.471] | 0.376 | 0.595 |
+
+Paired F1 differences, nominal box, five sites:
+
+| Contrast | QL2 rung (2.0 pulses/m²) | Rung 2 (1.3 pulses/m²) |
+| --- | --- | --- |
+| SegmentAnyTree − CHM-VWF | +0.058 [+0.036, +0.081] | −0.007 [−0.030, +0.016] |
+| SegmentAnyTree − `multichm` | +0.000 [−0.023, +0.022] | −0.064 [−0.093, −0.039] |
+| SegmentAnyTree − AMS3D | +0.037 [+0.011, +0.061] | −0.083 [−0.111, −0.057] |
+| ForestFormer3D − CHM-VWF | +0.060 [+0.035, +0.088] | +0.055 [+0.029, +0.079] |
+| TreeisoNet − CHM-VWF | +0.057 [+0.033, +0.083] | +0.061 [+0.038, +0.086] |
+| `multichm` − CHM-VWF | +0.058 [+0.032, +0.085] | +0.057 [+0.031, +0.084] |
+
+- At the QL2 floor SegmentAnyTree is still in the leading group: +0.058 over
+  CHM-VWF and level with `multichm`, ForestFormer3D and TreeisoNet (F1 0.449
+  to 0.452). At 1.3 pulses/m² it falls to CHM-VWF's level and behind
+  `multichm` and AMS3D, as its recall drops from 0.467 to 0.308. Its crossing
+  of the classical arms lies between 2.0 and 1.3 pulses/m², below the QL2
+  floor.
+- SegmentAnyTree's F1 change from native is −0.045 [−0.069, −0.023] at the
+  QL2 rung and −0.119 [−0.148, −0.091] at rung 2. CHM-VWF's is −0.059
+  [−0.084, −0.036] at the QL2 rung.
+- On the censused subplots the same holds: SegmentAnyTree is +0.100 [+0.065,
+  +0.133] over CHM-VWF at the QL2 rung and −0.029 [−0.066, +0.005] at rung 2.
+- The regions differ. At the QL2 rung SegmentAnyTree leads CHM-VWF in
+  Washington (+0.067 [+0.041, +0.094]), whose clouds are the sparser ones
+  there, and is level with CHM-VWF (+0.034 [−0.009, +0.082]) and behind
+  `multichm` (−0.041 [−0.079, −0.005]) in California. Pulse density alone
+  does not set where SegmentAnyTree falls behind.
+- The native-density rank of the eight arms still predicts their rank at the
+  QL2 rung ([rank stability](#rank-stability-across-density)).
 
 ## Sensitivity populations
 
@@ -340,28 +396,39 @@ plot-bootstrap interval (each draw ranks the arms again):
 | --- | --- | --- |
 | 8 | 0.833 [0.690, 0.929] | 0.857 [0.643, 0.952] |
 | 4 | 0.762 [0.548, 0.881] | 0.643 [0.476, 0.810] |
+| 3.2 (QL2 rung) | 0.714 [0.380, 0.810] | 0.524 [0.143, 0.714] |
 | 2 | −0.048 [−0.167, 0.262] | 0.024 [−0.190, 0.214] |
 | 1 | −0.190 [−0.357, 0.143] | 0.119 [−0.262, 0.262] |
 
-Native rank predicts rank down to rung 4 (2.5 pulses/m²) and not below it:
-from rung 2 (1.3 pulses/m²) the ordering at native density says nothing about
-the ordering on the sparse clouds.
+Native rank predicts rank down to the QL2 rung (2.0 pulses/m²), more weakly
+there on the censused subplots, and not below it: from rung 2 (1.3 pulses/m²)
+the ordering at native density says nothing about the ordering on the sparse
+clouds.
 
-## Next steps
+## Reports built on these tables
 
-Every arm is complete on the headline population. The reports still to
-update from these tables: the density-ladder study (CHM-VWF and
-`multichm` ladder on the adopted population with intervals, replacing the
-historical D17 tables as the paper numbers), the model benchmark (every arm on
-equal support, intervals and paired contrasts), and the
-calibration/validation study (held-out F1 on the adopted population, with
-intervals over validation plots).
+The five-site sections of the density-ladder, model-benchmark,
+calibration/validation, matcher-robustness, positional-uncertainty and
+temporal-sensitivity reports, and the paper figures (`paper_figures.R`), read
+these tables and the scoring sensitivities computed from the same persisted
+detections.
 
 ## Reproduce
 
 ```sh
+# QL2 rung: its own root and job directory (docs/ql2-rung-declaration.md);
+# the eight full-ladder arms run there with FROZEN_ROOT=<that root> and
+# RUNGS=3.2, then the censused precision scorer:
+#   CLAUDE_JOB_DIR=/path/to/work Rscript scripts/freeze_clips.R RUNGS=3.2 \
+#     OUT=/path/to/work/neon/frozen_2021_ql2
+#   CLAUDE_JOB_DIR=/path/to/paper_runs_ql2 Rscript scripts/score_census_support.R \
+#     DECLARATION=docs/census-support-declaration-nearest.json RUNGS=3.2 \
+#     FROZEN_ROOT=/path/to/work/neon/frozen_2021_ql2 \
+#     ARMS=chm_vwf,lmfauto,multichm,ptrees,ams3d,forestformer3d,treeisonet,segmentanytree \
+#     OUT=/path/to/paper_runs_ql2/census_support_scores/nearest_ladder
 export CLAUDE_JOB_DIR=/path/to/paper_runs   # arm outputs on the sealed root
-Rscript scripts/master_tables.R              # writes $CLAUDE_JOB_DIR/master_tables
+Rscript scripts/master_tables.R \
+  RUNG_JOBS=/path/to/paper_runs_ql2:/path/to/work/neon/frozen_2021_ql2
 # sensitivity populations: classical and RGB arms re-run with POP= in their
 # own job directories (ground truth, plot centroids, vst and RGB linked); the
 # learned arms run only on the plots the headline population lacks, then
@@ -377,7 +444,8 @@ with counts, estimate, interval and status; scopes are five sites, each region
 and each site), `master_contrasts.csv`, `master_strata.csv` (recall by crown
 class and height band), `master_region_leads.csv`, `master_rank_stability.csv`,
 `reference_population.csv`, `rung_density.csv`, `arm_status.csv`,
-`master_tables.md` and `master_contract.json` (seed, draws, root digest and
+`master_rung_contrasts.csv` (each arm's change from native density),
+`master_tables.md` and `master_contract.json` (seed, draws, root digests and
 code checksums).
 
 ## Caveats
