@@ -148,6 +148,16 @@ unknown, and independent above-ground-height accuracy is unverified. These
 results therefore support a conditional within-dataset comparison, not proof
 of performance on unseen USGS or NEON data.
 
+Two development diagnostics bridge FGI-EMIT to the NEON benchmark. The
+[proxy validation](results/fgiemit-proxy-validation-results.md) builds NEON's
+Voronoi-on-stems mask reference from FGI-EMIT's true trees: it keeps the arms'
+order and compresses their mask scores. The
+[thinning study](results/fgiemit-thinning-results.md) thins the development
+plots to the NEON densities: ForestFormer3D still leads CHM-VWF by 0.17–0.21
+apex F1, three to four times its NEON lead, so the two datasets are reported
+as a contrast rather than a density effect. SegmentAnyTree collapses below
+2 pulses/m² on the thinned plots, as on NEON.
+
 ### TEAK and USGS-like data
 
 The [USGS 3DEP example](#usgs-3dep-aoi) demonstrates acquisition and processing.

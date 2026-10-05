@@ -64,3 +64,7 @@ to about 0.05 at NEON densities, density explains the FGI-EMIT and NEON
 contrast. If the lead stays large, forest structure and reference completeness
 explain it, and the paper reports the two datasets as a contrast, not a
 controlled effect.
+
+## Results
+
+Run on 5 October 2026: [FGI-EMIT thinned to the NEON densities](../results/fgiemit-thinning-results.md).
