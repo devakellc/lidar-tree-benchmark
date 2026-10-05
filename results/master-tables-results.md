@@ -1,8 +1,8 @@
 # Master tables, reference populations and bootstrap intervals
 
 Checked on 2 October 2026; ForestFormer3D and TreeisoNet added on
-3 October, SegmentAnyTree, DeepForest, Detectree2 and SAM2Point on 4 October.
-This study
+3 October, SegmentAnyTree, DeepForest, Detectree2 and SAM2Point on 4 October;
+crown classes, regions and rank stability on 5 October. This study
 builds the tables the paper reports from: one reference population per site,
 one long-form table of every arm, site and density rung on equal support, and
 paired plot-level bootstrap intervals on every pooled number and on every
@@ -267,6 +267,86 @@ A population can lack a cell at one rung (two SJER cells at 8 points/m² would
 need upsampling), so each rung is resampled over its own plots. In the
 headline population every rung shares the plots and the draws are unchanged.
 
+## Recall by crown class
+
+`master_strata.csv` pools recall per crown class and height band. A cell's
+per-class true positives are recovered as `round(recall × stems)`, as the sweeps
+pool them, on the nominal box's equal support and resamples. Detections carry
+no crown class, so the strata have recall only. Native density, five sites,
+1,872 overstory stems (dominant and codominant) and 592 understory stems
+(intermediate and suppressed):
+
+| Arm | Overstory | Understory |
+| --- | --- | --- |
+| AMS3D | 0.735 [0.686, 0.777] | 0.627 [0.560, 0.701] |
+| `ptrees` | 0.786 [0.746, 0.827] | 0.459 [0.365, 0.555] |
+| ForestFormer3D | 0.674 [0.645, 0.704] | 0.454 [0.387, 0.522] |
+| `multichm` | 0.599 [0.568, 0.632] | 0.340 [0.291, 0.396] |
+| SegmentAnyTree | 0.698 [0.657, 0.739] | 0.291 [0.218, 0.364] |
+| DeepForest | 0.630 [0.594, 0.667] | 0.262 [0.206, 0.323] |
+| Li 2012 | 0.663 [0.617, 0.710] | 0.228 [0.159, 0.298] |
+| `lmfauto` | 0.658 [0.605, 0.708] | 0.225 [0.149, 0.300] |
+| TreeisoNet | 0.606 [0.562, 0.650] | 0.193 [0.131, 0.256] |
+| CHM-VWF | 0.554 [0.511, 0.601] | 0.171 [0.118, 0.226] |
+| Detectree2 | 0.365 [0.325, 0.403] | 0.123 [0.089, 0.162] |
+| SAM2Point | 0.090 [0.071, 0.113] | 0.019 [0.008, 0.033] |
+
+AMS3D finds understory stems best and the canopy-surface arms worst. The point
+arms' understory recall comes at a precision cost: AMS3D and `ptrees` have the
+lowest native precision of all arms (0.14 and 0.22, against 0.44 for CHM-VWF).
+
+## Development and replication regions
+
+The region scopes pool the California sites (SJER, SOAP and TEAK; 43 plots,
+662 stems), where the arms were configured, and the Washington sites (WREF
+and ABBY; 63 plots, 1,863 stems), first scored on 1 October 2026. The
+[configuration provenance](../docs/configuration-provenance.md) shows that no
+setting behind these tables was chosen after, or from, Washington scores. The
+four later changes are defect fixes or throughput only. Native density,
+nominal box:
+
+| Arm | F1, California | F1, Washington | Lead over CHM-VWF, California | Lead, Washington | Difference [95%] |
+| --- | --- | --- | --- | --- | --- |
+| CHM-VWF | 0.374 [0.334, 0.416] | 0.480 [0.448, 0.513] | — | — | — |
+| ForestFormer3D | 0.459 [0.421, 0.505] | 0.512 [0.488, 0.537] | +0.086 | +0.032 | +0.054 [+0.013, +0.098] |
+| SegmentAnyTree | 0.461 [0.408, 0.511] | 0.510 [0.478, 0.539] | +0.087 | +0.030 | +0.057 [+0.008, +0.106] |
+| `multichm` | 0.428 [0.388, 0.469] | 0.467 [0.443, 0.492] | +0.054 | −0.013 | +0.067 [+0.024, +0.108] |
+| DeepForest | 0.423 [0.377, 0.467] | 0.466 [0.436, 0.493] | +0.049 | −0.014 | +0.063 [+0.023, +0.102] |
+| Li 2012 | 0.352 [0.312, 0.392] | 0.500 [0.468, 0.529] | −0.022 | +0.020 | −0.041 [−0.071, −0.014] |
+| TreeisoNet | 0.361 [0.323, 0.401] | 0.484 [0.455, 0.511] | −0.013 | +0.004 | −0.017 [−0.043, +0.009] |
+| `lmfauto` | 0.346 [0.302, 0.394] | 0.398 [0.357, 0.443] | −0.027 | −0.082 | +0.055 [+0.005, +0.102] |
+| `ptrees` | 0.259 [0.217, 0.308] | 0.363 [0.319, 0.410] | −0.115 | −0.117 | +0.002 [−0.059, +0.066] |
+| AMS3D | 0.216 [0.171, 0.275] | 0.251 [0.224, 0.278] | −0.157 | −0.229 | +0.072 [+0.009, +0.143] |
+| Detectree2 | 0.350 [0.315, 0.390] | 0.366 [0.331, 0.402] | −0.023 | −0.114 | +0.091 [+0.029, +0.152] |
+| SAM2Point | 0.200 [0.157, 0.251] | 0.104 [0.081, 0.134] | −0.174 | −0.376 | +0.202 [+0.142, +0.264] |
+
+Every arm scores higher in Washington, CHM-VWF most of all, so the leads
+over CHM-VWF shrink there. ForestFormer3D and SegmentAnyTree keep a positive
+lead in both regions; `multichm` and DeepForest do not. Inside censused
+subplots the two leads are the same in both regions: ForestFormer3D +0.061 in
+California against +0.059 in Washington (difference +0.002
+[−0.080, +0.082]), SegmentAnyTree +0.085 against +0.066. The regional
+difference on the nominal box is therefore partly a reference effect, not
+only a detector one. `master_region_leads.csv` holds every arm, rung and
+metric for both tables.
+
+## Rank stability across density
+
+`master_rank_stability.csv` gives the Spearman correlation between the eight
+full-ladder arms' F1 at native density and their F1 at each rung, with a
+plot-bootstrap interval (each draw ranks the arms again):
+
+| Rung | Nominal box | Censused subplots |
+| --- | --- | --- |
+| 8 | 0.833 [0.690, 0.929] | 0.857 [0.643, 0.952] |
+| 4 | 0.762 [0.548, 0.881] | 0.643 [0.476, 0.810] |
+| 2 | −0.048 [−0.167, 0.262] | 0.024 [−0.190, 0.214] |
+| 1 | −0.190 [−0.357, 0.143] | 0.119 [−0.262, 0.262] |
+
+Native rank predicts rank down to rung 4 (2.5 pulses/m²) and not below it:
+from rung 2 (1.3 pulses/m²) the ordering at native density says nothing about
+the ordering on the sparse clouds.
+
 ## Next steps
 
 Every arm is complete on the headline population. The reports still to
@@ -293,9 +373,12 @@ CLAUDE_JOB_DIR=/path/to/paper_runs_relaxed Rscript scripts/master_tables.R POP=r
 ```
 
 Outputs: `master_long.csv` (one row per table, scope, arm, rung and metric,
-with counts, estimate, interval and status), `master_contrasts.csv`,
-`reference_population.csv`, `arm_status.csv`, `master_tables.md` and
-`master_contract.json` (seed, draws, root digest and code checksums).
+with counts, estimate, interval and status; scopes are five sites, each region
+and each site), `master_contrasts.csv`, `master_strata.csv` (recall by crown
+class and height band), `master_region_leads.csv`, `master_rank_stability.csv`,
+`reference_population.csv`, `rung_density.csv`, `arm_status.csv`,
+`master_tables.md` and `master_contract.json` (seed, draws, root digest and
+code checksums).
 
 ## Caveats
 
