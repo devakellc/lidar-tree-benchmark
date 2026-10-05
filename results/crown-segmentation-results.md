@@ -19,6 +19,90 @@ SJER (open oak savanna), SOAP (mixed conifer), TEAK (red-fir). Last run:
 
 ---
 
+## Five-site rerun on the frozen population
+
+Checked on 5 October 2026. Every crown arm was re-run on the
+[frozen-clip study](frozen-clips-results.md)'s declared population at all five
+sites (SJER, SOAP, TEAK, WREF, ABBY), on its crown sub-population: plots with
+at least six stems carrying a NEON field crown diameter. The deep instance
+segmenters are scored from the clouds their corrected re-runs persisted
+(SegmentAnyTree, and ForestFormer3D's whole-scene adapter); TreeisoNet comes
+from its `treeOff` crown arm. These results replace the historical sections
+below for the paper.
+
+```sh
+export CLAUDE_JOB_DIR=$(pwd)/work/paper_runs   # arms re-run on the sealed root
+S=SJER,SOAP,TEAK,WREF,ABBY
+Rscript scripts/crown_metrics_sweep.R SITES=$S CORES=8       # CHM segmenters
+Rscript scripts/crown_metrics_3d.R SITES=$S CORES=8          # 3-D point segmenters
+Rscript scripts/crown_metrics_deepmodel.R SITES=$S CORES=8   # persisted deep clouds
+Rscript scripts/analyze_crown_metrics.R SITES=$S
+```
+
+Native density, each arm on the field stems it matched (RMSE and bias in
+metres):
+
+| Arm | Matched stems | `d_eq` RMSE | `d_eq` bias | `d_eq` R² | `d_caliper` RMSE | `d_caliper` bias | `d_caliper` R² |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `random_walker_thcr` | 1087 | 1.76 | +0.44 | 0.40 | 2.85 | +1.66 | −0.05 |
+| SegmentAnyTree | 1472 | 1.83 | +0.24 | 0.34 | 2.38 | +0.73 | 0.24 |
+| lasR `region_growing` | 1087 | 1.87 | +0.74 | 0.32 | 2.90 | +1.83 | −0.09 |
+| `dalponte2016` | 1087 | 1.94 | +0.80 | 0.27 | 3.58 | +2.39 | −0.65 |
+| `silva2016` | 1087 | 1.99 | +0.87 | 0.23 | 3.42 | +2.41 | −0.51 |
+| ForestFormer3D | 1519 | 2.05 | +0.55 | 0.16 | 3.03 | +0.84 | 0.09 |
+| `watershed_seeded` | 1087 | 2.37 | +1.11 | −0.10 | 3.98 | +2.67 | −1.04 |
+| `ptrees` | 1710 | 2.55 | −0.55 | −0.31 | 3.52 | +0.07 | −0.27 |
+| AMS3D | 1728 | 2.90 | −0.82 | −1.10 | 3.81 | −0.46 | −0.74 |
+| Li 2012 | 1365 | 3.54 | +1.58 | −1.54 | 5.30 | +3.16 | −2.75 |
+| TreeisoNet | 350 | 8.08 | +4.47 | −10.29 | 12.13 | +7.45 | −16.14 |
+
+The CHM arms are seeded from the shared local-maximum tops. The arms match
+different stems, so the comparison that matters is on the 790 stems every arm
+except TreeisoNet matched:
+
+| Arm | `d_eq` RMSE | `d_eq` bias | `d_caliper` RMSE | `d_caliper` bias |
+| --- | ---: | ---: | ---: | ---: |
+| `random_walker_thcr` | 1.71 | +0.46 | 2.83 | +1.67 |
+| SegmentAnyTree | 1.74 | +0.37 | **2.38** | +0.88 |
+| lasR `region_growing` | 1.87 | +0.80 | 2.95 | +1.90 |
+| `dalponte2016` | 1.90 | +0.84 | 3.49 | +2.36 |
+| ForestFormer3D | 1.92 | +0.82 | 2.56 | +1.18 |
+| `silva2016` | 2.01 | +0.93 | 3.45 | +2.45 |
+| `ptrees` | 2.28 | +0.02 | 3.00 | +0.76 |
+| AMS3D | 3.11 | +0.27 | 3.91 | +0.86 |
+| Li 2012 | 3.70 | +2.07 | 5.48 | +3.70 |
+
+`random_walker_thcr` by density rung, `d_eq` against `ninetyCrownDiameter`:
+
+| Rung | Matched stems | RMSE | Bias | R² |
+| --- | ---: | ---: | ---: | ---: |
+| native | 1087 | 1.76 | +0.44 | 0.40 |
+| 8 | 1109 | 1.65 | +0.26 | 0.48 |
+| 4 | 1105 | 1.67 | +0.15 | 0.46 |
+| 2 | 1084 | 1.76 | +0.06 | 0.42 |
+| 1 | 989 | 1.91 | +0.39 | 0.35 |
+
+**Readings.**
+
+- The deep instance segmenters now match the classical arms on equivalent
+  width and beat them on the widest axis: on the common stems SegmentAnyTree's
+  `d_eq` RMSE (1.74 m) equals the stop-rule random walker's (1.71 m), and its
+  `d_caliper` RMSE (2.38 m) is the lowest of every arm; ForestFormer3D is next
+  on `d_caliper` (2.56 m). The CHM arms overstate the widest axis by 1.7 to
+  2.5 m; SegmentAnyTree, `ptrees` and AMS3D by under 1 m, ForestFormer3D by
+  1.2 m.
+- The stop rule still matters more than the algorithm: `random_walker_thcr`
+  leads the CHM arms on every measure, and the marker-free and seeded
+  watersheds trail them.
+- Crown width holds to 2 points/m² (`d_eq` RMSE 1.65 to 1.76 m) and degrades
+  only slightly at 1 point/m² (1.91 m).
+- TreeisoNet's crown arm runs at the checkpoint's 0.1 m voxel, which, as for
+  its instance masks, fragments and merges crowns on NEON ALS; its rows are
+  reported but not usable. Its masks at the apex voxel are a sensitivity in the
+  [instance IoU/PQ study](instance-iou-pq-results.md).
+
+The sections below are the historical runs on the three-site D17 population.
+
 ## TL;DR
 
 - **One detector, many crowns, on a shared CHM.** Tree-tops are detected once
@@ -787,34 +871,15 @@ identical estimators, though both target the same field column. Compare `d_eq`
 only against `ninetyCrownDiameter` and `d_caliper` only against
 `maxCrownDiameter`.
 
-### Results — deep instance segmenters (SOAP-native)
+### Results — deep instance segmenters
 
-_Results pending regeneration (run the command above on a data-equipped machine)._
+Regenerated on the frozen five-site population from the corrected re-runs'
+persisted clouds; see the
+[five-site rerun](#five-site-rerun-on-the-frozen-population) above.
 
-The numbers require the persisted GPU instance clouds under
-`work/neon/SOAP/{segmentanytree,forestformer3d}_instances/`. Those clouds are
-written by the detection arms' persistence hook (added with this crown arm), so
-they must be **regenerated** by re-running the SOAP detection arms on a
-GPU-equipped machine — the prior SOAP runs predate the hook and left only the
-`*_results.csv` rows. SJER/TEAK remain pending GPU clips. Once the clouds exist,
-the crown CSVs are produced by:
-
-```sh
-# (re-run the detection arms first so the instance clouds are persisted)
-Rscript scripts/detect_segmentanytree_sweep.R SITE=SOAP
-Rscript scripts/detect_forestformer3d_sweep.R SITE=SOAP
-# then crown-score the persisted clouds:
-Rscript scripts/crown_metrics_deepmodel.R SITE=SOAP
-Rscript scripts/analyze_crown_metrics.R   SITES=SOAP
-```
-
-The expectation to test on regeneration: like TreeisoNet, these deep arms are
-zero-shot on sparse NEON ALS, so a heavy-tailed diameter error (RMSE ≫ MAE) and
-a strongly negative R² versus the classical CHM arms (`lasr_region_growing`,
-`dalponte2016`) would be the documented-negative-result pattern; the union into
-[`scripts/analyze_crown_metrics.R`](../scripts/analyze_crown_metrics.R) re-pools
-the classical and TreeisoNet arms on the same rows for the head-to-head. Do not
-assume the outcome — record what regeneration produces.
+The expected negative pattern (heavy-tailed errors and a strongly negative R²
+against the classical CHM arms) did not appear: both deep arms have positive
+R² and the lowest widest-axis errors on the common stems.
 
 ---
 
@@ -974,9 +1039,11 @@ Six findings across the arms now in this benchmark:
    product, use a pit-free CHM with `random_walker_thcr` or lasR
    `region_growing`, seeded from multichm where density allows; it holds down to
    ~1 pt/m². When sub-canopy reach or widest-axis accuracy matters, add a 3-D
-   point segmenter (AMS3D or ptrees) as a complementary arm. So far the
-   deep-model arms have not matched the classical arms on crown diameter
-   (TreeisoNet here; SegmentAnyTree and ForestFormer3D pending under #34).
+   point segmenter (AMS3D or ptrees) as a complementary arm. On the frozen
+   five-site population SegmentAnyTree matches the best CHM arm on equivalent
+   width and leads every arm on the widest axis (see the
+   [five-site rerun](#five-site-rerun-on-the-frozen-population)); TreeisoNet's
+   crown arm at the checkpoint voxel is not usable.
 
 ---
 
@@ -1013,10 +1080,9 @@ Rscript scripts/analyze_crown_metrics.R    SITE=SOAP   # union + SOAP RMSE table
 # Deep instance-segmenter crown arm (SegmentAnyTree #M6 + ForestFormer3D #M8;
 # issue #34). Reads PERSISTED per-point instance clouds (no GPU container is run
 # here) under work/neon/<SITE>/{segmentanytree,forestformer3d}_instances/ and
-# reuses the cached frozen DTMs. Those clouds are written by the detection arms'
-# persistence hook, so re-run the SOAP detection arms first (they predate the
-# hook); SJER/TEAK once GPU clips exist. Writes the NEW per-model
-# segmentanytree_/forestformer3d_crown_metrics.csv:
+# reuses the cached frozen DTMs. The clouds are written by the detection arms'
+# persistence hook (see the five-site rerun above for the full command set).
+# Writes the per-model segmentanytree_/forestformer3d_crown_metrics.csv:
 Rscript scripts/detect_segmentanytree_sweep.R SITE=SOAP   # persists instance clouds
 Rscript scripts/detect_forestformer3d_sweep.R SITE=SOAP   # persists instance clouds
 Rscript scripts/crown_metrics_deepmodel.R SITE=SOAP

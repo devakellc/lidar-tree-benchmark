@@ -20,6 +20,71 @@ Rscript scripts/fuse_detectors.R SITES=SOAP,SJER,TEAK RUNGS=native,8,4,2,1 CORES
 # -> work/neon/<SITE>/fusion_results.csv (one row per plot x rung x config)
 ```
 
+## Five-site fusion on the frozen population
+
+Checked on 5 October 2026. The pool was re-run on the declared population of
+the [frozen-clip study](frozen-clips-results.md): 106 plots and 2,525 stems
+over SJER, SOAP, TEAK, WREF and ABBY, every rung. It now holds eight LiDAR arms
+(CHM-VWF, `multichm`, Li 2012 at native only, `ptrees`, AMS3D,
+SegmentAnyTree, ForestFormer3D's whole-scene re-run on every rung, and
+TreeisoNet from its persisted apexes) plus DeepForest for the RGB modes. Each
+single-arm row reproduces that arm's own scored results.
+
+```sh
+export CLAUDE_JOB_DIR=$(pwd)/work/paper_runs   # arms re-run on the sealed root
+Rscript scripts/fuse_detectors.R SITES=SJER,SOAP,TEAK,WREF,ABBY \
+  RUNGS=native,8,4,2,1 CORES=8
+```
+
+Pooled over the 106 common cells of each rung (F1 against field stems):
+
+| Rung | Best single arm | Union | Majority | Best k-of-N | Best k-of-N − best single |
+| --- | --- | ---: | ---: | --- | ---: |
+| native | ForestFormer3D 0.498 | 0.321 | 0.472 | k3 0.489 | −0.009 |
+| 8 | ForestFormer3D 0.487 | 0.392 | 0.462 | k2 0.496 | +0.009 |
+| 4 | SegmentAnyTree 0.469 | 0.427 | 0.450 | k2 0.490 | +0.021 |
+| 2 | AMS3D 0.459 | 0.434 | 0.426 | k2 0.481 | +0.022 |
+| 1 | DeepForest (RGB) 0.454 | 0.446 | 0.359 | k2 0.473 | +0.019 |
+
+Native, every configuration:
+
+| Configuration | Recall | Precision | F1 | Mask PQ (proxy) |
+| --- | ---: | ---: | ---: | ---: |
+| ForestFormer3D | 0.621 | 0.416 | 0.498 | 0.098 |
+| SegmentAnyTree | 0.604 | 0.419 | 0.495 | 0.115 |
+| Li 2012 | 0.561 | 0.384 | 0.456 | 0.108 |
+| `multichm` | 0.541 | 0.394 | 0.456 | 0.089 |
+| DeepForest (RGB) | 0.545 | 0.390 | 0.454 | 0.102 |
+| CHM-VWF | 0.464 | 0.438 | 0.450 | 0.106 |
+| TreeisoNet | 0.514 | 0.394 | 0.446 | 0.101 |
+| `ptrees` | 0.712 | 0.215 | 0.331 | 0.064 |
+| AMS3D | 0.713 | 0.145 | 0.240 | 0.035 |
+| Union | 0.846 | 0.198 | 0.321 | 0.044 |
+| Majority | 0.497 | 0.450 | 0.472 | 0.107 |
+| Layered | 0.830 | 0.217 | 0.344 | 0.049 |
+| LiDAR NMS | 0.909 | 0.206 | 0.336 | 0.046 |
+| RGB union | 0.808 | 0.199 | 0.319 | 0.042 |
+| RGB agreement | 0.438 | 0.460 | 0.449 | 0.091 |
+
+**Readings.**
+
+- At native density no fused mode beats the best single arm: ForestFormer3D
+  (0.498) is ahead of the best k-of-N point (k3, 0.489), majority voting
+  (0.472) and the union (0.321).
+- From 8 points/m² down, two-arm agreement (k2) is the best operating point,
+  0.009 to 0.022 F1 above the best single arm of that rung. The value of k is
+  chosen on the same plots, so the gain is an in-sample upper bound.
+- The union raises recall to 0.85–0.91 at native density at a large precision
+  cost; its F1 loss shrinks with density (−0.177 at native, −0.009 at
+  1 point/m²), as the single arms lose recall.
+- At 1 point/m² the best single arm is the RGB detector, whose accuracy does
+  not depend on point density; SegmentAnyTree has collapsed there (F1 0.128).
+- The fusion Pareto stays on raw F1; the
+  [coverage-gap study](coverage-gap-results.md) brackets how much the union
+  modes are under-credited by the incomplete field maps.
+
+The sections below are the historical three-site runs.
+
 ## What this is
 
 For each frozen cell, per-arm apexes are **materialized fresh** (the
@@ -32,9 +97,11 @@ For each frozen cell, per-arm apexes are **materialized fresh** (the
 - `segmentanytree` — the persisted `segmentanytree_instances/<plot>_<rung>.laz`
   (`PredInstance`) reduced to apexes and converted to AGL with the frozen DTM.
 - `forestformer3d` — the persisted `forestformer3d_instances/<plot>_<rung>.laz`
-  (`UserData`/`PointSourceID`) collapsed and AGL-guarded (**native + 8 only**).
-- **TreeisoNet is deferred**: it persists no reusable per-point/apex labels
-  (apex-only GPU `*_results.csv`), so it cannot be re-fused offline.
+  (`UserData`/`PointSourceID`) collapsed and AGL-guarded (every rung of the
+  whole-scene re-run; the historical runs had native and 8 only).
+- `treeisonet` — the apexes its sweep scored, persisted in
+  `treeisonet_detections/` (absent from the historical runs, which predate
+  that persistence).
 
 `fuse_apexes()` (in [`model_bench_lib.R`](../scripts/model_bench_lib.R), unit
 tested in `tests/testthat/test-detector-fusion.R`) clusters apexes across arms by
@@ -141,5 +208,6 @@ SegmentAnyTree (F1 0.464 over 18 common cells; union ΔF1 −0.181, majority
 −0.051), and the k-of-N Pareto peaks at **k5 F1 0.430** (R 0.448 / P 0.414) —
 the extra members raise the consensus operating point (the old 5-arm majority
 was the peak). Full cross-site re-synthesis of this doc's tables on the 7-arm
-pool is future work; the numbers above are from `fusion_results.csv` as
-regenerated at `RUNGS=native CORES=1`.
+pool is the [five-site fusion](#five-site-fusion-on-the-frozen-population)
+section above; the numbers here are from the historical SOAP smoke run at
+`RUNGS=native CORES=1`.

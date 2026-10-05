@@ -404,5 +404,5 @@ Readings (updated for #V6 — the previous 2-of-9 data limit is closed):
   native-mask rows.
 - **Fusion pool (#P1) now includes ptrees + AMS3D** from the persisted clouds
   (SOAP native smoke: 7 single arms + modes + k1–k7 Pareto, best fused point
-  k5 F1 0.430 vs best single 0.464); the full cross-site fusion re-synthesis
-  on the extended pool is future work.
+  k5 F1 0.430 vs best single 0.464). The five-site fusion on the full pool is
+  in the [fusion study](detector-fusion-results.md).
