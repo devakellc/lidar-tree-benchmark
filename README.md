@@ -44,17 +44,20 @@ every arm on one declared population of five NEON sites (SJER, SOAP and TEAK
 in California; WREF and ABBY in Washington; 106 plots and 2,525 field stems).
 The [frozen-clip study](results/frozen-clips-results.md) fixes hash-verified
 clips at native density (median 9.8 first-return pulses/m²) and at four
-decimated rungs (4.7, 2.5, 1.3 and 0.6 pulses/m²). Every pooled number and
+decimated rungs (4.7, 2.5, 1.3 and 0.6 pulses/m²), plus a rung at the USGS
+QL2 floor (2.0 pulses/m²) frozen in its own root. Every pooled number and
 arm-versus-arm difference carries a paired plot-bootstrap interval.
 
 - At native density ForestFormer3D (F1 **0.498**) and SegmentAnyTree
   (**0.495**) lead CHM variable-window filtering (CHM-VWF, **0.450**) by
   **+0.048 [+0.028, +0.069]** and **+0.044 [+0.021, +0.067]**. `multichm`,
   Li 2012, DeepForest and TreeisoNet are indistinguishable from CHM-VWF.
-- SegmentAnyTree collapses below 2.5 pulses/m² (F1 **0.13** at
-  0.6 pulses/m²). TreeisoNet, `multichm` and ForestFormer3D hold, and lead
-  CHM-VWF by 0.05–0.07 at 0.6 pulses/m². Native rank predicts rank down to
-  2.5 pulses/m² (Spearman 0.76) and not below (−0.05 at 1.3 pulses/m²).
+- SegmentAnyTree holds to the QL2 floor (F1 **0.449** at 2.0 pulses/m², level
+  with `multichm`, TreeisoNet and ForestFormer3D) and collapses below it
+  (**0.38** at 1.3 and **0.13** at 0.6 pulses/m²). TreeisoNet, `multichm` and
+  ForestFormer3D hold, and lead CHM-VWF by 0.05–0.07 at 0.6 pulses/m². Native
+  rank predicts rank down to the QL2 floor (Spearman 0.71) and not below
+  (−0.05 at 1.3 pulses/m²).
 - CHM-VWF is flat across density on the California sites but loses
   0.07–0.10 F1 in Washington; one density curve does not describe every site.
   See the [density-ladder study](results/density-ladder-sweep-results.md).
