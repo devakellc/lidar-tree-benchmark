@@ -1,6 +1,7 @@
 # Native sparse epoch versus decimation
 
-Checked on 1 October 2026; SegmentAnyTree added on 3 October. The density
+Checked on 1 October 2026; SegmentAnyTree added on 3 October, ForestFormer3D
+and TreeisoNet on 5 October. The density
 ladder simulates sparse acquisitions by decimating the 2021 NEON clouds. The
 [native 3DEP cross-check](native-ql2-crosscheck-results.md) could test that
 only against a different, denser sensor thinned to the same target. This
@@ -32,6 +33,16 @@ level with rung 4 (−0.02, interval includes zero). Recall falls in every
 crown class, dominant trees included. For this arm a decimated rung overstates the
 recall of a native flight at the same density by up to a fifth of the
 stems, so its sparse-rung results must be quoted as upper bounds.
+
+**ForestFormer3D and TreeisoNet are about as optimistic as the CHM arms.**
+On the same stems ForestFormer3D's native sparse recall (0.53) is 0.05 below
+rung 8 (interval excludes zero) and 0.03 below rung 4 (interval includes
+zero); its F1 (0.42) is level with both rungs. TreeisoNet's recall (0.46) is
+0.05 and 0.04 below the two rungs and its F1 (0.32) 0.04 below both, all with
+intervals that exclude zero. ForestFormer3D's sparse-rung F1 therefore stands
+for a native flight at the same density, with recall slightly overstated;
+TreeisoNet's sparse-rung F1 is a mild upper bound, by about 0.04. Neither
+approaches SegmentAnyTree's gap.
 
 The epochs are SJER 2017-03, SOAP 2018-06 and TEAK 2018-06. The
 NeonTreeEvaluation boxes cover 14 tower cores and serve as a supplementary
@@ -204,8 +215,12 @@ on 14 plots, as a supplement to the field-stem benchmark. The limits:
 ## Native sparse versus decimated 2021
 
 CHM-VWF (`run_sweep.R`, density-derived CHM resolution, `a` = 0.10),
-`multichm` and SegmentAnyTree (zero-shot, the same checkpoint and image as
-the 2021 ladder) ran on each sealed root with the adopted population. To score both
+`multichm`, SegmentAnyTree, ForestFormer3D (indexed whole-scene adapter) and
+TreeisoNet (apex voxel 0.8 × 0.8 × 2.0 m) ran on each sealed root with the
+adopted population; the learned arms are zero-shot with the checkpoints and
+images of the 2021 ladder. On the 2021 side, ForestFormer3D and TreeisoNet are
+re-scored from the paper runs' persisted detections on the same sealed clips
+(`rescore_population.R`) rather than run again. To score both
 sides on one reference, each arm ran again in job directories whose ground
 truth holds only the comparison stems: for the shared stems, their 2021
 records on both sides (same positions, heights and crown classes). The cores
@@ -262,6 +277,17 @@ in all four compared cells.
 | SegmentAnyTree | **D17** | 2021 native | 39 | 586 | — | 0.70 | 0.34 | 0.46 | 0.73 | 0.53 |
 | SegmentAnyTree | **D17** | 2021 rung 8 | 39 | 586 | — | **0.61** | 0.35 | **0.44** | 0.65 | 0.36 |
 | SegmentAnyTree | **D17** | 2021 rung 4 | 39 | 586 | — | **0.48** | 0.36 | **0.41** | 0.52 | 0.23 |
+| ForestFormer3D | **D17** | sparse native | 39 | 586 | — | **0.53** | 0.35 | **0.42** | 0.58 | 0.32 |
+| ForestFormer3D | **D17** | 2021 native | 39 | 586 | — | 0.60 | 0.36 | 0.45 | 0.65 | 0.38 |
+| ForestFormer3D | **D17** | 2021 rung 8 | 39 | 586 | — | **0.58** | 0.35 | **0.44** | 0.61 | 0.38 |
+| ForestFormer3D | **D17** | 2021 rung 4 | 39 | 586 | — | **0.56** | 0.33 | **0.42** | 0.59 | 0.35 |
+| TreeisoNet | **D17** | sparse native | 39 | 586 | — | **0.46** | 0.25 | **0.32** | 0.49 | 0.19 |
+| TreeisoNet | **D17** | 2021 native | 39 | 586 | — | 0.49 | 0.28 | 0.36 | 0.52 | 0.23 |
+| TreeisoNet | **D17** | 2021 rung 8 | 39 | 586 | — | **0.51** | 0.28 | **0.36** | 0.53 | 0.25 |
+| TreeisoNet | **D17** | 2021 rung 4 | 39 | 586 | — | **0.49** | 0.28 | **0.36** | 0.53 | 0.22 |
+
+The per-site ForestFormer3D and TreeisoNet rows are in the generated
+`report.md` (see Reproduce).
 
 SJER has a single understory stem among the 40, so its understory column is
 left blank. Densities are the median first-return density of the scored
@@ -282,6 +308,14 @@ clips. Recall by NEON crown class, D17 pooled (stems in brackets; 27 of the
 | SegmentAnyTree | 2021 native | 0.81 | 0.68 | 0.51 | 0.67 |
 | SegmentAnyTree | 2021 rung 8 | 0.81 | 0.58 | 0.35 | 0.44 |
 | SegmentAnyTree | 2021 rung 4 | 0.68 | 0.44 | 0.22 | 0.33 |
+| ForestFormer3D | sparse native | 0.72 | 0.51 | 0.29 | 0.56 |
+| ForestFormer3D | 2021 native | 0.74 | 0.60 | 0.39 | 0.33 |
+| ForestFormer3D | 2021 rung 8 | 0.77 | 0.54 | 0.38 | 0.44 |
+| ForestFormer3D | 2021 rung 4 | 0.79 | 0.50 | 0.34 | 0.44 |
+| TreeisoNet | sparse native | 0.69 | 0.39 | 0.18 | 0.22 |
+| TreeisoNet | 2021 native | 0.71 | 0.43 | 0.23 | 0.22 |
+| TreeisoNet | 2021 rung 8 | 0.74 | 0.43 | 0.23 | 0.44 |
+| TreeisoNet | 2021 rung 4 | 0.73 | 0.43 | 0.22 | 0.22 |
 
 Sparse native minus each 2021 cell, D17 shared stems, with 95% intervals
 from 2,000 paired bootstrap resamples of plots within site:
@@ -297,6 +331,12 @@ from 2,000 paired bootstrap resamples of plots within site:
 | SegmentAnyTree | 2021 rung 8 | −0.193 (−0.231 to −0.156) | +0.026 (−0.011 to +0.062) | −0.048 (−0.085 to −0.009) |
 | SegmentAnyTree | 2021 rung 4 | −0.063 (−0.119 to −0.012) | +0.013 (−0.029 to +0.051) | −0.017 (−0.058 to +0.021) |
 | SegmentAnyTree | 2021 native | −0.280 (−0.309 to −0.247) | +0.030 (−0.005 to +0.064) | −0.065 (−0.107 to −0.022) |
+| ForestFormer3D | 2021 rung 8 | −0.048 (−0.080 to −0.021) | −0.002 (−0.028 to +0.023) | −0.016 (−0.043 to +0.008) |
+| ForestFormer3D | 2021 rung 4 | −0.026 (−0.069 to +0.016) | +0.014 (−0.014 to +0.043) | +0.003 (−0.027 to +0.032) |
+| ForestFormer3D | 2021 native | −0.070 (−0.104 to −0.040) | −0.017 (−0.044 to +0.010) | −0.033 (−0.061 to −0.007) |
+| TreeisoNet | 2021 rung 8 | −0.049 (−0.090 to −0.017) | −0.027 (−0.054 to −0.005) | −0.035 (−0.065 to −0.010) |
+| TreeisoNet | 2021 rung 4 | −0.039 (−0.081 to −0.004) | −0.033 (−0.056 to −0.013) | −0.037 (−0.064 to −0.014) |
+| TreeisoNet | 2021 native | −0.032 (−0.066 to −0.006) | −0.027 (−0.052 to −0.007) | −0.031 (−0.057 to −0.009) |
 
 **Reading.** Both bracketing rungs give higher recall than the native
 sparse flight, so decimating to a matched density would too: the native
@@ -318,6 +358,16 @@ native, 8 and 4), and the native flights fall lower still. The gap is the
 largest of the three arms, so the CHM arms' small optimism does not carry
 over to the learned arm. On SJER's four plots its recall halves (0.45 against
 0.78–0.85), but 40 stems cannot separate sensor from sample.
+
+ForestFormer3D and TreeisoNet do not share SegmentAnyTree's gap. Their native
+sparse recall falls 0.03 to 0.05 short of the bracketing rungs, as the CHM
+arms' does, and their dominant recall is within 0.07 of the decimated cells.
+Within the 2021 ladder their recall barely moves from native density to
+rung 4 (ForestFormer3D 0.60 to 0.56, TreeisoNet 0.49 to 0.49), and the native
+flights sit just below. Per learned arm, for the paper: SegmentAnyTree's
+sparse-rung results are upper bounds (recall by up to 0.19); TreeisoNet's are
+mild upper bounds (F1 by about 0.04); ForestFormer3D's F1 is unbiased within
+the intervals, with recall overstated by up to 0.05 at 4.7 pulses/m².
 
 ### The 2015-only stratum
 
@@ -388,6 +438,19 @@ CLAUDE_JOB_DIR=$W/sparse_2017/compare_shared Rscript scripts/detect_segmentanytr
   SITE=SJER POP=adopted FROZEN_ROOT=$W/sparse_2017/neon/frozen_2017 RUNGS=native CORES=4
 CLAUDE_JOB_DIR=$W/sparse_compare_2021/shared Rscript scripts/detect_segmentanytree_sweep.R \
   SITE=SJER POP=adopted FROZEN_ROOT=$W/neon/frozen_2021 RUNGS=native,8,4 CORES=4
+# ForestFormer3D and TreeisoNet (GPU, one job at a time) on the sparse roots,
+# and their 2021 side re-scored from the paper runs' persisted detections:
+for E in SJER:sparse_2017:2017 SOAP:sparse_2018:2018 TEAK:sparse_2018:2018; do
+  IFS=: read S J Y <<< "$E"
+  export CLAUDE_JOB_DIR=$W/$J/compare_shared
+  Rscript scripts/detect_forestformer3d_sweep.R SITE=$S POP=adopted RUNGS=native \
+    TIMEOUT=3600 FROZEN_ROOT=$W/$J/neon/frozen_$Y
+  Rscript scripts/detect_treeisonet_sweep.R SITE=$S POP=adopted RUNGS=native \
+    VOXEL=0.8,0.8,2.0 MASK_VOXEL=0 FROZEN_ROOT=$W/$J/neon/frozen_$Y
+done
+CLAUDE_JOB_DIR=$W/sparse_compare_2021/shared Rscript scripts/rescore_population.R \
+  POP=adopted SOURCES=$W/paper_runs ARMS=forestformer3d,treeisonet SITES=SJER,SOAP,TEAK \
+  FROZEN_ROOT=$W/neon/frozen_2021
 CLAUDE_JOB_DIR=$W Rscript scripts/compare_sparse_epoch.R MODE=report EPOCHS=$EP \
   C21=$W/sparse_compare_2021 OUT=$W/sparse_2018/compare_report
 ```

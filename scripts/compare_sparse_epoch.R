@@ -99,9 +99,13 @@ if (mode == "prepare") {
 out <- if (is.null(A$OUT)) file.path(ep$job[1], "compare_report") else A$OUT
 dir.create(out, recursive = TRUE, showWarnings = FALSE)
 CLASSES <- c("dominant", "codominant", "intermediate", "suppressed")
-# Result file per arm; SegmentAnyTree joins when its GPU runs have been made.
+# Result file per arm; a learned arm joins where its runs have been made. On
+# the 2021 side, ForestFormer3D and TreeisoNet are re-scored from the headline
+# runs' persisted detections (rescore_population.R; the same sealed clips).
 ARM_FILES <- c(chm_vwf = "sweep.csv", multichm = "multichm.csv",
-               segmentanytree = "segmentanytree_results.csv")
+               segmentanytree = "segmentanytree_results.csv",
+               forestformer3d = "forestformer3d_results.csv",
+               treeisonet = "treeisonet_results.csv")
 read_side <- function(path, arm, side) {
   if (!file.exists(path)) return(NULL)
   x <- read.csv(path, stringsAsFactors = FALSE); x$rung <- as.character(x$rung)
@@ -196,8 +200,9 @@ for (a in names(ARM_FILES)) {
     if (is.null(sp) || is.null(c2)) next
     sp <- sp[sp$rung == "native", ]
     eq <- Reduce(intersect, c(list(sp$plot), lapply(c("native", "8", "4"), function(r) c2$plot[c2$rung == r])))
-    rows[[s]] <- rbind(sp[sp$plot %in% eq, ], c2[c2$rung %in% c("native", "8", "4") & c2$plot %in% eq, ])[,
-      c("plot", "side", "rung", "n_ref", "n_det", "TP", "precision")]
+    keep <- c("plot", "side", "rung", "n_ref", "n_det", "TP", "precision")
+    rows[[s]] <- rbind(sp[sp$plot %in% eq, keep],
+                       c2[c2$rung %in% c("native", "8", "4") & c2$plot %in% eq, keep])
     rows[[s]]$site <- s
   }
   if (!length(rows)) next
