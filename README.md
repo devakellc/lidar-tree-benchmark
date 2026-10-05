@@ -177,6 +177,12 @@ and evaluation choices. The main principles are:
 - Measure density first. First-return density (`frdens`) controls CHM
   resolution, window size, and smoothing; all-return density (`pdens`)
   controls thinning and prevents requests to upsample sparse inputs.
+- Report density as first-return pulses/m². Rungs are named by their
+  all-return decimation target (8, 4, 2 and 1 points/m²); on the frozen
+  five-site population these give medians of 4.7, 2.5, 1.3 and 0.6
+  pulses/m², and the native clouds 9.8 (all-return 17.9 points/m²). The
+  [master tables](results/master-tables-results.md) list the measured density
+  of every rung and site.
 - Compare equivalent support. Keep site, plot, density, and reference support
   aligned across methods, and report missing or failed cells explicitly. All
   NEON arms read one declared plot population and one sealed set of frozen
@@ -233,6 +239,29 @@ resources, and accepted-run artifacts are prerequisites for the larger
 studies; a clone does not include them. Most R drivers use `KEY=VALUE`
 arguments, while Python drivers use flags. Check the selected script's parser
 and linked study instructions before changing its invocation.
+
+### Rebuild the paper tables
+
+The reproduction archive holds the sealed frozen clips, plot populations,
+every arm's per-cell results and persisted detections, and the census and
+sparse-epoch inputs. One command rebuilds every table of the frozen-clip
+benchmark from it on CPU, without inference, downloads or a NEON token, and
+checks each rebuilt file against the archived copy:
+
+```sh
+docker build -t lidar-tree-benchmark-reproduce reproduce
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/repo:ro \
+  -v /path/to/archive:/archive:ro -v /path/to/scratch:/out \
+  lidar-tree-benchmark-reproduce \
+  bash scripts/reproduce_paper_tables.sh ARCHIVE=/archive OUT=/out/run CORES=8
+```
+
+The image pins R 4.3.3, lasR, lidR and the geometry packages to the versions
+the tables were computed with. The [archive guide](docs/reproduction-archive.md)
+lists its layout and what it leaves out;
+[model-provenance.json](docs/model-provenance.json) records the checkpoint
+hashes, image IDs and source commits of the learned arms.
+`scripts/stage_archive.sh` builds the archive from a working directory.
 
 ### USGS 3DEP AOI
 
@@ -298,6 +327,7 @@ scripts and configuration.
 | NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R), [preflight_site_extension.R](scripts/preflight_site_extension.R) |
 | NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
 | NEON master tables and intervals | [master_tables.R](scripts/master_tables.R), [master_tables_lib.R](scripts/master_tables_lib.R) |
+| Reproduction archive and table rebuild | [stage_archive.sh](scripts/stage_archive.sh), [reproduce_paper_tables.sh](scripts/reproduce_paper_tables.sh), [compare_reproduction.R](scripts/compare_reproduction.R), [reproduce/Dockerfile](reproduce/Dockerfile) |
 | NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
 | Native sparse epochs | [prepare_sparse_epoch.R](scripts/prepare_sparse_epoch.R), [audit_sparse_epoch.R](scripts/audit_sparse_epoch.R), [compare_sparse_epoch.R](scripts/compare_sparse_epoch.R) |
 | NEON density ladder | [run_sweep.R](scripts/run_sweep.R), [analyze_sweep.R](scripts/analyze_sweep.R), [compare_sites.R](scripts/compare_sites.R) |

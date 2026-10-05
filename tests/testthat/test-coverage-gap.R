@@ -27,6 +27,28 @@ test_that("optical cache loading distinguishes an empty run from missing coverag
   expect_equal(boxes_to_dets(b, raster, keep_score = TRUE)$score, 0.8)
 })
 
+test_that("the RGB tile index stands in for archived imagery", {
+  tmp <- tempfile(); dir.create(tmp)
+  on.exit(unlink(tmp, recursive = TRUE), add = TRUE)
+  dir.create(file.path(tmp, "rgb")); dir.create(file.path(tmp, "deepforest_boxes"))
+  raster <- terra::rast(ncols = 2, nrows = 2, xmin = 0, xmax = 1000,
+                         ymin = 0, ymax = 1000, vals = 1)
+  terra::writeRaster(raster, file.path(tmp, "rgb", "2021_SOAP_5_0_0_image.tif"))
+  write.csv(data.frame(x = c(500, 600), y = 500, score = c(0.8, 0.9)),
+            file.path(tmp, "deepforest_boxes", "2021_SOAP_5_0_0_image.csv"), row.names = FALSE)
+  with_tifs <- deepforest_plot_boxes(tmp, "SOAP", 500, 500, 20)
+  write_rgb_tile_index(tmp)
+  idx <- read.csv(file.path(tmp, "rgb_tiles.csv"))
+  expect_equal(idx$tile, "2021_SOAP_5_0_0_image.tif")
+  expect_equal(unlist(idx[1, -1], use.names = FALSE), c(0, 1000, 0, 1000))
+  unlink(file.path(tmp, "rgb"), recursive = TRUE)
+  expect_equal(deepforest_plot_boxes(tmp, "SOAP", 500, 500, 20), with_tifs)
+  expect_null(deepforest_plot_boxes(tmp, "SJER", 500, 500, 20))
+  expect_null(deepforest_plot_boxes(tmp, "SOAP", 990, 500, 20))
+  write.csv(idx[, 1:3], file.path(tmp, "rgb_tiles.csv"), row.names = FALSE)
+  expect_error(deepforest_plot_boxes(tmp, "SOAP", 500, 500, 20), "invalid RGB tile index")
+})
+
 ## ---- co_detect_credit ------------------------------------------------------
 # An isolated FP is credited as probable-real only when witness detections from
 # >= min_fam DISTINCT families sit within r of it.

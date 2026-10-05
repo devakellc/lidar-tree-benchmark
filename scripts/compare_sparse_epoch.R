@@ -221,7 +221,9 @@ for (a in names(ARM_FILES)) {
 }
 bt <- do.call(rbind, boot); rownames(bt) <- NULL
 write.csv(bt, file.path(out, "sparse_minus_2021_bootstrap.csv"), row.names = FALSE)
-cat("\n## Sparse native minus 2021, shared stems, D17 (paired plot bootstrap, 95%)\n\n")
+# The markdown tables go to <OUT>/report.md as well as the console.
+sink(file.path(out, "report.md"), split = TRUE)
+cat("## Sparse native minus 2021, shared stems, D17 (paired plot bootstrap, 95%)\n\n")
 cat("| Arm | Versus | Metric | Delta | 95% interval |\n| --- | --- | --- | ---: | --- |\n")
 cat(sprintf("| %s | %s | %s | %+.3f | %+.3f to %+.3f |\n", bt$arm, bt$versus, bt$metric, bt$delta,
             bt$lo, bt$hi), sep = "")
@@ -235,3 +237,4 @@ for (st in unique(tab$stratum)) {
               paste(t$side, t$rung), t$plots, t$n_ref, f(t$frdens_median, 1), f(t$recall), f(t$precision),
               f(t$F1), f(t$rec_overstory), f(t$rec_understory)), sep = "")
 }
+sink()

@@ -1,0 +1,69 @@
+{
+  "description": "Models, runtimes and environment behind the frozen-root NEON benchmark tables. Learned-arm identities come from the run manifests of the final runs (forestformer3d_run_manifest.json, treeisonet_run_manifest.json) and from the local images and weights used for them. Images were built locally from the Dockerfiles under gpu/ and are identified by their image ID (the SHA-256 of the image configuration); they were not pushed to a registry.",
+  "recorded": "2026-10-05",
+  "frozen_root_clip_manifest_sha256": "4567a247a6dd6d9630d6cea5427da3e262b1dcaac4a07a1173b3764e8a63c8d4",
+  "arms": {
+    "forestformer3d": {
+      "runtime": "docker",
+      "image": "ff3d-sm120:latest",
+      "image_id": "sha256:fd60f5cdc5ae880af13b339f4aa1f1e891a3809c7f39fb15d2b5ff04978799f3",
+      "build_files": "gpu/forestformer3d-sm120",
+      "source": {"repo": "https://github.com/SmartForest-no/ForestFormer3D", "commit": "6a75c3735e4a4108d02ee944a8b93177f2360a4f", "modified": true, "modification_md5": "306acd103dae05e20de2c3535a728612"},
+      "checkpoint": {"file": "epoch_3000_fix.pth", "source": "https://doi.org/10.5281/zenodo.16742708", "sha256": "01037a648596832238ac72ea2f5eef87ceaf5aeb399e56ff4b760ba1ed1c777e", "md5": "c340ded5f01f0b03c2c717e0a0519323"},
+      "layout": "whole_scene"
+    },
+    "treeisonet": {
+      "runtime": "python venv (gpu/setup_treeisonet_env.sh), Python 3.12.3",
+      "source": {"repo": "https://github.com/NRCan/TreeAIBox", "commit": "5380ddec2799f55adb43b63407dd12ccf7abefae", "modified": false},
+      "checkpoints": [
+        {"file": "als_treeloc.pth", "sha256": "c6e15a211c1002e160fab1a44a79237d78ad0d3ee46c04d5eb206d2b43361ba7", "md5": "1e3cffea8d16a784aa03ccad88b0642f"},
+        {"file": "als_treeoff.pth", "sha256": "6cf5d890e84b0cf2587fe7c4c4c320a2e692bc148dfe84aec86dec43320a1759", "md5": "541c1abb3a309097efca3a3578d44bc9"}
+      ],
+      "checkpoint_source": "TreeAIBox release v1.0 (gpu/mirror_weights.sh; hashes in gpu/CHECKSUMS.sha256)"
+    },
+    "segmentanytree": {
+      "runtime": "docker",
+      "image": "sat-sm120-test:latest",
+      "image_id": "sha256:27ce258d8a5ab70bdc457523d373848d5065e7b8044d3ef7891ff9e53dee2bd2",
+      "build_files": "gpu/segmentanytree-sm120",
+      "source": {"repo": "https://github.com/SmartForest-no/SegmentAnyTree", "commit": "a3561ed8447bbb7938f059ba65a3e9c97d6e2ee9"},
+      "checkpoint": {"file": "model_file/PointGroup-PAPER.pt", "sha256": "0b4d74b4644e37a16f59008ad0f5c62894fc4d2d906f3abd803bbfc5b5dd803a"}
+    },
+    "sam2point": {
+      "runtime": "docker",
+      "image": "sam2point-sm120:test",
+      "image_id": "sha256:744e0b92a47b5ea45a2f93034b72c5e036221639fe6e55be5298c382331e1bd4",
+      "build_files": "gpu/sam2point-sm120",
+      "source": {"repo": "https://github.com/ZiyuGuo99/SAM2Point", "commit": "e6897a7db4b4328005300c5a7d619d2b9679bf8e"},
+      "checkpoint": {"file": "sam2_hiera_large.pt", "source": "https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_large.pt", "sha256": "7442e4e9b732a508f80e141e7c2913437a3610ee0c77381a66658c3a445df87b"}
+    },
+    "deepforest": {
+      "runtime": "conda env, deepforest 2.1.0, torch 2.12.1",
+      "model": {"repo": "https://huggingface.co/weecology/deepforest-tree", "revision": "cc21436bc5d572dde8ff5f93c1e71a32f563cace"}
+    },
+    "detectree2": {
+      "runtime": "conda env, detectree2 2.1.2, detectron2 0.6, torch 2.12.1 (CPU)",
+      "checkpoint": {"file": "250312_flexi.pth", "source": "https://doi.org/10.5281/zenodo.15863800", "sha256": "43b58544530a71c98814b9e7fd14975a46761f4255ec188f89c8b3fb756017bf"}
+    }
+  },
+  "r_environment": {
+    "os": "Ubuntu 24.04 (GDAL 3.8.4, GEOS 3.12.1, PROJ 9.4.0)",
+    "r": "4.3.3 (Ubuntu r-base-core 4.3.3-2build2)",
+    "packages": {
+      "lasR": "0.21.0 from https://github.com/r-lidar/lasR pre-devel, commit 34a79f05ed61f0f443f2833b07dc1da4bb714a58",
+      "lidR": "4.3.2",
+      "rlas": "1.9.2",
+      "lidRplugins": "0.4.0 from https://github.com/Jean-Romain/lidRplugins commit 567592acea4363dce635eb39e6ed3fbedfe5cee9, with rgeos, rgdal, EBImage and rgl removed from Imports",
+      "crownsegmentr": "1.0.1",
+      "EBImage": "4.44.0 (Bioconductor 3.18), for lidR's marker-free watershed",
+      "terra": "1.8-29",
+      "sf": "1.0-19",
+      "data.table": "1.18.4",
+      "clue": "0.3-68",
+      "Matrix": "1.6-5",
+      "jsonlite": "2.0.0",
+      "digest": "0.6.37"
+    },
+    "container": "reproduce/Dockerfile"
+  }
+}
