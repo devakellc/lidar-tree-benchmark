@@ -1,5 +1,9 @@
 # Per-detection confidence calibration
 
+> **Historical (three-site population), supplement only.** These calibration
+> curves were fitted on the earlier runs and have not been refitted on the
+> frozen five-site population.
+
 This study maps detector scores to empirical field-match precision using
 isotonic calibration. Results were regenerated on 2026-09-15:
 validation now holds out whole plots, and DeepForest's native detector score

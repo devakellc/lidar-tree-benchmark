@@ -1,5 +1,11 @@
 # DeepForest RGB arm + the density-invariant anchor
 
+> **Historical (three-site population), supplement only.** DeepForest and
+> Detectree2 on the frozen five-site population are in the
+> [model benchmark](model-benchmark-results.md#five-sites-every-arm-paper-numbers)
+> and the [master tables](master-tables-results.md); the five-site fusion of
+> optical and LiDAR arms is in the [fusion study](detector-fusion-results.md).
+
 RGB detections stay fixed as the benchmark thins LiDAR inputs, giving DeepForest
 a **density-invariant reference** for the router and fusion.
 The historical standalone comparison below motivated the paired fusion study;
