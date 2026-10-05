@@ -69,6 +69,7 @@ src_dir <- dirname(sub("^--file=", "",
                        grep("^--file=", commandArgs(FALSE), value = TRUE)[1]))
 if (is.na(src_dir) || !nzchar(src_dir)) src_dir <- "scripts"
 source(file.path(src_dir, "sweep_lib.R"))     # detect_lasr, score_plot, plot_half
+source(file.path(src_dir, "model_bench_lib.R")) # frozen_scope (POP=)
 source(file.path(src_dir, "ept_discovery.R")) # discover_ept (for auto-resolution)
 
 JOB <- .job_dir()
@@ -92,6 +93,12 @@ QL2_HI <- as.numeric(if (is.null(A$QL2_HI)) 4.0 else A$QL2_HI)
 MAXPLOTS <- if (is.null(A$MAXPLOTS) || A$MAXPLOTS == "ALL") NA_integer_ else
   as.integer(A$MAXPLOTS)
 ONLY_PLOTS <- if (is.null(A$PLOTS)) NULL else strsplit(A$PLOTS, ",")[[1]]
+# POP= scores against that declared population of the sealed frozen root (its
+# plots and gated stems, frozen_scope) instead of the historical six-stem
+# D17 reference. CACHE_JOB= reads (and adds) the EPT candidates and per-plot
+# clouds under another job directory, so a re-score reuses the cached pulls.
+POP_SCOPED <- !is.null(A$POP)
+CACHE <- if (is.null(A$CACHE_JOB)) JOB else A$CACHE_JOB
 
 # Per-site EPT override argument: EPT_<SITE>=<url>.
 ept_override <- function(site) {
@@ -104,9 +111,9 @@ ept_override <- function(site) {
 resolve_ept <- function(site) {
   ov <- ept_override(site)
   if (!is.na(ov)) return(ov)
-  cand_path <- file.path(JOB, "neon", site, "ql2", "ept_candidates.csv")
+  cand_path <- file.path(CACHE, "neon", site, "ql2", "ept_candidates.csv")
   if (!file.exists(cand_path)) {
-    discover_ept(site, JOB, site_epsg = NEON_EPSG)   # writes candidates csv
+    discover_ept(site, CACHE, site_epsg = NEON_EPSG)   # writes candidates csv
   }
   if (!file.exists(cand_path)) return(NA_character_)
   cand <- read.csv(cand_path, stringsAsFactors = FALSE)
@@ -290,15 +297,24 @@ run_site <- function(site) {
   nd  <- file.path(JOB, "neon", site)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"))
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"))
+  if (POP_SCOPED) {
+    fz <- frozen_scope(JOB, site, A, gt)      # declared population + sealed root
+    gt <- fz$gt; MINTREES <- 1
+  }
   if (neon_validate_inputs(gt, pc) != NEON_EPSG)
     stop("Historical D17 field CRS must be EPSG:32611")
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
-  MINTREES <- 6
-  ql2 <- file.path(nd, "ql2")
+  if (!POP_SCOPED) {
+    gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
+    MINTREES <- 6
+  }
+  ql2 <- file.path(nd, "ql2")                  # results
+  clouds <- file.path(CACHE, "neon", site, "ql2")
   dir.create(ql2, showWarnings = FALSE, recursive = TRUE)
+  dir.create(clouds, showWarnings = FALSE, recursive = TRUE)
 
   rows <- list()
   pids <- pc$plotID
+  if (POP_SCOPED) pids <- intersect(pids, fz$plots)
   if (!is.null(ONLY_PLOTS)) pids <- intersect(pids, ONLY_PLOTS)
   done <- 0L
   for (pid in pids) {
@@ -310,7 +326,7 @@ run_site <- function(site) {
                 abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
     if (nrow(stems) < MINTREES) next
 
-    out_laz <- file.path(ql2, sprintf("%s.laz", pid))
+    out_laz <- file.path(clouds, sprintf("%s.laz", pid))
     # Cache reuse is provenance-gated (fix 1): a pre-existing laz is a cache HIT
     # ONLY when its sidecar manifest exists AND matches (ept_url, pad, outcrs).
     # Provenance is NEVER inferred from file size -- a manifest-less laz (or one
@@ -459,10 +475,15 @@ pool_decimated <- function(site, plots) {
 # density-derived (0.5 m at pdens=2) -- so we filter on rung only and pool the
 # same paired plot set. This is the NEON baseline the native multichm arm is
 # tested against, mirroring pool_decimated for CHM-VWF.
+# On the frozen paper runs the multichm rows live in lidrplugins_results.csv.
 pool_decimated_multichm <- function(site, plots) {
   f <- file.path(JOB, "neon", site, "multichm_sweep_results.csv")
-  if (!file.exists(f)) return(NULL)
-  d <- read.csv(f, stringsAsFactors = FALSE)
+  if (!file.exists(f)) {
+    f <- file.path(JOB, "neon", site, "lidrplugins_results.csv")
+    if (!file.exists(f)) return(NULL)
+    d <- read.csv(f, stringsAsFactors = FALSE)
+    d <- d[d$detector == "multichm", ]
+  } else d <- read.csv(f, stringsAsFactors = FALSE)
   d <- d[d$rung == "2", ]
   if (!is.null(plots)) d <- d[d$plot %in% plots, ]
   if (!nrow(d)) return(NULL)
