@@ -95,8 +95,9 @@ trained on dense ULS win at native density but collapse below roughly
 Open 3D instance benchmarks are all dense. FOR-instance collections range from
 about 500 to 9,500 pts/m²
 ([Puliti et al. 2023](https://arxiv.org/abs/2309.01279)), FGI-EMIT exceeds
-1,000 pts/m² ([Ruoppa et al. 2026](https://arxiv.org/abs/2511.00653)), and
-FOR-instance v3 states a floor of 10 pts/m² from subsampled scenes
+1,000 pts/m² ([Ruoppa et al. 2026](https://doi.org/10.1016/j.isprsjprs.2026.04.021)),
+and FOR-instance v3, introduced with SegmentAnyTreeV2, states a floor of
+10 pts/m² from subsampled scenes
 ([Wielgosz et al. 2026](https://arxiv.org/abs/2606.08206)). NeonTreeEvaluation
 is the only sparse-ALS benchmark and uses field stems for recall only
 ([Weinstein et al. 2021](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1009180)).
@@ -108,7 +109,7 @@ Density studies split by community. Classical work lives at 1 to 25 pulses/m²
 live at 10 to 10,000 pts/m², with the sparsest levels subsampled from dense
 acquisitions ([Wielgosz et al. 2024](https://arxiv.org/abs/2401.15739),
 [Xiang et al. 2025](https://arxiv.org/abs/2506.16991),
-[Li et al. 2026](https://doi.org/10.1016/j.isprsjprs.2025.11.019)). No paper
+ITS-Net, [Li et al. 2026](https://doi.org/10.1016/j.isprsjprs.2025.11.019)). No paper
 found evaluates a pretrained 3D segmenter on native 1 to 2 pulses/m² ALS or
 validates decimation against a native sparse acquisition of the same stand.
 
@@ -124,8 +125,11 @@ for combining detectors is RGB plus LiDAR voting
 ([Pleşoianu et al. 2020](https://www.mdpi.com/2072-4292/12/15/2426)); no
 density-gated routing or calibration study of tree detectors was found.
 
-Current state of the art to cite: SegmentAnyTreeV2 and SelectAnyTree from June
-2026, ForPT ([Yue et al. 2026](https://arxiv.org/abs/2609.24787)) and ITS-Net.
+Current state of the art to cite: SegmentAnyTreeV2
+([Wielgosz et al. 2026](https://arxiv.org/abs/2606.08206)) and SelectAnyTree
+([Nguyen et al. 2026](https://arxiv.org/abs/2606.27491)) from June 2026, ForPT
+([Yue et al. 2026](https://arxiv.org/abs/2609.24787)) and ITS-Net
+([Li et al. 2026](https://doi.org/10.1016/j.isprsjprs.2025.11.019)).
 None reports 1 to 8 pulses/m² performance. USGS 3DEP quality levels frame the
 target regime: QL2 requires at least 2 pulses/m² and QL1 at least 8
 ([USGS](https://www.usgs.gov/3d-elevation-program/topographic-data-quality-levels-qls)).
