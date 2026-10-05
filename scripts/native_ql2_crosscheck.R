@@ -123,14 +123,23 @@ resolve_ept <- function(site) {
   if (length(ok)) ok[1] else NA_character_
 }
 
-# Read the native horizontal SRS (EPSG code) from an ept.json.
-ept_srs <- function(url) {
+# Read the native horizontal SRS (EPSG code) from an ept.json. The value is
+# recorded beside the EPT candidates (ept_srs.json, keyed by URL) on first
+# read, so a re-score of cached clouds runs offline.
+ept_srs <- function(url, cache_dir) {
+  f <- file.path(cache_dir, "ept_srs.json")
+  if (file.exists(f)) {
+    rec <- jsonlite::fromJSON(f)
+    if (identical(rec$url, url)) return(as.integer(rec$srs))
+  }
   j <- tryCatch(jsonlite::fromJSON(url), error = function(e) NULL)
   if (is.null(j)) return(NA_integer_)
   s <- j$srs
-  if (!is.null(s$horizontal) && nzchar(as.character(s$horizontal)))
-    return(as.integer(s$horizontal))
-  NA_integer_
+  if (is.null(s$horizontal) || !nzchar(as.character(s$horizontal))) return(NA_integer_)
+  code <- as.integer(s$horizontal)
+  dir.create(cache_dir, showWarnings = FALSE, recursive = TRUE)
+  writeLines(jsonlite::toJSON(list(url = url, srs = code), auto_unbox = TRUE, pretty = TRUE), f)
+  code
 }
 
 # Provenance manifest for a cached per-plot laz. The cache key is NOT just the
@@ -289,7 +298,7 @@ run_site <- function(site) {
   ept_url <- resolve_ept(site)
   cat(sprintf("\n########## %s  EPT=%s\n", site, ept_url))
   if (is.na(ept_url)) { cat("  no EPT URL resolved; skipping\n"); return(NULL) }
-  ept_epsg <- ept_srs(ept_url)
+  ept_epsg <- ept_srs(ept_url, file.path(CACHE, "neon", site, "ql2"))
   if (is.na(ept_epsg)) { cat("  could not read SRS from ept.json; skipping\n")
     return(NULL) }
   cat(sprintf("  native EPT SRS = EPSG:%d ; reproject -> %s\n", ept_epsg, OUTCRS))

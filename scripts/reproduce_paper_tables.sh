@@ -7,15 +7,18 @@
 # compare_reproduction.R checks each rebuilt table against the archived one.
 #
 # Steps: learned arms re-scored on the sensitivity populations; censused
-# precision (headline and strict declarations); best-configuration treetops
-# and credited F1; instance IoU/PQ (and the TreeisoNet mask-voxel run); fusion;
-# crown diameters; the sparse-epoch report; the adapter before/after
-# comparison; the master tables of the three populations.
+# precision (headline and strict declarations, and the QL2 rung); best-
+# configuration treetops and credited F1; instance IoU/PQ (and the TreeisoNet
+# mask-voxel run); fusion; crown diameters; the sparse-epoch report; the
+# adapter before/after comparison; the master tables of the three populations
+# (the headline with the QL2 rung); the scoring sensitivities (matcher,
+# exact-2021 references, stem-position jitter), the calibration/validation
+# split, the matching-rule ranks and the native QL2 cross-check; the figures.
 #
 # Detector inference is not repeated: the archive holds every arm's per-cell
 # results and persisted detections, which these steps re-score. The classical
 # CHM detectors do re-run inside the treetop export, coverage-gap ladder and
-# crown steps.
+# crown steps, and on the archived native 3DEP clouds in the QL2 cross-check.
 #
 #   bash scripts/reproduce_paper_tables.sh ARCHIVE=<archive dir> OUT=<new dir> \
 #     [CORES=8] [VERIFY=1]
@@ -66,13 +69,20 @@ P="$W/paper_runs"; N="$P/neon"
 REBUILT=(
   paper_runs/master_tables paper_runs_all_mapped/master_tables paper_runs_relaxed/master_tables
   paper_runs/census_support_scores paper_runs/census_support_scores_strict
+  paper_runs_ql2/census_support_scores
   paper_runs/neon/best_treetops_geojson paper_runs/neon/crown_compare_tables.md
   paper_runs/neon/adapter_before_after sparse_2018/compare_report
+  paper_runs/sensitivity paper_runs/neon/native_ql2_vs_decimated.csv
 )
+for n in 1 2 3 4 5 6 7; do
+  REBUILT+=("paper_runs/figures/figure_$n.csv" "paper_runs/figures/figure_$n.png")
+done
+for s in SJER SOAP TEAK; do REBUILT+=("paper_runs/neon/$s/ql2/ql2_detect_results.csv"); done
 for s in "${SITE_LIST[@]}"; do
   for f in best_treetop_cache coverage_gap.csv instance_iou_pq.csv fusion_results.csv \
            fusion_rgb_summary.csv crown_metrics_results.csv crown_metrics_3d_results.csv \
-           segmentanytree_crown_metrics.csv forestformer3d_crown_metrics.csv; do
+           segmentanytree_crown_metrics.csv forestformer3d_crown_metrics.csv \
+           calval_metrics.csv matching_rule_ranks.csv; do
     REBUILT+=("paper_runs/neon/$s/$f")
   done
   REBUILT+=("paper_runs_maskvoxel/neon/$s/instance_iou_pq.csv")
@@ -82,8 +92,9 @@ for s in "${SITE_LIST[@]}"; do
     done
   done
 done
-# Re-detected treetop caches are intermediate: compared, never failing.
-printf '%s\n' "${REBUILT[@]}" | sed -E 's#^(.*best_treetop(_cache|s_geojson))$#~\1#' \
+# Re-detected treetop caches and the figure images are intermediate: compared,
+# never failing (the numbers each figure plots are its strict CSV).
+printf '%s\n' "${REBUILT[@]}" | sed -E 's#^(.*(best_treetop(_cache|s_geojson)|\.png))$#~\1#' \
   > "$LOGS/rebuilt_paths.txt"
 for r in "${REBUILT[@]}"; do rm -rf "${W:?}/$r"; done
 
@@ -108,6 +119,10 @@ for rule in nearest exact; do
     ARMS=chm_vwf,lmfauto,multichm,ptrees,ams3d OUT="$OS/${rule}_ladder"
   run "$P" "census_strict_${rule}_native" scripts/score_census_support.R DECLARATION="$DS" \
     ARMS=chm_vwf,ptrees,ams3d,li2012 RUNGS=native OUT="$OS/${rule}_native"
+  run "$W/paper_runs_ql2" "census_${rule}_ql2" scripts/score_census_support.R DECLARATION="$D" \
+    ARMS=chm_vwf,lmfauto,multichm,ptrees,ams3d,forestformer3d,treeisonet,segmentanytree \
+    RUNGS=3.2 FROZEN_ROOT="$W/neon/frozen_2021_ql2" \
+    OUT="$W/paper_runs_ql2/census_support_scores/${rule}_ladder"
 done
 DS="docs/census-support-declaration-nearest-strict.json"
 for set in "deep chm_vwf,forestformer3d,treeisonet" "ff3d chm_vwf,forestformer3d" \
@@ -145,13 +160,32 @@ run "$W" sparse_report scripts/compare_sparse_epoch.R MODE=report \
 run "$P" adapter_before_after scripts/compare_adapter_reruns.R BEFORE="$W" AFTER="$P" \
   VOXEL0="$W/paper_runs_voxel0"
 
-## 9. Master tables: headline and the two sensitivity populations.
-run "$P" master_tables scripts/master_tables.R
+## 9. Master tables: headline (with the QL2 rung's own root) and the two
+## sensitivity populations.
+run "$P" master_tables scripts/master_tables.R \
+  RUNG_JOBS="$W/paper_runs_ql2:$W/neon/frozen_2021_ql2"
 for pop in all_mapped relaxed; do
   run "$W/paper_runs_$pop" "master_tables_$pop" scripts/master_tables.R POP=$pop
 done
 
-## 10. Every rebuilt output against the archived copy.
+## 10. Scoring sensitivities from persisted detections, the calibration/
+## validation split, the matching-rule ranks and the native QL2 cross-check.
+for mode in matcher exact2021; do
+  run "$P" "sensitivity_$mode" scripts/paper_sensitivity.R MODE=$mode CORES="$CORES"
+done
+run "$P" sensitivity_jitter scripts/paper_sensitivity.R MODE=jitter K=200 CORES="$CORES"
+run "$P" calval_split scripts/calval_split.R SITES=$SITES SEED=1 FRAC=0.5 \
+  SEEDS=1,2,3,4,5,6,7,8,9,10
+for s in "${SITE_LIST[@]}"; do
+  run "$P" "matching_rules_$s" scripts/compare_matching_rules.R SITE=$s
+done
+run "$P" native_ql2_crosscheck scripts/native_ql2_crosscheck.R SITES=SOAP,SJER,TEAK \
+  POP=adopted CACHE_JOB="$W"
+
+## 11. The paper's figures.
+run "$P" figures scripts/paper_figures.R
+
+## 12. Every rebuilt output against the archived copy.
 say "comparing with the archive"
 (cd "$REPO" && Rscript scripts/compare_reproduction.R ARCHIVE="$ARCHIVE" OUT="$W" \
    PATHS="$LOGS/rebuilt_paths.txt" REPORT="$W/reproduction_report.csv")

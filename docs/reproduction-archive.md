@@ -2,9 +2,10 @@
 
 This archive holds everything needed to rebuild the tables of the NEON
 frozen-clip benchmark without repeating detector inference: the sealed frozen
-clips and plot populations, every arm's per-cell results and persisted
-detections, the census-support bundles, the native sparse-epoch roots, and the
-June 2026 artifacts that the adapter comparison re-scores. The code is the
+clips and plot populations (the 2021 root and the QL2-rung root), every arm's
+per-cell results and persisted detections, the census-support bundles, the
+native sparse-epoch roots, the June 2026 artifacts that the adapter comparison
+re-scores, and the native 3DEP clouds of the QL2 cross-check. The code is the
 [lidar-tree-benchmark repository](https://github.com/devakellc/lidar-tree-benchmark)
 at the commit in `CODE_COMMIT`.
 
@@ -48,8 +49,11 @@ study reports run unchanged with `CLAUDE_JOB_DIR` pointing into a copy.
 | Path | Contents |
 |---|---|
 | `neon/frozen_2021/` | Sealed frozen clips (five density rungs per plot), `clip_manifest.csv` with the SHA-256 of every clip, `population.csv` and `population_stems.csv` |
+| `neon/frozen_2021_ql2/` | Sealed QL2-rung root: the same population and native clips with one seeded rung at 3.2 points/m² (about 2 pulses/m²), and its manifest |
 | `neon/<SITE>/` | June 2026 ForestFormer3D clouds and TreeisoNet rows (SJER, SOAP, TEAK), re-scored by the adapter comparison |
-| `paper_runs/` | Headline population (`adopted`): per-site field stems, plot centroids, every arm's results and persisted detections or instance clouds, optical box caches, RGB tile extents, census-support bundles and scores, master tables |
+| `neon/<SITE>/ql2/` | Native USGS 3DEP clouds over the plots (SJER, SOAP, TEAK) with their provenance sidecars, the EPT candidates and the EPT's recorded SRS, read by the QL2 cross-check |
+| `paper_runs/` | Headline population (`adopted`): per-site field stems, plot centroids, every arm's results and persisted detections or instance clouds, optical box caches, RGB tile extents, census-support bundles and scores, master tables, scoring sensitivities, the paper's figures with the numbers each plots |
+| `paper_runs_ql2/` | Every full-ladder arm on the QL2 rung, with its census bundle and scores |
 | `paper_runs_all_mapped/`, `paper_runs_relaxed/` | Sensitivity populations on the same root |
 | `paper_runs_new_relaxed/`, `paper_runs_new_allmapped/` | Learned-arm runs on the plots only the sensitivity populations hold |
 | `paper_runs_voxel0/`, `paper_runs_maskvoxel/` | TreeisoNet voxel and mask-voxel sensitivity runs |
@@ -58,7 +62,8 @@ study reports run unchanged with `CLAUDE_JOB_DIR` pointing into a copy.
 | `CODE_COMMIT` | Repository commit the archive was staged with |
 | `SHA256SUMS` | SHA-256 of every file |
 
-Each job directory links `neon/frozen_2021` to the archive's sealed root.
+Each job directory links `neon/frozen_2021` to the archive's sealed root;
+`paper_runs_ql2` links `neon/frozen_2021_ql2` instead.
 
 ## Not included
 
@@ -70,10 +75,11 @@ Each job directory links `neon/frozen_2021` to the archive's sealed root.
   gives their sources and hashes.
 - FGI-EMIT data (CC BY-NC-SA 4.0) and the historical studies outside the
   frozen-root benchmark.
-- Logs, figures and superseded copies of re-run outputs.
+- Logs, scratch figures and superseded copies of re-run outputs.
 
 ## Licence
 
 The data in this archive are derived from NEON data products released under
-CC0 1.0, and are released under CC0 1.0. The code is MIT-licensed in the
+CC0 1.0 and from USGS 3DEP point clouds in the public domain, and are released
+under CC0 1.0. The code is MIT-licensed in the
 repository.
