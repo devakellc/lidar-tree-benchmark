@@ -17,9 +17,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       r-base-core r-base-dev r-recommended libgdal-dev libgeos-dev libproj-dev \
       libudunits2-dev libssl-dev libcurl4-openssl-dev libxml2-dev libfontconfig1-dev \
       libfreetype-dev libharfbuzz-dev libfribidi-dev libpng-dev libtiff-dev \
-      libjpeg-dev libglu1-mesa-dev git rsync ca-certificates \
+      libjpeg-dev libglu1-mesa-dev git rsync ca-certificates locales \
  && rm -rf /var/lib/apt/lists/* \
+ && locale-gen en_US.UTF-8 \
  && R --version | head -1 | grep -q "R version 4.3.3"
+# The workstation's locale: frozen-clip manifests store CRS WKT with UTF-8
+# degree signs, and string collation orders some tables.
+ENV LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
 ENV MAKEFLAGS=-j8
 RUN printf '%s\n' \
