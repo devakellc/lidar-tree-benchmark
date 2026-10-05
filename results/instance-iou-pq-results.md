@@ -275,6 +275,13 @@ predicted mask matched):
 
 **Re-run readings.**
 
+- These scores are against the Voronoi-on-stems proxy, not true crowns. On
+  FGI-EMIT, where true labels exist, the same proxy built from crown centroids
+  and measured crown widths cuts ForestFormer3D's mask F1 from 0.72 to 0.49
+  and SegmentAnyTree's from 0.62 to 0.47, keeping their order but compressing
+  the gap ([proxy validation](fgiemit-proxy-validation-results.md)). Read the
+  board as a ranking, not as absolute mask quality; the paper keeps it in the
+  supplement.
 - SegmentAnyTree has the best native mask F1 and PQ on the five-site board
   (0.152 and 0.098), ahead of ForestFormer3D (0.135 and 0.087) and Li 2012.
   Its masks hold to 2.5 pulses/m² and then fall (0.115 at 1.3 and 0.046 at
