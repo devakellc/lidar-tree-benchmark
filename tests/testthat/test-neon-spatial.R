@@ -122,3 +122,14 @@ test_that("LiDAR and RGB headers reject a mismatched site frame", {
   neon_acquisition_manifest(file.path(d, "lidar"), "DP1.30003.001", 2022, 32618)
   expect_error(neon_read_catalog(c(laz, wrong), f$gt, f$pc, file.path(d, "lidar")), "differs")
 })
+
+test_that("only non-live mapped stems without a plot record are dropped", {
+  pc <- data.frame(plotID = "SOAP_001")
+  gt <- data.frame(plotID = c("SOAP_001", "SOAP_005", "SOAP_005"), E = c(1, 2, NA), N = 1,
+                   live = c(TRUE, FALSE, FALSE))
+  x <- neon_drop_unframed_stems(gt, pc)
+  expect_identical(x$kept$plotID, c("SOAP_001", "SOAP_005"))   # unmapped stem stays
+  expect_identical(nrow(x$dropped), 1L)
+  gt$live[2] <- TRUE
+  expect_error(neon_drop_unframed_stems(gt, pc), "Live mapped stems")
+})

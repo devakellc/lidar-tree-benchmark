@@ -232,6 +232,21 @@ test_that("make_laz_loader round-trips a persisted classical instance cloud", {
   expect_null(make_laz_loader("nonesuch")(f))
 })
 
+test_that("TreeisoNet aligned masks load with background rows dropped", {
+  src <- file.path("..", "..", "scripts")
+  source(file.path(src, "io_bridge.R"), local = TRUE)
+  source(file.path(src, "score_instances_iou.R"), local = TRUE)
+  expect_identical(MODELS$treeisonet$dir, "treeisonet_instances")
+  las <- synth_las_normalized()                     # one tree_pred per input row
+  las@data$tree_pred <- rep(c(3L, 0L), each = 60)   # 0 = background (aligned export)
+  las <- lidR::add_lasattribute(las, las@data$tree_pred, "tree_pred", "instance")
+  f <- tempfile(fileext = ".laz"); on.exit(unlink(f), add = TRUE)
+  lidR::writeLAS(las, f)
+  pts <- MODELS$treeisonet$load(f)
+  expect_equal(nrow(pts), 60L)
+  expect_identical(unique(pts$id), 3L)
+})
+
 ## ---- print_tables rung handling (#97 round-2 review) -------------------------
 # Build a minimal accumulator frame the way run_plot does: score one synthetic
 # cell, then stamp the identifier columns.

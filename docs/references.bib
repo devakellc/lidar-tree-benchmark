@@ -1,0 +1,737 @@
+% Bibliography for the LiDAR tree-detection benchmark and its paper proposal.
+%
+% Every entry was verified on 2026-10-02 against an authoritative metadata
+% record: Crossref (journal and proceedings articles, CRAN package DOIs),
+% the arXiv API (preprints), DataCite (Zenodo and NEON data DOIs), and the
+% GitHub, Hugging Face or agency web page for software and web resources
+% without a DOI. Titles, authors, years, venues, volumes, pages and DOIs are
+% copied from those records. Preprints that have since appeared in a journal
+% or proceedings cite the published version and keep the arXiv identifier in
+% `eprint`.
+%
+% Keys follow firstauthorYEARfirstword, all lower case, with leading articles
+% skipped and punctuation removed from the first word. A dataset deposited
+% under the same title as its paper takes the suffix "data".
+% Encoding: UTF-8, for biblatex with biber.
+
+% ---------------------------------------------------------------------------
+% Benchmarks and datasets
+% ---------------------------------------------------------------------------
+
+@misc{puliti2023forinstance,
+  author        = {Puliti, Stefano and Pearse, Grant and Surový, Peter and
+                   Wallace, Luke and Hollaus, Markus and Wielgosz, Maciej and
+                   Astrup, Rasmus},
+  title         = {{FOR-instance}: a {UAV} laser scanning benchmark dataset for
+                   semantic and instance segmentation of individual trees},
+  year          = {2023},
+  eprint        = {2309.01279},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
+}
+
+@misc{puliti2023forinstancedata,
+  author    = {Puliti, Stefano and Pearse, Grant and Surový, Peter and
+               Wallace, Luke and Hollaus, Markus and Wielgosz, Maciej and
+               Astrup, Rasmus},
+  title     = {{FOR-instance}: a {UAV} laser scanning benchmark dataset for
+               semantic and instance segmentation of individual trees},
+  publisher = {Zenodo},
+  year      = {2023},
+  version   = {1},
+  doi       = {10.5281/zenodo.8287792},
+  note      = {Dataset},
+}
+
+@misc{xiang2025forinstancev2,
+  author    = {Xiang, Binbin and Wielgosz, Maciej and Puliti, Stefano and
+               Král, Kamil and Krůček, Martin and Missarov, Azim and
+               Astrup, Rasmus},
+  title     = {{FOR-instanceV2} dataset and pre-trained model in paper entitled
+               ``{ForestFormer3D}: A Unified Framework for End-to-End
+               Segmentation of Forest {LiDAR} {3D} Point Clouds''},
+  publisher = {Zenodo},
+  year      = {2025},
+  doi       = {10.5281/zenodo.16742708},
+  note      = {Dataset and model weights},
+}
+
+@article{ruoppa2026benchmarking,
+  author        = {Ruoppa, Lassi and Hietala, Tarmo and Seppänen, Verneri and
+                   Taher, Josef and Hakala, Teemu and Yu, Xiaowei and
+                   Kukko, Antero and Kaartinen, Harri and Hyyppä, Juha},
+  title         = {Benchmarking individual tree segmentation using
+                   multispectral airborne laser scanning data: The {FGI-EMIT}
+                   dataset},
+  journal       = {ISPRS Journal of Photogrammetry and Remote Sensing},
+  year          = {2026},
+  volume        = {236},
+  pages         = {569--605},
+  doi           = {10.1016/j.isprsjprs.2026.04.021},
+  eprint        = {2511.00653},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
+}
+
+@misc{ruoppa2026fgiemit,
+  author    = {Ruoppa, Lassi and Hietala, Tarmo and Seppänen, Verneri and
+               Taher, Josef and Hakala, Teemu and Yu, Xiaowei and
+               Kukko, Antero and Kaartinen, Harri and Hyyppä, Juha},
+  title     = {{FGI-EMIT}: a multispectral high-density airborne laser
+               scanning benchmark dataset for individual tree segmentation},
+  publisher = {Zenodo},
+  year      = {2026},
+  doi       = {10.5281/zenodo.19351234},
+  note      = {Dataset},
+}
+
+@article{weinstein2021benchmark,
+  author  = {Weinstein, Ben G. and Graves, Sarah J. and Marconi, Sergio and
+             Singh, Aditya and Zare, Alina and Stewart, Dylan and
+             Bohlman, Stephanie A. and White, Ethan P.},
+  title   = {A benchmark dataset for canopy crown detection and delineation in
+             co-registered airborne {RGB}, {LiDAR} and hyperspectral imagery
+             from the {National Ecological Observation Network}},
+  journal = {PLOS Computational Biology},
+  year    = {2021},
+  volume  = {17},
+  number  = {7},
+  pages   = {e1009180},
+  doi     = {10.1371/journal.pcbi.1009180},
+}
+
+@misc{weinstein2022data,
+  author    = {Weinstein, Ben and Marconi, Sergio and White, Ethan},
+  title     = {Data for the {NeonTreeEvaluation} Benchmark},
+  publisher = {Zenodo},
+  year      = {2022},
+  version   = {0.2.2},
+  doi       = {10.5281/zenodo.5914554},
+  note      = {Dataset},
+}
+
+@misc{neon2026vegetation,
+  author    = {{National Ecological Observatory Network (NEON)}},
+  title     = {Vegetation structure ({DP1.10098.001})},
+  publisher = {National Ecological Observatory Network (NEON)},
+  year      = {2026},
+  version   = {RELEASE-2026},
+  doi       = {10.48443/pypa-qf12},
+  note      = {Dataset},
+}
+
+@misc{neon2026discrete,
+  author    = {{National Ecological Observatory Network (NEON)}},
+  title     = {Discrete return {LiDAR} point cloud ({DP1.30003.001})},
+  publisher = {National Ecological Observatory Network (NEON)},
+  year      = {2026},
+  version   = {RELEASE-2026},
+  doi       = {10.48443/5ts2-rc92},
+  note      = {Dataset},
+}
+
+@misc{usgs2026topographic,
+  author       = {{U.S. Geological Survey}},
+  title        = {Topographic Data Quality Levels ({QLs})},
+  howpublished = {3D Elevation Program web page},
+  year         = {2026},
+  url          = {https://www.usgs.gov/3d-elevation-program/topographic-data-quality-levels-qls},
+  urldate      = {2026-10-02},
+  note         = {Undated page; year is the access year},
+}
+
+@misc{usgs2026usgs,
+  author       = {{U.S. Geological Survey}},
+  title        = {{USGS} {3DEP} {LiDAR} Point Clouds},
+  howpublished = {Registry of Open Data on {AWS}; Entwine Point Tile
+                  distribution managed by Hobu, Inc.},
+  year         = {2026},
+  url          = {https://registry.opendata.aws/usgs-lidar/},
+  urldate      = {2026-10-02},
+  note         = {Undated page; year is the access year},
+}
+
+% ---------------------------------------------------------------------------
+% Benchmark and density studies of individual-tree detection
+% ---------------------------------------------------------------------------
+
+@article{kaartinen2012international,
+  author  = {Kaartinen, Harri and Hyyppä, Juha and Yu, Xiaowei and
+             Vastaranta, Mikko and Hyyppä, Hannu and Kukko, Antero and
+             Holopainen, Markus and Heipke, Christian and
+             Hirschmugl, Manuela and Morsdorf, Felix and Næsset, Erik and
+             Pitkänen, Juho and Popescu, Sorin and Solberg, Svein and
+             Wolf, Bernd Michael and Wu, Jee-Cheng},
+  title   = {An International Comparison of Individual Tree Detection and
+             Extraction Using Airborne Laser Scanning},
+  journal = {Remote Sensing},
+  year    = {2012},
+  volume  = {4},
+  number  = {4},
+  pages   = {950--974},
+  doi     = {10.3390/rs4040950},
+}
+
+@article{jakubowski2013tradeoffs,
+  author  = {Jakubowski, Marek K. and Guo, Qinghua and Kelly, Maggi},
+  title   = {Tradeoffs between lidar pulse density and forest measurement
+             accuracy},
+  journal = {Remote Sensing of Environment},
+  year    = {2013},
+  volume  = {130},
+  pages   = {245--253},
+  doi     = {10.1016/j.rse.2012.11.024},
+}
+
+@article{eysn2015benchmark,
+  author  = {Eysn, Lothar and Hollaus, Markus and Lindberg, Eva and
+             Berger, Frédéric and Monnet, Jean-Matthieu and
+             Dalponte, Michele and Kobal, Milan and Pellegrini, Marco and
+             Lingua, Emanuele and Mongus, Domen and Pfeifer, Norbert},
+  title   = {A Benchmark of Lidar-Based Single Tree Detection Methods Using
+             Heterogeneous Forest Data from the {Alpine} Space},
+  journal = {Forests},
+  year    = {2015},
+  volume  = {6},
+  number  = {5},
+  pages   = {1721--1747},
+  doi     = {10.3390/f6051721},
+}
+
+@article{hamraz2017forest,
+  author  = {Hamraz, Hamid and Contreras, Marco A. and Zhang, Jun},
+  title   = {Forest understory trees can be segmented accurately within
+             sufficiently dense airborne laser scanning point clouds},
+  journal = {Scientific Reports},
+  year    = {2017},
+  volume  = {7},
+  number  = {1},
+  pages   = {6770},
+  doi     = {10.1038/s41598-017-07200-0},
+}
+
+@article{sparks2022crosscomparison,
+  author  = {Sparks, Aaron M. and Corrao, Mark V. and Smith, Alistair M. S.},
+  title   = {Cross-Comparison of Individual Tree Detection Methods Using Low
+             and High Pulse Density Airborne Laser Scanning Data},
+  journal = {Remote Sensing},
+  year    = {2022},
+  volume  = {14},
+  number  = {14},
+  pages   = {3480},
+  doi     = {10.3390/rs14143480},
+}
+
+@article{cao2023benchmarking,
+  author  = {Cao, Yujie and Ball, James G. C. and Coomes, David A. and
+             Steinmeier, Leon and Knapp, Nikolai and Wilkes, Phil and
+             Disney, Mathias and Calders, Kim and Burt, Andrew and Lin, Yi and
+             Jackson, Toby D.},
+  title   = {Benchmarking airborne laser scanning tree segmentation algorithms
+             in broadleaf forests shows high accuracy only for canopy trees},
+  journal = {International Journal of Applied Earth Observation and
+             Geoinformation},
+  year    = {2023},
+  volume  = {123},
+  pages   = {103490},
+  doi     = {10.1016/j.jag.2023.103490},
+}
+
+@article{plesoianu2020individual,
+  author  = {Pleșoianu, Alin-Ionuț and Stupariu, Mihai-Sorin and
+             Șandric, Ionuț and Pătru-Stupariu, Ileana and Drăguț, Lucian},
+  title   = {Individual Tree-Crown Detection and Species Classification in
+             Very High-Resolution Remote Sensing Imagery Using a Deep Learning
+             Ensemble Model},
+  journal = {Remote Sensing},
+  year    = {2020},
+  volume  = {12},
+  number  = {15},
+  pages   = {2426},
+  doi     = {10.3390/rs12152426},
+}
+
+% ---------------------------------------------------------------------------
+% Classical detection and segmentation methods
+% ---------------------------------------------------------------------------
+
+@article{popescu2004seeing,
+  author  = {Popescu, Sorin C. and Wynne, Randolph H.},
+  title   = {Seeing the Trees in the Forest},
+  journal = {Photogrammetric Engineering \& Remote Sensing},
+  year    = {2004},
+  volume  = {70},
+  number  = {5},
+  pages   = {589--604},
+  doi     = {10.14358/PERS.70.5.589},
+}
+
+@article{grady2006random,
+  author  = {Grady, L.},
+  title   = {Random Walks for Image Segmentation},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  year    = {2006},
+  volume  = {28},
+  number  = {11},
+  pages   = {1768--1783},
+  doi     = {10.1109/TPAMI.2006.233},
+}
+
+@article{li2012new,
+  author  = {Li, Wenkai and Guo, Qinghua and Jakubowski, Marek K. and
+             Kelly, Maggi},
+  title   = {A New Method for Segmenting Individual Trees from the Lidar Point
+             Cloud},
+  journal = {Photogrammetric Engineering \& Remote Sensing},
+  year    = {2012},
+  volume  = {78},
+  number  = {1},
+  pages   = {75--84},
+  doi     = {10.14358/PERS.78.1.75},
+}
+
+@article{khosravipour2014generating,
+  author  = {Khosravipour, Anahita and Skidmore, Andrew K. and
+             Isenburg, Martin and Wang, Tiejun and Hussin, Yousif A.},
+  title   = {Generating Pit-free Canopy Height Models from Airborne Lidar},
+  journal = {Photogrammetric Engineering \& Remote Sensing},
+  year    = {2014},
+  volume  = {80},
+  number  = {9},
+  pages   = {863--872},
+  doi     = {10.14358/PERS.80.9.863},
+}
+
+@article{vega2014ptrees,
+  author  = {Vega, C. and Hamrouni, A. and El Mokhtari, S. and Morel, J. and
+             Bock, J. and Renaud, J.-P. and Bouvier, M. and Durrieu, S.},
+  title   = {{PTrees}: A point-based approach to forest tree extraction from
+             lidar data},
+  journal = {International Journal of Applied Earth Observation and
+             Geoinformation},
+  year    = {2014},
+  volume  = {33},
+  pages   = {98--108},
+  doi     = {10.1016/j.jag.2014.05.001},
+}
+
+@article{dalponte2016treecentric,
+  author  = {Dalponte, Michele and Coomes, David A.},
+  title   = {Tree-centric mapping of forest carbon density from airborne laser
+             scanning and hyperspectral data},
+  journal = {Methods in Ecology and Evolution},
+  year    = {2016},
+  volume  = {7},
+  number  = {10},
+  pages   = {1236--1245},
+  doi     = {10.1111/2041-210X.12575},
+}
+
+@article{silva2016imputation,
+  author  = {Silva, Carlos A. and Hudak, Andrew T. and Vierling, Lee A. and
+             Loudermilk, E. Louise and O'Brien, Joseph J. and
+             Hiers, J. Kevin and Jack, Steve B. and
+             Gonzalez-Benecke, Carlos and Lee, Heezin and
+             Falkowski, Michael J. and Khosravipour, Anahita},
+  title   = {Imputation of Individual Longleaf Pine (\emph{Pinus palustris}
+             Mill.) Tree Attributes from Field and {LiDAR} Data},
+  journal = {Canadian Journal of Remote Sensing},
+  year    = {2016},
+  volume  = {42},
+  number  = {5},
+  pages   = {554--573},
+  doi     = {10.1080/07038992.2016.1196582},
+}
+
+@article{ferraz2016lidar,
+  author  = {Ferraz, António and Saatchi, Sassan and Mallet, Clément and
+             Meyer, Victoria},
+  title   = {Lidar detection of individual tree size in tropical forests},
+  journal = {Remote Sensing of Environment},
+  year    = {2016},
+  volume  = {183},
+  pages   = {318--333},
+  doi     = {10.1016/j.rse.2016.05.028},
+}
+
+@article{landrieu2017cut,
+  author  = {Landrieu, Loic and Obozinski, Guillaume},
+  title   = {Cut Pursuit: Fast Algorithms to Learn Piecewise Constant Functions
+             on General Weighted Graphs},
+  journal = {SIAM Journal on Imaging Sciences},
+  year    = {2017},
+  volume  = {10},
+  number  = {4},
+  pages   = {1724--1766},
+  doi     = {10.1137/17M1113436},
+}
+
+@article{dersch2021combining,
+  author  = {Dersch, Sebastian and Heurich, Marco and Krueger, Nina and
+             Krzystek, Peter},
+  title   = {Combining graph-cut clustering with object-based stem detection
+             for tree segmentation in highly dense airborne lidar point clouds},
+  journal = {ISPRS Journal of Photogrammetry and Remote Sensing},
+  year    = {2021},
+  volume  = {172},
+  pages   = {207--222},
+  doi     = {10.1016/j.isprsjprs.2020.11.016},
+}
+
+@article{xi20223d,
+  author  = {Xi, Zhouxin and Hopkinson, Chris},
+  title   = {{3D} Graph-Based Individual-Tree Isolation ({Treeiso}) from
+             Terrestrial Laser Scanning Point Clouds},
+  journal = {Remote Sensing},
+  year    = {2022},
+  volume  = {14},
+  number  = {23},
+  pages   = {6116},
+  doi     = {10.3390/rs14236116},
+}
+
+@article{zhang2024individual,
+  author  = {Zhang, Cailian and Song, Chengwen and Zaforemska, Aleksandra and
+             Zhang, Jiaxing and Gaulton, Rachel and Dai, Wenxia and
+             Xiao, Wen},
+  title   = {Individual tree segmentation from {UAS} Lidar data based on
+             hierarchical filtering and clustering},
+  journal = {International Journal of Digital Earth},
+  year    = {2024},
+  volume  = {17},
+  number  = {1},
+  pages   = {2356124},
+  doi     = {10.1080/17538947.2024.2356124},
+}
+
+% ---------------------------------------------------------------------------
+% Deep-learning tree detection and segmentation
+% ---------------------------------------------------------------------------
+
+@article{weinstein2020deepforest,
+  author  = {Weinstein, Ben G. and Marconi, Sergio and Aubry-Kientz, Mélaine
+             and Vincent, Gregoire and Senyondo, Henry and White, Ethan P.},
+  title   = {{DeepForest}: A {Python} package for {RGB} deep learning tree
+             crown delineation},
+  journal = {Methods in Ecology and Evolution},
+  year    = {2020},
+  volume  = {11},
+  number  = {12},
+  pages   = {1743--1751},
+  doi     = {10.1111/2041-210X.13472},
+}
+
+@article{chen2021individual,
+  author  = {Chen, Xinxin and Jiang, Kang and Zhu, Yushi and Wang, Xiangjun and
+             Yun, Ting},
+  title   = {Individual Tree Crown Segmentation Directly from {UAV}-Borne
+             {LiDAR} Data Using the {PointNet} of Deep Learning},
+  journal = {Forests},
+  year    = {2021},
+  volume  = {12},
+  number  = {2},
+  pages   = {131},
+  doi     = {10.3390/f12020131},
+}
+
+@article{ball2023accurate,
+  author  = {Ball, James G. C. and Hickman, Sebastian H. M. and
+             Jackson, Tobias D. and Koay, Xian Jing and Hirst, James and
+             Jay, William and Archer, Matthew and Aubry-Kientz, Mélaine and
+             Vincent, Grégoire and Coomes, David A.},
+  title   = {Accurate delineation of individual tree crowns in tropical forests
+             from aerial {RGB} imagery using {Mask R-CNN}},
+  journal = {Remote Sensing in Ecology and Conservation},
+  year    = {2023},
+  volume  = {9},
+  number  = {5},
+  pages   = {641--655},
+  doi     = {10.1002/rse2.332},
+}
+
+@article{zhang2023towards,
+  author  = {Zhang, Yizhuo and Liu, Hantao and Liu, Xingyu and Yu, Huiling},
+  title   = {Towards Intricate Stand Structure: A Novel Individual Tree
+             Segmentation Method for {ALS} Point Cloud Based on Extreme Offset
+             Deep Learning},
+  journal = {Applied Sciences},
+  year    = {2023},
+  volume  = {13},
+  number  = {11},
+  pages   = {6853},
+  doi     = {10.3390/app13116853},
+}
+
+@article{xiang2024automated,
+  author        = {Xiang, Binbin and Wielgosz, Maciej and
+                   Kontogianni, Theodora and Peters, Torben and
+                   Puliti, Stefano and Astrup, Rasmus and Schindler, Konrad},
+  title         = {Automated forest inventory: Analysis of high-density
+                   airborne {LiDAR} point clouds with {3D} deep learning},
+  journal       = {Remote Sensing of Environment},
+  year          = {2024},
+  volume        = {305},
+  pages         = {114078},
+  doi           = {10.1016/j.rse.2024.114078},
+  eprint        = {2312.15084},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
+}
+
+@article{henrich2024treelearn,
+  author  = {Henrich, Jonathan and van Delden, Jan and Seidel, Dominik and
+             Kneib, Thomas and Ecker, Alexander S.},
+  title   = {{TreeLearn}: A deep learning method for segmenting individual
+             trees from ground-based {LiDAR} forest point clouds},
+  journal = {Ecological Informatics},
+  year    = {2024},
+  volume  = {84},
+  pages   = {102888},
+  doi     = {10.1016/j.ecoinf.2024.102888},
+}
+
+@article{wielgosz2024segmentanytree,
+  author        = {Wielgosz, Maciej and Puliti, Stefano and Xiang, Binbin and
+                   Schindler, Konrad and Astrup, Rasmus},
+  title         = {{SegmentAnyTree}: A sensor and platform agnostic deep
+                   learning model for tree segmentation using laser scanning
+                   data},
+  journal       = {Remote Sensing of Environment},
+  year          = {2024},
+  volume        = {313},
+  pages         = {114367},
+  doi           = {10.1016/j.rse.2024.114367},
+  eprint        = {2401.15739},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
+}
+
+@article{xi2025new,
+  author  = {Xi, Zhouxin and Degenhardt, Dani},
+  title   = {A new unified framework for supervised {3D} crown segmentation
+             ({TreeisoNet}) using deep neural networks across airborne,
+             {UAV}-borne, and terrestrial laser scans},
+  journal = {ISPRS Open Journal of Photogrammetry and Remote Sensing},
+  year    = {2025},
+  volume  = {15},
+  pages   = {100083},
+  doi     = {10.1016/j.ophoto.2025.100083},
+}
+
+@article{li2025twostage,
+  author  = {Li, Qian and Hu, Baoxin and Shang, Jiali and Remmel, Tarmo K.},
+  title   = {Two-Stage Deep Learning Framework for Individual Tree Crown
+             Detection and Delineation in Mixed-Wood Forests Using
+             High-Resolution Light Detection and Ranging Data},
+  journal = {Remote Sensing},
+  year    = {2025},
+  volume  = {17},
+  number  = {9},
+  pages   = {1578},
+  doi     = {10.3390/rs17091578},
+}
+
+@inproceedings{xiang2025forestformer3d,
+  author        = {Xiang, Binbin and Wielgosz, Maciej and Puliti, Stefano and
+                   Král, Kamil and Krůček, Martin and Missarov, Azim and
+                   Astrup, Rasmus},
+  title         = {{ForestFormer3D}: A Unified Framework for End-to-End
+                   Segmentation of Forest {LiDAR} {3D} Point Clouds},
+  booktitle     = {2025 IEEE/CVF International Conference on Computer Vision
+                   (ICCV)},
+  publisher     = {IEEE},
+  year          = {2025},
+  pages         = {24717--24727},
+  doi           = {10.1109/ICCV51701.2025.02292},
+  eprint        = {2506.16991},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
+}
+
+@article{li2026itsnet,
+  author  = {Li, Bowen and Pang, Yong and Kükenbrink, Daniel and Wang, Luo and
+             Kong, Dan and Marty, Mauro},
+  title   = {{ITS-Net}: A platform and sensor agnostic {3D} deep learning model
+             for individual tree segmentation using aerial {LiDAR} data},
+  journal = {ISPRS Journal of Photogrammetry and Remote Sensing},
+  year    = {2026},
+  volume  = {231},
+  pages   = {719--744},
+  doi     = {10.1016/j.isprsjprs.2025.11.019},
+}
+
+@misc{wielgosz2026segmentanytreev2,
+  author        = {Wielgosz, Maciej and Puliti, Stefano and Astrup, Rasmus},
+  title         = {{SegmentAnyTreeV2}: Scaling Transformer-Based Tree Instance
+                   Segmentation Across Sensors, Platforms, and Forests},
+  year          = {2026},
+  eprint        = {2606.08206},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
+  note          = {Introduces the {FOR-instance} v3 benchmark},
+}
+
+@misc{nguyen2026selectanytree,
+  author        = {Nguyen, Trung Thanh and Lusk, Daniel and
+                   Gerberding, Kilian and Vajna-Jehle, Janusch and
+                   Vu, Tuan-Anh and Le, Duc Viet and Vo, Tu and
+                   Nguyen, Phi Le and Kawanishi, Yasutomo and
+                   Komamizu, Takahiro and Ide, Ichiro and Frey, Julian and
+                   Kattenborn, Teja},
+  title         = {{SelectAnyTree}: A Promptable Instance Segmentation Model
+                   for {3D} Forest {LiDAR} Point Clouds},
+  year          = {2026},
+  eprint        = {2606.27491},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
+}
+
+@misc{yue2026toward,
+  author        = {Yue, Yuanwen and Puliti, Stefano and Robert, Damien and
+                   Topaloğlu, Atakan and Xiang, Binbin and Wielgosz, Maciej and
+                   Wegner, Jan Dirk and Astrup, Rasmus and
+                   Rupprecht, Christian and Schindler, Konrad},
+  title         = {Toward a foundation model for forest point clouds},
+  year          = {2026},
+  eprint        = {2609.24787},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
+  note          = {Introduces {ForPT}},
+}
+
+@misc{ravi2024sam,
+  author        = {Ravi, Nikhila and Gabeur, Valentin and Hu, Yuan-Ting and
+                   Hu, Ronghang and Ryali, Chaitanya and Ma, Tengyu and
+                   Khedr, Haitham and Rädle, Roman and Rolland, Chloe and
+                   Gustafson, Laura and Mintun, Eric and Pan, Junting and
+                   Alwala, Kalyan Vasudev and Carion, Nicolas and
+                   Wu, Chao-Yuan and Girshick, Ross and Dollár, Piotr and
+                   Feichtenhofer, Christoph},
+  title         = {{SAM 2}: Segment Anything in Images and Videos},
+  year          = {2024},
+  eprint        = {2408.00714},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
+}
+
+@misc{guo2024sam2point,
+  author        = {Guo, Ziyu and Zhang, Renrui and Zhu, Xiangyang and
+                   Tong, Chengzhuo and Gao, Peng and Li, Chunyuan and
+                   Heng, Pheng-Ann},
+  title         = {{SAM2Point}: Segment Any {3D} as Videos in Zero-shot and
+                   Promptable Manners},
+  year          = {2024},
+  eprint        = {2408.16768},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
+}
+
+% ---------------------------------------------------------------------------
+% Software and model weights
+% ---------------------------------------------------------------------------
+
+@article{roussel2020lidr,
+  author  = {Roussel, Jean-Romain and Auty, David and Coops, Nicholas C. and
+             Tompalski, Piotr and Goodbody, Tristan R. H. and
+             Meador, Andrew Sánchez and Bourdon, Jean-François and
+             de Boissieu, Florian and Achim, Alexis},
+  title   = {{lidR}: An {R} package for analysis of Airborne Laser Scanning
+             ({ALS}) data},
+  journal = {Remote Sensing of Environment},
+  year    = {2020},
+  volume  = {251},
+  pages   = {112061},
+  doi     = {10.1016/j.rse.2020.112061},
+}
+
+@software{roussel2026lidr,
+  author    = {Roussel, Jean-Romain and Auty, David},
+  title     = {{lidR}: Airborne Point Cloud Data Manipulation and Visualization
+               for Forestry Applications},
+  publisher = {The R Foundation},
+  year      = {2026},
+  version   = {4.3.2},
+  doi       = {10.32614/CRAN.package.lidR},
+  note      = {R package on CRAN; version 4.3.2, the installed release, was
+               published on 2026-04-21},
+}
+
+@software{roussel2026lasr,
+  author       = {Roussel, Jean-Romain},
+  title        = {{lasR}: Fast and Pipeable Airborne {LiDAR} Data Tools},
+  year         = {2026},
+  version      = {0.21.0},
+  howpublished = {GitHub, branch pre-devel},
+  url          = {https://github.com/r-lidar/lasR},
+  urldate      = {2026-10-02},
+  note         = {R package; the benchmark requires the pre-devel build},
+}
+
+@software{roussel2023lidrplugins,
+  author       = {Roussel, Jean-Romain},
+  title        = {{lidRplugins}: Extra functions and algorithms for {lidR}
+                  package},
+  year         = {2023},
+  version      = {0.4.0},
+  howpublished = {GitHub},
+  url          = {https://github.com/Jean-Romain/lidRplugins},
+  urldate      = {2026-10-02},
+  note         = {R package},
+}
+
+@software{steinmeier2025crownsegmentr,
+  author    = {Steinmeier, Leon and Miesner, Timon and Knapp, Nikolai},
+  title     = {{crownsegmentr}: Tree Crown Segmentation in Airborne {LiDAR}
+               Point Clouds},
+  publisher = {The R Foundation},
+  year      = {2025},
+  version   = {1.0.1},
+  doi       = {10.32614/CRAN.package.crownsegmentr},
+  note      = {R package on CRAN; version 1.0.1, the installed release, was
+               published on 2025-12-09},
+}
+
+@article{butler2021pdal,
+  author  = {Butler, Howard and Chambers, Bradley and Hartzell, Preston and
+             Glennie, Craig},
+  title   = {{PDAL}: An open source library for the processing and analysis
+             of point clouds},
+  journal = {Computers \& Geosciences},
+  year    = {2021},
+  volume  = {148},
+  pages   = {104680},
+  doi     = {10.1016/j.cageo.2020.104680},
+}
+
+@software{nrcan2025treeaibox,
+  author       = {{Natural Resources Canada}},
+  title        = {{TreeAIBox}: A {CloudCompare} {Python} plugin for a suite of
+                  {LiDAR} processing modules targeting forest and tree
+                  analysis},
+  year         = {2025},
+  version      = {commit 5380ddec2799f55adb43b63407dd12ccf7abefae},
+  howpublished = {GitHub},
+  url          = {https://github.com/NRCan/TreeAIBox},
+  urldate      = {2026-10-02},
+  note         = {Pinned commit dated 2025-09-27},
+}
+
+@misc{weecology2024deepforesttree,
+  author       = {{weecology}},
+  title        = {deepforest-tree},
+  year         = {2024},
+  howpublished = {Hugging Face model repository},
+  url          = {https://huggingface.co/weecology/deepforest-tree},
+  urldate      = {2026-10-02},
+  note         = {MIT licence; revision cc21436bc5d572dde8ff5f93c1e71a32f563cace,
+                  last modified 2024-09-20, was current on the access date},
+}
+
+@misc{ball2025detectree2,
+  author    = {Ball, James and Kotthoff, Christopher},
+  title     = {detectree2 trained models},
+  publisher = {Zenodo},
+  year      = {2025},
+  doi       = {10.5281/zenodo.15863800},
+  note      = {Model weights},
+}

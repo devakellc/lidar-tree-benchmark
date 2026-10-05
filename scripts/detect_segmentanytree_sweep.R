@@ -4,8 +4,10 @@
 # per plot x density rung (sealed root and declared population from
 # freeze_clips.R), reducing per-tree instances to apex detections and
 # scoring against field stems with the existing harness. CORES controls how many
-# independent SAT containers may run concurrently on the same GPU; default 1,
-# CORES=2 is the tested RTX 5090 throughput setting.
+# independent SAT containers run concurrently on the same GPU, on cells from any
+# plot of the site; default 1. SAT is CPU-bound (about 2.3 cores and 1 GB of GPU
+# memory per container), and CORES=4 gave the same results as serial runs at
+# about 3.4x the throughput on the RTX 5090.
 #
 # Per-cell pipeline:
 #   rawground.laz --laz_to_ply--> clip.ply
@@ -75,8 +77,8 @@ run_sat_batch <- function(image, input_dir, output_dir, timeout, label = NULL) {
   out_abs <- normalizePath(output_dir, mustWork = FALSE)
   mdirs <- unique(c(in_abs, out_abs, normalizePath(dirname(BATCH_DRIVER), mustWork = TRUE)))
   vol <- as.vector(rbind("-v", paste0(mdirs, ":", mdirs)))
-  args <- c("run", "--rm", "--gpus", "all", "--shm-size=8g", "--ipc=host",
-            vol, image, "python3", BATCH_DRIVER, in_abs, out_abs)
+  args <- c("run", "--rm", "--gpus", "all", "--network", "none", "--shm-size=8g",
+            "--ipc=host", vol, image, "python3", BATCH_DRIVER, in_abs, out_abs)
   out <- tryCatch(suppressWarnings(system2("docker", shQuote(args), stdout = TRUE,
                                            stderr = TRUE, timeout = timeout)),
                   error = function(e) NULL)
@@ -144,17 +146,20 @@ run_main <- function() {
     invisible()
   }
 
-  for (pid in keep) {                       # per plot; cells may run in parallel
+  # Phase 1: every pending cell of the site, each carrying its plot.
+  plots <- list(); cells <- list()
+  for (pid in keep) {
     ci <- pc[pc$plotID == pid, ][1, ]
     cx <- ci$easting; cy <- ci$northing; ph <- plot_half(ci$plotType)
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
     if (nrow(stems) < 1) next
-    native_pdens <- NA_real_; ncell <- 0L; nskip <- 0L
-    cells <- list()
+    native_pdens <- NA_real_
     batch_in  <- file.path(tempdir(), sprintf("sat_%s_batch_in", pid))
     batch_out <- file.path(tempdir(), sprintf("sat_%s_batch_out", pid))
     unlink(c(batch_in, batch_out), recursive = TRUE, force = TRUE)
     dir.create(batch_in, recursive = TRUE, showWarnings = FALSE)
+    plots[[pid]] <- list(ci = ci, cx = cx, cy = cy, ph = ph, stems = stems,
+                         batch_in = batch_in, batch_out = batch_out, nskip = 0L)
     for (rung in c(if (RUN_NATIVE) NA_real_ else numeric(), RUNGS)) {
       prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
@@ -164,7 +169,7 @@ run_main <- function() {
       tag  <- ifelse(is.na(rung), "native", as.character(rung))
       key <- cell_key(SITE, pid, tag)
       if (key %in% done && has_persisted_instance(pid, tag)) {
-        nskip <- nskip + 1L
+        plots[[pid]]$nskip <- plots[[pid]]$nskip + 1L
         next
       }
       stem <- sprintf("sat_%s_%s", pid, tag)
@@ -172,76 +177,90 @@ run_main <- function() {
       # Absolute-UTM double PLY (lossless); SAT does its own XY localization.
       tryCatch(laz_to_ply(prep$rawground, ply), error = function(e) NULL)
       if (!file.exists(ply)) next
-      cells[[length(cells) + 1L]] <- list(tag = tag, key = key, prep = prep,
+      cells[[length(cells) + 1L]] <- list(pid = pid, tag = tag, key = key, prep = prep,
         pdens = pdens, frdens = frdens, stem = stem, ply = ply)
     }
+  }
 
-    run_one_cell <- function(cell) {
-        olas <- file.path(tempdir(), paste0(cell$stem, "_single.las"))
-        det_abs <- run_docker_arm(IMAGE, cell$ply, olas,
-                     cmd     = c("python3", DRIVER),
-                     mounts  = dirname(DRIVER),
-                     # SAT's clustering Pool spawns workers; --ipc=host + a real
-                     # shm avoid multiprocessing stalls under the default 64M shm.
-                     extra_docker = c("--shm-size=8g", "--ipc=host"),
-                     reader  = function(p) read_instances_laz(p, id_field = ID_FIELD),
-                     gpus    = "all", timeout = TIMEOUT,
-                     label   = sprintf("%s/%s", pid, cell$tag))
-        # Persist the merged instance LAS for the #34 crown-diameter arm before the
-        # tempdir is reused (run_docker_arm wrote it to `olas`, or, if it relocated
-        # it, .find_las recovers it under the same tempdir).
-        if (!is.null(det_abs)) {
-          src <- if (file.exists(olas)) olas else .find_las(tempdir(), cell$stem)
-          persist_instances(src, pid, cell$tag)
-        }
-        list(cell = cell, det_abs = det_abs)
-    }
+  run_one_cell <- function(cell) {
+      olas <- file.path(tempdir(), paste0(cell$stem, "_single.las"))
+      det_abs <- run_docker_arm(IMAGE, cell$ply, olas,
+                   cmd     = c("python3", DRIVER),
+                   mounts  = dirname(DRIVER),
+                   # SAT's clustering Pool spawns workers; --ipc=host + a real
+                   # shm avoid multiprocessing stalls under the default 64M shm.
+                   extra_docker = c("--shm-size=8g", "--ipc=host"),
+                   reader  = function(p) read_instances_laz(p, id_field = ID_FIELD),
+                   gpus    = "all", timeout = TIMEOUT,
+                   label   = sprintf("%s/%s", cell$pid, cell$tag))
+      # Persist the merged instance LAS for the #34 crown-diameter arm before the
+      # tempdir is reused (run_docker_arm wrote it to `olas`, or, if it relocated
+      # it, .find_las recovers it under the same tempdir).
+      if (!is.null(det_abs)) {
+        src <- if (file.exists(olas)) olas else .find_las(tempdir(), cell$stem)
+        persist_instances(src, cell$pid, cell$tag)
+      }
+      list(cell = cell, det_abs = det_abs)
+  }
 
-    cell_results <- list()
-    if (length(cells) && BATCH) {
-      batch_ok <- run_sat_batch(IMAGE, batch_in, batch_out,
-                                timeout = TIMEOUT * length(cells), label = pid)
-      cell_results <- lapply(cells, function(cell) {
+  # Score one finished cell against its plot and write the results file, so an
+  # interrupted run keeps every cell scored so far.
+  ncell <- setNames(integer(length(plots)), names(plots))
+  score_cell <- function(res) {
+    cell <- res$cell; det_abs <- res$det_abs; pl <- plots[[cell$pid]]
+    if (is.null(det_abs)) return(invisible())   # container crash/schema -> skip cell
+    det <- det_to_agl(det_abs, cell$prep$dtm)  # absolute Z -> height above ground
+    sc <- tryCatch(score_plot(pl$stems, det, tol_xy = TOL, core_cx = pl$cx,
+                              core_cy = pl$cy, core_half = pl$ph),
+                   error = function(e) NULL)
+    if (is.null(sc)) return(invisible())
+    row <- cbind(data.frame(site = SITE, plot = cell$pid,
+      plotType = pl$ci$plotType, detector = "segmentanytree", rung = cell$tag,
+      pdens = round(cell$pdens, 2), frdens = round(cell$frdens, 2),
+      n_apex = nrow(det)), sc)
+    row$tp_core <- round(row$precision * row$n_det)
+    results <<- rbind(results, row)
+    done <<- c(done, cell$key)
+    write_results()
+    ncell[[cell$pid]] <<- ncell[[cell$pid]] + 1L
+    invisible()
+  }
+
+  # Phase 2: run and score. BATCH=1 runs one container per plot. Otherwise
+  # CORES containers run at once on cells from any plot, in chunks scored as
+  # they finish (a site with one rung per plot still runs CORES at a time).
+  if (BATCH) {
+    for (pid in names(plots)) {
+      pcells <- Filter(function(cell) cell$pid == pid, cells)
+      if (!length(pcells)) next
+      pl <- plots[[pid]]
+      batch_ok <- run_sat_batch(IMAGE, pl$batch_in, pl$batch_out,
+                                timeout = TIMEOUT * length(pcells), label = pid)
+      for (cell in pcells) {
         det_abs <- NULL
         if (batch_ok) {
-          las <- .find_las(batch_out, cell$stem)
+          las <- .find_las(pl$batch_out, cell$stem)
           if (!is.na(las)) {
             det_abs <- read_instances_laz(las, id_field = ID_FIELD)
             # Persist the batch-merged LAS for the #34 crown arm (same schema).
             if (!is.null(det_abs)) persist_instances(las, pid, cell$tag)
           }
         }
-        if (!is.null(det_abs)) list(cell = cell, det_abs = det_abs)
-        else run_one_cell(cell)
-      })
-    } else if (length(cells) && CORES > 1L) {
-      # Fresh workers: a dead worker stops the run instead of returning NULL.
-      cell_results <- plot_lapply(cells, run_one_cell, mc.cores = min(CORES, length(cells)))
-    } else if (length(cells)) {
-      cell_results <- lapply(cells, run_one_cell)
+        score_cell(if (!is.null(det_abs)) list(cell = cell, det_abs = det_abs)
+                   else run_one_cell(cell))
+      }
     }
-
-    for (res in cell_results) {
-      cell <- res$cell
-      det_abs <- res$det_abs
-      if (is.null(det_abs)) next            # container crash/schema -> skip cell
-      det <- det_to_agl(det_abs, cell$prep$dtm)  # absolute Z -> height above ground
-      sc <- tryCatch(score_plot(stems, det, tol_xy = TOL, core_cx = cx,
-                                core_cy = cy, core_half = ph),
-                     error = function(e) NULL)
-      if (is.null(sc)) next
-      row <- cbind(data.frame(site = SITE, plot = pid,
-        plotType = ci$plotType, detector = "segmentanytree", rung = cell$tag,
-        pdens = round(cell$pdens, 2), frdens = round(cell$frdens, 2),
-        n_apex = nrow(det)), sc)
-      row$tp_core <- round(row$precision * row$n_det)
-      results <- rbind(results, row)
-      done <- c(done, cell$key)
-      write_results()
-      ncell <- ncell + 1L
+  } else {
+    width <- max(1L, CORES)
+    for (first in seq_len(ceiling(length(cells) / width))) {
+      chunk <- cells[((first - 1L) * width + 1L):min(length(cells), first * width)]
+      # Fresh workers per chunk: a dead worker stops the run instead of
+      # returning NULL.
+      for (res in plot_lapply(chunk, run_one_cell, mc.cores = width)) score_cell(res)
     }
-    cat(sprintf("  %s: %d new cells, %d skipped\n", pid, ncell, nskip))
   }
+  for (pid in names(plots))
+    cat(sprintf("  %s: %d new cells, %d skipped\n", pid, ncell[[pid]], plots[[pid]]$nskip))
   if (is.null(results) || !nrow(results)) {
     cat("no segmentanytree results\n"); return(invisible())
   }

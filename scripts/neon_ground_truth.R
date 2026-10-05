@@ -173,6 +173,11 @@ out <- g[, c("individualID", "plotID", "tile", "tile_e", "tile_n", "E", "N",
              "plantStatus", "canopyPosition", "crown_class", "live", "is_tree",
              "year", "dist21", "dist_aop", "acquisition_year", "utmZone", "epsg")]
 names(out)[names(out) == "year"] <- "meas_year"
+framed <- neon_drop_unframed_stems(out, pp1)
+if (nrow(framed$dropped))
+  cat(sprintf("dropped %d mapped stems without a plot record (%s); none is live\n",
+              nrow(framed$dropped), paste(sort(unique(framed$dropped$plotID)), collapse = ",")))
+out <- framed$kept
 neon_validate_inputs(out, pp1)
 write.csv(pp1, file.path(nd, "plot_centroids.csv"), row.names = FALSE)
 write.csv(out, file.path(nd, "ground_truth_stems.csv"), row.names = FALSE)

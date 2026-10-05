@@ -54,6 +54,13 @@ SJER, SOAP, and TEAK. On SOAP's common set of 18 plots and 232 field stems:
   to **0.741**, while F1 falls from **0.414** to **0.406**. Optical boxes and
   native-CHM heights are fixed across rungs; this is not a wholly sparse-input
   experiment.
+- The [native sparse epoch study](results/native-sparse-epoch-results.md)
+  compares earlier, sparser NEON flights (SJER 2017, SOAP and TEAK 2018,
+  about 4–5 first returns per m²) with the 2021 clouds decimated to the
+  bracketing rungs, on the same 586 stems. Decimation is mildly optimistic for
+  CHM-VWF and `multichm` (recall **0.03–0.05** higher than the native flight)
+  and more so for SegmentAnyTree (**0.06** at 4 and **0.19** at 8 points/m²),
+  so its sparse-rung recall is an upper bound.
 
 These are field-stem detection scores. Incomplete mapping and event-specific
 sampling footprints limit their interpretation as complete-census precision.
@@ -71,6 +78,15 @@ The [frozen-clip study](results/frozen-clips-results.md) declares that
 population, keeps the six-stem plot gate and freezes one seeded clip per site,
 plot and density rung; every NEON arm now reads those hash-verified clips
 instead of decimating its own.
+
+ForestFormer3D and TreeisoNet have been re-run on all five sites with
+corrected adapters; the
+[re-run comparison](results/model-benchmark-results.md#corrected-adapter-re-runs-on-the-frozen-clips)
+supersedes their June 2026 rows. On the same 530 cells, native-density F1 is
+**0.50** for ForestFormer3D and **0.45** for TreeisoNet. At 1 point/m², both
+arms are near **0.42–0.44**. ForestFormer3D's June SOAP F1 of 0.26 rises to
+0.45 on the same plots. The June TreeisoNet failure on SJER and TEAK came from
+a different voxel setting on those sites.
 
 The [censused-subplot study](results/census-support-results.md) scores
 precision only inside surveyed, censused subplots, from each plot's nearest
@@ -270,6 +286,7 @@ scripts and configuration.
 | NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R), [preflight_site_extension.R](scripts/preflight_site_extension.R) |
 | NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
 | NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
+| Native sparse epochs | [prepare_sparse_epoch.R](scripts/prepare_sparse_epoch.R), [audit_sparse_epoch.R](scripts/audit_sparse_epoch.R), [compare_sparse_epoch.R](scripts/compare_sparse_epoch.R) |
 | NEON density ladder | [run_sweep.R](scripts/run_sweep.R), [analyze_sweep.R](scripts/analyze_sweep.R), [compare_sites.R](scripts/compare_sites.R) |
 | Point-cloud understory detection | [detect_pc_sweep.R](scripts/detect_pc_sweep.R), [detect_pc_ladder.R](scripts/detect_pc_ladder.R) |
 | Cross-model detection analysis | [analyze_model_benchmark.R](scripts/analyze_model_benchmark.R), [compare_model_sites.R](scripts/compare_model_sites.R) |
@@ -284,6 +301,9 @@ scripts and configuration.
 - [gpu](gpu/) — model adapters and runtime setup instructions.
 - [results](results/) — committed study reports and interpretation limits.
 - [docs](docs/) — methodology, study protocols, and execution guides.
+- [Data and code availability](docs/data-code-availability.md) — data
+  sources, model licences and what the archive holds; the
+  [bibliography](docs/references.bib) holds the verified references.
 - [data](data/) — tracked GeoJSON site, plot, stem, and AOI context.
 - [tests](tests/) — regression tests for scoring, data handling, and workflows.
 
@@ -304,3 +324,17 @@ git diff --check
 Python/GPU tests use the environment required by the affected model or workflow;
 raster tests additionally require `rasterio`. Test success checks implementation
 contracts; performance claims require the corresponding data and study runs.
+
+## License
+
+The code and documentation in this repository are released under the
+[MIT License](LICENSE). Components and data keep their own terms:
+
+- [external/treeiso](external/treeiso/) is vendored under its own MIT License
+  ([LICENSE](external/treeiso/LICENSE)).
+- NEON field and airborne data are released under CC0 1.0; USGS 3DEP point
+  clouds are public domain.
+- FGI-EMIT data are licensed CC BY-NC-SA 4.0 and are not redistributed here.
+- Model checkpoints and container images used by the GPU arms remain under
+  their upstream licences; this repository pins their hashes but does not
+  redistribute them.

@@ -6,8 +6,9 @@ forest sites in Washington, Wind River Experimental Forest (WREF) and Abby Road
 no detector was run and no plot was clipped for scoring.
 
 **Decision: go for both sites.** Both were flown in July 2021 with the same
-Optech Galaxy Prime instrument class as the D17 sites, at comparable native
-density, and every admitted plot clip lies on listed tiles. **The reference
+Optech Galaxy Prime instrument as SOAP and TEAK (SJER's 2021 flight used a
+RIEGL Q780), at comparable native density, and every admitted plot clip lies
+on listed tiles. **The reference
 population is limited to stems of at least 10 cm DBH at every site**, because
 seven ABBY distributed plots are young stands whose mapped stems are almost
 all below 10 cm DBH and carry no NEON canopy position. Under that gate the two
