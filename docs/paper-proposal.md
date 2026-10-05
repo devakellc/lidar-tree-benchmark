@@ -1,7 +1,8 @@
 # Paper proposal: tree detectors on national-mapping airborne LiDAR
 
 Prepared 2026-09-30 from the committed study reports and a literature scan of
-about ninety primary sources. This document records which part of the
+about ninety primary sources. Revised 2026-10-05, after every arm was re-run
+on the frozen five-site population. This document records which part of the
 repository is proposed for a peer-reviewed paper, the outline of that paper,
 and the work that must be completed before submission. Task tracking lives in
 the GitHub issues labelled `pre-paper`; this document stays free of tracker
@@ -9,30 +10,37 @@ identifiers.
 
 ## Recommendation
 
-The strongest paper is the NEON three-site density-ladder benchmark: zero-shot
+The strongest paper is the NEON five-site density-ladder benchmark: zero-shot
 deep 3D tree segmenters against classical detectors on national-mapping-density
 airborne laser scanning (ALS), scored against field-mapped stems, with the
 native FGI-EMIT work as a dense-domain control. The literature scan found no
 published evaluation of SegmentAnyTree or ForestFormer3D on 1 to 8 pulses/m²
 native ALS with field stems, and no test of whether decimation predicts native
-sparse behaviour. The repository already contains both.
+sparse behaviour. The repository contains both: the benchmark on one frozen
+population of 106 plots and 2,525 field stems, and a decimation test against
+earlier, sparser flights over 39 of the California plots.
 
-Two corrections are required before any number is quoted. The NEON
-ForestFormer3D and TreeisoNet results predate the adapter defects documented in
-the [frozen transfer audit](../results/frozen-transfer-audit-results.md), and
-precision is currently computed over partly censused plots, as recorded in the
-[reference-support audit](../results/neon-reference-support-results.md).
+The re-runs changed the expected result. The first version of this proposal
+expected deep segmenters to win at native density and to collapse when the
+cloud is sparse. With corrected adapters and five sites, the two best
+segmenters lead the classical baseline by about 0.05 F1 at native density, and
+only one of the three learned point models collapses down the ladder. The
+thesis, contributions and evidence below are rewritten to match. The data and
+methods sections can be drafted now; the results sections wait for the
+[remaining steps](#remaining-steps).
 
 ## What is publishable
 
 | Candidate | Evidence in the repository | Novelty against the literature | Verdict |
 | --- | --- | --- | --- |
-| Density-ladder cross-model benchmark | 46 plots, 699 stems, three canopy structures, seven full-ladder arms plus ForestFormer3D, Li 2012 and Treeiso | Closest prior work is FGI-EMIT: one boreal site subsampled from above 1,000 pts/m². Nothing at 1 to 8 pulses/m² with field stems | Primary paper |
-| Evaluation sensitivity kit | apex versus mask scoring, matcher and tolerance grid, stem-jitter bands, temporal gap, coverage-gap crediting, checkpoint provenance | No forestry greedy-versus-Hungarian comparison, no checkpoint leakage audit, no published critique of NEON stems as ground truth | Section of the primary paper, plus a methods spin-off |
-| Crown delineation | stop rule matters more than algorithm; crown width stable to 1 pt/m²; height, not width, predicts DBH | Moderate | Second short paper once deep-model crowns are regenerated |
-| FGI-EMIT preregistered comparison | frozen policy, development/reserve split, bootstrap intervals | One site, within-dataset, checkpoint overlap unknown; the dataset authors already published trained-from-scratch comparisons | Control experiment inside the primary paper |
-| Fusion, routing, calibration, RGB | union trades F1 for recall; learned router gains nothing over a fixed default; calibration gains small | Sparse prior art, but effects are small or negative | Supplement and one discussion paragraph |
-| TEAK canopy boxes, eastern preflight, EPT throughput, SAM2Point, engine comparison | blocked or engineering-only | none | Excluded; one methods sentence at most |
+| Density-ladder cross-model benchmark | 106 plots, 2,525 stems, five sites in two regions; eight full-ladder arms plus Li 2012 and two RGB detectors; paired plot-level bootstrap intervals | Closest prior work is FGI-EMIT: one boreal site subsampled from above 1,000 pts/m². Nothing at 1 to 8 pulses/m² with field stems | Primary paper |
+| Reference-completeness scoring | precision inside censused subplots on 57 plots, the nominal plot box as a lower bound, co-detection crediting as a second bracket | No published critique of NEON stems as ground truth | Core section of the primary paper |
+| Evaluation sensitivity kit | matcher and tolerance grid, stem-jitter bands, temporal gap, checkpoint provenance; all but the provenance audit still on the historical three-site population | No forestry greedy-versus-Hungarian comparison, no checkpoint leakage audit | Section of the primary paper once regenerated, plus a methods spin-off |
+| Apex versus mask scoring | mask scores against a proxy built from stems; the five-site board lacks SegmentAnyTree; FGI-EMIT's true masks show a far smaller apex-to-mask gap | Moderate, but it rests on a proxy reference | Main text only if the proxy is validated; otherwise supplement |
+| Crown delineation | five-site re-run: SegmentAnyTree matches the best CHM arm on equivalent width and leads on the widest axis; stop rule matters more than algorithm; crown width holds to 1.3 pulses/m² | Moderate | Supplement, and a second short paper |
+| FGI-EMIT preregistered comparison | frozen policy, development/reserve split, bootstrap intervals | One site, within-dataset, checkpoint overlap unknown; the dataset authors already published trained-from-scratch comparisons | Positive control inside the primary paper |
+| Fusion, routing, calibration, RGB | five-site fusion: no fused mode beats the best single arm at native density, and two-arm agreement gains 0.01 to 0.02 F1 at sparser rungs, in sample; router and calibration gains are small on the historical population | Sparse prior art, but effects are small | Supplement and one discussion paragraph |
+| TEAK canopy boxes, eastern preflight, EPT throughput, SAM2Point, engine comparison | blocked, engineering-only, or (SAM2Point) a refiner that loses most of its seeds | none | Excluded; one methods sentence at most |
 
 ## Recommended paper
 
@@ -44,51 +52,134 @@ national-mapping airborne LiDAR with field-mapped stems.
 FGI-EMIT and ITS-Net appeared in 2026. Remote Sensing of Environment is the
 alternative. IJAEOG or Remote Sensing are fallbacks.
 
-**Thesis.** Forest structure sets the level of detection accuracy and point
-density sets the slope. The slope differs by method family: deep segmenters
-trained on dense ULS win at native density but collapse below roughly
-3 pulses/m², where multi-layer CHM detectors are flat.
+**Thesis.** On national-mapping ALS the advantage of dense-trained deep
+segmenters over classical detectors is small, and the response to point
+density belongs to the individual model, not to its method family. At native
+density (about 10 pulses/m²) ForestFormer3D and SegmentAnyTree lead the CHM
+variable-window baseline (CHM-VWF) by about 0.05 F1; the same checkpoints lead
+it by 0.26 to 0.29 on the dense FGI-EMIT reserve plots. Down the ladder
+SegmentAnyTree collapses, ForestFormer3D declines slowly and TreeisoNet stays
+flat. The classical detectors differ as much: AMS3D's F1 rises as the cloud
+thins, while `ptrees` loses three quarters of its recall. The ranking at
+native density carries over to about 2.5 pulses/m² and is unrelated to the
+ranking below the USGS QL2 floor of 2 pulses/m². Site sets the level:
+ForestFormer3D's native F1 runs from 0.33 at the open oak woodland site to
+0.54 at the managed conifer site.
+
+The dense and sparse datasets differ in forest type, reference completeness
+and tree-size gate as well as in density. The paper therefore presents the
+0.05 against 0.26 to 0.29 comparison as a contrast, not as a controlled
+effect, unless the thinning experiment in the remaining steps is run.
 
 **Contributions**, in the order of the results section:
 
-1. Equal-support benchmark of three zero-shot 3D instance segmenters and five
-   classical detectors on sparse ALS across three canopy structures, pooled by
-   counts and stratified by field crown class.
-2. Density-by-structure decomposition, with site-invariant response shapes and
-   the understory occlusion floor.
-3. The density cliff and crossover map: which detector wins at which density,
-   out of sample.
-4. Decimation validated cross-sensor against native USGS 3DEP surveys over the
-   same plots.
-5. Apex versus mask scoring: apex matching overstates instance quality two to
-   three fold, and the two leaderboards only moderately agree.
-6. Evaluation sensitivity: matching rule, tolerance, stem-position jitter,
-   temporal gap, and reference-completeness crediting.
-7. Dense-domain control: the same checkpoints and adapters reach
-   published-level accuracy on FGI-EMIT, so the sparse-ALS collapse is a domain
-   effect, not an integration failure. The checkpoint provenance audit is
-   reported alongside.
-8. Open harness with frozen seeded clips, pinned checkpoints and hash receipts.
+1. Equal-support benchmark of three zero-shot 3D instance segmenters, six
+   classical detectors and two RGB detectors at five sites in two regions, on
+   sealed seeded clips, pooled by counts with paired plot-level bootstrap
+   intervals and stratified by field crown class.
+2. Reference-completeness scoring: precision inside censused subplots, the
+   nominal plot box as a lower bound, and co-detection crediting as a second
+   bracket. Nominal-box precision is 0.08 to 0.34 below censused precision on
+   identical detections.
+3. Density response by model: one segmenter's density cliff, the slow or flat
+   responses of the others, the rank-stability analysis, the decomposition by
+   site, and the understory floor.
+4. Decimation checked against native sparse flights of the same sensor family
+   over the same plots, and cross-sensor against USGS 3DEP surveys. Decimation
+   is mildly optimistic for CHM detectors and more so for the learned arm
+   tested.
+5. Dense-domain positive control: the same checkpoints and adapters reach
+   published-level accuracy on FGI-EMIT. The control exposed an adapter
+   defect, and the re-runs a voxel setting, that had both looked like domain
+   shift. The paper reports them as a caution for zero-shot benchmarks, with
+   the checkpoint provenance audit alongside.
+6. Evaluation sensitivity: matching rule, tolerance, stem-position jitter and
+   temporal gap.
+7. Apex versus mask scoring, in the main text only if the stem-derived mask
+   proxy is validated against true instance masks.
+8. Open harness with frozen seeded clips, pinned checkpoints and hash
+   receipts.
+
+**Primary accuracy.** Recall and its crown-class strata are reported on the
+full population. Precision and F1 are reported inside censused subplots, with
+the nominal-box values beside them as lower bounds. Of the 1,190 censused
+references, 1,055 are at WREF and ABBY; SJER keeps two admitted plots and
+SOAP one. The censused table is therefore mainly a Pacific Northwest result,
+and the paper says so. The order of arms at native density is the same in
+both scorings.
+
+**Development and replication regions.** WREF and ABBY in Washington were
+added after the detectors had been run on the three California sites, and
+they hold 74% of the reference stems. The working assumption is that every
+detector setting was fixed on the California sites or on FGI-EMIT before the
+Washington sites were scored. If the configuration-provenance check in the
+remaining steps confirms it, the paper reports California as the development
+region and Washington as the replication region, in place of the earlier
+plot-level calibration/validation table.
 
 ## Evidence available today
 
+Values on the frozen five-site population, unless a row says otherwise.
+Density is the median first-return density of the frozen clips: 9.8 pulses/m²
+at native density and 4.7, 2.5, 1.3 and 0.6 at rungs 8, 4, 2 and 1.
+
 | Result | Value | Report |
 | --- | --- | --- |
-| SegmentAnyTree F1, SOAP, native vs 1 pt/m² | 0.48 vs 0.13 | [model benchmark](../results/model-benchmark-results.md) |
-| multichm F1 across the ladder, SOAP | 0.42 to 0.47 | [model benchmark](../results/model-benchmark-results.md) |
-| CHM-VWF F1 across the ladder, SOAP | 0.38 to 0.40 | [model benchmark](../results/model-benchmark-results.md) |
-| Overstory recall SJER / SOAP / TEAK, native density | 0.71 / 0.57 / 0.40 | [density ladder](../results/density-ladder-sweep-results.md) |
-| Best classical understory recall, native, 105 stems | 0.26 | [point-cloud detectors](../results/pointcloud-detector-results.md) |
-| Decimated vs native-sensor pooled recall gap | within 0.07; dominant class 0.06 to 0.12 optimistic | [native 3DEP cross-check](../results/native-ql2-crosscheck-results.md) |
-| multichm beats CHM-VWF on held-out plots, SOAP / TEAK | 100% / 96% of seed-by-rung splits | [calibration/validation](../results/calibration-validation-results.md) |
-| SegmentAnyTree recall, apex matching vs IoU ≥ 0.5 masks | 0.66 vs 0.21 | [instance IoU/PQ](../results/instance-iou-pq-results.md) |
-| Kendall τ between distance and mask leaderboards | 0.47 to 0.73 | [instance IoU/PQ](../results/instance-iou-pq-results.md) |
+| Native F1: ForestFormer3D / SegmentAnyTree / CHM-VWF | 0.498 / 0.495 / 0.450 | [master tables](../results/master-tables-results.md) |
+| Lead over CHM-VWF, native F1: ForestFormer3D / SegmentAnyTree | +0.048 [+0.028, +0.069] / +0.044 [+0.021, +0.067] | [master tables](../results/master-tables-results.md) |
+| Arms indistinguishable from CHM-VWF at native density | `multichm`, Li 2012, TreeisoNet, DeepForest | [master tables](../results/master-tables-results.md) |
+| SegmentAnyTree F1, native vs rung 1 | 0.495 vs 0.128 | [master tables](../results/master-tables-results.md) |
+| F1, native vs rung 1: ForestFormer3D / TreeisoNet / `multichm` / AMS3D | 0.498 vs 0.421 / 0.446 vs 0.440 / 0.456 vs 0.434 / 0.240 vs 0.437 | [master tables](../results/master-tables-results.md) |
+| CHM-VWF native precision, censused subplots vs nominal box, same 57 plots | 0.78 vs 0.48 | [censused subplots](../results/census-support-results.md) |
+| Censused native F1: SegmentAnyTree / ForestFormer3D / Li 2012 / CHM-VWF | 0.68 / 0.67 / 0.64 / 0.61 | [master tables](../results/master-tables-results.md) |
+| ForestFormer3D lead over Li 2012, censused native F1 | +0.029 [−0.007, +0.068] | [master tables](../results/master-tables-results.md) |
+| F1 gain after co-detection crediting, per arm | +0.07 to +0.14 | [coverage gap](../results/coverage-gap-results.md) |
+| Native sparse flight vs decimated rungs, recall: CHM-VWF and `multichm` / SegmentAnyTree (three California sites) | 0.03 to 0.05 lower / 0.06 to 0.19 lower | [native sparse epochs](../results/native-sparse-epoch-results.md) |
+| Decimation noise, per-site CHM-VWF F1, SD over 11 seeds (three California sites) | 0.005 to 0.028 | [frozen clips](../results/frozen-clips-results.md) |
+| ForestFormer3D native F1 before and after the adapter fix: SJER / SOAP / TEAK | 0.23 to 0.33 / 0.26 to 0.45 / 0.33 to 0.50 | [model benchmark](../results/model-benchmark-results.md) |
+| TreeisoNet native F1, checkpoint voxel vs 0.8 m voxel: SJER / TEAK | 0.08 vs 0.28 / 0.12 vs 0.37 | [model benchmark](../results/model-benchmark-results.md) |
+| Understory recall at native density: ForestFormer3D / TreeisoNet | 0.45 / 0.19 | [model benchmark](../results/model-benchmark-results.md) |
+| FGI-EMIT reserve apex F1, 257 trees: CHM-VWF / SegmentAnyTree / ForestFormer3D | 0.49 / 0.75 / 0.78 | [native pipeline](../results/final-ensemble-pipeline-results.md) |
+| ForestFormer3D mask F1 at IoU 0.5: FGI-EMIT true masks / NEON proxy masks | 0.65 / 0.135 | [native pipeline](../results/final-ensemble-pipeline-results.md), [instance IoU/PQ](../results/instance-iou-pq-results.md) |
+| Best fused mode minus best single arm, F1: native / rungs 8 to 1 | −0.009 / +0.009 to +0.022, in sample | [fusion study](../results/detector-fusion-results.md) |
+| Crown diameter RMSE, 790 common stems: stop-rule random walker / SegmentAnyTree | 1.71 m / 1.74 m | [crown benchmark](../results/crown-segmentation-results.md) |
+
+Values still on the historical three-site population of 46 plots and 699
+stems. They are regenerated in the remaining steps before the paper quotes
+them:
+
+| Result | Value | Report |
+| --- | --- | --- |
 | F1 across the matching-tolerance grid | 0.21 to 0.42 | [matcher robustness](../results/matcher-robustness-results.md) |
 | CHM-VWF false positives with no mapped stem nearby | 94% | [matcher robustness](../results/matcher-robustness-results.md) |
 | Monte-Carlo F1 band width under stem-position jitter | 0.014 to 0.037 | [positional uncertainty](../results/positional-uncertainty-results.md) |
-| F1 gain after co-detection crediting | +0.04 to +0.22 | [coverage gap](../results/coverage-gap-results.md) |
-| ForestFormer3D apex F1, FGI-EMIT reserve vs NEON native, old adapter | 0.78 vs 0.25 to 0.30 | [native pipeline](../results/final-ensemble-pipeline-results.md), [model benchmark](../results/model-benchmark-results.md) |
-| Crown diameter RMSE, random walker with stop rule | 2.42 m, flat to 1 pt/m² | [crown benchmark](../results/crown-segmentation-results.md) |
+| Kendall τ between distance and mask leaderboards | 0.47 to 0.73 | [instance IoU/PQ](../results/instance-iou-pq-results.md) |
+| `multichm` beats CHM-VWF on held-out plots, SOAP / TEAK | 100% / 96% of seed-by-rung splits | [calibration/validation](../results/calibration-validation-results.md) |
+| Decimated vs native-sensor 3DEP pooled recall gap | within 0.07 | [native 3DEP cross-check](../results/native-ql2-crosscheck-results.md) |
+
+The held-out row no longer holds as stated. On five sites `multichm` is
+indistinguishable from CHM-VWF at native density (+0.006 [−0.018, +0.028])
+and ahead only at sparse rungs (+0.060 [+0.036, +0.082] at rung 1).
+
+Provisional readings, derived from the generated per-rung and per-arm tables
+of the paper runs. They are not in a report yet; the remaining steps publish
+them with intervals:
+
+- Rank correlation (Spearman) between native F1 and F1 at 4.7, 2.5, 1.3 and
+  0.6 pulses/m², over the eight full-ladder arms: 0.83, 0.76, −0.05 and −0.19
+  on the nominal box, and 0.86, 0.64, 0.02 and 0.12 inside censused subplots.
+  Eight arms is a small sample.
+- SegmentAnyTree's F1 down the ladder is 0.495, 0.487, 0.469, 0.376 and
+  0.128, so its cliff lies between 2.5 and 0.6 pulses/m².
+- Understory recall at native density, over 592 intermediate and suppressed
+  stems: AMS3D 0.63 and `ptrees` 0.46, at precision of 0.15 and 0.22;
+  ForestFormer3D 0.45; `multichm` 0.34; SegmentAnyTree 0.29; TreeisoNet 0.19;
+  CHM-VWF 0.17.
+- By region, ForestFormer3D and SegmentAnyTree lead CHM-VWF at native density
+  by about 0.09 F1 on the California sites and 0.03 on the Washington sites.
+  SegmentAnyTree's F1 at rung 1 is 0.11 and 0.13.
+- At ABBY, the managed conifer site, CHM-VWF's native F1 (0.56) is level with
+  the three learned arms (0.54 to 0.57).
 
 ## Literature positioning
 
@@ -130,9 +221,16 @@ Current state of the art to cite: SegmentAnyTreeV2
 ([Nguyen et al. 2026](https://arxiv.org/abs/2606.27491)) from June 2026, ForPT
 ([Yue et al. 2026](https://arxiv.org/abs/2609.24787)) and ITS-Net
 ([Li et al. 2026](https://doi.org/10.1016/j.isprsjprs.2025.11.019)).
-None reports 1 to 8 pulses/m² performance. USGS 3DEP quality levels frame the
-target regime: QL2 requires at least 2 pulses/m² and QL1 at least 8
+None reports 1 to 8 pulses/m² performance. SegmentAnyTreeV2 is not evaluated
+here: its preprint promises the weights on acceptance, and none were public
+on 2026-10-01. USGS 3DEP quality levels frame the target regime: QL2 requires
+at least 2 pulses/m² and QL1 at least 8
 ([USGS](https://www.usgs.gov/3d-elevation-program/topographic-data-quality-levels-qls)).
+
+The paper's own native acquisitions are the 2021 flights at about 10
+pulses/m² and the 2017 and 2018 flights at 4 to 5. Below that, including the
+QL2 floor, the evidence is decimation, which the earlier flights show to be
+optimistic.
 
 ## Proposed structure
 
@@ -141,142 +239,167 @@ target regime: QL2 requires at least 2 pulses/m² and QL1 at least 8
    questions the README asks.
 2. Related work: benchmarks, density studies, understory detection, evaluation
    conventions, and detector fusion.
-3. Data: sites, plots and stems by crown class with measured pulse densities;
-   the decimation ladder; the native 3DEP cross-check clouds; the FGI-EMIT
-   control plots.
+3. Data: five sites, plots and stems by crown class with measured pulse
+   densities; the decimation ladder; the native sparse flights; the native
+   3DEP cross-check clouds; the FGI-EMIT control plots.
 4. Methods: the detector table with type, input, training data and checkpoint
-   hash; the density-first CHM pipeline; matching, pooling and the equal-set
-   guard; calibration and validation splits; uncertainty.
+   hash; the density-first CHM pipeline; sealed clips; matching, pooling and
+   the equal-set guard; censused-subplot scoring; development and replication
+   regions; uncertainty.
 5. Results, one subsection per contribution.
-6. Discussion: implications for USGS 3DEP users, why dense-trained segmenters
-   collapse, the occlusion floor, what fusion and routing buy, limitations.
+6. Discussion: implications for USGS 3DEP users, what separates the segmenter
+   that collapses from the two that do not, the understory floor, what fusion
+   buys, limitations.
 7. Conclusion, data and code availability.
 
 Figures:
 
 - Figure 1: site and canopy-structure overview.
-- Figure 2: F1, recall and precision versus pulse density, three sites by all
-  arms.
-- Figure 3: overstory and understory recall versus density.
-- Figure 4: native-sensor versus decimated recall by crown class.
-- Figure 5: distance F1 against mask PQ per arm.
-- Figure 6: sensitivity panel with tolerance grid, matcher variants, jitter
-  bands and credited F1.
-- Figure 7: FGI-EMIT development and reserve F1 for the same checkpoints.
+- Figure 2: F1, recall and precision versus pulse density, five sites by all
+  ladder arms, with the QL1 and QL2 floors marked.
+- Figure 3: rank of each arm across the ladder, with the rank correlations.
+- Figure 4: overstory and understory recall versus density.
+- Figure 5: censused against nominal-box precision per arm, with the credited
+  bracket.
+- Figure 6: native sparse flights against decimated rungs, by arm and crown
+  class.
+- Figure 7: sensitivity panel with tolerance grid, matcher variants and jitter
+  bands.
 
 Tables:
 
 - Table 1: sites, plots, stems by crown class, measured pulse densities.
 - Table 2: detectors with type, input, training data and checkpoint hash.
-- Table 3: master ladder table with plot-level bootstrap intervals.
-- Table 4: held-out results.
-- Table 5: compute cost per plot; ForestFormer3D takes minutes per plot on an
-  RTX 5090 while the CHM path takes seconds.
+- Table 3: master table, censused and nominal, with plot-level bootstrap
+  intervals; RGB detectors as native-only rows.
+- Table 4: California development region against Washington replication
+  region.
+- Table 5: the same checkpoints on the FGI-EMIT reserve and on NEON.
+- Table 6: compute cost per plot.
 
-Fusion Pareto, routing, calibration, RGB, crown diameters, allometry and the
-temporal check go to the supplement.
+Fusion, routing, calibration, crown diameters, allometry, the temporal check
+and, unless the proxy is validated, mask scoring go to the supplement.
 
 ## Work before submission
 
-The order below is the execution order, revised on 2026-09-30 so that the
-plot population is decided and frozen before any arm re-runs. Each step is
-tracked as a GitHub issue labelled `pre-paper`.
+### Outcome of the first plan
 
-1. **Decide on and prepare NEON WREF and ABBY.** Both Washington sites have
-   2021 LiDAR in the same tile-size class as SOAP, census bouts in 2021 and
-   2022, and about 1,150 and 840 live mapped stems with DBH of at least 10 cm
-   in 63 plots above the six-stem gate. The decision is cheap: one tile header
-   per site, the ground-truth build and a crown-class coverage check. If it is
-   a go, the extension roughly quadruples the field-stem reference, adds a
-   second region and two canopy structures, and every later step runs over
-   five sites. The same census-footprint audit applies.
-2. **Freeze the plot population and the frozen clips.** Decide on the six-stem
-   gate, which admits 40 small plots holding 88 core stems, and put every arm,
-   including the CHM-VWF ladder, on the seeded frozen-clip provider before any
-   arm re-runs.
-3. **Re-run ForestFormer3D and TreeisoNet with the corrected adapters** on
-   every admitted site. The
-   [scene-assembly study](../results/forestformer-scene-assembly-results.md)
-   and the [transfer audit](../results/frozen-transfer-audit-results.md) show
-   the old cylinder route and export defects; the June NEON runs predate both
-   fixes. Extend ForestFormer3D to the full ladder if compute allows.
-4. **Add SegmentAnyTreeV2 as an arm** on every admitted site. Released June
-   2026 and trained at 10 to 50,000 pts/m²; reviewers will ask for it. ITS-Net
-   or ForPT are optional if weights are public.
-5. **Compute precision only inside censused subplots**, for every site and
-   alongside steps 3 and 4. Apply the event-specific census-support tooling
-   from the [reference-support protocol](neon-reference-support-protocol.md)
-   to the 2021 events. Report credited F1 from the
-   [coverage-gap study](../results/coverage-gap-results.md) as a bracket with
-   its sensitivity grid.
-6. **Native sparse validation.** NEON's 2017 and 2018 SOAP and TEAK flights
-   have classified tiles about a third the size of the 2021 tiles, consistent
-   with the 4 to 6 pts/m² Gemini era. Pair them with the 2015 tower census,
-   which holds 291 SOAP and 499 TEAK stems never remeasured, under a declared
-   policy for those stems, and compare with the decimated 2021 rungs at
-   matched first-return density. Check whether NeonTreeEvaluation's
-   hand-annotated crowns cover any of the 46 plots, which would give a
-   complete crown reference for precision.
-7. **Fill or drop pending items.** The SegmentAnyTree and ForestFormer3D
-   crown-diameter section is marked pending in the
-   [crown benchmark](../results/crown-segmentation-results.md); the seven-arm
-   cross-site fusion is unfinished in the
-   [fusion study](../results/detector-fusion-results.md).
-8. **Master tables, reference-population table and bootstrap intervals.**
-   Publish one reference-population table with exclusions and add paired
-   plot-level bootstrap intervals to every headline table, reusing the
-   FGI-EMIT bootstrap code.
-9. **Publication hygiene.** Add a LICENSE on day one; archive frozen clips,
-   stems, checkpoint hashes and result CSVs on Zenodo with a one-command
-   reproduction as the last step; rebuild the bibliography, since the
-   [deep-research report](deep-research-report.md) has unresolved citation
-   placeholders; use pulses/m² on every density axis.
-10. **Optional: leave-one-site-out fine-tuning of SegmentAnyTree** with
-    sparsification augmentation, to pre-empt the objection that zero-shot
-    evaluation is unfair to learned models.
+The plan of 2026-09-30 had ten steps. Their outcomes:
 
-## Reference-count check
+| Step | Outcome | Report |
+| --- | --- | --- |
+| 1. Decide on and prepare NEON WREF and ABBY | Both admitted; the reference grows from 699 to 2,525 stems | [Pacific Northwest preflight](../results/pacific-northwest-extension-results.md) |
+| 2. Freeze the plot population and the clips | Done: stems of at least 10 cm DBH, six-stem plot gate kept, one sealed clip root for every arm | [frozen clips](../results/frozen-clips-results.md) |
+| 3. Re-run ForestFormer3D and TreeisoNet with corrected adapters | Done at five sites on the full ladder | [model benchmark](../results/model-benchmark-results.md) |
+| 4. Add SegmentAnyTreeV2 | Not possible: no public weights. The first SegmentAnyTree stays | — |
+| 5. Precision inside censused subplots | Done: 57 of 106 plots admitted | [censused subplots](../results/census-support-results.md) |
+| 6. Native sparse validation | Done for CHM-VWF, `multichm` and SegmentAnyTree. Hand-annotated canopy boxes stay a supplementary reference | [native sparse epochs](../results/native-sparse-epoch-results.md) |
+| 7. Fill or drop pending items | Done: crown and fusion results on the frozen population | [crown benchmark](../results/crown-segmentation-results.md), [fusion study](../results/detector-fusion-results.md) |
+| 8. Master tables and bootstrap intervals | Tables done. The density-ladder, model-benchmark and calibration/validation reports still show the historical population | [master tables](../results/master-tables-results.md) |
+| 9. Publication hygiene | Licence, bibliography and availability statement done. Pulse-density reporting, the archive and the reproduction script remain | [availability](data-code-availability.md) |
+| 10. Optional fine-tuning of SegmentAnyTree | Not pursued. Zero-shot use of published checkpoints is the stated scope | — |
 
-Checked on 2026-09-30 against the tracked GeoJSON and the NEON data API. The
-D17 ground truth holds 864 live, mapped stems measured within four years of
-2021, and the 46 swept plots use 699 of them; the unswept plots hold one to
-five stems each. Tile sizes below are a density proxy from the classified
-point-cloud listings and need one header check per site.
+### Remaining steps
 
-| Lever | Live mapped stems added | Cost | Caveat |
-| --- | --- | --- | --- |
-| Relax the six-stem plot gate in D17 | 88 core stems in 40 plots | Trivial | Marginal gain, more tiny plots |
-| Add NEON WREF and ABBY | about 1,150 and 840 stems in 63 plots; 2021 tiles 161 and 145 MB against SOAP's 165 MB | Two sites through the full ladder | Same census-footprint audit as D17 |
-| 2017 or 2018 epoch at SOAP and TEAK with the 2015 census | 291 and 499 stems last seen alive in 2015; tiles 50 to 70 MB against 157 to 165 MB in 2021 | Old tiles, all arms at native sparse density | Fate after 2015 unknown; needs a declared policy |
-| Standing-dead stems as a stratum | 291 with a measurement within four years | Scoring only | Different target; supplementary |
+In execution order, numbered on from the first plan. Each is tracked as a
+GitHub issue labelled `pre-paper`.
 
-NEON per-plot census records list 800 m² sampled in tower plots and 400 m² in
-distributed plots in every year checked, at D17 and at WREF and ABBY alike. No
-plot is a complete census, so precision inside sampled subplots stays
-necessary whichever way the reference grows.
+11. **Run ForestFormer3D and TreeisoNet on the native sparse flights.** The
+    [native sparse study](../results/native-sparse-epoch-results.md) ran
+    CHM-VWF, `multichm` and SegmentAnyTree only, and found decimation
+    optimistic by up to 0.19 recall for the learned arm. Until the other two
+    learned arms run on the 2017 and 2018 flights, the claim that they hold up
+    when sparse rests on decimation alone.
+12. **Add a rung at the QL2 floor.** The QL2 floor of 2 pulses/m² falls
+    between the rungs at 2.5 and 1.3 pulses/m², where SegmentAnyTree's F1
+    drops from 0.47 to 0.38. Freeze one more rung at 2.0 pulses/m² in a new
+    root and score every ladder arm on it.
+13. **Regenerate the reports that still use the historical population.** The
+    density-ladder report, the body of the model benchmark, the matcher and
+    tolerance grid, the positional-jitter bands, the temporal check and the
+    distance-versus-mask rank comparison are re-scored from the persisted
+    paper-run detections. The calibration/validation table is either re-run
+    on the adopted population or replaced by the regional split of step 14.
+14. **Extend the master tables.** Add crown-class and height-band strata with
+    intervals, the California and Washington regional tables, the
+    rank-stability statistic with a plot-bootstrap interval, and the
+    configuration-provenance check that the regional framing depends on.
+15. **Settle mask scoring and bridge the dense control.** Add SegmentAnyTree
+    to the five-site mask board and declare the TreeisoNet mask voxel. On the
+    FGI-EMIT development plots, under a new declared protocol that leaves the
+    reserve sealed, validate the stem-derived mask proxy against the true
+    masks and thin the clouds to the NEON ladder densities. The thinning
+    separates density from the forest and reference differences that confound
+    the dense-against-sparse contrast.
+16. **Build the figures, the detector table and the compute-cost table.** One
+    script per figure, reading the master outputs. Only TreeisoNet's paper
+    runs logged per-plot time, so the cost table needs timed runs.
+17. **Finish the archive.** Record image digests and checkpoint hashes for
+    every arm from run manifests, deposit the frozen clips, stems, hashes and
+    result tables on Zenodo, add the one-command reproduction, and check once
+    more for released SegmentAnyTreeV2 weights before submission.
+
+## Reference population
+
+Every paper table uses the declared `adopted` population of the
+[frozen-clip study](../results/frozen-clips-results.md): live mapped stems of
+at least 10 cm DBH inside the plot core, in plots holding at least six such
+trees.
+
+| Site | Plots | Stems | Censused plots | Censused references |
+| --- | ---: | ---: | ---: | ---: |
+| SJER | 6 | 57 | 2 | 14 |
+| SOAP | 18 | 231 | 1 | 2 |
+| TEAK | 19 | 374 | 9 | 119 |
+| WREF | 38 | 1,063 | 28 | 642 |
+| ABBY | 25 | 800 | 17 | 413 |
+| Total | 106 | 2,525 | 57 | 1,190 |
+
+Two sensitivity populations are scored alongside: the historical stem gate
+(116 plots, 2,854 stems) and no six-stem plot gate (149 plots, 2,628 stems).
+The [master tables](../results/master-tables-results.md) explain every earlier
+per-report count. NEON censuses sample 800 m² of each 1,600 m² tower plot,
+and no census is held in every plot every year, so precision inside sampled,
+censused subplots stays necessary.
 
 ## Reviewer risks and mitigations
 
-- Zero-shot unfairness: the dense-domain control and the optional fine-tuning.
-- Incomplete stems: censused subplots, credited F1 and a crown reference.
-- Decimation versus native: the cross-sensor check and the pre-2021 flights.
-- One region: three canopy structures plus the boreal control, stated as scope;
-  the WREF and ABBY extension adds a second region.
-- A generous 4 m tolerance: the tolerance grid and the jitter bands.
-- Modest stem count against FGI-EMIT's 1,561 trees: the D17 pool is exhausted,
-  so extend to WREF and ABBY and, optionally, add the 2018 epoch at SOAP and
-  TEAK, as in the reference-count check above.
+- Zero-shot unfairness: zero-shot use of published checkpoints is the stated
+  scope, because NEON provides stems and not instance labels to train on. The
+  dense-domain control shows that the checkpoints and adapters work.
+- Newer models: no public checkpoint of SegmentAnyTreeV2, ForPT or ITS-Net
+  was found on 2026-10-01. The harness takes a new arm without new
+  infrastructure, and the check is repeated before submission.
+- Incomplete stems: censused subplots, with credited F1 as a second bracket.
+- Decimation versus native: the native sparse flights at 4 to 5 pulses/m² and
+  the cross-sensor check. Below that density the evidence is decimation alone,
+  so sparse-rung results are stated as upper bounds.
+- Dense against sparse is confounded by forest and reference: the thinning of
+  FGI-EMIT, or an explicit statement that the comparison is a contrast.
+- Geography: oak woodland and conifer sites in California and Washington plus
+  the boreal control. No eastern broadleaf site; stated as scope.
+- A generous 4 m tolerance: the tolerance grid and the jitter bands,
+  regenerated on the five-site population.
+- Settings tuned on evaluation plots: the California and Washington split,
+  after the provenance check.
+- Proxy masks: validated on FGI-EMIT or moved to the supplement.
+- Small SJER sample: six plots and 57 stems, reported with its intervals and
+  not interpreted alone.
+- Integration errors: the positive control and the run manifests; the two
+  defects found are reported.
 
 ## Timeline
 
-Reruns and SegmentAnyTreeV2 need three to four weeks of GPU and wall time.
-Reference support and intervals need about two weeks. The WREF and ABBY
-extension adds roughly three to four weeks of acquisition and compute. Writing
-needs four to six weeks. Submission in about four months is realistic with the
-extension, three without.
+The re-runs that the first plan budgeted at three to four weeks, and the
+WREF and ABBY extension, were finished within a week. The remaining steps are
+mostly re-scoring from persisted detections, plus GPU runs on 39 sparse-epoch
+plots, one extra rung and the FGI-EMIT thinning, and the figure scripts. That
+is an estimated two to three weeks. Writing needs four to six weeks.
+Submission in about two months is realistic.
 
 ## Spin-offs
 
 - Methods paper for Methods in Ecology and Evolution: reference incompleteness,
   matching rules and positional uncertainty in field-stem benchmarks.
-- Short crown-delineation paper once the deep-model crown section is complete.
+- Short crown-delineation paper: the deep-model crown section is now complete
+  on five sites.
