@@ -47,3 +47,10 @@ rung's measured densities beside the other rungs.
 - The master tables take the rung through `RUNG_JOBS=<job dir>:<root>`, with
   the root's own provenance stamps and equal-support guard. The censused
   precision scorer runs on the rung in the same job directory.
+
+## Results
+
+The freeze verified, and every arm completed all 106 cells. The results are
+in the [master tables](../results/master-tables-results.md#the-ql2-rung), the
+[density-ladder study](../results/density-ladder-sweep-results.md) and the
+[model comparison](../results/model-benchmark-results.md).
