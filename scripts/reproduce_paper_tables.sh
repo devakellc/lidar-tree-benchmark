@@ -94,12 +94,14 @@ for s in "${SITE_LIST[@]}"; do
   done
 done
 # Intermediate outputs are compared but never fail the run: the re-detected
-# treetop caches; the native QL2 cross-check's per-plot rows, whose height
-# errors on the dense 3DEP clouds move by a few centimetres between lasR runs
-# (its pooled and paired tables are strict); and the figure images (the
-# numbers each figure plots are its strict CSV).
+# treetop caches; the native QL2 cross-check's per-plot rows and their pooled
+# table, because on the dense 3DEP clouds lasR moves apex heights by a few
+# centimetres between runs and can break a canopy-maximum tie differently in
+# another build (the paired table the report cites reads only the decimated
+# rows and is strict); and the figure images (the numbers each figure plots
+# are its strict CSV).
 printf '%s\n' "${REBUILT[@]}" |
-  sed -E 's#^(.*(best_treetop(_cache|s_geojson)|ql2_detect_results\.csv|\.png))$#~\1#' \
+  sed -E 's#^(.*(best_treetop(_cache|s_geojson)|ql2_detect_results\.csv|native_ql2_vs_decimated\.csv|\.png))$#~\1#' \
   > "$LOGS/rebuilt_paths.txt"
 for r in "${REBUILT[@]}"; do rm -rf "${W:?}/$r"; done
 
