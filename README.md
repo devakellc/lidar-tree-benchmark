@@ -177,6 +177,12 @@ and evaluation choices. The main principles are:
 - Measure density first. First-return density (`frdens`) controls CHM
   resolution, window size, and smoothing; all-return density (`pdens`)
   controls thinning and prevents requests to upsample sparse inputs.
+- Report density as first-return pulses/m². Rungs are named by their
+  all-return decimation target (8, 4, 2 and 1 points/m²); on the frozen
+  five-site population these give medians of 4.7, 2.5, 1.3 and 0.6
+  pulses/m², and the native clouds 9.8 (all-return 17.9 points/m²). The
+  [master tables](results/master-tables-results.md) list the measured density
+  of every rung and site.
 - Compare equivalent support. Keep site, plot, density, and reference support
   aligned across methods, and report missing or failed cells explicitly. All
   NEON arms read one declared plot population and one sealed set of frozen
