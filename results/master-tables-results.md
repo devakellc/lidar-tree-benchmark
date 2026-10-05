@@ -205,11 +205,16 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
 
 ## Sensitivity populations
 
-The six classical arms were re-run on the two sensitivity populations of the
-frozen root, each in its own job directory: `all_mapped` (116 plots,
-2,854 stems; the historical stem gate) and `relaxed` (149 plots, 2,628 stems;
-no six-stem plot gate). The learned and RGB arms have not been run on them.
-Paired F1 differences against CHM-VWF, nominal box, five sites:
+Every arm was scored on the two sensitivity populations of the frozen root,
+each in its own job directory: `all_mapped` (116 plots, 2,854 stems; the
+historical stem gate) and `relaxed` (149 plots, 2,628 stems; no six-stem plot
+gate). The six classical arms were re-run on them. A cell's clip, and so a
+learned arm's detections, do not depend on the population, so the learned
+arms ran only on the 49 plots the headline population lacks;
+`rescore_population.R` scored their persisted detections against each
+population's stems (re-scoring the headline population reproduces every
+cell exactly). The RGB arms re-ran from their cached boxes. Paired F1
+differences against CHM-VWF, nominal box, five sites:
 
 | Population | `multichm`, native | Li 2012, native | `multichm`, 1 point/m² | AMS3D, 1 point/m² |
 | --- | --- | --- | --- | --- |
@@ -217,9 +222,24 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
 | `all_mapped` | −0.003 [−0.026, +0.019] | +0.011 [−0.005, +0.029] | +0.067 [+0.044, +0.087] | +0.048 [+0.019, +0.080] |
 | `relaxed` | −0.001 [−0.022, +0.019] | −0.007 [−0.019, +0.005] | +0.031 [+0.008, +0.053] | +0.045 [+0.018, +0.072] |
 
+The learned and RGB arms against CHM-VWF, native density:
+
+| Population | ForestFormer3D | SegmentAnyTree | TreeisoNet | DeepForest | Detectree2 | SAM2Point |
+| --- | --- | --- | --- | --- | --- | --- |
+| `adopted` (headline) | +0.048 [+0.028, +0.069] | +0.044 [+0.021, +0.067] | −0.004 [−0.018, +0.009] | +0.004 [−0.014, +0.022] | −0.089 [−0.120, −0.060] | −0.318 [−0.352, −0.279] |
+| `all_mapped` | +0.038 [+0.015, +0.060] | +0.035 [+0.009, +0.059] | −0.008 [−0.025, +0.009] | +0.002 [−0.018, +0.020] | −0.107 [−0.138, −0.080] | −0.332 [−0.363, −0.295] |
+| `relaxed` | +0.033 [+0.009, +0.054] | — | −0.013 [−0.027, −0.001] | −0.001 [−0.020, +0.018] | −0.073 [−0.100, −0.046] | −0.258 [−0.292, −0.219] |
+
+SegmentAnyTree has no `relaxed` row: its inference fails, twice in a row,
+on one cell (SJER_004 at 1 point/m², 5,625 points of sparse savanna), so the
+arm is incomplete there rather than scored with an invented empty result.
+
 The classical conclusions hold in all three populations: at native density
 CHM-VWF, `multichm` and Li 2012 are indistinguishable, and at 1 point/m²
-`multichm` and AMS3D are ahead of CHM-VWF. The `relaxed` population lowers
+`multichm` and AMS3D are ahead of CHM-VWF. ForestFormer3D's native lead over
+CHM-VWF holds in every population; at 1 point/m² it holds in `all_mapped`
+(+0.060 [+0.038, +0.082]) but not in `relaxed` (+0.015 [−0.007, +0.036]).
+TreeisoNet falls just below CHM-VWF in `relaxed`. The `relaxed` population lowers
 every arm's F1 (CHM-VWF native 0.408 against 0.450), because the plots it
 adds hold few mapped stems, so more detections fall on unmapped trees.
 
@@ -235,16 +255,19 @@ update from these tables: the density-ladder study (CHM-VWF and
 historical D17 tables as the paper numbers), the model benchmark (every arm on
 equal support, intervals and paired contrasts), and the
 calibration/validation study (held-out F1 on the adopted population, with
-intervals over validation plots). The learned and RGB arms are not yet run on
-the `all_mapped` and `relaxed` sensitivity populations.
+intervals over validation plots).
 
 ## Reproduce
 
 ```sh
 export CLAUDE_JOB_DIR=/path/to/paper_runs   # arm outputs on the sealed root
 Rscript scripts/master_tables.R              # writes $CLAUDE_JOB_DIR/master_tables
-# sensitivity populations: the arms re-run with POP= in their own job
-# directories (ground truth, plot centroids and vst caches linked), then
+# sensitivity populations: classical and RGB arms re-run with POP= in their
+# own job directories (ground truth, plot centroids, vst and RGB linked); the
+# learned arms run only on the plots the headline population lacks, then
+#   Rscript scripts/rescore_population.R POP=<population> \
+#     SOURCES=<headline job dir>,<new-plot job dirs>
+# in each population's job directory; then
 CLAUDE_JOB_DIR=/path/to/paper_runs_all_mapped Rscript scripts/master_tables.R POP=all_mapped
 CLAUDE_JOB_DIR=/path/to/paper_runs_relaxed Rscript scripts/master_tables.R POP=relaxed
 ```
