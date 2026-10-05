@@ -22,6 +22,7 @@ source(.find("master_tables_lib.R"))
 # historical reference count.
 #   Rscript scripts/master_tables.R [SITES=SJER,SOAP,TEAK,WREF,ABBY] [POP=adopted]
 #     [FROZEN_ROOT=...] [N_BOOT=1000] [SEED=20261002] [OUT=...]
+#     [RUNG_JOBS=<job dir>:<root>,...]
 # CLAUDE_JOB_DIR is the re-run job directory (arm outputs under neon/<SITE>).
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
@@ -72,27 +73,48 @@ nref_plot <- table(paste(pst$site[pst$population == POP], pst$plotID[pst$populat
                          sep = "::"))
 root_id <- frozen_root_id(ROOT)
 
-provenance_ok <- function(site, what) {
-  path <- file.path(d, "neon", site, what)
+# RUNG_JOBS=<job dir>:<root>[,...] adds rungs frozen into their own root (the
+# QL2 rung, for one) and run in their own job directory. The root must declare
+# this root's population and only new rungs; the ladder arms are read there at
+# its rungs, and each part carries its own status.
+parts <- list(list(dir = d, root = ROOT, id = root_id, cm = cm, rungs = NULL))
+for (x in split_arg(A$RUNG_JOBS, "")) {
+  p <- strsplit(x, ":", fixed = TRUE)[[1]]
+  if (length(p) != 2) stop("RUNG_JOBS entries are <job dir>:<root>")
+  if (!frozen_sealed(p[2])) stop("No sealed frozen root at ", p[2])
+  if (!identical(frozen_sha256(file.path(p[2], "population.csv")),
+                 frozen_sha256(file.path(ROOT, "population.csv"))))
+    stop("Root ", p[2], " declares a different population from ", ROOT)
+  rr <- as.character(frozen_root_rungs(p[2]))
+  if (any(rr %in% MT_RUNGS)) stop("Root ", p[2], " repeats rungs of ", ROOT)
+  parts[[length(parts) + 1]] <- list(dir = p[1], root = p[2], id = frozen_root_id(p[2]),
+                                     cm = frozen_clip_manifest(p[2]), rungs = rr)
+}
+RUNG_ORDER <- c("native", as.character(sort(unique(as.numeric(c(
+  MT_RUNGS[-1], unlist(lapply(parts, `[[`, "rungs"))))), decreasing = TRUE)))
+cm_all <- do.call(rbind, lapply(parts, function(x)
+  if (is.null(x$rungs)) x$cm else x$cm[x$cm$rung %in% x$rungs, , drop = FALSE]))
+
+provenance_ok <- function(part, site, what) {
+  path <- file.path(part$dir, "neon", site, what)
   if (grepl("\\.frozen$", what)) {
     if (!file.exists(path)) return(FALSE)
     id <- jsonlite::read_json(path, simplifyVector = TRUE)
-    return(identical(id$clip_manifest_sha256, root_id) && identical(id$population, POP))
+    return(identical(id$clip_manifest_sha256, part$id) && identical(id$population, POP))
   }
-  dir.exists(path) && frozen_stamp_check(path, ROOT, strict = FALSE)
+  dir.exists(path) && frozen_stamp_check(path, part$root, strict = FALSE)
 }
 # Results re-scored from persisted detections (rescore_population.R) carry no
 # artifact directory of their own; their <results>.frozen sidecar ties them to
 # the root and to this population instead.
-sidecar_ok <- function(site, file) provenance_ok(site, paste0(file, ".frozen"))
+sidecar_ok <- function(part, site, file) provenance_ok(part, site, paste0(file, ".frozen"))
 
-load_arm <- function(a) {
-  rungs <- strsplit(a$rungs, ",")[[1]]
-  need <- cm[cm$status == "ok" & cm$rung %in% rungs &
-               paste(cm$site, cm$plot) %in% paste(inpop$site, inpop$plotID), , drop = FALSE]
+load_part <- function(a, part, rungs) {
+  need <- part$cm[part$cm$status == "ok" & part$cm$rung %in% rungs &
+                    paste(part$cm$site, part$cm$plot) %in% paste(inpop$site, inpop$plotID), , drop = FALSE]
   need_key <- paste(need$site, need$plot, need$rung, sep = "::")
   rows <- do.call(rbind, lapply(SITES, function(site) {
-    f <- file.path(d, "neon", site, a$file)
+    f <- file.path(part$dir, "neon", site, a$file)
     if (!file.exists(f)) return(NULL)
     x <- read.csv(f, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
     x <- x[x$detector == a$detector, , drop = FALSE]
@@ -103,7 +125,7 @@ load_arm <- function(a) {
   }))
   have <- if (is.null(rows)) character() else paste(rows$site, rows$plot, rows$rung, sep = "::")
   stamped <- all(vapply(SITES, function(site)
-    provenance_ok(site, a$provenance) || sidecar_ok(site, a$file), logical(1)))
+    provenance_ok(part, site, a$provenance) || sidecar_ok(part, site, a$file), logical(1)))
   missing <- setdiff(need_key, have)
   status <- if (is.null(rows)) "pending re-run: no output on the root" else
     if (!stamped) "pending re-run: outputs not stamped with the sealed root" else
@@ -119,18 +141,27 @@ load_arm <- function(a) {
     if (any(is.na(expect) | rows$n_ref != expect))
       stop("Reference of ", a$arm, " differs from the declared ", POP, " population")
   }
-  list(status = data.frame(arm = a$arm, file = a$file, rungs = a$rungs, status = status,
-                           cells_present = length(intersect(need_key, have)),
+  list(status = data.frame(arm = a$arm, file = a$file, rungs = paste(rungs, collapse = ","),
+                           status = status, cells_present = length(intersect(need_key, have)),
                            cells_required = length(need_key), stringsAsFactors = FALSE),
        rows = if (status == "included") rows else NULL)
+}
+# The headline root's part decides whether an arm is included; added rungs
+# join only for the full-ladder arms, each part on its own.
+load_arm <- function(a) {
+  rungs <- strsplit(a$rungs, ",")[[1]]
+  out <- list(load_part(a, parts[[1]], rungs))
+  if ("1" %in% rungs) for (part in parts[-1]) out[[length(out) + 1]] <- load_part(a, part, part$rungs)
+  list(status = do.call(rbind, lapply(out, `[[`, "status")),
+       rows = if (is.null(out[[1]]$rows)) NULL else do.call(rbind, lapply(out, function(x)
+         if (is.null(x$rows)) NULL else x$rows[, c("site", "plot", "rung", "detector", "n_ref",
+                                                   "n_det", "TP", "precision", "tp_core")])))
 }
 
 loaded <- lapply(split(MT_ARMS, seq_len(nrow(MT_ARMS))), load_arm)
 arm_status <- do.call(rbind, lapply(loaded, `[[`, "status"))
-rows <- do.call(rbind, lapply(loaded, function(x)
-  if (is.null(x$rows)) NULL else x$rows[, c("site", "plot", "rung", "detector", "n_ref",
-                                             "n_det", "TP", "precision", "tp_core")]))
-included <- arm_status$arm[arm_status$status == "included"]
+rows <- do.call(rbind, lapply(loaded, `[[`, "rows"))
+included <- arm_status$arm[arm_status$status == "included" & !duplicated(arm_status$arm)]
 if (!length(included)) stop("No arm is complete on the sealed root yet")
 
 ## ---- nominal-box scores with paired intervals --------------------------------
@@ -180,11 +211,16 @@ nominal <- scope_by_rung(eq, "nominal box")
 ## ---- census-support scores ----------------------------------------------------
 # score_census_support.R writes <rule>_ladder (the ladder arms, every rung)
 # and <rule>_native (adds Li 2012); a cell scored in both is kept once.
+# An added-rung part's job directory contributes its own rungs only.
 census_rows <- function(rule) {
-  files <- file.path(d, "census_support_scores", paste0(rule, c("_ladder", "_native")),
-                     "census_support_scores.csv")
-  x <- do.call(rbind, lapply(files[file.exists(files)], function(f)
-    read.csv(f, stringsAsFactors = FALSE, colClasses = c(rung = "character"))))
+  x <- do.call(rbind, lapply(parts, function(part) {
+    files <- file.path(part$dir, "census_support_scores", paste0(rule, c("_ladder", "_native")),
+                       "census_support_scores.csv")
+    y <- do.call(rbind, lapply(files[file.exists(files)], function(f)
+      read.csv(f, stringsAsFactors = FALSE, colClasses = c(rung = "character"))))
+    if (!is.null(y) && !is.null(part$rungs)) y <- y[y$rung %in% part$rungs, , drop = FALSE]
+    y
+  }))
   if (is.null(x)) return(NULL)
   x <- x[!duplicated(paste(x$site, x$plot, x$rung, x$detector)), , drop = FALSE]
   x[x$site %in% SITES & x$detector %in% included, , drop = FALSE]
@@ -208,12 +244,15 @@ long <- do.call(rbind, c(list(nominal$long), lapply(census, `[[`, "long")))
 long$status <- "included"
 contrasts <- do.call(rbind, c(list(nominal$contrasts), lapply(census, `[[`, "contrasts")))
 # Arms not yet complete on the root stay visible as explicit pending rows.
+# A pending added-rung part names its rungs; a pending arm has no rung.
+added <- duplicated(arm_status$arm)
 pending <- arm_status[arm_status$status != "included", , drop = FALSE]
 if (nrow(pending)) {
   pend <- long[rep(1, nrow(pending)), , drop = FALSE]
   pend[] <- NA
   pend$table <- "nominal box"; pend$population <- POP; pend$scope <- "five sites"
   pend$detector <- pending$arm; pend$status <- pending$status
+  pend$rung <- ifelse(added[arm_status$status != "included"], pending$rungs, NA)
   long <- rbind(long, pend)
 }
 rownames(long) <- NULL
@@ -314,13 +353,13 @@ write.csv(ref, file.path(OUT, "reference_population.csv"), row.names = FALSE)
 # Rungs are named by their all-return decimation target (points/m²); densities
 # are reported as measured first-return pulses/m². Both are measured per cell in
 # the clip manifest, over the population's usable cells.
-pop_cells <- cm[cm$status == "ok" &
-                  paste(cm$site, cm$plot) %in% paste(inpop$site, inpop$plotID), , drop = FALSE]
+pop_cells <- cm_all[cm_all$status == "ok" &
+                  paste(cm_all$site, cm_all$plot) %in% paste(inpop$site, inpop$plotID), , drop = FALSE]
 dens_row <- function(x, scope) data.frame(scope = scope, rung = x$rung[1], cells = nrow(x),
   points_median = median(x$pdens), pulses_median = median(x$frdens),
   pulses_q25 = unname(quantile(x$frdens, 0.25)), pulses_q75 = unname(quantile(x$frdens, 0.75)),
   stringsAsFactors = FALSE)
-dens <- do.call(rbind, lapply(MT_RUNGS, function(r) {
+dens <- do.call(rbind, lapply(RUNG_ORDER, function(r) {
   x <- pop_cells[pop_cells$rung == r, , drop = FALSE]
   if (!nrow(x)) return(NULL)
   rbind(dens_row(x, "five sites"), do.call(rbind, lapply(SITES, function(s) {
@@ -340,7 +379,7 @@ headline <- function(tab, scope, title) {
   out <- c(paste0("### ", title), "",
            "| Arm | Rung | Pulses/m² | Plots | Stems | Recall | Precision | F1 |",
            "| --- | --- | --- | --- | --- | --- | --- | --- |")
-  for (r in MT_RUNGS) for (a in included) {
+  for (r in RUNG_ORDER) for (a in included) {
     y <- x[x$detector == a & x$rung == r, , drop = FALSE]
     if (!nrow(y)) next
     g <- function(m) { z <- y[y$metric == m, ]; fmt(z$estimate, z$lower, z$upper) }

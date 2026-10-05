@@ -84,7 +84,6 @@ CORES <- as.integer(if (is.null(A$CORES)) 6 else A$CORES)
 TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
 CD    <- as.numeric(if (is.null(A$CD_RATIO)) 0.4 else A$CD_RATIO)
 CL    <- as.numeric(if (is.null(A$CL_RATIO)) 0.8 else A$CL_RATIO)
-RUNGS <- FROZEN_RUNGS
 
 run_main <- function() {
   nd  <- file.path(d, "neon", SITE)
@@ -109,7 +108,7 @@ run_main <- function() {
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
     if (nrow(stems) < 1) return(NULL)
     out <- list(); native_pdens <- NA_real_
-    for (rung in c(NA, RUNGS)) {
+    for (rung in c(NA, frozen_root_rungs(fz$root))) {
       prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
       pdens <- prep$pdens; frdens <- prep$frdens

@@ -85,7 +85,7 @@ keep   <- intersect(keep, pc$plotID)
 cat(sprintf("population %s, plots to sweep: %d (%s)\n", fz$population, length(keep),
             paste(keep, collapse=",")))
 
-RUNGS <- FROZEN_RUNGS           # native is added per-plot as the top rung
+RUNGS <- frozen_root_rungs(fz$root)   # native is added per-plot as the top rung
 A_SET <- c(0.05, 0.10, 0.15)    # VWF slope
 
 ## ---- per-plot worker -----------------------------------------------------
