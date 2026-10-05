@@ -54,10 +54,12 @@ say "sealed root"
 rsync -a "$WORK/neon/frozen_2021/" "$OUT/neon/frozen_2021/"
 
 say "June artifacts (adapter before/after)"
+# (June crown rows exist for SOAP only, the site of the June treeOff arm.)
 for s in "${JUNE_SITES[@]}"; do
   mkdir -p "$OUT/neon/$s"
-  rsync -aL "$WORK/neon/$s/forestformer3d_instances" "$WORK/neon/$s/treeisonet_results.csv" \
-    "$WORK/neon/$s/treeisonet_crown_metrics.csv" "$OUT/neon/$s/"
+  for f in forestformer3d_instances treeisonet_results.csv treeisonet_crown_metrics.csv; do
+    [ ! -e "$WORK/neon/$s/$f" ] || rsync -aL "$WORK/neon/$s/$f" "$OUT/neon/$s/"
+  done
 done
 
 for j in "${JOBS[@]}" "${SPARSE[@]}"; do
