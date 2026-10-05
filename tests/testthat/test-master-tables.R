@@ -79,3 +79,48 @@ test_that("reference rules: whole-plot six-stem gate versus six core stems", {
   dbh <- mt_reference_counts(gt, pc, "dbh10", 6L, "whole")
   expect_identical(dbh$plotID, "P2")                 # P1 has only 5 trees >= 10 cm
 })
+
+strata_cells <- function(arm, plot, rec_dom, n_dom, rec_sup, n_sup) {
+  x <- cells(arm, "A", plot, TP = 0, n_ref = n_dom + n_sup, tp_core = 0, n_det = 0)
+  for (k in c("dominant", "codominant", "intermediate", "suppressed", "h_short",
+              "h_mid", "h_tall")) { x[[paste0("rec_", k)]] <- NA_real_; x[[paste0("n_", k)]] <- 0L }
+  x$rec_dominant <- rec_dom; x$n_dominant <- n_dom
+  x$rec_suppressed <- rec_sup; x$n_suppressed <- n_sup
+  x
+}
+
+test_that("stratum rows recover per-class true positives and pool classes by counts", {
+  x <- rbind(strata_cells("a", "p1", 2 / 3, 3L, 0.5, 2L), strata_cells("a", "p2", NA, 0L, 1, 1L))
+  s <- mt_stratum_rows(x)
+  expect_setequal(unique(s$stratum), names(MT_STRATA))
+  dom <- s[s$stratum == "dominant", ]
+  expect_equal(dom$TP, c(2, 0)); expect_equal(dom$n_ref, c(3, 0))
+  under <- s[s$stratum == "understory", ]
+  expect_equal(under$TP, c(1, 1)); expect_equal(under$n_ref, c(2, 1))
+  expect_null(mt_stratum_rows(x[, setdiff(names(x), "rec_h_tall")]))
+})
+
+test_that("rank stability is the Spearman correlation of arm F1 between rungs", {
+  arms <- c("a", "b", "c", "d")
+  mk <- function(rung, tps) do.call(rbind, lapply(seq_along(arms), function(i) rbind(
+    cells(arms[i], "A", "p1", tps[i], 10, tps[i], 10, rung),
+    cells(arms[i], "A", "p2", tps[i], 10, tps[i], 10, rung),
+    cells(arms[i], "B", "p3", tps[i], 10, tps[i], 10, rung))))
+  same <- mt_rank_stability(rbind(mk("native", 1:4), mk("8", 2:5)), "native", "8", n_boot = 50)
+  expect_equal(same$estimate, 1); expect_equal(same$arms, 4L); expect_equal(same$lower, 1)
+  flip <- mt_rank_stability(rbind(mk("native", 1:4), mk("8", 4:1)), "native", "8", n_boot = 50)
+  expect_equal(flip$estimate, -1)
+  expect_null(mt_rank_stability(rbind(mk("native", 1:4)[1:6, ], mk("8", 1:4)[1:6, ]),
+                                "native", "8", n_boot = 10))
+})
+
+test_that("regional leads difference the lead over a base arm between regions", {
+  x <- rbind(cells("base", "SJER", "s1", 5, 10, 5, 10), cells("arm", "SJER", "s1", 8, 10, 8, 10),
+             cells("base", "WREF", "w1", 5, 10, 5, 10), cells("arm", "WREF", "w1", 6, 10, 6, 10))
+  W <- mt_plot_weights(x$site, x$plot, n_boot = 20)
+  r <- mt_region_leads(x, W, "base", list(California = "SJER", Washington = "WREF"))
+  expect_equal(r$lead_california, 0.3); expect_equal(r$lead_washington, 0.1)
+  expect_equal(r$estimate, 0.2); expect_equal(c(r$lower, r$upper), c(0.2, 0.2))
+  expect_null(mt_region_leads(x[x$site == "SJER", ], W[1, , drop = FALSE], "base",
+                              list(California = "SJER", Washington = "WREF")))
+})

@@ -152,10 +152,14 @@ load_arm <- function(a) {
   rungs <- strsplit(a$rungs, ",")[[1]]
   out <- list(load_part(a, parts[[1]], rungs))
   if ("1" %in% rungs) for (part in parts[-1]) out[[length(out) + 1]] <- load_part(a, part, part$rungs)
+  keep <- function(r) {                      # scores plus the recall strata
+    for (k in setdiff(MT_STRATUM_COLS, names(r))) r[[k]] <- NA_real_
+    r[, c("site", "plot", "rung", "detector", "n_ref", "n_det", "TP", "precision",
+          "tp_core", MT_STRATUM_COLS)]
+  }
   list(status = do.call(rbind, lapply(out, `[[`, "status")),
        rows = if (is.null(out[[1]]$rows)) NULL else do.call(rbind, lapply(out, function(x)
-         if (is.null(x$rows)) NULL else x$rows[, c("site", "plot", "rung", "detector", "n_ref",
-                                                   "n_det", "TP", "precision", "tp_core")])))
+         if (is.null(x$rows)) NULL else keep(x$rows))))
 }
 
 loaded <- lapply(split(MT_ARMS, seq_len(nrow(MT_ARMS))), load_arm)
@@ -184,8 +188,17 @@ score_scope <- function(x, W, table, scope) {
   if (!is.null(con)) con <- cbind(table = table, population = POP, scope = scope, con)
   list(long = long, contrasts = con)
 }
+# Five sites pooled, each region (when both are present) and each site.
 scope_runs <- function(x, W, table) {
   res <- list(score_scope(x, W, table, "five sites"))
+  site_of <- sub("::.*", "", rownames(W))
+  for (rg in names(MT_REGIONS)) {
+    sites <- intersect(MT_REGIONS[[rg]], unique(x$site))
+    if (!length(sites) || setequal(sites, unique(x$site))) next
+    keep <- site_of %in% sites
+    res[[rg]] <- score_scope(x[x$site %in% sites, , drop = FALSE], W[keep, , drop = FALSE],
+                             table, rg)
+  }
   for (site in intersect(SITES, unique(x$site))) {
     keep <- grepl(paste0("^", site, "::"), rownames(W))
     res[[site]] <- score_scope(x[x$site == site, , drop = FALSE], W[keep, , drop = FALSE],
@@ -225,11 +238,12 @@ census_rows <- function(rule) {
   x <- x[!duplicated(paste(x$site, x$plot, x$rung, x$detector)), , drop = FALSE]
   x[x$site %in% SITES & x$detector %in% included, , drop = FALSE]
 }
-census <- list(); census_counts <- list()
+census <- list(); census_counts <- list(); census_eq <- list()
 for (rule in c("nearest", "exact")) {
   x <- census_rows(rule)
   if (is.null(x) || !nrow(x)) next
   cx <- mt_equal_support(x, unique(x$detector))
+  census_eq[[rule]] <- cx
   label <- if (rule == "nearest") "census, nearest census (headline)" else
     "census, exact 2021 (check)"
   census[[rule]] <- scope_by_rung(cx, label)
@@ -370,6 +384,61 @@ write.csv(dens, file.path(OUT, "rung_density.csv"), row.names = FALSE)
 pooled_pulses <- setNames(dens$pulses_median[dens$scope == "five sites"],
                           dens$rung[dens$scope == "five sites"])
 
+## ---- recall by crown class and height band ---------------------------------------
+# On the nominal box's equal support and the same plot resamples as its scores.
+# Detections carry no crown class, so strata have recall only.
+stratum_scores <- function(x, table) do.call(rbind, lapply(unique(x$rung), function(r) {
+  xr <- x[x$rung == r, , drop = FALSE]
+  st <- do.call(rbind, lapply(split(xr, xr$detector), mt_stratum_rows))
+  if (is.null(st)) return(NULL)
+  bad <- unique(st$detector[is.na(st$TP) | is.na(st$n_ref)])
+  st <- st[!st$detector %in% bad, , drop = FALSE]
+  if (!nrow(st)) return(NULL)
+  W <- mt_plot_weights(xr$site, xr$plot, N_BOOT, SEED)
+  site_of <- sub("::.*", "", rownames(W))
+  scopes <- c(list(`five sites` = SITES), MT_REGIONS)
+  do.call(rbind, lapply(names(scopes), function(sc) {
+    sites <- intersect(scopes[[sc]], unique(st$site))
+    if (!length(sites) || (sc != "five sites" && setequal(sites, unique(st$site)))) return(NULL)
+    s <- mt_boot_scores(st[st$site %in% sites, , drop = FALSE],
+                        W[site_of %in% sites, , drop = FALSE], c("detector", "rung", "stratum"))
+    cbind(table = table, population = POP, scope = sc, mt_intervals(s, "recall"))
+  }))
+}))
+strata <- rbind(stratum_scores(eq, "nominal box"),
+                if (!is.null(census_eq$nearest))
+                  stratum_scores(census_eq$nearest, "census, nearest census (headline)"))
+write.csv(strata, file.path(OUT, "master_strata.csv"), row.names = FALSE)
+
+## ---- regions ------------------------------------------------------------------------
+# Each arm's lead over CHM-VWF in California and in Washington, and their
+# difference, paired over the plot resamples of the five-site scores.
+region_leads <- function(x, table) do.call(rbind, lapply(unique(x$rung), function(r) {
+  xr <- x[x$rung == r, , drop = FALSE]
+  if (!"chm_vwf" %in% xr$detector) return(NULL)
+  W <- mt_plot_weights(xr$site, xr$plot, N_BOOT, SEED)
+  do.call(rbind, lapply(c("recall", "precision", "F1"), function(m) {
+    z <- mt_region_leads(xr, W, "chm_vwf", metric = m)
+    if (!is.null(z)) cbind(table = table, population = POP, z)
+  }))
+}))
+leads <- rbind(region_leads(eq, "nominal box"),
+               if (!is.null(census_eq$nearest))
+                 region_leads(census_eq$nearest, "census, nearest census (headline)"))
+write.csv(leads, file.path(OUT, "master_region_leads.csv"), row.names = FALSE)
+
+## ---- rank stability -------------------------------------------------------------------
+# Spearman correlation of the full-ladder arms' F1 at native density with
+# their F1 at each decimated rung, with a plot-bootstrap interval.
+rank_rows <- function(x, table) do.call(rbind, lapply(setdiff(RUNG_ORDER, "native"), function(r) {
+  z <- mt_rank_stability(x, "native", r, N_BOOT, SEED)
+  if (!is.null(z)) cbind(table = table, population = POP, z)
+}))
+rank <- rbind(rank_rows(eq, "nominal box"),
+              if (!is.null(census_eq$nearest))
+                rank_rows(census_eq$nearest, "census, nearest census (headline)"))
+write.csv(rank, file.path(OUT, "master_rank_stability.csv"), row.names = FALSE)
+
 ## ---- markdown --------------------------------------------------------------------
 fmt <- function(e, l, u) ifelse(is.na(e), "—", sprintf("%.3f [%.3f, %.3f]", e, l, u))
 md <- c("<!-- generated by scripts/master_tables.R -->", "")
@@ -400,6 +469,35 @@ md <- c(md, "### Measured density per rung", "",
         "| --- | --- | --- | --- | --- |",
         sprintf("| %s | %s | %d | %.1f | %.1f [%.1f, %.1f] |", dens$scope, dens$rung, dens$cells,
                 dens$points_median, dens$pulses_median, dens$pulses_q25, dens$pulses_q75), "")
+strata_md <- function(tab, rung, title) {
+  x <- strata[strata$table == tab & strata$scope == "five sites" & strata$rung == rung, , drop = FALSE]
+  if (is.null(x) || !nrow(x)) return(character())
+  cols <- c("overstory", "understory", "dominant", "codominant", "intermediate", "suppressed")
+  out <- c(paste0("### ", title), "",
+           paste0("| Arm | ", paste(sprintf("%s (n = %d)", cols, vapply(cols, function(k)
+             as.integer(x$n_ref[x$stratum == k][1]), integer(1))), collapse = " | "), " |"),
+           paste0("| --- |", strrep(" --- |", length(cols))))
+  for (a in intersect(included, x$detector)) {
+    y <- x[x$detector == a, , drop = FALSE]
+    out <- c(out, paste0("| ", a, " | ", paste(vapply(cols, function(k) {
+      z <- y[y$stratum == k, ]; fmt(z$estimate, z$lower, z$upper) }, ""), collapse = " | "), " |"))
+  }
+  c(out, "")
+}
+md <- c(md, strata_md("nominal box", "native", "Recall by crown class, nominal box, native density, five sites"))
+if (!is.null(leads) && nrow(leads)) {
+  z <- leads[leads$table == "nominal box" & leads$rung == "native" & leads$metric == "F1", , drop = FALSE]
+  if (nrow(z)) md <- c(md, "### F1 lead over CHM-VWF by region, nominal box, native density", "",
+    "| Arm | California | Washington | California minus Washington |", "| --- | --- | --- | --- |",
+    sprintf("| %s | %+.3f | %+.3f | %+.3f [%+.3f, %+.3f] |", z$arm, z$lead_california,
+            z$lead_washington, z$estimate, z$lower, z$upper), "")
+}
+if (!is.null(rank) && nrow(rank))
+  md <- c(md, "### Rank stability of the full-ladder arms", "",
+          "Spearman correlation of F1 at native density with F1 at each rung.", "",
+          "| Table | Rung | Arms | Plots | Spearman [95% interval] |", "| --- | --- | --- | --- | --- |",
+          sprintf("| %s | %s | %d | %d | %s |", rank$table, rank$to, rank$arms, rank$n_plots,
+                  fmt(rank$estimate, rank$lower, rank$upper)), "")
 md <- c(md, "### Arm status", "", "| Arm | Status | Cells |", "| --- | --- | --- |",
         sprintf("| %s | %s | %d / %d |", arm_status$arm, arm_status$status,
                 arm_status$cells_present, arm_status$cells_required), "")
