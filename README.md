@@ -70,7 +70,11 @@ arm-versus-arm difference carries a paired plot-bootstrap interval.
   setting was chosen from Washington scores.
 
 The [model comparison](results/model-benchmark-results.md#five-sites-every-arm-paper-numbers)
-gives every arm by rung and site. The
+gives every arm by rung and site; the [detector table](results/detector-table.md)
+gives each arm's type, input, training data, hashes and licence, and the
+[compute-cost table](results/compute-cost-results.md) its wall time and memory
+per plot (seconds for the classical arms, TreeisoNet and Detectree2; one to
+seven minutes for the other learned arms). The
 [native sparse epoch study](results/native-sparse-epoch-results.md) compares
 earlier, sparser NEON flights (SJER 2017, SOAP and TEAK 2018, about 4–5 first
 returns per m²) with the 2021 clouds decimated to the bracketing rungs, on the

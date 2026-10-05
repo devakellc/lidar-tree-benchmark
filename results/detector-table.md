@@ -35,3 +35,5 @@ data are as the sources state them, checked on 5 October 2026.
   not state a separate licence for its weights.
 - The classical arms are training-free; their settings and when they were
   fixed are in the [configuration provenance](../docs/configuration-provenance.md).
+- Wall time and memory per plot for every arm are in the
+  [compute-cost table](compute-cost-results.md).

@@ -14,8 +14,9 @@
 #
 # Left out: the RGB mosaics and raw NEON tiles (public NEON data, about 16 GB;
 # a per-site rgb_tiles.csv keeps the tile extents the optical arms read), the
-# NeonTreeEvaluation coverage-check imagery, logs, scratch figures, and
-# superseded copies of re-run outputs.
+# NeonTreeEvaluation coverage-check imagery, logs, scratch figures, the
+# compute-cost run's one-plot job directories, and superseded copies of re-run
+# outputs.
 #
 #   bash scripts/stage_archive.sh OUT=<new dir> [WORK=work]
 #
@@ -53,7 +54,7 @@ EXCL=(--exclude=/neon/frozen_2021 --exclude=/neon/frozen_2021_ql2 --exclude=rgb/
       --exclude='master_tables.*/' --exclude='*.prev' --exclude='*.oldcrop-*'
       --exclude='*.before_persist' --exclude='*.7arm_*' --exclude='*.classical_*'
       --exclude='*_strict_v1/' --exclude='*_ladder_ff3d/' --exclude='*.crash-*'
-      --exclude='*-stale')
+      --exclude='*-stale' --exclude=compute_cost/jobs/ --exclude=compute_cost/logs/)
 
 say() { echo "$(date '+%F %T') $*"; }
 mkdir -p "$OUT/neon"

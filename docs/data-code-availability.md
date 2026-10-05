@@ -10,15 +10,18 @@ DOI against the NEON release API on 2026-10-05.
 
 ## Draft statement
 
-> All field, airborne LiDAR and camera data are public data products of the
-> National Ecological Observatory Network (NEON), released under CC0 1.0:
+> All field, airborne LiDAR and camera data of the benchmark are public data
+> products of the National Ecological Observatory Network (NEON), released
+> under CC0 1.0:
 > vegetation structure (DP1.10098.001, RELEASE-2026,
 > [doi:10.48443/pypa-qf12](https://doi.org/10.48443/pypa-qf12)), the
 > discrete-return LiDAR point cloud (DP1.30003.001,
 > [doi:10.48443/5ts2-rc92](https://doi.org/10.48443/5ts2-rc92)) and the
 > camera imagery mosaic (DP3.30010.001,
 > [doi:10.48443/8vq2-s021](https://doi.org/10.48443/8vq2-s021)) from the 2021
-> flights over SJER, SOAP, TEAK, WREF and ABBY. The frozen evaluation clips,
+> flights over SJER, SOAP, TEAK, WREF and ABBY. The native QL2 cross-check
+> also uses public-domain USGS 3DEP point clouds over the California sites.
+> The frozen evaluation clips,
 > field-stem references, plot populations, per-cell results and persisted
 > detections, checkpoint hashes and container image IDs are archived at
 > Zenodo (DOI to be assigned at deposit), with a script that rebuilds every
@@ -36,8 +39,8 @@ DOI against the NEON release API on 2026-10-05.
 | Field stems | NEON vegetation structure DP1.10098.001, [doi:10.48443/pypa-qf12](https://doi.org/10.48443/pypa-qf12) | CC0 1.0 | RELEASE-2026 (`neon_ground_truth.R`) | Derived stem tables and plot populations |
 | Point clouds | NEON discrete-return LiDAR DP1.30003.001, [doi:10.48443/5ts2-rc92](https://doi.org/10.48443/5ts2-rc92) | CC0 1.0 | 2021 flights; all 80 tiles match RELEASE-2026 by size and CRC32C | Frozen clips with per-file SHA-256 (clip manifest) |
 | Camera imagery | NEON high-resolution orthorectified camera imagery mosaic DP3.30010.001, [doi:10.48443/8vq2-s021](https://doi.org/10.48443/8vq2-s021) | CC0 1.0 | RELEASE-2026, 2021 flights, 79 tiles (NEON citation files) | Tile extents and the optical arms' box caches |
-| Native QL2 cross-check | USGS 3DEP Entwine point tiles | US public domain | EPT resource per AOI | Derived results only |
-| FGI-EMIT comparison | [doi:10.5281/zenodo.19351234](https://doi.org/10.5281/zenodo.19351234) | CC BY-NC-SA 4.0 | Zenodo record | Not redistributed; scores only |
+| Native QL2 cross-check | USGS 3DEP Entwine point tiles | US public domain | EPT resource per AOI, recorded with each cached clip | Cached per-plot clouds over SJER, SOAP and TEAK with their provenance sidecars, and derived results |
+| FGI-EMIT comparison | [doi:10.5281/zenodo.19351234](https://doi.org/10.5281/zenodo.19351234) | CC BY-NC-SA 4.0 | Zenodo record | Not redistributed; the reports give its scores |
 
 ## Models and software
 
