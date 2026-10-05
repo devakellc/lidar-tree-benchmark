@@ -1,5 +1,67 @@
 # Matcher robustness: scaled tolerance + Hungarian re-score (#V4)
 
+## Five sites, every arm
+
+Checked on 5 October 2026 on the frozen five-site `adopted` population (106
+plots, 2,525 stems), for all twelve arms. `paper_sensitivity.R MODE=matcher`
+re-scores every arm's persisted detections on the sealed clips under the
+matcher configurations below and the greedy `tol_xy` × `tol_z_up` grid; the
+re-scored baseline reproduces every arm's own result rows (4,664 cells, no
+difference). Change in native F1 from the baseline (greedy, flat 4 m, height
+band [0.5h, h + 8 m]), five sites, paired plot-bootstrap intervals:
+
+| Arm | Baseline F1 | Crown-scaled tolerance | Hungarian | Hungarian, scaled | Soft 3-D cost |
+| --- | --- | --- | --- | --- | --- |
+| ForestFormer3D | 0.498 | +0.008 [+0.005, +0.011] | +0.021 [+0.016, +0.027] | +0.031 [+0.026, +0.038] | −0.007 [−0.015, +0.001] |
+| SegmentAnyTree | 0.495 | +0.007 [+0.004, +0.011] | +0.029 [+0.022, +0.036] | +0.038 [+0.031, +0.045] | +0.005 [−0.006, +0.013] |
+| Li 2012 | 0.456 | +0.006 [+0.003, +0.009] | +0.020 [+0.015, +0.025] | +0.028 [+0.022, +0.034] | +0.006 [−0.001, +0.013] |
+| `multichm` | 0.456 | +0.007 [+0.005, +0.011] | +0.013 [+0.009, +0.017] | +0.021 [+0.016, +0.027] | −0.012 [−0.024, −0.001] |
+| DeepForest | 0.454 | +0.007 [+0.004, +0.010] | +0.029 [+0.023, +0.034] | +0.036 [+0.030, +0.042] | +0.008 [−0.001, +0.017] |
+| CHM-VWF | 0.450 | +0.006 [+0.003, +0.009] | +0.023 [+0.016, +0.029] | +0.029 [+0.022, +0.036] | +0.008 [−0.003, +0.017] |
+| TreeisoNet | 0.446 | +0.007 [+0.004, +0.010] | +0.023 [+0.017, +0.029] | +0.031 [+0.024, +0.038] | +0.003 [−0.006, +0.011] |
+| `lmfauto` | 0.386 | +0.006 [+0.003, +0.009] | +0.010 [+0.006, +0.015] | +0.016 [+0.011, +0.022] | +0.000 [−0.005, +0.006] |
+| Detectree2 | 0.362 | +0.011 [+0.007, +0.016] | +0.008 [+0.004, +0.011] | +0.019 [+0.013, +0.025] | −0.010 [−0.021, 0.000] |
+| `ptrees` | 0.331 | +0.003 [+0.001, +0.004] | +0.015 [+0.011, +0.020] | +0.018 [+0.014, +0.023] | +0.001 [−0.004, +0.007] |
+| AMS3D | 0.240 | +0.003 [+0.002, +0.005] | +0.010 [+0.007, +0.014] | +0.013 [+0.010, +0.017] | +0.003 [−0.001, +0.008] |
+| SAM2Point | 0.132 | +0.005 [+0.002, +0.009] | +0.001 [+0.000, +0.002] | +0.006 [+0.003, +0.010] | −0.017 [−0.025, −0.010] |
+
+The lead of the two learned segmenters over CHM-VWF, native F1, under each
+matcher and three cells of the tolerance grid, with Kendall τ between each
+matcher's twelve-arm ranking and the baseline's:
+
+| Matcher | ForestFormer3D − CHM-VWF | SegmentAnyTree − CHM-VWF | τ with baseline |
+| --- | --- | --- | --- |
+| Baseline (greedy, 4 m) | +0.048 | +0.044 | 1.00 |
+| Crown-scaled tolerance | +0.050 | +0.046 | 0.97 |
+| Hungarian | +0.046 | +0.051 | 0.85 |
+| Hungarian, scaled | +0.050 | +0.054 | 0.88 |
+| Soft 3-D cost | +0.033 | +0.041 | 0.85 |
+| Greedy, 3 m | +0.040 | +0.037 | 0.85 |
+| Greedy, 5 m | +0.055 | +0.046 | 0.91 |
+
+**Readings.**
+
+- No reasonable matcher changes the conclusions. Hungarian assignment raises
+  every arm's F1 by at most 0.03 at native density, 0.04 with crown-scaled
+  tolerance, and the soft 3-D cost moves arms by −0.02 to +0.01. The two
+  learned segmenters lead CHM-VWF by 0.03 to 0.06 under every matcher, and the
+  ranking of all twelve arms keeps τ ≥ 0.85.
+- The match radius is the lever that matters. With the default height band,
+  over all arms and rungs, a 2 m radius lowers F1 by 0.04 to 0.16 and 3 m by
+  0.01 to 0.06, while 5 m raises it by 0.01 to 0.04. Every arm moves the same
+  way, so the radius shifts the board without reordering its top.
+- Most false positives are isolated rather than near a matched stem: 81–93 %
+  for every arm except the point segmenters (AMS3D and `ptrees` 64–65 %,
+  `lmfauto` 74 %), which over-segment crowns. Isolated false positives are
+  where unmapped real trees hide (see the
+  [coverage-gap study](coverage-gap-results.md)).
+
+`paper_runs/sensitivity/matcher_*.csv` holds every rung, scope and grid cell.
+The sections below are the historical June 2026 study of CHM-VWF on the
+three-site population.
+
+## Historical study (June 2026)
+
 The whole benchmark grades detections with `greedy_match`: a greedy
 nearest-distance 1:1 assignment within a **flat** 4 m radius, gated by a hard
 height band `bz in [0.5*az, az + 8]`. Two known weaknesses motivate this arm:
