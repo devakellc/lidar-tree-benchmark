@@ -28,6 +28,13 @@ each rebuilt file with the archived one. It writes
 `reproduction_report.csv` and exits non-zero on any difference. It takes
 about an hour on 8 cores and needs no GPU, network or NEON token.
 
+Counts, rates and text must match exactly. Lengths in metres (coordinates,
+apex heights, diameters and their errors) may differ by up to 1 cm: lasR's
+canopy-model maxima vary by about a millimetre from run to run, even
+single-threaded, which moves apex heights and height errors without changing
+a detection or a match. The report marks such files `length` and gives the
+largest difference.
+
 ## Layout
 
 The layout mirrors the benchmark's working directory, so the commands in the
