@@ -1,5 +1,49 @@
 # Monte-Carlo stem-position uncertainty (#V3)
 
+## Five sites, every arm
+
+Checked on 5 October 2026 on the frozen five-site `adopted` population.
+`paper_sensitivity.R MODE=jitter K=200` re-scores every arm's persisted
+detections against 200 draws of the stem positions, each stem moved by its
+own `pos_unc` (NEON coordinate uncertainty plus 0.3 m for the rangefinder;
+draw k uses seed `seed_for(site, plot, "native") + k`). The re-scored baseline
+reproduces every arm's own result rows. Pooled F1 over the five sites, 5th,
+50th and 95th percentile of the 200 draws:
+
+| Arm | Baseline F1, native | Native [p05, p95] | Baseline F1, 0.6 pulses/m² | 0.6 pulses/m² [p05, p95] |
+| --- | --- | --- | --- | --- |
+| ForestFormer3D | 0.498 | 0.499 [0.495, 0.501] | 0.421 | 0.419 [0.416, 0.423] |
+| SegmentAnyTree | 0.495 | 0.493 [0.490, 0.497] | 0.128 | 0.127 [0.123, 0.130] |
+| `multichm` | 0.456 | 0.456 [0.452, 0.459] | 0.434 | 0.433 [0.429, 0.436] |
+| Li 2012 | 0.456 | 0.453 [0.450, 0.456] | — | — |
+| DeepForest | 0.454 | 0.453 [0.449, 0.456] | — | — |
+| CHM-VWF | 0.450 | 0.449 [0.446, 0.452] | 0.374 | 0.371 [0.368, 0.375] |
+| TreeisoNet | 0.446 | 0.445 [0.442, 0.448] | 0.440 | 0.439 [0.435, 0.442] |
+| `lmfauto` | 0.386 | 0.384 [0.381, 0.386] | 0.269 | 0.267 [0.265, 0.268] |
+| Detectree2 | 0.362 | 0.360 [0.356, 0.364] | — | — |
+| `ptrees` | 0.331 | 0.329 [0.327, 0.331] | 0.271 | 0.270 [0.267, 0.273] |
+| AMS3D | 0.240 | 0.239 [0.237, 0.241] | 0.437 | 0.437 [0.433, 0.441] |
+| SAM2Point | 0.132 | 0.132 [0.129, 0.134] | — | — |
+
+**Readings.**
+
+- Stem-position uncertainty is a negligible source of error at the paper's
+  scale. Every arm's 90 % band is at most 0.008 F1 wide, a quarter or less of
+  the plot-sampling intervals in the [master tables](master-tables-results.md)
+  (about ±0.03 at native density).
+- ForestFormer3D and SegmentAnyTree beat CHM-VWF in every one of the 200
+  draws (leads 0.045 to 0.053 and 0.040 to 0.049 between the 5th and 95th
+  percentiles). ForestFormer3D is ahead of SegmentAnyTree in 98 % of draws.
+- Jitter moves F1 down slightly for most arms (the baseline is at or above the
+  median draw): moving a stem rarely creates a match and more often breaks
+  one.
+
+`paper_runs/sensitivity/jitter_bands.csv` holds every arm, rung and scope;
+`jitter_draws.csv` the pooled scores of every draw. The sections below are
+the historical June 2026 study on the three-site population.
+
+## Historical study (June 2026)
+
 Every leaderboard delta the router (#P2) would switch arms on is a single point
 estimate against stem coordinates that carry real uncertainty — `neon_ground_
 truth.R` stores `pos_unc` (NEON coordinate uncertainty + 0.3 m TruPulse

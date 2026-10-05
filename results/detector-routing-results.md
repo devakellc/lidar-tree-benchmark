@@ -1,5 +1,11 @@
 # Per-cell detector routing (#P2)
 
+> **Historical (three-site population), supplement only.** The routing policy
+> here was learned and scored on the June runs. The paper does not route: its
+> per-rung and per-site comparisons of every arm on the frozen five-site
+> population are in the [master tables](master-tables-results.md) and the
+> [model benchmark](model-benchmark-results.md#five-sites-every-arm-paper-numbers).
+
 The repo's only routing knob today is measured density (the `frdens`/`pdens`
 guards in `sweep_lib`), and the SJER→SOAP→TEAK structure gradient is described
 only descriptively. But the density ladder already shows the crossovers a router

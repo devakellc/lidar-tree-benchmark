@@ -1,5 +1,58 @@
 # Calibration / validation split of the density-ladder sweep
 
+## Five sites (paper population)
+
+Checked on 5 October 2026 on the frozen five-site `adopted` population: the
+CHM-VWF sweep over `chm_res` {0.25, 0.5, 1.0} m × `a` {0.05, 0.10, 0.15} on
+the sealed clips, split per site into calibration and validation plots
+(stratified by plot type and crown-class mix, `FRAC=0.5`) over ten seeds. The
+parameters are tuned on the calibration plots and scored on the held-out
+ones. Held-out F1, median [range] over the seeds, with the modal
+calibration-selected `chm_res` and the share of seeds selecting 0.5 m:
+
+| Site | Rung (pulses/m²) | Held-out F1 | Modal `chm_res` | 0.5 m chosen |
+| --- | --- | --- | --- | --- |
+| SJER | native (9.8) | 0.301 [0.182, 0.444] | 1.0 | 3 / 10 |
+| SJER | 8 (4.7) | 0.349 [0.185, 0.430] | 1.0 | 2 / 10 |
+| SJER | 1 (0.6) | 0.357 [0.203, 0.413] | 1.0 | 3 / 10 |
+| SOAP | native | 0.392 [0.335, 0.417] | 0.5 | 8 / 10 |
+| SOAP | 8 | 0.377 [0.338, 0.406] | 0.5 | 10 / 10 |
+| SOAP | 1 | 0.402 [0.348, 0.437] | 0.5 | 9 / 10 |
+| TEAK | native | 0.422 [0.358, 0.476] | 0.25 | 4 / 10 |
+| TEAK | 8 | 0.393 [0.354, 0.421] | 0.5 | 10 / 10 |
+| TEAK | 1 | 0.397 [0.364, 0.434] | 0.5 | 10 / 10 |
+| WREF | native | 0.403 [0.365, 0.447] | 0.5 | 6 / 10 |
+| WREF | 8 | 0.357 [0.343, 0.398] | 0.5 | 10 / 10 |
+| WREF | 1 | 0.342 [0.324, 0.369] | 0.5 | 10 / 10 |
+| ABBY | native | 0.549 [0.472, 0.578] | 0.5 | 6 / 10 |
+| ABBY | 8 | 0.486 [0.452, 0.508] | 0.5 | 10 / 10 |
+| ABBY | 1 | 0.431 [0.412, 0.448] | 0.5 | 10 / 10 |
+
+Rungs 4 and 2 follow the same pattern (`calval_split.log` in the paper-run
+job directory; `calval_metrics.csv` per site).
+
+**Readings.**
+
+- Tuning buys little out of sample. Held-out F1 after tuning is within a few
+  hundredths of the fixed, declared configuration's F1 on all the site's
+  plots (for example ABBY native 0.549 against 0.557, SOAP at 4.7 pulses/m²
+  0.377 against 0.361; the declared values are in the
+  [density-ladder report](density-ladder-sweep-results.md)). The in-sample
+  gain of the sweep's best cell over the declared configuration, 0.006 to
+  0.014 F1 pooled over five sites, is of the same size.
+- 0.5 m is the selected resolution below native density at four sites, as on
+  the historical population. SJER, the open savanna with six plots, prefers
+  1.0 m, and native density splits between 0.25 and 0.5 m at TEAK.
+- The paper does not tune: every arm runs at the configuration fixed before
+  Washington was scored ([configuration provenance](../docs/configuration-provenance.md)),
+  and the [regional split](master-tables-results.md#development-and-replication-regions)
+  is the held-out test.
+
+The sections below are the historical June 2026 split on the three-site
+population.
+
+## Historical split (June 2026)
+
 Addresses **issue #3**. The density-ladder sweep
 ([density-ladder-sweep-results.md](density-ladder-sweep-results.md)) reports a
 "best `(chm_res, vwf_a)` per density rung", but those are **in-sample** optima:

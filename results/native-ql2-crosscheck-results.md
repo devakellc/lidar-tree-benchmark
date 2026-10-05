@@ -10,6 +10,50 @@ faithfully predict native-sparse behaviour? Tooling:
 [`scripts/native_ql2_crosscheck.R`](../scripts/native_ql2_crosscheck.R) +
 [`scripts/ept_discovery.R`](../scripts/ept_discovery.R). Last run: 2026-06-05.*
 
+## Adopted population (paper numbers)
+
+Checked on 5 October 2026 against the declared `adopted` population of the
+[frozen-clip study](frozen-clips-results.md) on the three California sites,
+the only ones with a public 3DEP cloud in this workflow: 43 plots and 662
+stems, every adopted plot of SJER, SOAP and TEAK. The detectors ran again on
+the cached 3DEP clouds; the NEON side is the paper runs' frozen 2 points/m²
+rung (1.3 first-return pulses/m² median), CHM-VWF at `a` = 0.10 and 0.5 m,
+and `multichm`.
+
+```sh
+export CLAUDE_JOB_DIR=$(pwd)/work/paper_runs
+Rscript scripts/native_ql2_crosscheck.R SITES=SOAP,SJER,TEAK POP=adopted \
+    CACHE_JOB=$(pwd)/work      # reuse the provenance-checked 3DEP clouds
+```
+
+None of the covering 3DEP surveys is at QL2 density: their median first-return
+density is 47 (SOAP), 31 (TEAK) and 5.7 (SJER) pulses/m². No native QL2
+comparison is therefore possible here. The test is the cross-source one: the
+3DEP cloud decimated to 2 points/m² against the NEON cloud decimated to the
+same target, on the same plots and stems, with paired plot-bootstrap
+intervals:
+
+| Detector | Source | Recall | Precision | F1 | 3DEP minus NEON, F1 [95%] |
+| --- | --- | --- | --- | --- | --- |
+| CHM-VWF | 3DEP decimated | 0.304 | 0.431 | 0.356 | +0.002 [−0.034, +0.035] |
+| CHM-VWF | NEON decimated | 0.296 | 0.441 | 0.354 | |
+| `multichm` | 3DEP decimated | 0.521 | 0.307 | 0.386 | −0.028 [−0.059, 0.000] |
+| `multichm` | NEON decimated | 0.539 | 0.337 | 0.414 | |
+
+**Readings.**
+
+- For CHM-VWF the two sources agree: decimating another sensor's dense survey
+  to the same target gives the same recall, precision and F1 within ±0.035.
+- `multichm` scores slightly lower on the decimated 3DEP clouds, mostly
+  through precision (−0.030 [−0.058, −0.003]); the interval of the F1
+  difference just reaches zero.
+- Whether decimation predicts a true native QL2 flight is answered by the
+  [native sparse epoch study](native-sparse-epoch-results.md), which uses
+  NEON's own earlier, sparser flights; there, decimation is mildly optimistic.
+
+The sections below are the historical June 2026 check on the three-site
+population (46 plots, 699 stems, six-stem gate).
+
 ---
 
 ## TL;DR (honest acquisition status first)

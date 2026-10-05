@@ -6,6 +6,73 @@ using the **lasR `pre-devel`** branch (native variable-window `ws` function +
 `summarise()` density). Run on real NEON 2021 high-density airborne LiDAR with
 field-surveyed stem ground truth. Last run: 2026-06-05.*
 
+## Five sites (paper numbers)
+
+Checked on 5 October 2026. These are the paper's numbers: the declared
+`adopted` population of the [frozen-clip study](frozen-clips-results.md)
+(106 plots, 2,525 stems at SJER, SOAP, TEAK, WREF and ABBY), every rung from
+the sealed root, and the [master tables](master-tables-results.md)' paired
+plot-bootstrap intervals. CHM-VWF is the model benchmark's configuration
+(density-derived CHM resolution, `a` = 0.10). Rungs are named by their
+all-return target; the column headers give the measured five-site median in
+first-return pulses/m². The historical sections below this one use the June
+runs on the three-site population.
+
+CHM-VWF F1, nominal box:
+
+| Scope | native (9.8) | 8 (4.7) | 4 (2.5) | 2 (1.3) | 1 (0.6) |
+| --- | --- | --- | --- | --- | --- |
+| Five sites | 0.450 [0.423, 0.478] | 0.395 [0.370, 0.420] | 0.396 [0.371, 0.421] | 0.383 [0.357, 0.408] | 0.374 [0.353, 0.396] |
+| SJER | 0.307 [0.169, 0.471] | 0.338 [0.179, 0.490] | 0.339 [0.177, 0.509] | 0.362 [0.242, 0.508] | 0.347 [0.198, 0.504] |
+| SOAP | 0.382 [0.329, 0.446] | 0.361 [0.312, 0.419] | 0.395 [0.359, 0.445] | 0.399 [0.345, 0.447] | 0.387 [0.332, 0.440] |
+| TEAK | 0.388 [0.325, 0.461] | 0.357 [0.294, 0.430] | 0.335 [0.277, 0.404] | 0.321 [0.255, 0.398] | 0.354 [0.296, 0.430] |
+| WREF | 0.392 [0.356, 0.428] | 0.359 [0.325, 0.396] | 0.351 [0.317, 0.389] | 0.342 [0.307, 0.381] | 0.336 [0.306, 0.371] |
+| ABBY | 0.557 [0.510, 0.605] | 0.464 [0.426, 0.500] | 0.473 [0.431, 0.513] | 0.450 [0.413, 0.489] | 0.425 [0.392, 0.459] |
+
+`multichm` F1, nominal box:
+
+| Scope | native (9.8) | 8 (4.7) | 4 (2.5) | 2 (1.3) | 1 (0.6) |
+| --- | --- | --- | --- | --- | --- |
+| Five sites | 0.456 [0.435, 0.477] | 0.451 [0.431, 0.472] | 0.441 [0.423, 0.459] | 0.440 [0.423, 0.459] | 0.434 [0.415, 0.453] |
+| SJER | 0.342 [0.213, 0.448] | 0.316 [0.204, 0.428] | 0.334 [0.204, 0.443] | 0.288 [0.227, 0.349] | 0.320 [0.222, 0.413] |
+| SOAP | 0.437 [0.378, 0.498] | 0.428 [0.374, 0.482] | 0.439 [0.385, 0.499] | 0.441 [0.387, 0.503] | 0.433 [0.386, 0.483] |
+| TEAK | 0.449 [0.389, 0.527] | 0.453 [0.389, 0.532] | 0.437 [0.382, 0.506] | 0.435 [0.387, 0.508] | 0.452 [0.397, 0.515] |
+| WREF | 0.452 [0.418, 0.488] | 0.445 [0.414, 0.481] | 0.430 [0.400, 0.460] | 0.437 [0.407, 0.469] | 0.414 [0.385, 0.443] |
+| ABBY | 0.489 [0.454, 0.526] | 0.487 [0.456, 0.527] | 0.475 [0.451, 0.506] | 0.471 [0.438, 0.513] | 0.473 [0.438, 0.513] |
+
+Change in F1 from native density, paired on the same plots
+(`master_rung_contrasts.csv`):
+
+| Arm | Scope | 8 (4.7) | 4 (2.5) | 2 (1.3) | 1 (0.6) |
+| --- | --- | --- | --- | --- | --- |
+| CHM-VWF | Five sites | −0.055 [−0.079, −0.032] | −0.055 [−0.080, −0.032] | −0.067 [−0.093, −0.044] | −0.077 [−0.101, −0.052] |
+| CHM-VWF | California | −0.018 [−0.054, +0.017] | −0.017 [−0.050, +0.012] | −0.019 [−0.063, +0.020] | −0.009 [−0.051, +0.027] |
+| CHM-VWF | Washington | −0.070 [−0.098, −0.044] | −0.070 [−0.101, −0.040] | −0.086 [−0.117, −0.060] | −0.103 [−0.129, −0.075] |
+| `multichm` | Five sites | −0.005 [−0.016, +0.006] | −0.015 [−0.027, −0.004] | −0.016 [−0.027, −0.003] | −0.022 [−0.034, −0.009] |
+| `multichm` | California | −0.006 [−0.026, +0.014] | −0.005 [−0.024, +0.012] | −0.013 [−0.033, +0.007] | −0.002 [−0.025, +0.021] |
+| `multichm` | Washington | −0.005 [−0.017, +0.008] | −0.019 [−0.033, −0.006] | −0.017 [−0.031, −0.003] | −0.030 [−0.044, −0.014] |
+
+**Readings.**
+
+- **CHM-VWF is not flat across density on five sites.** Its F1 falls from
+  0.450 at native density to 0.395 at 4.7 pulses/m² and 0.374 at
+  0.6 pulses/m². The flat response the historical sections report holds on
+  the California sites (every change within ±0.02, every interval spanning
+  zero) and does not replicate in Washington, where F1 falls by 0.07 at
+  4.7 pulses/m² and 0.10 at 0.6 pulses/m².
+- **The density response differs in shape between sites.** ABBY loses 0.09 by
+  4.7 pulses/m² and keeps falling; WREF and TEAK decline gradually; SOAP is
+  flat; SJER rises (with only six plots and wide intervals). One curve does
+  not describe every site.
+- **`multichm` is the flatter arm.** It loses at most 0.022 over the whole
+  ladder on five sites and 0.030 in Washington, so it overtakes CHM-VWF below
+  native density at every site except SJER, where CHM-VWF stays ahead at every
+  decimated rung.
+- **The declared configuration is close to the sweep's best.** Pooled over
+  the five sites, the best cell of the `chm_res` × `a` grid (0.5 m, `a` =
+  0.05 at every rung) beats the declared configuration by 0.006 to 0.014 F1.
+  That gain is in-sample and smaller than the intervals above.
+
 ---
 
 ## TL;DR

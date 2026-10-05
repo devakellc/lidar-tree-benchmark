@@ -38,32 +38,8 @@ if (!frozen_sealed(ROOT)) stop("No sealed frozen root at ", ROOT)
 dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 
 ## ---- arms ------------------------------------------------------------------
-# One row per benchmark arm: the results file it writes, the rungs it is run
-# at, and the stamped directory or resume sidecar that ties it to the root.
-MT_ARMS <- data.frame(
-  arm = c("chm_vwf", "multichm", "lmfauto", "ptrees", "ams3d", "li2012",
-          "forestformer3d", "treeisonet", "segmentanytree", "deepforest",
-          "detectree2", "sam2point"),
-  file = c(rep("lidrplugins_results.csv", 4), "ams3d_results.csv", "li2012_results.csv",
-           "forestformer3d_results.csv", "treeisonet_results.csv",
-           "segmentanytree_results.csv", "deepforest_results.csv",
-           "detectree2_results.csv", "sam2point_results.csv"),
-  rungs = c(rep("native,8,4,2,1", 5), "native", rep("native,8,4,2,1", 3),
-            "native", "native", "native"),
-  provenance = c("chm_vwf_detections", "multichm_detections", "lmfauto_detections",
-                 "ptrees_detections", "ams3d_instances", "li2012_instances",
-                 "forestformer3d_results.csv.frozen", "treeisonet_instances",
-                 "segmentanytree_results.csv.frozen", "deepforest_results.csv.frozen",
-                 "detectree2_results.csv.frozen", "sam2point_instances"),
-  # The RGB arms have no density ladder: they write rung "rgb", scored once
-  # per plot against the same reference, and join the native rung here.
-  result_rung = c(rep(NA, 9), "rgb", "rgb", NA),
-  # SAM2Point writes its arm as "sam2point_seeded", next to the bare CHM-VWF
-  # seeds it was prompted with ("chm_vwf_seeds", a diagnostic, not an arm).
-  detector = c("chm_vwf", "multichm", "lmfauto", "ptrees", "ams3d", "li2012",
-               "forestformer3d", "treeisonet", "segmentanytree", "deepforest",
-               "detectree2", "sam2point_seeded"),
-  stringsAsFactors = FALSE)
+# MT_ARMS (master_tables_lib.R): one row per arm with its results file, rungs
+# and provenance.
 
 pop  <- read.csv(file.path(ROOT, "population.csv"), stringsAsFactors = FALSE)
 pst  <- read.csv(file.path(ROOT, "population_stems.csv"), stringsAsFactors = FALSE)
@@ -438,6 +414,19 @@ rank <- rbind(rank_rows(eq, "nominal box"),
               if (!is.null(census_eq$nearest))
                 rank_rows(census_eq$nearest, "census, nearest census (headline)"))
 write.csv(rank, file.path(OUT, "master_rank_stability.csv"), row.names = FALSE)
+
+## ---- change across the ladder ----------------------------------------------------------
+# Each arm's change from native density to every rung, paired on shared plots,
+# over five sites, each region and each site.
+ladder_scopes <- c(list(`five sites` = SITES), MT_REGIONS, setNames(as.list(SITES), SITES))
+ladder_rows <- function(x, table) {
+  z <- mt_rung_contrasts(x, ladder_scopes, n_boot = N_BOOT, seed = SEED)
+  if (is.null(z)) NULL else cbind(table = table, population = POP, z)
+}
+ladder <- rbind(ladder_rows(eq, "nominal box"),
+                if (!is.null(census_eq$nearest))
+                  ladder_rows(census_eq$nearest, "census, nearest census (headline)"))
+write.csv(ladder, file.path(OUT, "master_rung_contrasts.csv"), row.names = FALSE)
 
 ## ---- markdown --------------------------------------------------------------------
 fmt <- function(e, l, u) ifelse(is.na(e), "—", sprintf("%.3f [%.3f, %.3f]", e, l, u))

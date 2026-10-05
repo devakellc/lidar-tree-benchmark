@@ -1,5 +1,94 @@
 # Cross-model density-ladder benchmark (SOAP, with cross-site extensions)
 
+## Five sites, every arm (paper numbers)
+
+Checked on 5 October 2026. Every arm on the declared `adopted` population of
+the [frozen-clip study](frozen-clips-results.md) (106 plots, 2,525 stems at
+SJER, SOAP, TEAK, WREF and ABBY), on equal support, with the
+[master tables](master-tables-results.md)' paired plot-bootstrap intervals
+(1,000 draws, plots resampled within site). Rungs are named by their
+all-return target; the headers give the measured five-site median in
+first-return pulses/m². The RGB arms and SAM2Point run once per plot and sit
+in the native column. The sections after this one are the historical June
+2026 benchmark on SOAP and the three-site population.
+
+Native density, nominal box, five sites:
+
+| Arm | Recall | Precision | F1 [95%] | F1 lead over CHM-VWF [95%] |
+| --- | --- | --- | --- | --- |
+| ForestFormer3D | 0.621 | 0.416 | 0.498 [0.478, 0.520] | +0.048 [+0.028, +0.069] |
+| SegmentAnyTree | 0.604 | 0.419 | 0.495 [0.466, 0.522] | +0.044 [+0.021, +0.067] |
+| `multichm` | 0.541 | 0.394 | 0.456 [0.435, 0.477] | +0.005 [−0.018, +0.028] |
+| Li 2012 | 0.561 | 0.384 | 0.456 [0.426, 0.483] | +0.006 [−0.009, +0.019] |
+| DeepForest | 0.545 | 0.390 | 0.454 [0.428, 0.478] | +0.004 [−0.014, +0.022] |
+| CHM-VWF | 0.464 | 0.438 | 0.450 [0.423, 0.478] | — |
+| TreeisoNet | 0.514 | 0.394 | 0.446 [0.420, 0.470] | −0.004 [−0.018, +0.009] |
+| `lmfauto` | 0.555 | 0.296 | 0.386 [0.352, 0.421] | −0.064 [−0.095, −0.030] |
+| Detectree2 | 0.309 | 0.435 | 0.362 [0.334, 0.390] | −0.089 [−0.120, −0.060] |
+| `ptrees` | 0.712 | 0.215 | 0.331 [0.296, 0.369] | −0.120 [−0.154, −0.085] |
+| AMS3D | 0.713 | 0.145 | 0.240 [0.214, 0.267] | −0.210 [−0.240, −0.180] |
+| SAM2Point | 0.077 | 0.471 | 0.132 [0.110, 0.157] | −0.318 [−0.352, −0.279] |
+
+F1 down the ladder, the eight full-ladder arms (intervals in
+`master_long.csv`; paired changes from native in `master_rung_contrasts.csv`):
+
+| Arm | native (9.8) | 8 (4.7) | 4 (2.5) | 2 (1.3) | 1 (0.6) | Lead over CHM-VWF at 0.6 [95%] |
+| --- | --- | --- | --- | --- | --- | --- |
+| ForestFormer3D | 0.498 | 0.487 | 0.457 | 0.438 | 0.421 | +0.047 [+0.022, +0.069] |
+| SegmentAnyTree | 0.495 | 0.487 | 0.469 | 0.376 | 0.128 | −0.246 [−0.268, −0.223] |
+| TreeisoNet | 0.446 | 0.452 | 0.453 | 0.444 | 0.440 | +0.066 [+0.037, +0.093] |
+| `multichm` | 0.456 | 0.451 | 0.441 | 0.440 | 0.434 | +0.060 [+0.036, +0.082] |
+| CHM-VWF | 0.450 | 0.395 | 0.396 | 0.383 | 0.374 | — |
+| AMS3D | 0.240 | 0.313 | 0.389 | 0.459 | 0.437 | +0.063 [+0.033, +0.093] |
+| `ptrees` | 0.331 | 0.444 | 0.414 | 0.360 | 0.271 | −0.103 [−0.122, −0.083] |
+| `lmfauto` | 0.386 | 0.340 | 0.284 | 0.262 | 0.269 | −0.105 [−0.148, −0.063] |
+
+Native F1 by site (intervals in `master_long.csv`):
+
+| Arm | SJER | SOAP | TEAK | WREF | ABBY |
+| --- | --- | --- | --- | --- | --- |
+| ForestFormer3D | 0.325 | 0.454 | 0.495 | 0.491 | 0.542 |
+| SegmentAnyTree | 0.274 | 0.469 | 0.517 | 0.463 | 0.559 |
+| `multichm` | 0.342 | 0.437 | 0.449 | 0.452 | 0.489 |
+| Li 2012 | 0.257 | 0.356 | 0.393 | 0.432 | 0.557 |
+| DeepForest | 0.261 | 0.451 | 0.461 | 0.423 | 0.510 |
+| CHM-VWF | 0.307 | 0.382 | 0.388 | 0.392 | 0.557 |
+| TreeisoNet | 0.280 | 0.390 | 0.373 | 0.393 | 0.571 |
+| `lmfauto` | 0.301 | 0.337 | 0.373 | 0.425 | 0.384 |
+| Detectree2 | 0.250 | 0.405 | 0.337 | 0.314 | 0.426 |
+| `ptrees` | 0.164 | 0.259 | 0.305 | 0.302 | 0.446 |
+| AMS3D | 0.100 | 0.190 | 0.342 | 0.258 | 0.244 |
+| SAM2Point | 0.214 | 0.259 | 0.158 | 0.127 | 0.071 |
+
+**Readings.**
+
+- At native density two learned segmenters, ForestFormer3D and
+  SegmentAnyTree, lead CHM-VWF by about 0.05 F1, with intervals that exclude
+  zero. `multichm`, Li 2012, DeepForest and TreeisoNet are indistinguishable
+  from CHM-VWF.
+- Down the ladder the arms part. SegmentAnyTree holds to 2.5 pulses/m² and
+  collapses below it (0.376 at 1.3 and 0.128 at 0.6 pulses/m²). TreeisoNet
+  and `multichm` are flat, and ForestFormer3D declines gently; all three lead
+  CHM-VWF by 0.05 to 0.07 at 0.6 pulses/m². AMS3D rises as density falls,
+  because it splits fewer crowns, and peaks at 1.3 pulses/m².
+- The shape of the density response is consistent across sites for some
+  arms and not for others (`master_rung_contrasts.csv`, per site). From native
+  density to 0.6 pulses/m², SegmentAnyTree falls at every site (−0.33 to −0.43
+  F1, −0.09 at the open SJER savanna), ForestFormer3D falls slightly everywhere
+  (−0.02 to −0.10), TreeisoNet and `multichm` stay within ±0.05, and AMS3D
+  rises at every site. CHM-VWF, `lmfauto` and `ptrees` change sign between
+  sites: CHM-VWF and `ptrees` gain at SJER and lose at the closed-canopy
+  sites, while `lmfauto` gains only at TEAK.
+- The ordering is not stable across sites. SJER, the open savanna, is the
+  hardest site for every arm except SAM2Point; ABBY is the easiest for nine of
+  the twelve. At ABBY,
+  TreeisoNet, SegmentAnyTree, Li 2012 and CHM-VWF are within 0.015 of each
+  other.
+- Recall by crown class, regions, rank stability and censused precision are
+  in the [master tables](master-tables-results.md).
+
+## Historical benchmark (June 2026)
+
 Cross-model synthesis (#R10) of every tree detector currently runnable on the
 NEON SOAP density ladder, scored on the same frozen clips by the same field-stem
 harness. The five-rung equal-set ladder now includes seven full arms:
