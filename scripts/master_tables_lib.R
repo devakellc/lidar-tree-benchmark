@@ -18,6 +18,34 @@ MT_STRATUM_COLS <- unlist(lapply(unique(unlist(MT_STRATA)), function(k)
 # Regions: development (California, D17) and replication (Washington, D16).
 MT_REGIONS <- list(California = c("SJER", "SOAP", "TEAK"), Washington = c("WREF", "ABBY"))
 
+## ---- benchmark arms --------------------------------------------------------------
+# One row per benchmark arm: the results file it writes, the rungs it is run
+# at, and the stamped directory or resume sidecar that ties it to the root.
+MT_ARMS <- data.frame(
+  arm = c("chm_vwf", "multichm", "lmfauto", "ptrees", "ams3d", "li2012",
+          "forestformer3d", "treeisonet", "segmentanytree", "deepforest",
+          "detectree2", "sam2point"),
+  file = c(rep("lidrplugins_results.csv", 4), "ams3d_results.csv", "li2012_results.csv",
+           "forestformer3d_results.csv", "treeisonet_results.csv",
+           "segmentanytree_results.csv", "deepforest_results.csv",
+           "detectree2_results.csv", "sam2point_results.csv"),
+  rungs = c(rep("native,8,4,2,1", 5), "native", rep("native,8,4,2,1", 3),
+            "native", "native", "native"),
+  provenance = c("chm_vwf_detections", "multichm_detections", "lmfauto_detections",
+                 "ptrees_detections", "ams3d_instances", "li2012_instances",
+                 "forestformer3d_results.csv.frozen", "treeisonet_instances",
+                 "segmentanytree_results.csv.frozen", "deepforest_results.csv.frozen",
+                 "detectree2_results.csv.frozen", "sam2point_instances"),
+  # The RGB arms have no density ladder: they write rung "rgb", scored once
+  # per plot against the same reference, and join the native rung here.
+  result_rung = c(rep(NA, 9), "rgb", "rgb", NA),
+  # SAM2Point writes its arm as "sam2point_seeded", next to the bare CHM-VWF
+  # seeds it was prompted with ("chm_vwf_seeds", a diagnostic, not an arm).
+  detector = c("chm_vwf", "multichm", "lmfauto", "ptrees", "ams3d", "li2012",
+               "forestformer3d", "treeisonet", "segmentanytree", "deepforest",
+               "detectree2", "sam2point_seeded"),
+  stringsAsFactors = FALSE)
+
 ## ---- plot resamples ---------------------------------------------------------
 # Adapted from the FGI-EMIT paired whole-plot percentile bootstrap
 # (fgiemit_development_summary_lib.R: fgi_bootstrap_indices, fgi_interval).
