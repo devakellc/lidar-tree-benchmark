@@ -70,6 +70,16 @@ neon_validate_inputs <- function(gt, pc, spatial = NULL) {
   epsg
 }
 
+# Stems mapped in plots that have no plot-level record (no centroid) cannot be
+# placed in a scoring frame. At D17 they also carry no measurement, so none is
+# live; dropping them is safe only under that condition, which is enforced.
+neon_drop_unframed_stems <- function(gt, pc) {
+  unframed <- is.finite(gt$E) & is.finite(gt$N) & !gt$plotID %in% pc$plotID
+  if (any(unframed & gt$live %in% TRUE))
+    stop("Live mapped stems lack plot coordinate metadata")
+  list(kept = gt[!unframed, , drop = FALSE], dropped = gt[unframed, , drop = FALSE])
+}
+
 neon_transform_xy <- function(x, y, from, to) {
   if (length(x) != length(y) || any(!is.finite(x) | !is.finite(y)))
     stop("Invalid coordinates for transformation")

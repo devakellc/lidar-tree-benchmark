@@ -23,9 +23,11 @@ source(.find("model_bench_lib.R"))
 # Rungs at or above a plot's native all-return density are recorded as
 # "upsampled" and not written, so no reader can score them by accident.
 # SEED_SALT draws an independent decimation realization into a separate root,
-# for decimation-noise replicates; 0 is the canonical freeze.
+# for decimation-noise replicates; 0 is the canonical freeze. YEAR is the
+# acquisition epoch of the job directory's references and tiles (2021 for the
+# benchmark; an earlier epoch freezes into its own job directory and OUT=).
 #   Rscript scripts/freeze_clips.R [SITES=SJER,SOAP,TEAK,WREF,ABBY] [CORES=8]
-#     [POPULATIONS=adopted,all_mapped,relaxed] [SEED_SALT=0] [OUT=...]
+#     [POPULATIONS=adopted,all_mapped,relaxed] [SEED_SALT=0] [YEAR=2021] [OUT=...]
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
 split_arg <- function(x, default) strsplit(if (is.null(x)) default else x, ",")[[1]]
@@ -35,8 +37,10 @@ POPS  <- split_arg(A$POPULATIONS, paste(FROZEN_POPULATIONS$population, collapse 
 invisible(lapply(POPS, frozen_population_spec))
 CORES <- as.integer(if (is.null(A$CORES)) 8 else A$CORES)
 SALT  <- as.integer(if (is.null(A$SEED_SALT)) 0 else A$SEED_SALT)
+YEAR  <- neon_year(if (is.null(A$YEAR)) 2021 else A$YEAR)
 OUT   <- if (is.null(A$OUT)) frozen_root(d) else A$OUT
 if (SALT != 0L && is.null(A$OUT)) stop("SEED_SALT needs its own OUT=; the canonical root is salt 0")
+if (YEAR != 2021L && is.null(A$OUT)) stop("YEAR other than 2021 needs its own OUT=")
 if (frozen_sealed(OUT)) stop("Frozen root is sealed; use a separate OUT=: ", OUT)
 
 ## ---- population ----------------------------------------------------------
@@ -44,7 +48,7 @@ field <- function(site) {
   nd <- file.path(d, "neon", site)
   gt <- read.csv(file.path(nd, "ground_truth_stems.csv"), stringsAsFactors = FALSE)
   pc <- read.csv(file.path(nd, "plot_centroids.csv"), stringsAsFactors = FALSE)
-  neon_reference_epoch(gt, 2021L)
+  neon_reference_epoch(gt, YEAR)
   live <- ext_live_trees(gt)
   epsg <- neon_validate_inputs(live, pc)
   list(gt = gt, pc = pc, epsg = epsg, nd = nd,
@@ -94,7 +98,7 @@ code <- vapply(c("freeze_clips.R", "model_bench_lib.R", "sweep_lib.R", "site_ext
                  "neon_spatial_lib.R"), .find, character(1))
 inputs <- unlist(lapply(fields, `[[`, "inputs"), use.names = FALSE)
 contract <- list(sites = SITES, populations = FROZEN_POPULATIONS[FROZEN_POPULATIONS$population %in% POPS, ],
-                 rungs = FROZEN_RUNGS, buffer = BUF, seed_salt = SALT,
+                 year = YEAR, rungs = FROZEN_RUNGS, buffer = BUF, seed_salt = SALT,
                  lidr_threads = FROZEN_LIDR_THREADS, point_order = FROZEN_POINT_ORDER,
                  versions = list(R = R.version.string,
                                  lidR = as.character(packageVersion("lidR")),
