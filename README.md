@@ -101,6 +101,16 @@ for CHM-VWF; SegmentAnyTree falls to **0.15** at 1 point/m². The
 from the other side: crediting detections that two other arm families also
 find raises F1 by **+0.07 to +0.14** per arm on the paper population.
 
+The [master tables](results/master-tables-results.md) fix one reference per
+site for every paper table (the declared population: 106 plots and 2,525
+stems), explain each earlier per-report count, and attach paired plot-level
+bootstrap intervals to every pooled number and arm-versus-arm difference. All
+twelve classical, learned point, RGB and promptable arms are in.
+ForestFormer3D (**+0.048 [+0.028, +0.069]**) and SegmentAnyTree
+(**+0.044 [+0.021, +0.067]**) are the arms whose native-density F1 beats
+CHM-VWF with intervals excluding zero on the nominal box; SegmentAnyTree falls
+to F1 0.13 at 1 point/m².
+
 The [point-cloud detector study](results/pointcloud-detector-results.md)
 compares native-density understory recovery by crown class, with a separate
 two-rung density-ladder extension.
@@ -285,6 +295,7 @@ scripts and configuration.
 | Tiled point-cloud processing | [tile_aoi.R](scripts/tile_aoi.R), [detect_lasr_catalog.R](scripts/detect_lasr_catalog.R), [detect_lidr_catalog.R](scripts/detect_lidr_catalog.R) |
 | NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R), [preflight_site_extension.R](scripts/preflight_site_extension.R) |
 | NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
+| NEON master tables and intervals | [master_tables.R](scripts/master_tables.R), [master_tables_lib.R](scripts/master_tables_lib.R) |
 | NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
 | Native sparse epochs | [prepare_sparse_epoch.R](scripts/prepare_sparse_epoch.R), [audit_sparse_epoch.R](scripts/audit_sparse_epoch.R), [compare_sparse_epoch.R](scripts/compare_sparse_epoch.R) |
 | NEON density ladder | [run_sweep.R](scripts/run_sweep.R), [analyze_sweep.R](scripts/analyze_sweep.R), [compare_sites.R](scripts/compare_sites.R) |
