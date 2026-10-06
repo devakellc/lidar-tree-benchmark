@@ -360,6 +360,8 @@ scripts and configuration.
 - [results](results/) — committed study reports and interpretation limits.
 - [docs](docs/) — methodology, study protocols, execution guides, and the
   [paper proposal](docs/paper-proposal.md).
+- [paper](paper/) — the draft manuscript of the benchmark paper, its
+  supplement and figures.
 - [Data and code availability](docs/data-code-availability.md) — data
   sources, model licences and what the archive holds; the
   [bibliography](docs/references.bib) holds the verified references.
