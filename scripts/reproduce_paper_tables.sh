@@ -12,7 +12,8 @@
 # mask-voxel run); fusion; crown diameters; the sparse-epoch report; the
 # adapter before/after comparison; the master tables of the three populations
 # (the headline with the QL2 rung); the scoring sensitivities (matcher,
-# exact-2021 references, stem-position jitter), the calibration/validation
+# exact-2021 references, stem-position jitter, chance agreement), the
+# calibration/validation
 # split, the matching-rule ranks and the native QL2 cross-check; the figures.
 #
 # Detector inference is not repeated: the archive holds every arm's per-cell
@@ -175,12 +176,15 @@ for pop in all_mapped relaxed; do
   run "$W/paper_runs_$pop" "master_tables_$pop" scripts/master_tables.R POP=$pop
 done
 
-## 10. Scoring sensitivities from persisted detections, the calibration/
-## validation split, the matching-rule ranks and the native QL2 cross-check.
+## 10. Scoring sensitivities from persisted detections (matcher, exact-2021,
+## stem jitter and the chance-agreement null), the calibration/validation
+## split, the matching-rule ranks and the native QL2 cross-check.
 for mode in matcher exact2021; do
   run "$P" "sensitivity_$mode" scripts/paper_sensitivity.R MODE=$mode CORES="$CORES"
 done
 run "$P" sensitivity_jitter scripts/paper_sensitivity.R MODE=jitter K=200 CORES="$CORES"
+run "$P" sensitivity_null scripts/paper_sensitivity.R MODE=null K=200 CORES="$CORES"
+run "$P" sensitivity_null_tol2 scripts/paper_sensitivity.R MODE=null TOL=2 K=200 CORES="$CORES"
 run "$P" calval_split scripts/calval_split.R SITES=$SITES SEED=1 FRAC=0.5 \
   SEEDS=1,2,3,4,5,6,7,8,9,10
 for s in "${SITE_LIST[@]}"; do

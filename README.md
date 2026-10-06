@@ -52,22 +52,32 @@ arm-versus-arm difference carries a paired plot-bootstrap interval.
   (**0.495**) lead CHM variable-window filtering (CHM-VWF, **0.450**) by
   **+0.048 [+0.028, +0.069]** and **+0.044 [+0.021, +0.067]**. `multichm`,
   Li 2012, DeepForest and TreeisoNet are indistinguishable from CHM-VWF.
-- SegmentAnyTree holds to the QL2 floor (F1 **0.449** at 2.0 pulses/m², level
-  with `multichm`, TreeisoNet and ForestFormer3D) and collapses below it
-  (**0.38** at 1.3 and **0.13** at 0.6 pulses/m²). TreeisoNet, `multichm` and
-  ForestFormer3D hold, and lead CHM-VWF by 0.05–0.07 at 0.6 pulses/m². Native
-  rank predicts rank down to the QL2 floor (Spearman 0.71) and not below
-  (−0.05 at 1.3 pulses/m²).
+- Most of every score is chance agreement: randomly shifted copies of each
+  arm's detections reproduce 70–79% of its F1 at the 4 m match radius.
+  Corrected for chance, ForestFormer3D's lead is **+0.020 [−0.002, +0.041]**
+  and SegmentAnyTree's **+0.034 [+0.008, +0.057]** (+0.003 and +0.017 at
+  2 m); see the
+  [matcher-robustness study](results/matcher-robustness-results.md#chance-agreement).
+- SegmentAnyTree stays level with the leading arms at the QL2 floor (F1
+  **0.449** at 2.0 pulses/m², with almost a quarter of its recall lost) and
+  collapses below it (**0.38** at 1.3 and **0.13** at 0.6 pulses/m²).
+  TreeisoNet, `multichm` and ForestFormer3D hold and lead CHM-VWF by
+  0.05–0.07 at 0.6 pulses/m², but corrected for chance those leads are
+  −0.008 to +0.021. Native rank predicts rank down to the QL2 floor (Spearman
+  0.71) and not below (−0.05 at 1.3 pulses/m²); SegmentAnyTree and AMS3D carry
+  the break, and without them the other six keep 0.54.
 - CHM-VWF is flat across density on the California sites but loses
   0.07–0.10 F1 in Washington; one density curve does not describe every site.
   See the [density-ladder study](results/density-ladder-sweep-results.md).
 - The point segmenters find understory stems best: AMS3D recalls **0.63** of
   592 intermediate and suppressed stems, against **0.17** for CHM-VWF, at a
-  large precision cost.
+  large precision cost. Chance reproduces 79–96% of every arm's understory
+  recall at 4 m; above it AMS3D and ForestFormer3D recall 0.09.
 - ForestFormer3D and SegmentAnyTree lead CHM-VWF in both regions, by about
   0.09 in California and 0.03 in Washington, where Li 2012 is level with
   them; the [configuration provenance](docs/configuration-provenance.md)
-  shows that no detector setting was chosen from Washington scores. On the
+  shows that no detector setting was chosen from Washington scores. Corrected
+  for chance, both leads hold in California and neither in Washington. On the
   exact-2021 reference SegmentAnyTree's lead holds in both regions, while
   ForestFormer3D's holds in California and reverses in Washington (−0.018 on
   33 plots; [temporal-sensitivity study](results/temporal-sensitivity-results.md)).

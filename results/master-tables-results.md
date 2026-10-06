@@ -216,8 +216,8 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
   no longer distinguishable from zero. The RGB arms are not in the census
   scorer.
 - On the same 57 plots, restricting precision to censused subplots raises it
-  by 0.29 to 0.34 for CHM-VWF across rungs and by 0.08 to 0.32 for the other
-  arms, while recall moves by at most 0.024. The native-density F1 order
+  by 0.29 to 0.34 for CHM-VWF across rungs and by 0.08 to 0.33 for the other
+  arms, while recall moves by at most 0.026. The native-density F1 order
   (SegmentAnyTree, ForestFormer3D, Li 2012, TreeisoNet, CHM-VWF, `multichm`,
   `lmfauto`, `ptrees`, AMS3D) is the same in both scorings.
 - Per-site intervals are wide at SJER (6 plots): CHM-VWF native F1 0.307
@@ -371,12 +371,12 @@ box:
 | Arm | F1, California | F1, Washington | Lead over CHM-VWF, California | Lead, Washington | Difference [95%] |
 | --- | --- | --- | --- | --- | --- |
 | CHM-VWF | 0.374 [0.334, 0.416] | 0.480 [0.448, 0.513] | — | — | — |
-| ForestFormer3D | 0.459 [0.421, 0.505] | 0.512 [0.488, 0.537] | +0.086 | +0.032 | +0.054 [+0.013, +0.098] |
-| SegmentAnyTree | 0.461 [0.408, 0.511] | 0.510 [0.478, 0.539] | +0.087 | +0.030 | +0.057 [+0.008, +0.106] |
-| `multichm` | 0.428 [0.388, 0.469] | 0.467 [0.443, 0.492] | +0.054 | −0.013 | +0.067 [+0.024, +0.108] |
-| DeepForest | 0.423 [0.377, 0.467] | 0.466 [0.436, 0.493] | +0.049 | −0.014 | +0.063 [+0.023, +0.102] |
-| Li 2012 | 0.352 [0.312, 0.392] | 0.500 [0.468, 0.529] | −0.022 | +0.020 | −0.041 [−0.071, −0.014] |
-| TreeisoNet | 0.361 [0.323, 0.401] | 0.484 [0.455, 0.511] | −0.013 | +0.004 | −0.017 [−0.043, +0.009] |
+| ForestFormer3D | 0.459 [0.421, 0.505] | 0.512 [0.488, 0.537] | +0.086 [+0.054, +0.120] | +0.032 [+0.005, +0.059] | +0.054 [+0.013, +0.098] |
+| SegmentAnyTree | 0.461 [0.408, 0.511] | 0.510 [0.478, 0.539] | +0.087 [+0.041, +0.131] | +0.030 [+0.006, +0.050] | +0.057 [+0.008, +0.106] |
+| `multichm` | 0.428 [0.388, 0.469] | 0.467 [0.443, 0.492] | +0.054 [+0.020, +0.086] | −0.013 [−0.040, +0.015] | +0.067 [+0.024, +0.108] |
+| DeepForest | 0.423 [0.377, 0.467] | 0.466 [0.436, 0.493] | +0.049 [+0.013, +0.082] | −0.014 [−0.035, +0.006] | +0.063 [+0.023, +0.102] |
+| Li 2012 | 0.352 [0.312, 0.392] | 0.500 [0.468, 0.529] | −0.022 [−0.046, −0.001] | +0.020 [+0.004, +0.037] | −0.041 [−0.071, −0.014] |
+| TreeisoNet | 0.361 [0.323, 0.401] | 0.484 [0.455, 0.511] | −0.013 [−0.034, +0.008] | +0.004 [−0.013, +0.020] | −0.017 [−0.043, +0.009] |
 | `lmfauto` | 0.346 [0.302, 0.394] | 0.398 [0.357, 0.443] | −0.027 | −0.082 | +0.055 [+0.005, +0.102] |
 | `ptrees` | 0.259 [0.217, 0.308] | 0.363 [0.319, 0.410] | −0.115 | −0.117 | +0.002 [−0.059, +0.066] |
 | AMS3D | 0.216 [0.171, 0.275] | 0.251 [0.224, 0.278] | −0.157 | −0.229 | +0.072 [+0.009, +0.143] |
@@ -385,10 +385,14 @@ box:
 
 Every arm except SAM2Point scores higher in Washington. CHM-VWF gains more
 (+0.106) than the two arms that lead it at native density (ForestFormer3D
-+0.053, SegmentAnyTree +0.049), so their leads shrink there; Li 2012
-(+0.148) and TreeisoNet (+0.123) gain the most and move from behind CHM-VWF
-to just ahead of it. ForestFormer3D and SegmentAnyTree keep a positive lead
-in both regions; `multichm` and DeepForest do not. Inside censused subplots
++0.053, SegmentAnyTree +0.049), so their leads shrink there. Li 2012
+(+0.148) gains the most and moves from behind CHM-VWF in California to
+ahead of it in Washington; TreeisoNet (+0.123) is level with it in both
+regions. ForestFormer3D and SegmentAnyTree keep a positive lead in both
+regions; `multichm` and DeepForest lead only in California. Corrected for
+chance agreement, the two segmenters' leads hold in California and not in
+Washington (see the
+[matcher-robustness study](matcher-robustness-results.md#chance-agreement)). Inside censused subplots
 the two leads are close in both regions: ForestFormer3D
 +0.061 in California against +0.059 in Washington (difference +0.002
 [−0.080, +0.082]), SegmentAnyTree +0.085 against +0.066 (+0.019 [−0.075,
@@ -398,8 +402,9 @@ plots, 135 references, one SOAP plot) is too small to show it: both
 intervals contain the nominal-box difference. The Washington ForestFormer3D
 lead is also not robust to the four-year reference window: on the 33
 Washington plots with stems measured in 2021, scoring against those stems
-alone gives 0.447 against 0.465 for CHM-VWF, while SegmentAnyTree keeps
-+0.025 and both leads hold in California (see the
+alone gives 0.447 against 0.465 for CHM-VWF (−0.018 [−0.061, +0.020]),
+while SegmentAnyTree keeps +0.025 [−0.002, +0.053] and both leads hold in
+California (see the
 [temporal-sensitivity study](temporal-sensitivity-results.md)).
 `master_region_leads.csv` holds every arm, rung and metric for both tables.
 
@@ -418,9 +423,28 @@ plot-bootstrap interval (each draw ranks the arms again):
 | 1 | −0.190 [−0.357, 0.143] | 0.119 [−0.262, 0.262] |
 
 Native rank predicts rank down to the QL2 rung (2.0 pulses/m²), more weakly
-there on the censused subplots, and not below it: from rung 2 (1.3 pulses/m²)
-the ordering at native density says nothing about the ordering on the sparse
-clouds.
+there on the censused subplots, and not below it.
+
+The bootstrap resamples plots, not arms, so `master_rank_leave_out.csv`
+recomputes each correlation, on every draw, with one arm left out and with
+SegmentAnyTree and AMS3D, the two arms that move most below the floor, left
+out together (nominal box):
+
+| Left out | Rung 8 | Rung 4 | Rung 3.2 | Rung 2 | Rung 1 |
+| --- | --- | --- | --- | --- | --- |
+| None | 0.83 [0.69, 0.93] | 0.76 [0.55, 0.88] | 0.71 [0.38, 0.81] | −0.05 [−0.17, 0.26] | −0.19 [−0.36, 0.14] |
+| AMS3D | 0.75 [0.54, 0.89] | 0.71 [0.50, 0.89] | 0.82 [0.29, 0.89] | 0.43 [0.21, 0.75] | 0.11 [−0.11, 0.36] |
+| SegmentAnyTree | 0.75 [0.54, 0.89] | 0.68 [0.39, 0.82] | 0.57 [0.29, 0.75] | −0.04 [−0.11, 0.43] | 0.07 [−0.07, 0.57] |
+| Both | 0.60 [0.26, 0.83] | 0.60 [0.31, 0.83] | 0.71 [0.26, 0.89] | 0.54 [0.43, 0.89] | 0.54 [0.43, 0.89] |
+
+The break below the floor is carried by those two arms. Single leave-outs
+move the rung-2 correlation between −0.29 (without `lmfauto` or `ptrees`)
+and +0.43 (without AMS3D); without both movers the other six keep 0.54 at
+rungs 2 and 1, against 0.71 at the QL2 rung, and 0.83 and 0.89 on the
+censused subplots. AMS3D runs with fixed literature settings, so its rise is
+partly a statement about an untuned configuration. With six or seven arms
+the correlation takes few values, so a point estimate can sit at the end of
+its interval.
 
 ## Reports built on these tables
 

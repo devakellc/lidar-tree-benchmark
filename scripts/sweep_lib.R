@@ -306,6 +306,37 @@ perturb_positions <- function(E, N, sigma, seed) {
        N = N + stats::rnorm(n, 0, 1) * s)
 }
 
+## ---- chance-agreement null: random toroidal shifts of a cell's detections -----
+# The null breaks the relation between detections and stems and keeps
+# everything else: a cell's detections inside the scoring window (the core
+# plus the matcher's reach) are shifted together and wrapped at the window's
+# edges, so their number, heights and spacing are unchanged. null_offset()
+# draws one shift uniformly on the torus of side `side`, rejecting shifts
+# within `min_shift` of no shift (toroidal distance); one `seed` gives the
+# same shift for every arm and rung of a plot. The caller's RNG is restored.
+null_offset <- function(side, seed, min_shift = 8) {
+  if (min_shift >= side / sqrt(2)) stop("min_shift too large for the window")
+  old <- if (exists(".Random.seed", envir = .GlobalEnv))
+    get(".Random.seed", envir = .GlobalEnv) else NULL
+  on.exit(if (!is.null(old)) assign(".Random.seed", old, envir = .GlobalEnv))
+  set.seed(seed)
+  repeat {
+    o <- stats::runif(2, 0, side)
+    if (sqrt(sum(pmin(o, side - o)^2)) >= min_shift) return(o)
+  }
+}
+
+# Detections within `half` of (cx, cy) in x and y, shifted by `offset` and
+# wrapped into that square; detections outside it are dropped (the matcher
+# never reads them).
+shift_detections <- function(det, cx, cy, half, offset) {
+  side <- 2 * half
+  out <- det[abs(det$x - cx) <= half & abs(det$y - cy) <= half, , drop = FALSE]
+  out$x <- (cx - half) + (out$x - (cx - half) + offset[1]) %% side
+  out$y <- (cy - half) + (out$y - (cy - half) + offset[2]) %% side
+  out
+}
+
 ## ---- one detection run on a prepared (decimated+normalized) LAS file -----
 # Returns a data.frame of treetops (x,y,z) using lasR VWF on a pit-filled CHM.
 detect_lasr <- function(las_file, res, a, dens, smooth_below = 8) {

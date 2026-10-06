@@ -33,8 +33,12 @@ NEON ladder and scores against its true labels, so density is varied alone.
 
 - CHM-VWF with the NEON paper rule: CHM resolution 0.25 m at 8 or more first
   returns per m² and 0.5 m below, `a` = 0.10, 3 × 3 smoothing below 8
-  (`detect_lasr` in `sweep_lib.R`). This replaces the development matrix's CHM
-  rule, which is undefined below one first return per m².
+  (`detect_lasr` in `sweep_lib.R`). Note added on 6 October 2026, after the
+  runs: the smoothing is lasR's `focal(size = 3)`, a circular moving mean 3 m
+  across in map units, not a 3 × 3-cell window; the code and the runs are
+  unchanged, only this description was imprecise. This replaces the
+  development matrix's CHM rule, which is undefined below one first return
+  per m².
 - SegmentAnyTree and ForestFormer3D: the development matrix's images,
   checkpoints and whole-scene inputs, unchanged.
 - 3 arms × 10 plots × 5 densities = 150 cells, run once each with a 3,600 s

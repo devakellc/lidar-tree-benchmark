@@ -130,12 +130,20 @@ fig3 <- function() {
   rs <- read.csv(file.path(MT, "master_rank_stability.csv"), stringsAsFactors = FALSE,
                  colClasses = c(from = "character", to = "character"))
   rs <- rs[rs$table == "nominal box", ]
+  # The two detectors that move most below the QL2 floor, left out together.
+  lo <- read.csv(file.path(MT, "master_rank_leave_out.csv"), stringsAsFactors = FALSE,
+                 colClasses = c(from = "character", to = "character"))
+  lo <- lo[lo$table == "nominal box" & lo$left_out == "segmentanytree+ams3d", ]
   save_data(3, rbind(data.frame(kind = "rank", detector = x$detector, rung = x$rung, pulses = x$pulses,
                                 value = x$rank, lower = NA, upper = NA),
                      data.frame(kind = "spearman", detector = NA, rung = rs$to, pulses = unname(pulses[rs$to]),
-                                value = rs$estimate, lower = rs$lower, upper = rs$upper)))
-  device(3, 10, 5)
-  layout(matrix(1:2, 1), widths = c(2, 1)); par(mar = c(4, 4, 2.5, 1))
+                                value = rs$estimate, lower = rs$lower, upper = rs$upper),
+                     data.frame(kind = "spearman_without_segmentanytree_ams3d", detector = NA, rung = lo$to,
+                                pulses = unname(pulses[lo$to]), value = lo$estimate, lower = lo$lower,
+                                upper = lo$upper)))
+  device(3, 10, 5.6)
+  layout(matrix(c(1, 2, 3, 3), 2, byrow = TRUE), widths = c(2, 1), heights = c(5, 0.6))
+  par(mar = c(4, 4, 2.5, 1))
   plot(NA, xlim = rev(range(x$pulses)) * c(1.1, 0.9), ylim = c(max(x$rank) + 0.5, 0.5), log = "x",
        xlab = "First-return pulses/m²", ylab = "Rank by F1 (1 = best)", main = "Rank down the ladder")
   ql_lines()
@@ -143,12 +151,20 @@ fig3 <- function() {
     z <- x[x$detector == a, ]
     lines(z$pulses, z$rank, col = COL[a], type = "o", pch = PCH[a], lwd = 1.5)
   }
-  legend_arms(unique(x$detector), "bottomright")
   rs$pulses <- unname(pulses[rs$to])
-  plot(rs$pulses, rs$estimate, log = "x", xlim = rev(range(rs$pulses)) * c(1.1, 0.9), ylim = c(-1, 1),
+  lo$pulses <- unname(pulses[lo$to]) * 0.92        # offset so the intervals do not overlap
+  plot(rs$pulses, rs$estimate, log = "x", xlim = rev(range(rs$pulses)) * c(1.1, 0.85), ylim = c(-1, 1),
        pch = 16, xlab = "First-return pulses/m²", ylab = "Spearman ρ with native rank",
        main = "Rank stability")
   segments(rs$pulses, rs$lower, rs$pulses, rs$upper); abline(h = 0, lty = 2)
+  points(lo$pulses, lo$estimate, pch = 1, col = "grey35")
+  segments(lo$pulses, lo$lower, lo$pulses, lo$upper, col = "grey35", lty = 1)
+  legend("bottomleft", legend = c("All eight detectors", "Without SegmentAnyTree and AMS3D"),
+         pch = c(16, 1), col = c("black", "grey35"), bty = "n", cex = 0.7)
+  # Neither panel has a free corner for the detectors; their legend runs below both.
+  par(mar = c(0, 0, 0, 0)); plot.new()
+  legend("center", legend = ARMS[unique(x$detector)], col = COL[unique(x$detector)],
+         pch = PCH[unique(x$detector)], lty = 1, bty = "n", cex = 0.8, ncol = 4)
   dev.off()
 }
 
@@ -196,26 +212,33 @@ fig5 <- function() {
   cg$tp_core <- ifelse(cg$n_det > 0, round(cg$precision * cg$n_det), 0)
   cred <- aggregate(cbind(tp_core, fp_credited, n_det) ~ detector, cg, sum)
   cred$raw <- cred$tp_core / cred$n_det
-  cred$credited <- (cred$tp_core + cred$fp_credited) / cred$n_det
-  i <- match(names(ARMS), cred$detector)
-  out <- data.frame(detector = names(ARMS), nominal = nom$estimate, nominal_lo = nom$lower,
-                    nominal_hi = nom$upper, censused = cen$estimate, censused_lo = cen$lower,
-                    censused_hi = cen$upper, selected_raw = cred$raw[i],
-                    selected_credited = cred$credited[i])
+  # Credited false positives leave the precision denominator, floored at the
+  # pooled true positives (pool() in model_bench_lib.R; coverage-gap study).
+  cred$credited <- cred$tp_core / pmax(cred$n_det - cred$fp_credited, cred$tp_core)
+  # SAM2Point is not analysed in the paper and has no credited value.
+  arms <- setdiff(names(ARMS), "sam2point")
+  i <- match(arms, cred$detector)
+  out <- data.frame(detector = arms, nominal = nom$estimate[match(arms, nom$detector)],
+                    nominal_lo = nom$lower[match(arms, nom$detector)],
+                    nominal_hi = nom$upper[match(arms, nom$detector)],
+                    censused = cen$estimate[match(arms, cen$detector)],
+                    censused_lo = cen$lower[match(arms, cen$detector)],
+                    censused_hi = cen$upper[match(arms, cen$detector)],
+                    selected_raw = cred$raw[i], selected_credited = cred$credited[i])
   save_data(5, out)
   device(5, 9, 5.5)
   par(mar = c(4, 9, 2.5, 1))
   o <- order(out$nominal); y <- seq_along(o)
   plot(NA, xlim = c(0, 1), ylim = c(0.5, length(o) + 0.5), yaxt = "n", ylab = "",
-       xlab = "Precision, native density", main = "Precision by reference")
+       xlab = "Precision", main = "Precision by reference")
   axis(2, at = y, labels = ARMS[out$detector[o]], las = 1, cex.axis = 0.8)
   segments(out$nominal_lo[o], y - 0.12, out$nominal_hi[o], y - 0.12, col = "grey40")
   points(out$nominal[o], y - 0.12, pch = 16, col = "grey20")
   segments(out$censused_lo[o], y + 0.12, out$censused_hi[o], y + 0.12, col = "#0072B2")
   points(out$censused[o], y + 0.12, pch = 17, col = "#0072B2")
   arrows(out$selected_raw[o], y, out$selected_credited[o], y, length = 0.05, col = "#D55E00")
-  legend("topleft", legend = c("Nominal box, native", "Censused subplots, native",
-                                   "Raw to credited, selected configuration"),
+  legend("topleft", legend = c("Nominal plot core, native", "Censused subplots, native",
+                                   "Raw to credited, best density per site"),
          pch = c(16, 17, NA), lty = c(NA, NA, 1), col = c("grey20", "#0072B2", "#D55E00"),
          bty = "n", cex = 0.8)
   dev.off()
@@ -236,7 +259,7 @@ fig6 <- function() {
   for (m in c("recall", "rec_overstory", "rec_understory")) {
     plot(NA, xlim = c(0.5, 4.5), ylim = c(0, 1), xaxt = "n", xlab = "", ylab = "Recall",
          main = c(recall = "All stems", rec_overstory = "Overstory", rec_understory = "Understory")[m])
-    axis(1, at = 1:4, labels = c("native\nsparse", "2021\nrung 4", "2021\nrung 8", "2021\nnative"),
+    axis(1, at = 1:4, labels = c("sparse\nflight", "2021, about\n2.9 pulses/m²", "2021, about\n5.4 pulses/m²", "2021\nnative"),
          padj = 0.5, cex.axis = 0.8)
     for (a in arms) {
       z <- x[x$arm == a, ]; z <- z[order(z$cell), ]

@@ -112,6 +112,12 @@ test_that("rank stability is the Spearman correlation of arm F1 between rungs", 
   expect_equal(flip$estimate, -1)
   expect_null(mt_rank_stability(rbind(mk("native", 1:4)[1:6, ], mk("8", 1:4)[1:6, ]),
                                 "native", "8", n_boot = 10))
+  # Leaving out the one arm that moves restores the order of the others.
+  moved <- rbind(mk("native", 1:4), mk("8", c(5, 2, 3, 4)))
+  expect_lt(mt_rank_stability(moved, "native", "8", n_boot = 20)$estimate, 0.5)
+  left <- mt_rank_stability(moved, "native", "8", n_boot = 20, exclude = "a")
+  expect_equal(left$estimate, 1); expect_equal(left$arms, 3L)
+  expect_null(mt_rank_stability(moved, "native", "8", n_boot = 10, exclude = c("a", "b")))
 })
 
 test_that("regional leads difference the lead over a base arm between regions", {

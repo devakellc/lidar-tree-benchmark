@@ -217,9 +217,10 @@ mt_stratum_rows <- function(rows) {
 # plot resamples (each draw ranks the arms again). `rows` holds every arm at
 # both rungs; arms missing either rung are dropped.
 mt_rank_stability <- function(rows, from, to, n_boot = MT_N_BOOT, seed = MT_SEED,
-                              metric = "F1") {
+                              metric = "F1", exclude = character()) {
   x <- rows[rows$rung %in% c(from, to), , drop = FALSE]
   arms <- Reduce(intersect, lapply(c(from, to), function(r) unique(x$detector[x$rung == r])))
+  arms <- setdiff(arms, exclude)       # leave-out checks: the resamples are plots, not arms
   x <- x[x$detector %in% arms, , drop = FALSE]
   key <- paste(x$site, x$plot, sep = "::")
   plots <- Reduce(intersect, lapply(split(key, paste(x$detector, x$rung)), unique))
