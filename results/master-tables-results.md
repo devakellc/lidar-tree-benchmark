@@ -437,7 +437,8 @@ out together (nominal box):
 | SegmentAnyTree | 0.75 [0.54, 0.89] | 0.68 [0.39, 0.82] | 0.57 [0.29, 0.75] | −0.04 [−0.11, 0.43] | 0.07 [−0.07, 0.57] |
 | Both | 0.60 [0.26, 0.83] | 0.60 [0.31, 0.83] | 0.71 [0.26, 0.89] | 0.54 [0.43, 0.89] | 0.54 [0.43, 0.89] |
 
-The break below the floor is carried by those two arms. Single leave-outs
+The break below the floor is carried by those two arms, a pair chosen after
+seeing the results. Single leave-outs
 move the rung-2 correlation between −0.29 (without `lmfauto` or `ptrees`)
 and +0.43 (without AMS3D); without both movers the other six keep 0.54 at
 rungs 2 and 1, against 0.71 at the QL2 rung, and 0.83 and 0.89 on the

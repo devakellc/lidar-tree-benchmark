@@ -25,8 +25,16 @@ submission:
   leave-out rank correlations and the figures were added after the last
   clean-container rebuild; then deposit it and replace "DOI to be assigned at
   deposit" in the availability statement.
-- Check once more for released SegmentAnyTreeV2 weights; none were public on 6
-  October 2026.
+- Check once more for released SegmentAnyTreeV2 and SelectAnyTree weights; none
+  were public on 6 October 2026.
+- After re-staging and the clean-container rebuild, replace the 1,221 rebuilt
+  files of Section 4.10 (and the counts in docs/reproduction-archive.md) with
+  the new rebuild's count, and drop the sentence on the earlier staging.
+- Remove the draft preamble under the title (the full-title line, the author
+  placeholder and the note on draft notes) and keep one title for the title
+  page.
+- Replace the supplement's `Source:` links to repository reports with citations
+  of the archived reports in the deposit.
 - Convert to the journal's template and generate the reference list.
 
 ## Where the numbers come from
@@ -39,7 +47,7 @@ generated tables that report documents. The archive rebuilds those tables with
 | --- | --- |
 | 1, 2 Introduction and related work | [paper proposal](../docs/paper-proposal.md), which records the literature scan and the dates of the weight checks |
 | 3.1–3.3 Sites, reference, clips and the ladder | [frozen clips](../results/frozen-clips-results.md), [Pacific Northwest preflight](../results/pacific-northwest-extension-results.md), [QL2 rung declaration](../docs/ql2-rung-declaration.md), [master tables](../results/master-tables-results.md) |
-| 3.4, 5.6 Decimation checks | [native sparse epochs](../results/native-sparse-epoch-results.md), [native 3DEP cross-check](../results/native-ql2-crosscheck-results.md) |
+| 3.4, 4.7, 5.6 Decimation checks | [native sparse epochs](../results/native-sparse-epoch-results.md), [native 3DEP cross-check](../results/native-ql2-crosscheck-results.md) |
 | 3.5, 4.9, 5.7 Dense-domain control | [native pipeline](../results/final-ensemble-pipeline-results.md), [FGI-EMIT thinning](../results/fgiemit-thinning-results.md), [transfer audit](../results/frozen-transfer-audit-results.md), [checkpoint overlap](../results/fgiemit-checkpoint-overlap-results.md), [model comparison](../results/model-benchmark-results.md) |
 | 4.1 Detectors, 5.9 Compute cost | [detector table](../results/detector-table.md), [compute cost](../results/compute-cost-results.md) |
 | 4.2, 5.1–5.4, 5.8 Chance agreement | [matcher robustness](../results/matcher-robustness-results.md#chance-agreement) |
@@ -47,7 +55,8 @@ generated tables that report documents. The archive rebuilds those tables with
 | 4.6, 5.3 Regions | [configuration provenance](../docs/configuration-provenance.md), [master tables](../results/master-tables-results.md), [density ladder](../results/density-ladder-sweep-results.md) |
 | 4.5, 5.1, 5.2, 5.4 Accuracy, density, rank stability, crown classes | [master tables](../results/master-tables-results.md), [model comparison](../results/model-benchmark-results.md) |
 | 4.10 Implementation and reproducibility | [reproduction archive](../docs/reproduction-archive.md) |
-| 5.8 Sensitivity | [matcher robustness](../results/matcher-robustness-results.md), [positional uncertainty](../results/positional-uncertainty-results.md), [temporal sensitivity](../results/temporal-sensitivity-results.md), [calibration/validation](../results/calibration-validation-results.md) |
+| 4.4, 4.8, 5.8 Uncertainty and sensitivity | [matcher robustness](../results/matcher-robustness-results.md), [positional uncertainty](../results/positional-uncertainty-results.md), [temporal sensitivity](../results/temporal-sensitivity-results.md), [calibration/validation](../results/calibration-validation-results.md) |
+| 6, 7 Discussion and conclusions | the reports of the sections they summarise |
 | Supplement S1, S3, S13 | [master tables](../results/master-tables-results.md) |
 | Supplement S2 | [model comparison](../results/model-benchmark-results.md) |
 | Supplement S4, S5 | [censused subplots](../results/census-support-results.md), [coverage gap](../results/coverage-gap-results.md) |

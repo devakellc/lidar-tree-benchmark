@@ -110,7 +110,8 @@ fig2 <- function() {
   for (m in c("F1", "recall", "precision")) {
     y <- x[x$metric == m, ]
     plot(NA, xlim = rev(range(y$pulses)) * c(1.1, 0.9), ylim = c(0, max(y$upper, na.rm = TRUE)),
-         log = "x", xlab = "First-return pulses/m²", ylab = m, main = paste(m, "(nominal box, five sites)"))
+         log = "x", xlab = "First-return pulses/m²", ylab = m,
+         main = c(F1 = "F1", recall = "Recall", precision = "Precision")[[m]])
     ql_lines()
     for (a in LADDER) {
       z <- y[y$detector == a, ]

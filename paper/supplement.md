@@ -74,7 +74,10 @@ SegmentAnyTree has no row for the third population because its inference fails
 on one sparse clip there, which is left missing and not scored as empty. At 0.6
 pulses/m², `multichm` leads CHM-VWF by +0.060, +0.067 and +0.031 under the three
 populations, and AMS3D by +0.063, +0.048 and +0.045, all with intervals that
-exclude zero.
+exclude zero. These are observed leads; corrected for chance in the headline
+population they are −0.008 [−0.031, +0.011] for `multichm` and +0.020 [−0.006,
++0.045] for AMS3D (Table 4 of the manuscript), and the null was not computed for
+the sensitivity populations.
 
 ## S4. Censused subplots
 
@@ -94,7 +97,7 @@ brackets.
 
 The admitted censuses lie between one year before and three years after the
 flights. The exact 2021 check gives the same direction as the headline rule:
-native precision of 0.79 against 0.44 in the nominal core for CHM-VWF, 0.77
+native precision of 0.79 against 0.44 in the nominal plot core for CHM-VWF, 0.77
 against 0.44 for SegmentAnyTree and 0.75 against 0.42 for ForestFormer3D. The
 stricter exclusion rule admits 54 plots and gives native precision about 0.01
 below the headline rule for every detector.
@@ -264,11 +267,13 @@ image identifiers and licences.
 ## S12. Chance agreement
 
 The null shifts each plot's detections within the core and its matching margin
-by one of 200 random offsets, the same for every detector and density, and
-scores them like the observed detections (Section 4.2 of the manuscript).
-Corrected F1 is (F1 − null F1) / (1 − null F1); a corrected lead is a difference
-of corrected F1 with a paired 95% interval. The null covers the five rungs of
-the main ladder, not the rung at the QL2 floor. Source: [matcher-robustness
+by each of 200 random offsets, the same for every detector and density, and
+scores the mean counts over the 200 shifts like the observed detections (Section
+4.2 of the manuscript). It is the score of copies with no skill at placing trees
+and tends to overstate the chance part of a score. Corrected F1 is (F1 − null
+F1) / (1 − null F1); a corrected lead is a difference of corrected F1 with a
+paired 95% interval. The rung at the QL2 floor (2.0 pulses/m²) was scored from
+its own root with the same offsets and resamples. Source: [matcher-robustness
 study](../results/matcher-robustness-results.md).
 
 **Table S12a.** Native density, five sites: observed and null F1 at radii of 4
@@ -289,49 +294,69 @@ and 2 m, corrected F1, and at 4 m the plain difference above the null.
 | AMS3D | 0.240 | 0.190 | 0.063 [0.051, 0.075] | 0.051 [0.042, 0.060] | 0.191 | 0.115 | 0.086 [0.074, 0.100] |
 
 **Table S12b.** Corrected F1 by density at 4 m, five sites. Columns give the
-median first-return density in pulses/m².
+median first-return density in pulses/m²; 2.0 is the rung at the QL2 floor.
 
-| Detector | 9.8 | 4.7 | 2.5 | 1.3 | 0.6 |
-| --- | --- | --- | --- | --- | --- |
-| SegmentAnyTree | 0.229 | 0.222 | 0.205 | 0.150 | 0.047 |
-| ForestFormer3D | 0.215 | 0.211 | 0.183 | 0.177 | 0.164 |
-| CHM-VWF | 0.195 | 0.170 | 0.172 | 0.161 | 0.164 |
-| TreeisoNet | 0.183 | 0.188 | 0.188 | 0.180 | 0.185 |
-| `multichm` | 0.178 | 0.171 | 0.158 | 0.162 | 0.156 |
-| `lmfauto` | 0.138 | 0.112 | 0.084 | 0.072 | 0.073 |
-| `ptrees` | 0.099 | 0.182 | 0.166 | 0.154 | 0.103 |
-| AMS3D | 0.063 | 0.091 | 0.134 | 0.183 | 0.184 |
-
-**Table S12c.** Corrected lead over CHM-VWF by density and radius, five sites.
-
-| Detector | Radius | 9.8 | 4.7 | 2.5 | 1.3 | 0.6 |
+| Detector | 9.8 | 4.7 | 2.5 | 2.0 | 1.3 | 0.6 |
 | --- | --- | --- | --- | --- | --- | --- |
-| SegmentAnyTree | 4 m | +0.034 [+0.008, +0.057] | +0.053 [+0.026, +0.080] | +0.033 [+0.005, +0.060] | −0.011 [−0.039, +0.018] | −0.117 [−0.139, −0.097] |
-| SegmentAnyTree | 2 m | +0.017 [−0.001, +0.033] | +0.036 [+0.014, +0.059] | +0.019 [−0.010, +0.045] | −0.014 [−0.038, +0.009] | −0.111 [−0.134, −0.090] |
-| ForestFormer3D | 4 m | +0.020 [−0.002, +0.041] | +0.041 [+0.014, +0.069] | +0.011 [−0.014, +0.037] | +0.016 [−0.010, +0.041] | +0.000 [−0.024, +0.022] |
-| ForestFormer3D | 2 m | +0.003 [−0.014, +0.021] | +0.020 [−0.003, +0.042] | +0.013 [−0.011, +0.036] | +0.000 [−0.021, +0.019] | +0.001 [−0.022, +0.022] |
-| TreeisoNet | 4 m | −0.011 [−0.029, +0.005] | +0.018 [−0.004, +0.041] | +0.016 [−0.003, +0.039] | +0.020 [−0.001, +0.043] | +0.021 [−0.005, +0.046] |
-| TreeisoNet | 2 m | −0.010 [−0.023, +0.002] | +0.024 [+0.006, +0.043] | +0.027 [+0.008, +0.044] | +0.035 [+0.015, +0.053] | +0.024 [+0.002, +0.042] |
-| `multichm` | 4 m | −0.017 [−0.039, +0.005] | +0.001 [−0.025, +0.027] | −0.013 [−0.037, +0.010] | +0.001 [−0.023, +0.026] | −0.008 [−0.031, +0.011] |
-| `multichm` | 2 m | −0.031 [−0.050, −0.012] | −0.012 [−0.033, +0.008] | −0.012 [−0.036, +0.010] | −0.006 [−0.026, +0.014] | −0.009 [−0.028, +0.008] |
-| AMS3D | 4 m | −0.132 [−0.159, −0.107] | −0.079 [−0.107, −0.052] | −0.037 [−0.067, −0.009] | +0.022 [−0.010, +0.052] | +0.020 [−0.006, +0.045] |
-| AMS3D | 2 m | −0.125 [−0.150, −0.102] | −0.068 [−0.093, −0.044] | −0.028 [−0.054, −0.001] | +0.014 [−0.011, +0.036] | +0.023 [+0.003, +0.044] |
-| `ptrees` | 4 m | −0.095 [−0.123, −0.067] | +0.012 [−0.014, +0.037] | −0.006 [−0.030, +0.019] | −0.007 [−0.026, +0.011] | −0.061 [−0.083, −0.040] |
-| `ptrees` | 2 m | −0.081 [−0.105, −0.057] | +0.004 [−0.017, +0.024] | +0.001 [−0.019, +0.020] | −0.008 [−0.028, +0.013] | −0.056 [−0.073, −0.040] |
-| `lmfauto` | 4 m | −0.056 [−0.079, −0.034] | −0.057 [−0.085, −0.027] | −0.088 [−0.115, −0.061] | −0.088 [−0.113, −0.061] | −0.091 [−0.116, −0.068] |
-| `lmfauto` | 2 m | −0.052 [−0.073, −0.031] | −0.049 [−0.075, −0.022] | −0.074 [−0.104, −0.046] | −0.073 [−0.098, −0.047] | −0.065 [−0.087, −0.044] |
+| SegmentAnyTree | 0.229 | 0.222 | 0.205 | 0.185 | 0.150 | 0.047 |
+| ForestFormer3D | 0.215 | 0.211 | 0.183 | 0.182 | 0.177 | 0.164 |
+| CHM-VWF | 0.195 | 0.170 | 0.172 | 0.168 | 0.161 | 0.164 |
+| TreeisoNet | 0.183 | 0.188 | 0.188 | 0.184 | 0.180 | 0.185 |
+| `multichm` | 0.178 | 0.171 | 0.158 | 0.169 | 0.162 | 0.156 |
+| `lmfauto` | 0.138 | 0.112 | 0.084 | 0.080 | 0.072 | 0.073 |
+| `ptrees` | 0.099 | 0.182 | 0.166 | 0.169 | 0.154 | 0.103 |
+| AMS3D | 0.063 | 0.091 | 0.134 | 0.147 | 0.183 | 0.184 |
 
-At native density the null reproduces 79 to 96% of each detector's understory
-recall and 68 to 80% of its overstory recall at 4 m. Understory recall above the
-null is 0.094 for AMS3D and ForestFormer3D, 0.061 for SegmentAnyTree, 0.047 for
-`ptrees`, 0.040 for `multichm` and 0.016 [−0.012, 0.050] for CHM-VWF at 4 m, and
-0.153, 0.108, 0.064, 0.090, 0.042 and 0.042 at 2 m.
+**Table S12c.** Corrected lead over CHM-VWF by density and radius, five sites;
+2.0 is the rung at the QL2 floor.
+
+| Detector | Radius | 9.8 | 4.7 | 2.5 | 2.0 | 1.3 | 0.6 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| SegmentAnyTree | 4 m | +0.034 [+0.008, +0.057] | +0.053 [+0.026, +0.080] | +0.033 [+0.005, +0.060] | +0.017 [−0.008, +0.041] | −0.011 [−0.039, +0.018] | −0.117 [−0.139, −0.097] |
+| SegmentAnyTree | 2 m | +0.017 [−0.001, +0.033] | +0.036 [+0.014, +0.059] | +0.019 [−0.010, +0.045] | −0.005 [−0.027, +0.018] | −0.014 [−0.038, +0.009] | −0.111 [−0.134, −0.090] |
+| ForestFormer3D | 4 m | +0.020 [−0.002, +0.041] | +0.041 [+0.014, +0.069] | +0.011 [−0.014, +0.037] | +0.014 [−0.012, +0.040] | +0.016 [−0.010, +0.041] | +0.000 [−0.024, +0.022] |
+| ForestFormer3D | 2 m | +0.003 [−0.014, +0.021] | +0.020 [−0.003, +0.042] | +0.013 [−0.011, +0.036] | +0.008 [−0.012, +0.028] | +0.000 [−0.021, +0.019] | +0.001 [−0.022, +0.022] |
+| TreeisoNet | 4 m | −0.011 [−0.029, +0.005] | +0.018 [−0.004, +0.041] | +0.016 [−0.003, +0.039] | +0.016 [−0.006, +0.039] | +0.020 [−0.001, +0.043] | +0.021 [−0.005, +0.046] |
+| TreeisoNet | 2 m | −0.010 [−0.023, +0.002] | +0.024 [+0.006, +0.043] | +0.027 [+0.008, +0.044] | +0.024 [+0.004, +0.042] | +0.035 [+0.015, +0.053] | +0.024 [+0.002, +0.042] |
+| `multichm` | 4 m | −0.017 [−0.039, +0.005] | +0.001 [−0.025, +0.027] | −0.013 [−0.037, +0.010] | +0.001 [−0.025, +0.030] | +0.001 [−0.023, +0.026] | −0.008 [−0.031, +0.011] |
+| `multichm` | 2 m | −0.031 [−0.050, −0.012] | −0.012 [−0.033, +0.008] | −0.012 [−0.036, +0.010] | −0.023 [−0.044, −0.001] | −0.006 [−0.026, +0.014] | −0.009 [−0.028, +0.008] |
+| AMS3D | 4 m | −0.132 [−0.159, −0.107] | −0.079 [−0.107, −0.052] | −0.037 [−0.067, −0.009] | −0.022 [−0.048, +0.005] | +0.022 [−0.010, +0.052] | +0.020 [−0.006, +0.045] |
+| AMS3D | 2 m | −0.125 [−0.150, −0.102] | −0.068 [−0.093, −0.044] | −0.028 [−0.054, −0.001] | −0.010 [−0.034, +0.013] | +0.014 [−0.011, +0.036] | +0.023 [+0.003, +0.044] |
+| `ptrees` | 4 m | −0.095 [−0.123, −0.067] | +0.012 [−0.014, +0.037] | −0.006 [−0.030, +0.019] | +0.000 [−0.022, +0.022] | −0.007 [−0.026, +0.011] | −0.061 [−0.083, −0.040] |
+| `ptrees` | 2 m | −0.081 [−0.105, −0.057] | +0.004 [−0.017, +0.024] | +0.001 [−0.019, +0.020] | +0.002 [−0.021, +0.023] | −0.008 [−0.028, +0.013] | −0.056 [−0.073, −0.040] |
+| `lmfauto` | 4 m | −0.056 [−0.079, −0.034] | −0.057 [−0.085, −0.027] | −0.088 [−0.115, −0.061] | −0.088 [−0.113, −0.061] | −0.088 [−0.113, −0.061] | −0.091 [−0.116, −0.068] |
+| `lmfauto` | 2 m | −0.052 [−0.073, −0.031] | −0.049 [−0.075, −0.022] | −0.074 [−0.104, −0.046] | −0.081 [−0.102, −0.055] | −0.073 [−0.098, −0.047] | −0.065 [−0.087, −0.044] |
+
+At native density the null reproduces 70 to 79% of each detector's F1 at 4 m,
+pooled over the five sites (52 to 66% in California and 75 to 84% in
+Washington), and 79 to 97% of its understory recall and 68 to 80% of its
+overstory recall. Understory recall above the null is 0.094 for AMS3D and
+ForestFormer3D, 0.061 for SegmentAnyTree, 0.047 for `ptrees`, 0.040 for
+`multichm` and 0.016 [−0.012, 0.050] for CHM-VWF at 4 m, and 0.153, 0.108,
+0.064, 0.090, 0.042 and 0.042 at 2 m.
+
+**Table S12d.** Corrected lead over CHM-VWF by region at 4 m, at native density
+and at 4.7 pulses/m², with the California minus Washington difference.
+
+| Detector | Pulses/m² | California | Washington | Difference |
+| --- | --- | --- | --- | --- |
+| ForestFormer3D | 9.8 | +0.060 [+0.026, +0.094] | +0.004 [−0.026, +0.029] | +0.056 [+0.014, +0.099] |
+| ForestFormer3D | 4.7 | +0.041 [−0.016, +0.091] | +0.040 [+0.010, +0.073] | +0.001 [−0.060, +0.060] |
+| SegmentAnyTree | 9.8 | +0.061 [+0.015, +0.103] | +0.017 [−0.014, +0.042] | +0.044 [−0.007, +0.094] |
+| SegmentAnyTree | 4.7 | +0.036 [−0.025, +0.090] | +0.056 [+0.027, +0.083] | −0.020 [−0.088, +0.036] |
+| TreeisoNet | 9.8 | −0.017 [−0.044, +0.008] | −0.008 [−0.032, +0.013] | −0.009 [−0.042, +0.025] |
+| TreeisoNet | 4.7 | −0.019 [−0.067, +0.028] | +0.034 [+0.010, +0.058] | −0.052 [−0.106, −0.000] |
+
+At native density the Washington estimates are carried by ABBY (ForestFormer3D
+−0.043 [−0.092, +0.004], SegmentAnyTree −0.002 [−0.054, +0.038]); at WREF they
+are +0.035 [−0.000, +0.066] and +0.033 [−0.005, +0.067].
 
 ## S13. Rank stability with detectors left out
 
 Spearman correlation between the native-density ranking and the ranking at each
 rung, recomputed on every bootstrap draw with the named detectors removed,
-nominal plot core, five sites. Source: [master
+nominal plot core, five sites. The pair SegmentAnyTree and AMS3D was chosen
+after seeing the results. Source: [master
 tables](../results/master-tables-results.md).
 
 **Table S13.** Rank correlation with native density, with 95% intervals. Columns

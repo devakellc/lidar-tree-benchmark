@@ -83,27 +83,35 @@ five sites (0.73 in Washington, 0.91 in California). `multichm` depends most
 on the radius: at rung 4 (2.5 pulses/m²) its lead falls from +0.045
 [+0.020, +0.071] at 4 m to +0.026 [+0.000, +0.051] at 3 m and +0.016
 [−0.007, +0.039] at 2 m, while ForestFormer3D, TreeisoNet and SegmentAnyTree
-keep +0.041, +0.065 and +0.051 at 2 m. The grid covers rungs native, 8, 4, 2
-and 1, not the QL2 rung.
+keep +0.041, +0.065 and +0.051 at 2 m. The grid covers rungs native, 8, 4, 2 and
+1; the QL2 rung, run from its own root with `RUNGS=3.2`
+(`paper_runs_ql2/sensitivity/matcher_*.csv`), gives the same picture:
+`multichm`'s lead falls from +0.058 at 4 m to +0.043 at 3 m and +0.011 [−0.010,
++0.033] at 2 m, while ForestFormer3D, TreeisoNet and SegmentAnyTree keep +0.038,
++0.065 and +0.030 at 2 m.
 
 ## Chance agreement
 
 Checked on 6 October 2026 on the same population and persisted detections.
 `paper_sensitivity.R MODE=null` keeps each cell's detections and breaks their
 relation to the stems: in each plot the detections within the core and its
-matching margin are shifted together by a random offset, wrapped at the edges
-of that square (a toroidal shift) and at least 8 m from no shift, and scored
-with the greedy matcher. The same 200 offsets serve every arm and rung, so the
-null is paired like the observed scores. A cell's null is its mean counts
-over the 200 shifts, pooled by summed counts on the same plots and
-resamples. Corrected F1 is (F1 − null F1) / (1 − null F1), the share of the
-headroom above the null, as Cohen's kappa corrects agreement for chance; it is
-used because subtracting the null is conservative (a detection that makes a
-real match cannot also match by chance) and penalises arms whose null is
-high. A corrected lead is a difference of corrected F1 with a paired
-interval. `TOL=2` repeats the null at a 2 m radius. The re-scored baseline
-reproduces every arm's own result rows (4,664 cells). Native density, five
-sites:
+matching margin are shifted together by a random offset, wrapped at the edges of
+that square (a toroidal shift) and at least 8 m from no shift, and scored with
+the greedy matcher. The same 200 offsets serve every arm and rung, so the null
+is paired like the observed scores. A cell's null is its mean counts over the
+200 shifts, pooled by summed counts on the same plots and resamples. The null is
+the score of copies with no skill at placing trees, not an estimate of the
+chance part of a score: subtracting it is conservative, because a detection that
+makes a real match cannot also match by chance, so it tends to overstate the
+chance part. Corrected F1 is (F1 − null F1) / (1 − null F1), the excess over the
+null scaled by the headroom to a perfect score, as Cohen's kappa corrects
+agreement for chance; if a share s of stems is found by skill and the rest can
+match only by chance, recall = s + (1 − s) × null, so s = (recall − null) / (1 −
+null). Against an incomplete reference a perfect score is not attainable, so
+corrected F1 compares arms rather than measuring an attainable share. A
+corrected lead is a difference of corrected F1 with a paired interval. `TOL=2`
+repeats the null at a 2 m radius. The re-scored baseline reproduces every arm's
+own result rows (4,664 cells). Native density, five sites:
 
 | Arm | F1, 4 m | Null, 4 m | Corrected, 4 m | Corrected lead, 4 m | F1, 2 m | Null, 2 m | Corrected, 2 m | Corrected lead, 2 m |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -122,52 +130,71 @@ sites:
 
 **Readings.**
 
-- Chance is most of every score. Randomly shifted detections reproduce 70 to
-  79% of every arm's F1 at 4 m and 49 to 60% at 2 m. The plot cores hold 1.21
-  stems per 50 m² (a 4 m circle), and the arms place 0.8 (Detectree2) to 5.7
-  (AMS3D) core detections in the same area, so a detection usually has a stem
-  within 4 m.
-- Corrected F1 barely depends on the radius: 0.229 and 0.228 for
-  SegmentAnyTree, 0.215 and 0.214 for ForestFormer3D, 0.195 and 0.211 for
-  CHM-VWF at 4 and 2 m. Even the best arm reaches less than a quarter of the
-  agreement possible above chance.
-- The two segmenters' leads are mostly chance. They place 1.65 and 1.61
-  detections per 50 m² against 1.19 for CHM-VWF and lead it by 0.043 and
-  0.027 under the null alone. Corrected, ForestFormer3D's lead is +0.020 at
-  4 m and +0.003 at 2 m and SegmentAnyTree's +0.034 and +0.017; the plain
-  differences above the null are +0.005 and 0.000, +0.017 and +0.010. Only
-  SegmentAnyTree's corrected lead at 4 m excludes zero.
-- By region (corrected leads, 4 m): ForestFormer3D +0.060 [+0.026, +0.094]
-  and SegmentAnyTree +0.061 [+0.015, +0.103] in California, +0.004 [−0.026,
-  +0.029] and +0.017 [−0.014, +0.042] in Washington, where Li 2012 is level
-  with them (+0.017 [−0.002, +0.035]). At 2 m: +0.049 [+0.028, +0.071] and
-  +0.054 [+0.023, +0.082] in California, −0.018 [−0.042, +0.007] and +0.000
-  [−0.020, +0.019] in Washington.
+- Randomly shifted copies reach 70 to 79% of every arm's native F1 at 4 m and 49
+  to 60% at 2 m, SAM2Point aside (44% and 27%), pooled over the five sites; by
+  region 52 to 66% in California and 75 to 84% in Washington, and on the
+  decimated rungs 67 to 79% and 44 to 66%. The plot cores hold 1.21 stems per 50
+  m² (a 4 m circle), and the arms place 0.8 (Detectree2) to 5.7 (AMS3D) core
+  detections in the same area, so a detection usually has a stem within 4 m.
+- Every match within 2 m is also a match within 4 m (no cell has more matches at
+  2 m), yet the excess above the null grows from 4 to 2 m for ten of the eleven
+  analysed arms (CHM-VWF 0.133 to 0.176), so the 4 m null over-subtracts. The
+  corrected F1 of the two segmenters barely depends on the radius (0.229 and
+  0.228 for SegmentAnyTree, 0.215 and 0.214 for ForestFormer3D at 4 and 2 m),
+  but CHM-VWF's rises from 0.195 to 0.211 and the other arms' change by up to
+  0.03, so the segmenters' corrected leads shrink at 2 m.
+- Randomly shifted copies of the segmenters' detections already lead CHM-VWF by
+  0.043 and 0.027. The number of detections is part of the reason (1.65 and 1.61
+  per 50 m² against 1.19 for CHM-VWF), not all of it: Li 2012 places as many
+  (1.66) and its null F1 is 0.325 against 0.361 for ForestFormer3D. Corrected,
+  ForestFormer3D's lead is +0.020 at 4 m and +0.003 at 2 m and SegmentAnyTree's
+  +0.034 and +0.017; the plain differences above the null are +0.005 and 0.000,
+  +0.017 and +0.010. Only SegmentAnyTree's corrected lead at 4 m excludes zero,
+  and only weakly (lower limit +0.008).
+- By region (corrected leads, 4 m): ForestFormer3D +0.060 [+0.026, +0.094] and
+  SegmentAnyTree +0.061 [+0.015, +0.103] in California, +0.004 [−0.026, +0.029]
+  and +0.017 [−0.014, +0.042] in Washington, where Li 2012 is level with them
+  (+0.017 [−0.002, +0.035]). The California minus Washington difference is
+  +0.056 [+0.014, +0.099] and +0.044 [−0.007, +0.094] at 4 m and +0.067 [+0.035,
+  +0.101] and +0.053 [+0.020, +0.089] at 2 m (scope "California minus
+  Washington" in `*_leads.csv`). At 4 m the Washington estimate is carried by
+  ABBY (−0.043 and −0.002; WREF +0.035 and +0.033). At rung 8 the contrast
+  disappears: +0.041 and +0.036 in California, +0.040 [+0.010, +0.073] and
+  +0.056 [+0.027, +0.083] in Washington, where CHM-VWF loses 0.07 F1 at its
+  switch to the coarser canopy model.
 - Below native density CHM-VWF's coarse, smoothed canopy model places 0.64 to
-  0.72 detections per 50 m² (1.19 at native density) and so loses chance
-  matches. The observed leads of 0.05 to 0.07 that ForestFormer3D,
-  TreeisoNet, `multichm` and AMS3D hold at rung 1 are −0.008 to +0.021
-  corrected, none excluding zero, and CHM-VWF's corrected F1 changes only
-  from 0.195 to 0.161–0.172 on the rungs. Corrected leads that exclude zero
-  at 4 m are SegmentAnyTree's at native density and rungs 8 and 4 (+0.034,
-  +0.053, +0.033) and ForestFormer3D's at rung 8 (+0.041); at 2 m,
-  SegmentAnyTree's at rung 8 (+0.036) and TreeisoNet's at rungs 8 to 1
-  (+0.024 to +0.035). SegmentAnyTree's collapse is not chance: its corrected
-  F1 falls from 0.229 to 0.150 at rung 2 and 0.047 at rung 1.
-- Understory recall is the most exposed score: the null reproduces 79 to 96%
-  of each arm's understory recall at 4 m, against 68 to 80% of overstory
-  recall. Above the null, AMS3D and ForestFormer3D recall 0.094 of understory
-  stems at 4 m (0.153 and 0.108 at 2 m), SegmentAnyTree 0.061, `multichm`
-  0.040 and CHM-VWF 0.016 [−0.012, +0.050] (0.042 at 2 m).
-  ForestFormer3D's understory recall lead over CHM-VWF above the null is
-  +0.078 [+0.037, +0.119] at 4 m.
+  0.72 detections per 50 m² (1.19 at native density) and so earns fewer chance
+  matches. The observed leads of 0.05 to 0.07 that ForestFormer3D, TreeisoNet,
+  `multichm` and AMS3D hold at rung 1 are −0.008 to +0.021 corrected, none
+  excluding zero, and CHM-VWF's corrected F1 changes only from 0.195 to
+  0.161–0.172 on the rungs. Corrected leads that exclude zero at 4 m are
+  SegmentAnyTree's at native density and rungs 8 and 4 (+0.034, +0.053, +0.033)
+  and ForestFormer3D's at rung 8 (+0.041); at 2 m, SegmentAnyTree's at rung 8
+  (+0.036), TreeisoNet's at rungs 8 to 1 (+0.024 to +0.035, all but one weakly)
+  and AMS3D's at rung 1 (+0.023). SegmentAnyTree's collapse is not chance: its
+  corrected F1 falls from 0.229 to 0.150 at rung 2 and 0.047 at rung 1.
+- At the QL2 rung (3.2 points/m², 2.0 pulses/m²), run from its own root with
+  `RUNGS=3.2`, the observed leads of ForestFormer3D, SegmentAnyTree, TreeisoNet
+  and `multichm` (0.057 to 0.060) are +0.014, +0.017, +0.016 and +0.001
+  corrected at 4 m, none excluding zero, and +0.008, −0.005, +0.024 [+0.004,
+  +0.042] and −0.023 [−0.044, −0.001] at 2 m. The null reaches 69 to 77% of each
+  arm's F1 there at 4 m and 44 to 64% at 2 m
+  (`paper_runs_ql2/sensitivity/null_*.csv`).
+- Understory recall is the most exposed score: the null reaches 79 to 97% of
+  each arm's understory recall at 4 m (SAM2Point aside), against 68 to 80% of
+  overstory recall. Above the null, AMS3D and ForestFormer3D recall 0.094 of
+  understory stems at 4 m (0.153 and 0.108 at 2 m), SegmentAnyTree 0.061,
+  `multichm` 0.040 and CHM-VWF 0.016 [−0.012, +0.050] (0.042 [+0.015, +0.071] at
+  2 m); the larger excess at 2 m shows that the 4 m subtraction also removes
+  real matches. ForestFormer3D's understory recall lead over CHM-VWF above the
+  null is +0.078 [+0.037, +0.119] at 4 m.
 
-`null_*.csv` (4 m) and `null_tol2_*.csv` (2 m) in `paper_runs/sensitivity`
-hold every arm, rung, scope and stratum: pooled observed and null scores,
-observed minus null and corrected F1 (`*_delta.csv`), and the leads over
-CHM-VWF observed, under the null, above it and corrected (`*_leads.csv`). The
-null covers rungs native, 8, 4, 2 and 1, not the QL2 rung, and the nominal
-box only.
+`null_*.csv` (4 m) and `null_tol2_*.csv` (2 m) in `paper_runs/sensitivity` hold
+every arm, rung, scope and stratum: pooled observed and null scores, observed
+minus null and corrected F1 (`*_delta.csv`), and the leads over CHM-VWF
+observed, under the null, above it and corrected (`*_leads.csv`), with the
+California minus Washington difference. The same files for the QL2 rung are in
+`paper_runs_ql2/sensitivity`. The null covers the nominal box only.
 
 `paper_runs/sensitivity/matcher_*.csv` holds every rung, scope and grid cell.
 The sections below are the historical June 2026 study of CHM-VWF on the

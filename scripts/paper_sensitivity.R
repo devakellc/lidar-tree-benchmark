@@ -43,6 +43,9 @@ source(.find("master_tables_lib.R"))
 #     [SITES=SJER,SOAP,TEAK,WREF,ABBY] [ARMS=...] [RUNGS=native,8,4,2,1]
 #     [POP=adopted] [FROZEN_ROOT=...] [K=200] [CORES=8] [OUT=<dir>]
 #     [TOL=4] (null only; another radius writes null_tol<TOL>_*.csv)
+# A rung frozen in its own root runs from that rung's job directory, e.g. the
+# QL2 rung: CLAUDE_JOB_DIR=<paper_runs_ql2> ... RUNGS=3.2 FROZEN_ROOT=<root>
+# ARMS=<the eight ladder arms>.
 # Writes <OUT>/<mode>_cells.csv, <OUT>/<mode>_pooled.csv and
 # <OUT>/<mode>_leads.csv (jitter: <mode>_draws.csv and <mode>_bands.csv;
 # null: null_cells.csv, null_pooled.csv, null_delta.csv, null_leads.csv and
@@ -55,6 +58,11 @@ MODE  <- match.arg(A$MODE, c("matcher", "exact2021", "jitter", "null"))
 SITES <- split_arg(A$SITES, "SJER,SOAP,TEAK,WREF,ABBY")
 ARMS  <- split_arg(A$ARMS, paste(MT_ARMS$arm, collapse = ","))
 RUNGS <- split_arg(A$RUNGS, "native,8,4,2,1")
+# A rung frozen in its own root (the QL2 rung, RUNGS=3.2 with FROZEN_ROOT and
+# that rung's job directory) is scored for the arms that carry the ladder.
+LADDER_RUNGS <- "native,8,4,2,1"
+extra <- setdiff(RUNGS, strsplit(LADDER_RUNGS, ",")[[1]])
+if (length(extra)) MT_ARMS$rungs[MT_ARMS$rungs == LADDER_RUNGS] <- paste(c(LADDER_RUNGS, extra), collapse = ",")
 K     <- as.integer(if (is.null(A$K)) 200 else A$K)
 CORES <- as.integer(if (is.null(A$CORES)) 8 else A$CORES)
 OUT   <- if (is.null(A$OUT)) file.path(d, "sensitivity") else A$OUT
@@ -295,7 +303,7 @@ if (MODE == "null") {
     site_of <- sub("::.*", "", rownames(W))
     r <- x$rung[1]; arms <- unique(x$detector)
     g <- function(v, a) paste(v, a, r, sep = "|")
-    out <- list()
+    out <- list(); regd <- list()
     for (sc in names(scopes)) {
       keep <- site_of %in% scopes[[sc]]
       if (!any(keep)) next
@@ -339,8 +347,33 @@ if (MODE == "null") {
                       mt_interval(ka$d - kc$d))
               })
           })))) else NULL
+        # Regional leads kept per draw for the California minus Washington
+        # difference (both regions use the same resample columns of W).
+        if (st == "all" && sc %in% c("California", "Washington") && "chm_vwf" %in% arms) {
+          E <- s$estimate$F1; names(E) <- s$groups; D <- s$draws$F1
+          kc <- scaled("baseline", "chm_vwf")
+          lead_e <- function(v, a) c(E[g(v, a)] - E[g(v, "chm_vwf")])
+          lead_d <- function(v, a) D[, g(v, a)] - D[, g(v, "chm_vwf")]
+          regd[[sc]] <- lapply(setNames(nm = setdiff(arms, "chm_vwf")), function(a) {
+            ka <- scaled("baseline", a)
+            list(observed = list(e = lead_e("baseline", a), d = lead_d("baseline", a)),
+                 above_null = list(e = lead_e("baseline", a) - lead_e("null", a),
+                                   d = lead_d("baseline", a) - lead_d("null", a)),
+                 above_null_scaled = list(e = unname(ka$e - kc$e), d = ka$d - kc$d))
+          })
+        }
         out[[length(out) + 1]] <- list(est = est, delta = dl, leads = ld)
       }
+    }
+    if (all(c("California", "Washington") %in% names(regd))) {
+      rd <- do.call(rbind, lapply(names(regd$California), function(a)
+        do.call(rbind, lapply(names(regd$California[[a]]), function(k) {
+          ca <- regd$California[[a]][[k]]; wa <- regd$Washington[[a]][[k]]
+          cbind(data.frame(scope = "California minus Washington", stratum = "all", detector = a,
+                           rung = r, metric = "F1", kind = k, estimate = unname(ca$e - wa$e)),
+                mt_interval(ca$d - wa$d))
+        }))))
+      out[[length(out) + 1]] <- list(est = NULL, delta = NULL, leads = rd)
     }
     out
   }

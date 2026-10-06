@@ -52,11 +52,11 @@ arm-versus-arm difference carries a paired plot-bootstrap interval.
   (**0.495**) lead CHM variable-window filtering (CHM-VWF, **0.450**) by
   **+0.048 [+0.028, +0.069]** and **+0.044 [+0.021, +0.067]**. `multichm`,
   Li 2012, DeepForest and TreeisoNet are indistinguishable from CHM-VWF.
-- Most of every score is chance agreement: randomly shifted copies of each
-  arm's detections reproduce 70–79% of its F1 at the 4 m match radius.
-  Corrected for chance, ForestFormer3D's lead is **+0.020 [−0.002, +0.041]**
-  and SegmentAnyTree's **+0.034 [+0.008, +0.057]** (+0.003 and +0.017 at
-  2 m); see the
+- Randomly shifted copies of each arm's detections reach 70–79% of its
+  native F1 at the 4 m match radius, a zero-skill score that tends to
+  overstate the chance part. Corrected for chance, ForestFormer3D's lead is
+  **+0.020 [−0.002, +0.041]** and SegmentAnyTree's **+0.034 [+0.008,
+  +0.057]** (+0.003 and +0.017 at 2 m); see the
   [matcher-robustness study](results/matcher-robustness-results.md#chance-agreement).
 - SegmentAnyTree stays level with the leading arms at the QL2 floor (F1
   **0.449** at 2.0 pulses/m², with almost a quarter of its recall lost) and
@@ -71,13 +71,15 @@ arm-versus-arm difference carries a paired plot-bootstrap interval.
   See the [density-ladder study](results/density-ladder-sweep-results.md).
 - The point segmenters find understory stems best: AMS3D recalls **0.63** of
   592 intermediate and suppressed stems, against **0.17** for CHM-VWF, at a
-  large precision cost. Chance reproduces 79–96% of every arm's understory
-  recall at 4 m; above it AMS3D and ForestFormer3D recall 0.09.
+  large precision cost. The null reaches 79–97% of every arm's understory
+  recall at 4 m; above it AMS3D and ForestFormer3D recall 0.09 (0.15 and
+  0.11 at 2 m).
 - ForestFormer3D and SegmentAnyTree lead CHM-VWF in both regions, by about
   0.09 in California and 0.03 in Washington, where Li 2012 is level with
   them; the [configuration provenance](docs/configuration-provenance.md)
   shows that no detector setting was chosen from Washington scores. Corrected
-  for chance, both leads hold in California and neither in Washington. On the
+  for chance at native density, both leads are clear in California and not
+  in Washington. On the
   exact-2021 reference SegmentAnyTree's lead holds in both regions, while
   ForestFormer3D's holds in California and reverses in Washington (−0.018 on
   33 plots; [temporal-sensitivity study](results/temporal-sensitivity-results.md)).
