@@ -81,8 +81,8 @@ AGB is a derived product (Jenkins 2003 generic) — NEON has no field AGB.
   height closely, so the conclusion holds operationally.)
 - **Detection F1 and crown-allometry quality are decoupled — this study's
   thesis, confirmed with a twist.** AMS3D has the **best** crown→DBH skill (R²
-  0.558) despite ranking *last* (9th) on detection F1 in the matching-rule
-  sensitivity section of the
+  0.558) despite ranking 9th of the ten arms on detection F1, ahead only of
+  classical Treeiso, in the matching-rule sensitivity section of the
   [point-set IoU / panoptic-quality study](instance-iou-pq-results.md) (it
   splits crowns, tanking precision): the crowns it does recover have widths that
   track DBH well.

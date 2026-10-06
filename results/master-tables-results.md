@@ -265,8 +265,9 @@ Paired F1 differences, nominal box, five sites:
   to 0.452). At 1.3 pulses/m² it falls to CHM-VWF's level and behind
   `multichm` and AMS3D, as its recall drops from 0.467 to 0.308. It crosses
   CHM-VWF between 2.0 and 1.3 pulses/m², below the QL2 floor; at the floor it
-  is level with `multichm` and TreeisoNet on five sites and already behind
-  both in California (−0.041 [−0.079, −0.005] and −0.030 [−0.063, −0.001]).
+  is level with `multichm` and TreeisoNet on five sites, while in California
+  it is already behind `multichm` (−0.041 [−0.079, −0.005]) and still ahead
+  of TreeisoNet (+0.030 [+0.001, +0.063]).
 - SegmentAnyTree's F1 change from native is −0.045 [−0.069, −0.023] at the
   QL2 rung and −0.119 [−0.148, −0.091] at rung 2. CHM-VWF's is −0.059
   [−0.084, −0.036] at the QL2 rung.
@@ -388,7 +389,7 @@ Every arm except SAM2Point scores higher in Washington. CHM-VWF gains more
 (+0.148) and TreeisoNet (+0.123) gain the most and move from behind CHM-VWF
 to just ahead of it. ForestFormer3D and SegmentAnyTree keep a positive lead
 in both regions; `multichm` and DeepForest do not. Inside censused subplots
-the two leads have the same point estimates in both regions: ForestFormer3D
+the two leads are close in both regions: ForestFormer3D
 +0.061 in California against +0.059 in Washington (difference +0.002
 [−0.080, +0.082]), SegmentAnyTree +0.085 against +0.066 (+0.019 [−0.075,
 +0.097]). That is consistent with part of the regional difference on the
