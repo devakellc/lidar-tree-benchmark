@@ -80,8 +80,8 @@ Native F1 by site (intervals in `master_long.csv`):
   F1, −0.09 at the open SJER savanna), ForestFormer3D falls slightly everywhere
   (−0.02 to −0.10), TreeisoNet and `multichm` stay within ±0.05, and AMS3D
   rises at every site. CHM-VWF, `lmfauto` and `ptrees` change sign between
-  sites: CHM-VWF and `ptrees` gain at SJER and lose at the closed-canopy
-  sites, while `lmfauto` gains only at TEAK.
+  sites: CHM-VWF and `ptrees` gain at SJER, are flat at SOAP and lose at
+  TEAK, WREF and ABBY, while `lmfauto` gains only at TEAK.
 - The ordering is not stable across sites. SJER, the open savanna, is the
   hardest site for every arm except SAM2Point; ABBY is the easiest for nine of
   the twelve. At ABBY,
@@ -103,7 +103,7 @@ AMS3D, `lmfauto`, `multichm`, `ptrees`, CHM-VWF, TreeisoNet, and
 SegmentAnyTree. Li 2012 is reported native-only, and ForestFormer3D is reported
 as an additive native + 8 pts/m2 comparison.
 
-SegmentAnyTree (#M6 / #17) is no longer deferred: the rebuilt sm_120 Docker arm
+SegmentAnyTree is no longer deferred: the rebuilt sm_120 Docker arm
 completed the full SOAP ladder and wrote 90 rows to
 `work/neon/SOAP/segmentanytree_results.csv` (18 plots x 5 rungs).
 TreeisoNet and SegmentAnyTree have also now completed the cross-site SJER and
@@ -395,7 +395,7 @@ The tables below are copied from
 | treeisonet | 2 | 0.26 | 0.02 | 0.18 |
 | treeisonet | 1 | 0.18 | 0.02 | 0.07 |
 
-### ForestFormer3D (#M8) native + 8, vs baselines
+### ForestFormer3D native + 8, vs baselines
 
 | detector | rung | frdens | n_plots | n_ref | recall | precision | F1 | rec_dominant | rec_codominant | rec_understory |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -527,7 +527,7 @@ writes `model_cross_site_summary.csv` and the per-arm + summary
 
 ## Classical Treeiso, the unsupervised 3-D baseline (#P5)
 
-The learned TreeisoNet (#M7) was already here; the **classical** cut-pursuit
+The learned TreeisoNet was already here; the **classical** cut-pursuit
 Treeiso (Xi & Hopkinson 2022; vendored MIT under `external/treeiso/`, run by
 `detect_treeiso_sweep.R`) is the non-learned 3-D instance segmenter FGI-EMIT uses
 as its baseline. Its graph-cut errors are decorrelated from the CHM/local-maximum

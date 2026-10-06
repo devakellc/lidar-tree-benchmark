@@ -72,8 +72,10 @@ Change in F1 from native density, paired on the same plots
   decimated rung.
 - **The declared configuration is close to the sweep's best.** Pooled over
   the five sites, the best cell of the `chm_res` × `a` grid (0.5 m, `a` =
-  0.05 at every rung) beats the declared configuration by 0.006 to 0.014 F1.
-  That gain is in-sample and smaller than the intervals above.
+  0.05 at every rung) beats the declared configuration by 0.006 to 0.016 F1,
+  measured on the sweep's own precision (true positives over detections)
+  rather than the master tables' core-matched precision. That gain is
+  in-sample and smaller than the intervals above.
 
 ---
 

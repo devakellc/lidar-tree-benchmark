@@ -48,6 +48,17 @@ container). The paired table the report cites reads only the decimated rows
 and is strict. The figure images are intermediate; the numbers
 each figure plots are in its strict CSV.
 
+## Last rebuild
+
+The archive was staged on 5 October 2026 from commit `da13583` (36,250
+files, 5.5 GB) and rebuilt the same day in the clean container on CPU with
+8 cores, in 55 minutes, exit status 0. Of the 1,221 rebuilt files, 1,207 were
+byte-identical, 2 equal within 1e-8, 2 within the length and overlap
+allowances (SJER: height RMSE 1.2 mm, summed crown IoU 0.0026), 7 were the
+figure images and 3 the native QL2 cross-check's intermediate rows, and none
+differed, was missing or extra. That run's `reproduction_report.csv` was not
+kept; the deposit run keeps its report and log tail beside the archive.
+
 ## Layout
 
 The layout mirrors the benchmark's working directory, so the commands in the

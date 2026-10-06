@@ -325,7 +325,7 @@ python3 gpu/declare_transfer_audit.py \
 ```
 
 The unchanged second-plot baseline was run from frozen revision
-`79c683adbc968c8424208b5570d99b0230a6003c`, with that checkout's existing model
+`b0f4a3dec5c3645f0dabf5b66ca7a9acc66a393c`, with that checkout's existing model
 resources. Do not substitute the corrected driver when reproducing the frozen
 control:
 

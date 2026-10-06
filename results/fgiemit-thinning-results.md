@@ -13,13 +13,17 @@ density, forest type and reference completeness. This study thins FGI-EMIT
 to the NEON ladder and scores against its true labels, so that density
 changes alone.
 
-**Answer: density does not explain the contrast.** ForestFormer3D still leads
-CHM-VWF by 0.17 to 0.21 apex F1 at NEON densities, three to four times its
-lead on NEON at the same densities. Under the protocol's reading, the paper
-reports FGI-EMIT and NEON as a contrast between datasets, not as a
-controlled density effect. SegmentAnyTree's density pattern does replicate
-against true labels: it holds down to about 3 pulses/m² and collapses below
-2, as on NEON.
+**Answer: density explains the contrast at NEON's native density, and not
+below it.** At 11.3 pulses/m², the level paired with native NEON,
+ForestFormer3D's lead over CHM-VWF falls from 0.30 to 0.08 [0.03, 0.13],
+against 0.05 [0.03, 0.07] on NEON, with overlapping intervals. From
+5.4 pulses/m² down the lead returns to 0.17 to 0.21 apex F1, two to four
+times its lead on NEON at the corresponding rungs; part of that gap is
+CHM-VWF's own loss of 0.14 where the NEON rule switches to the 0.5 m canopy
+model. Under the protocol's reading, the paper reports FGI-EMIT and NEON as a
+contrast between datasets, not as a controlled density effect.
+SegmentAnyTree's density pattern does replicate against true labels: it
+holds down to about 3 pulses/m² and collapses below 2, as on NEON.
 
 ## Densities
 
@@ -77,13 +81,17 @@ The NEON column pairs 11.3 pulses/m² with native NEON (9.8), 5.4 with rung 8
 
 ## Readings
 
-- **The lead stays large.** ForestFormer3D's lead over CHM-VWF falls from
-  0.30 at native density to 0.17–0.21 within the NEON range, and its change
-  from native there spans zero below 11.3 pulses/m² (−0.088 [−0.198, +0.032]
-  at 2.9). On NEON the same arms lead by 0.05 to 0.09. The protocol's
-  threshold was a fall to about 0.05; the lead keeps three to four times that.
-  The FGI-EMIT and NEON leads differ mainly through forest structure and
-  reference completeness, not density.
+- **The lead falls to NEON's level at 11 pulses/m² and stays large below.**
+  ForestFormer3D's lead over CHM-VWF falls from 0.30 at native density to
+  0.08 [0.03, 0.13] at 11.3 pulses/m², against 0.05 on NEON. From
+  5.4 pulses/m² down it sits at 0.17–0.21, and its change from native there
+  spans zero below 11.3 pulses/m² (−0.088 [−0.198, +0.032] at 2.9), while on
+  NEON the same arm leads by 0.05 to 0.09: ratios of 2.2 at 5.4 pulses/m²
+  and 3.3 to 3.6 below. The protocol's threshold was a fall to about 0.05;
+  the lead meets it at 11.3 pulses/m² and keeps two to four times that below.
+  Below 11 pulses/m² the FGI-EMIT and NEON leads differ through forest
+  structure, reference completeness and CHM-VWF's own response to the rule
+  switch, not through density alone.
 - **SegmentAnyTree's collapse replicates.** Its lead holds to 2.9 pulses/m²
   (change from native within ±0.06, intervals reaching zero), vanishes at 1.5
   (+0.032 [−0.036, +0.096]) and reverses at 0.7 (−0.228). On NEON it crosses

@@ -27,10 +27,13 @@ reproduces every arm's own result rows. Pooled F1 over the five sites, 5th,
 
 **Readings.**
 
-- Stem-position uncertainty is a negligible source of error at the paper's
-  scale. Every arm's 90 % band is at most 0.008 F1 wide, a quarter or less of
-  the plot-sampling intervals in the [master tables](master-tables-results.md)
-  (about ±0.03 at native density).
+- Independent per-stem jitter at the recorded uncertainty (median 0.4 to
+  0.5 m) is a negligible source of error under the 4 m match radius: every
+  arm's 90 % band is at most 0.008 F1 wide, a quarter or less of the
+  plot-sampling intervals in the [master tables](master-tables-results.md)
+  (about ±0.03 at native density). A shared per-plot offset is not tested
+  here and would act like a change of match radius, which the
+  [matcher study](matcher-robustness-results.md) measures.
 - ForestFormer3D and SegmentAnyTree beat CHM-VWF in every one of the 200
   draws (leads 0.045 to 0.053 and 0.040 to 0.049 between the 5th and 95th
   percentiles). ForestFormer3D is ahead of SegmentAnyTree in 98 % of draws.

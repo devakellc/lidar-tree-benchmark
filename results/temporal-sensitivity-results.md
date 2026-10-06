@@ -4,7 +4,7 @@
 density-ladder ground truth moves detection recall/precision and apex-height
 bias, by re-scoring on the **exact-2021** stem subset and comparing to the
 [`density-ladder-sweep-results.md`](density-ladder-sweep-results.md) baseline.
-Implements GitHub **issue #5**. Last run: 2026-06-05.*
+Last run: 2026-06-05.*
 
 ## Five sites, every arm
 
@@ -48,11 +48,20 @@ for both cuts, paired plot-bootstrap intervals:
 - ForestFormer3D is the exception: its recall does not rise, and its F1 falls
   most (−0.049), enough to erase its native lead over CHM-VWF on these 44
   plots (0.430 against 0.430). SegmentAnyTree keeps its lead.
-- The ±4-year reference does not change the conclusions it supports: arms
-  move by a few hundredths in the same direction. ForestFormer3D drops from
-  second to fourth; TreeisoNet and CHM-VWF swap places 0.001 apart; the other
-  arms keep their order. `paper_runs/sensitivity/` holds every rung and scope
-  (`exact2021_pooled.csv`, `exact2021_delta.csv`).
+- The ±4-year reference leaves the ordering of the classical arms unchanged:
+  TreeisoNet and CHM-VWF swap places 0.001 apart, Detectree2 and `lmfauto`
+  swap 0.005 apart, and the other arms keep their order. ForestFormer3D's
+  lead over CHM-VWF is not robust to it. It drops from second to a three-way
+  tie with CHM-VWF and TreeisoNet (0.430, 0.430 and 0.429), and by region
+  the lead holds in California (0.354 against 0.278 on 11 plots) and
+  reverses in Washington (0.447 against 0.465 on 33 plots), where
+  ForestFormer3D's F1 changes by −0.045 [−0.089, −0.015] and CHM-VWF's by
+  −0.007 [−0.021, +0.004]. The subset drives this: ForestFormer3D had
+  matched 64% of the 239 stems the cut removes (153 of its 1,024 matches)
+  and CHM-VWF 32% (77 of 786), so more of its detections become false
+  positives against the smaller reference. SegmentAnyTree keeps its lead in
+  both regions (Washington 0.490 against 0.465). `paper_runs/sensitivity/`
+  holds every rung and scope (`exact2021_pooled.csv`, `exact2021_delta.csv`).
 
 The sections below are the historical June 2026 check: CHM-VWF only, on the
 three-site population.
@@ -224,7 +233,7 @@ nudges bias **down** -0.58 m and RMSE down -1.06 m. SOAP's +1.33 m rise is on
 
 ---
 
-## Bounding statement (issue #5)
+## Bounding statement
 
 At the modal detection parameters, the +/-4 yr field-to-LiDAR temporal slack in
 the ground truth moves the headline metrics by **at most**, on the

@@ -177,7 +177,7 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
 
 | Arm − CHM-VWF | Native | 1 point/m² |
 | --- | --- | --- |
-| `multichm` | +0.006 [−0.018, +0.028] | +0.060 [+0.036, +0.082] |
+| `multichm` | +0.005 [−0.018, +0.028] | +0.060 [+0.036, +0.082] |
 | Li 2012 | +0.006 [−0.009, +0.019] | — |
 | `lmfauto` | −0.064 [−0.095, −0.030] | −0.105 [−0.148, −0.063] |
 | `ptrees` | −0.120 [−0.154, −0.085] | −0.103 [−0.122, −0.083] |
@@ -263,9 +263,10 @@ Paired F1 differences, nominal box, five sites:
 - At the QL2 floor SegmentAnyTree is still in the leading group: +0.058 over
   CHM-VWF and level with `multichm`, ForestFormer3D and TreeisoNet (F1 0.449
   to 0.452). At 1.3 pulses/m² it falls to CHM-VWF's level and behind
-  `multichm` and AMS3D, as its recall drops from 0.467 to 0.308. Its crossing
-  of the classical arms lies between 2.0 and 1.3 pulses/m², below the QL2
-  floor.
+  `multichm` and AMS3D, as its recall drops from 0.467 to 0.308. It crosses
+  CHM-VWF between 2.0 and 1.3 pulses/m², below the QL2 floor; at the floor it
+  is level with `multichm` and TreeisoNet on five sites and already behind
+  both in California (−0.041 [−0.079, −0.005] and −0.030 [−0.063, −0.001]).
 - SegmentAnyTree's F1 change from native is −0.045 [−0.069, −0.023] at the
   QL2 rung and −0.119 [−0.148, −0.091] at rung 2. CHM-VWF's is −0.059
   [−0.084, −0.036] at the QL2 rung.
@@ -357,9 +358,14 @@ The region scopes pool the California sites (SJER, SOAP and TEAK; 43 plots,
 662 stems), where the arms were configured, and the Washington sites (WREF
 and ABBY; 63 plots, 1,863 stems), first scored on 1 October 2026. The
 [configuration provenance](../docs/configuration-provenance.md) shows that no
-setting behind these tables was chosen after, or from, Washington scores. The
-four later changes are defect fixes or throughput only. Native density,
-nominal box:
+detector setting behind these tables was chosen after, or from, Washington
+scores; the four later changes are defect fixes or throughput only. The
+censused tables carry one limit: the subplot-exclusion rule was narrowed on
+1 October 2026, two minutes after censused scores that included Washington
+had been committed under the broader rule, which the
+[censused-subplot study](census-support-results.md) keeps as its strict
+sensitivity (native precision about 0.01 lower). Native density, nominal
+box:
 
 | Arm | F1, California | F1, Washington | Lead over CHM-VWF, California | Lead, Washington | Difference [95%] |
 | --- | --- | --- | --- | --- | --- |
@@ -376,15 +382,25 @@ nominal box:
 | Detectree2 | 0.350 [0.315, 0.390] | 0.366 [0.331, 0.402] | −0.023 | −0.114 | +0.091 [+0.029, +0.152] |
 | SAM2Point | 0.200 [0.157, 0.251] | 0.104 [0.081, 0.134] | −0.174 | −0.376 | +0.202 [+0.142, +0.264] |
 
-Every arm scores higher in Washington, CHM-VWF most of all, so the leads
-over CHM-VWF shrink there. ForestFormer3D and SegmentAnyTree keep a positive
-lead in both regions; `multichm` and DeepForest do not. Inside censused
-subplots the two leads are the same in both regions: ForestFormer3D +0.061 in
-California against +0.059 in Washington (difference +0.002
-[−0.080, +0.082]), SegmentAnyTree +0.085 against +0.066. The regional
-difference on the nominal box is therefore partly a reference effect, not
-only a detector one. `master_region_leads.csv` holds every arm, rung and
-metric for both tables.
+Every arm except SAM2Point scores higher in Washington. CHM-VWF gains more
+(+0.106) than the two arms that lead it at native density (ForestFormer3D
++0.053, SegmentAnyTree +0.049), so their leads shrink there; Li 2012
+(+0.148) and TreeisoNet (+0.123) gain the most and move from behind CHM-VWF
+to just ahead of it. ForestFormer3D and SegmentAnyTree keep a positive lead
+in both regions; `multichm` and DeepForest do not. Inside censused subplots
+the two leads have the same point estimates in both regions: ForestFormer3D
++0.061 in California against +0.059 in Washington (difference +0.002
+[−0.080, +0.082]), SegmentAnyTree +0.085 against +0.066 (+0.019 [−0.075,
++0.097]). That is consistent with part of the regional difference on the
+nominal box being a reference effect, but the censused California scope (12
+plots, 135 references, one SOAP plot) is too small to show it: both
+intervals contain the nominal-box difference. The Washington ForestFormer3D
+lead is also not robust to the four-year reference window: on the 33
+Washington plots with stems measured in 2021, scoring against those stems
+alone gives 0.447 against 0.465 for CHM-VWF, while SegmentAnyTree keeps
++0.025 and both leads hold in California (see the
+[temporal-sensitivity study](temporal-sensitivity-results.md)).
+`master_region_leads.csv` holds every arm, rung and metric for both tables.
 
 ## Rank stability across density
 

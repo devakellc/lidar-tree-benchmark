@@ -107,7 +107,7 @@ adopted plots fall below 8 first returns per m² at native density and take
 the sub-8 smoothing branch there; seven of them are WREF distributed plots,
 whose density the preflight could not measure from its header tiles.
 
-The canonical root was frozen at commit `e737ff7`. Its clip manifest has
+The canonical root was frozen at commit `4e7cc21`. Its clip manifest has
 SHA-256 `4567a247a6dd6d9630d6cea5427da3e262b1dcaac4a07a1173b3764e8a63c8d4`,
 the population table `f1abbee1…0dad04` and the stem table `e7de5071…2a9bfb`.
 lidR 4.3.2, rlas 1.9.2 and terra 1.8.29 under R 4.3.3 produced it.

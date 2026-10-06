@@ -39,7 +39,8 @@ job directory; `calval_metrics.csv` per site).
   0.377 against 0.361; the declared values are in the
   [density-ladder report](density-ladder-sweep-results.md)). The in-sample
   gain of the sweep's best cell over the declared configuration, 0.006 to
-  0.014 F1 pooled over five sites, is of the same size.
+  0.016 F1 pooled over five sites on the sweep's own precision, is of the
+  same size.
 - 0.5 m is the selected resolution below native density at four sites, as on
   the historical population. SJER, the open savanna with six plots, prefers
   1.0 m, and native density splits between 0.25 and 0.5 m at TEAK.
@@ -53,7 +54,7 @@ population.
 
 ## Historical split (June 2026)
 
-Addresses **issue #3**. The density-ladder sweep
+The CHM-VWF calibration/validation split. The density-ladder sweep
 ([density-ladder-sweep-results.md](density-ladder-sweep-results.md)) reports a
 "best `(chm_res, vwf_a)` per density rung", but those are **in-sample** optima:
 parameters are tuned and scored on the *same* plots, pooled over every plot.
@@ -444,16 +445,17 @@ small per-site plot counts mean absolute F1 values carry wide uncertainty (see
 the multi-seed min..max ranges); the *decimated-rung* selection is stable at
 SOAP/TEAK, but SJER and the native rung are the honest exceptions.
 
-## multichm out-of-sample — does its SOAP/TEAK advantage survive? (issue #39)
+## multichm out-of-sample — does its SOAP/TEAK advantage survive?
 
-Addresses **issue #39**. The density-ladder §8 head-to-head
+The multichm out-of-sample check. The density-ladder §8 head-to-head
 ([density-ladder-sweep-results.md](density-ladder-sweep-results.md), §8) found
 `multichm` (`lidRplugins::multichm`) beats CHM-VWF on F1 at the closed-canopy
 conifer sites — **SOAP +0.05, TEAK +0.10** pooled — and is flat-to-negative at
 open-canopy **SJER (−0.02)**. But that comparison pools over **all** plots
 (in-sample). This section asks whether the advantage survives on **held-out**
-plots, using the **exact same stratified calib/valid split** as the CHM-VWF #3
-study above (shared `calval_lib.R`), so the two are directly comparable.
+plots, using the **exact same stratified calib/valid split** as the CHM-VWF
+calibration/validation study above (shared `calval_lib.R`), so the two are
+directly comparable.
 
 Reproduce:
 
@@ -464,7 +466,7 @@ Rscript scripts/calval_multichm.R SITES=SJER,SOAP,TEAK SEED=1 FRAC=0.5 \
 ```
 
 All numbers are real console output on the cached `multichm_sweep_results.csv`
-(#37) + `sweep_results.csv` — no LiDAR recomputation.
+(the multichm head-to-head) + `sweep_results.csv` — no LiDAR recomputation.
 
 ### What "cal/val" means for a detector with no knobs
 
@@ -474,7 +476,8 @@ held-out metric is just its pooled rate on the validation plots — there is
 nothing to overfit. The split therefore tests two things:
 
 1. **Subsample robustness of the head-to-head.** On a stratified half of the
-   plots that CHM-VWF's #3 test held out, is multichm still ahead? We score it
+   plots that the CHM-VWF calibration/validation split held out, is multichm
+   still ahead? We score it
    against the **matched-discipline** CHM-VWF baseline — the **same** §8 baseline
    the "multichm wins" claim was made against (density-derived `res`, `a = 0.10`,
    also untuned). Neither arm is tuned, so this is a clean apples-to-apples
@@ -602,7 +605,7 @@ At SOAP every rung wins 100% of seeds; at TEAK every decimated rung wins 100%
 favour CHM-VWF — multichm's extra multi-layer maxima land on shrubs/ground in
 the open savanna, buying recall but no net F1 (§8).
 
-### Verdict (issue #39, cal/val arm)
+### Verdict (multichm out-of-sample check, cal/val arm)
 
 **multichm's conifer-site advantage survives out-of-sample, and survives the
 adversarial test.** On held-out plots multichm beats CHM-VWF in **100% of
@@ -615,7 +618,8 @@ mechanism (multi-layer CHM keeps sub-dominant apexes) is not an in-sample
 artifact. At **open-canopy SJER there is no advantage to defend**: flat
 in-sample (−0.02) and held-out (−0.01), winning only 40% of splits — so the §8
 site-dependence is itself reproduced out-of-sample. The honest caveat is the
-same as for the #3 CHM-VWF result: SJER's 8 plots (3 held out) make its absolute
+same as for the CHM-VWF calibration/validation result: SJER's 8 plots (3 held
+out) make its absolute
 numbers noisy, and the native rung is the least stable everywhere; the
 load-bearing evidence is the **decimated-rung win-fraction at SOAP/TEAK**, which
 is unambiguous (100% / 100% across seeds at most rungs).

@@ -39,7 +39,8 @@
     },
     "deepforest": {
       "runtime": "conda env, deepforest 2.1.0, torch 2.12.1",
-      "model": {"repo": "https://huggingface.co/weecology/deepforest-tree", "revision": "cc21436bc5d572dde8ff5f93c1e71a32f563cace"}
+      "model": {"repo": "https://huggingface.co/weecology/deepforest-tree", "revision": "cc21436bc5d572dde8ff5f93c1e71a32f563cace"},
+      "weights": {"file": "model.safetensors", "sha256": "d37a7af0b5ba2754282a80d41b4c7b66e8c7149234df5bf3f41bdaf57d329fc8"}
     },
     "detectree2": {
       "runtime": "conda env, detectree2 2.1.2, detectron2 0.6, torch 2.12.1 (CPU)",

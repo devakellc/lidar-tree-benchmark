@@ -52,7 +52,7 @@ DOI against the NEON release API on 2026-10-05.
 | ForestFormer3D weights | [doi:10.5281/zenodo.16742708](https://doi.org/10.5281/zenodo.16742708) | GPL-3.0-or-later | `epoch_3000_fix.pth` | SHA-256 only |
 | SegmentAnyTree | [SmartForest-no/SegmentAnyTree](https://github.com/SmartForest-no/SegmentAnyTree) | MIT | Commit `a3561ed`, `PointGroup-PAPER.pt` | Image ID and SHA-256 |
 | TreeisoNet (TreeAIBox) | [NRCan/TreeAIBox](https://github.com/NRCan/TreeAIBox) | CC BY-NC 4.0 | Commit `5380dde`; weights in `gpu/CHECKSUMS.sha256` | SHA-256 only |
-| DeepForest | [weecology/deepforest-tree](https://huggingface.co/weecology/deepforest-tree) | MIT | Revision `cc21436`, deepforest 2.1.0 | Revision |
+| DeepForest | [weecology/deepforest-tree](https://huggingface.co/weecology/deepforest-tree) | MIT | Revision `cc21436`, deepforest 2.1.0 | Revision and SHA-256 of `model.safetensors` |
 | Detectree2 | [doi:10.5281/zenodo.15863800](https://doi.org/10.5281/zenodo.15863800) | CC BY 4.0 (weights); MIT (code) | `250312_flexi.pth` | SHA-256 only |
 | SAM2Point | [ZiyuGuo99/SAM2Point](https://github.com/ZiyuGuo99/SAM2Point), SAM 2 weights | Apache-2.0 | Commit `e6897a7`; `sam2_hiera_large.pt` baked into the image | Image ID and SHA-256 |
 | lidR, lasR, lidRplugins | r-lidar, Jean-Romain/lidRplugins | GPL-3.0 | lidR 4.3.2; lasR pre-devel `34a79f0`; lidRplugins `567592a` | Versions and commits; pinned in `reproduce/Dockerfile` |

@@ -355,8 +355,8 @@ recall falls below both bracketing rungs on SOAP and SJER and matches rung 4
 on TEAK; dominant recall drops from 0.81 at rung 8 to 0.55. Within the 2021
 ladder its recall falls steeply below native density (0.70, 0.61 and 0.48 at
 native, 8 and 4), and the native flights fall lower still. The gap is the
-largest of the three arms, so the CHM arms' small optimism does not carry
-over to the learned arm. On SJER's four plots its recall halves (0.45 against
+largest of the five arms, so the CHM arms' small optimism does not carry
+over to this learned arm. On SJER's four plots its recall halves (0.45 against
 0.78–0.85), but 40 stems cannot separate sensor from sample.
 
 ForestFormer3D and TreeisoNet do not share SegmentAnyTree's gap. Their native
@@ -367,7 +367,8 @@ rung 4 (ForestFormer3D 0.60 to 0.56, TreeisoNet 0.49 to 0.49), and the native
 flights sit just below. Per learned arm, for the paper: SegmentAnyTree's
 sparse-rung results are upper bounds (recall by up to 0.19); TreeisoNet's are
 mild upper bounds (F1 by about 0.04); ForestFormer3D's F1 is unbiased within
-the intervals, with recall overstated by up to 0.05 at 4.7 pulses/m².
+the intervals, with recall overstated by up to 0.05 at rung 8 (about
+5.4 pulses/m² on these plots).
 
 ### The 2015-only stratum
 
