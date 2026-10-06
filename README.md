@@ -80,9 +80,11 @@ arm-versus-arm difference carries a paired plot-bootstrap interval.
   shows that no detector setting was chosen from Washington scores. Corrected
   for chance at native density, both leads are clear in California and not
   in Washington. On the
-  exact-2021 reference SegmentAnyTree's lead holds in both regions, while
-  ForestFormer3D's holds in California and reverses in Washington (−0.018 on
-  33 plots; [temporal-sensitivity study](results/temporal-sensitivity-results.md)).
+  exact-2021 reference SegmentAnyTree's lead holds overall and in California
+  and is positive but not distinguishable from zero in Washington, while
+  ForestFormer3D's holds in California and is negative in Washington, within
+  an interval that spans zero (−0.018 [−0.061, +0.020] on 33 plots;
+  [temporal-sensitivity study](results/temporal-sensitivity-results.md)).
 
 The [model comparison](results/model-benchmark-results.md#five-sites-every-arm-paper-numbers)
 gives every arm by rung and site; the [detector table](results/detector-table.md)
