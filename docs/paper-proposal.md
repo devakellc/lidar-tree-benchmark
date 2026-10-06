@@ -29,8 +29,9 @@ The results changed the expected story twice. The first version of this
 proposal expected deep segmenters to win at native density and collapse when
 the cloud is sparse. The five-site re-runs showed a lead of about 0.05 F1 at
 native density and a collapse for one of the three learned point models. The
-dense-control thinning then showed that density is not what makes the NEON
-lead small. The thesis below is the one the evidence supports.
+dense-control thinning then showed that density explains the small NEON lead
+at native density and not below it. The thesis below is the one the evidence
+supports.
 
 ## What is publishable
 
@@ -58,12 +59,13 @@ alternative. IJAEOG or Remote Sensing are fallbacks.
 
 **Thesis.** On the NEON benchmark the two best zero-shot deep segmenters lead
 the CHM variable-window baseline (CHM-VWF) by about 0.05 F1 at native density
-(about 10 pulses/m²), and density is not what makes that lead small: FGI-EMIT
-thinned to the same densities keeps ForestFormer3D's lead over CHM-VWF at
-0.17 to 0.21. The difference between the two datasets lies in forest
-structure and reference completeness, so the paper reports them as a
-contrast. The response to point density belongs to the individual model, not
-to its method family. SegmentAnyTree holds to the QL2 floor of 2 pulses/m²
+(about 10 pulses/m²). Thinning FGI-EMIT to 11 pulses/m² cuts ForestFormer3D's
+lead over CHM-VWF from 0.30 to 0.08 [0.03, 0.13], close to NEON's 0.05, but
+from 5 pulses/m² down the FGI-EMIT lead returns to 0.17 to 0.21 while NEON's
+stays at 0.05 to 0.09, so the paper reports the two datasets as a contrast
+rather than a controlled density effect. The response to point density
+belongs to the individual model, not to its method family. SegmentAnyTree
+holds to the QL2 floor of 2 pulses/m²
 and collapses below it, a pattern that replicates against FGI-EMIT's true
 labels; ForestFormer3D declines slowly and TreeisoNet stays flat; among the
 classical detectors AMS3D's F1 rises as the cloud thins, while `ptrees` loses
@@ -80,9 +82,10 @@ jitter (90% bands at most 0.008 F1 wide), inside censused subplots, in both
 regions, and on the native sparse flights for all three learned arms, where
 decimation overstates recall by 0.03 to 0.05 for ForestFormer3D and TreeisoNet
 and by up to 0.19 for SegmentAnyTree. Two qualifications travel with them: on
-the exact-2021 subset of 44 plots ForestFormer3D's lead over CHM-VWF
-disappears while SegmentAnyTree's remains, and DeepForest is not zero-shot at
-SJER and TEAK, whose imagery is in its training annotations.
+the exact-2021 subset of 44 plots ForestFormer3D's lead over CHM-VWF holds in
+California and reverses in Washington while SegmentAnyTree's holds in both,
+and DeepForest is not zero-shot at SJER and TEAK, whose imagery is in its
+training annotations.
 
 **Contributions**, in the order of the results section:
 
@@ -113,19 +116,23 @@ SJER and TEAK, whose imagery is in its training annotations.
 7. Open harness: frozen seeded clips, pinned checkpoints, hash receipts, and
    an archive whose tables rebuild with one command in a clean container.
 
-**Primary accuracy.** Recall and its crown-class strata are reported on the
-full population. Precision and F1 are reported inside censused subplots, with
-the nominal-box values on the same 57 plots beside them as lower bounds. Of
-the 1,190 censused references, 1,055 are at WREF and ABBY; SJER keeps two
-admitted plots and SOAP one. The censused table is therefore mainly a Pacific
-Northwest result, and the paper says so. On those 57 plots the nine LiDAR
-arms keep the same F1 order at native density in both scorings. In the full
-106-plot nominal table the F1 order differs: ForestFormer3D is ahead of
-SegmentAnyTree, and TreeisoNet, CHM-VWF and `multichm` appear in the reverse
-order. The subplot-exclusion rule of the censused scoring was narrowed after
-censused scores that included Washington existed, so the paper reports the
-broader rule as a strict sensitivity beside the headline; native precision
-differs by about 0.01 between the two.
+**Primary accuracy.** Recall, precision, F1 and the crown-class strata are
+reported on the full 106-plot population in the nominal plot box, the
+headline table of the master tables and the README, with its precision read
+as a lower bound. Precision and F1 inside censused subplots are reported
+beside them as the reference-support bracket, with the nominal-box values on
+the same 57 plots alongside; at native density the censused leads over
+CHM-VWF are +0.068 [+0.036, +0.100] for SegmentAnyTree and +0.059 [+0.020,
++0.099] for ForestFormer3D. Of the 1,190 censused references, 1,055 are at
+WREF and ABBY; SJER keeps two admitted plots and SOAP one. The censused table
+is therefore mainly a Pacific Northwest result, and the paper says so. On
+those 57 plots the nine LiDAR arms keep the same F1 order at native density
+in both scorings. In the full 106-plot nominal table the F1 order differs:
+ForestFormer3D is ahead of SegmentAnyTree, and TreeisoNet, CHM-VWF and
+`multichm` appear in the reverse order. The subplot-exclusion rule of the
+censused scoring was narrowed after censused scores that included Washington
+existed, so the paper reports the broader rule as a strict sensitivity beside
+the bracket; native precision differs by about 0.01 between the two.
 
 **Development and replication regions.** WREF and ABBY in Washington were
 added after the detectors had been run on the three California sites, and
@@ -179,7 +186,7 @@ decimated rungs.
 | Best fused mode minus best single arm, F1: native / rungs 8 to 1 | −0.009 / +0.009 to +0.022, in sample | [fusion study](../results/detector-fusion-results.md) |
 | Crown diameter RMSE, 790 common stems: stop-rule random walker / SegmentAnyTree | 1.71 m / 1.74 m | [crown benchmark](../results/crown-segmentation-results.md) |
 | Wall time per plot, native density: classical arms / ForestFormer3D / SegmentAnyTree | seconds / 64 to 104 s / 251 to 445 s | [compute cost](../results/compute-cost-results.md) |
-| Clean-container rebuild of the archive | 1,207 of 1,221 files byte-identical, none differing | [availability](data-code-availability.md), [archive guide](reproduction-archive.md) |
+| Clean-container rebuild of the archive, 5 October 2026 | 1,207 of 1,221 files byte-identical, none differing | [archive guide](reproduction-archive.md) |
 
 Every report the paper cites now opens with its five-site section; the
 historical three-site sections are marked as such and stay for the record.
@@ -320,7 +327,7 @@ The seven steps added on 2026-10-05, numbered on from the first plan:
 | 12. A rung at the QL2 floor | Done: declared before any run, frozen in its own root at 2.0 pulses/m², scored by all eight ladder arms. SegmentAnyTree holds there and collapses below | [QL2 rung declaration](ql2-rung-declaration.md), [master tables](../results/master-tables-results.md) |
 | 13. Regenerate the historical-population reports | Done: every paper-cited report opens with a five-site section for every arm, in pulses/m²; the 3DEP cross-check runs against the adopted stems of the 43 California plots | [density ladder](../results/density-ladder-sweep-results.md), [model benchmark](../results/model-benchmark-results.md) and the sensitivity reports |
 | 14. Extend the master tables | Done: crown-class and height-band strata, regional tables and leads, rank stability with intervals, and the configuration provenance record | [master tables](../results/master-tables-results.md), [configuration provenance](configuration-provenance.md) |
-| 15. Settle mask scoring and bridge the dense control | Done. SegmentAnyTree is on the five-site mask board and the TreeisoNet mask voxel is declared; the proxy costs about a third of mask F1 on FGI-EMIT, so mask scores go to the supplement; thinning keeps ForestFormer3D's lead at 0.17 to 0.21, so the datasets are a contrast | [proxy validation](../results/fgiemit-proxy-validation-results.md), [FGI-EMIT thinning](../results/fgiemit-thinning-results.md) |
+| 15. Settle mask scoring and bridge the dense control | Done. SegmentAnyTree is on the five-site mask board and the TreeisoNet mask voxel is declared; the proxy costs about a third of mask F1 on FGI-EMIT, so mask scores go to the supplement; thinning matches the NEON lead at 11 pulses/m² and keeps 0.17 to 0.21 below it, so the datasets are a contrast | [proxy validation](../results/fgiemit-proxy-validation-results.md), [FGI-EMIT thinning](../results/fgiemit-thinning-results.md) |
 | 16. Figures, detector table and compute cost | Done: seven figures with their numbers, the detector table with verified training data, and timed runs of every arm | [detector table](../results/detector-table.md), [compute cost](../results/compute-cost-results.md) |
 | 17. Archive and reproduction | Staged (5.5 GB) and rebuilt in a clean container with no differing file; the deposit remains | [archive guide](reproduction-archive.md) |
 
@@ -373,7 +380,7 @@ censused subplots stays necessary.
   against true labels. SegmentAnyTree's sparse-rung recall is an upper bound
   by up to 0.19 and is reported as such.
 - Dense against sparse: reported as a dataset contrast, because the thinning
-  rules density out as the cause.
+  matches the NEON lead at native density and not below it.
 - Geography: oak woodland and conifer sites in California and Washington plus
   the boreal control. No eastern broadleaf site; stated as scope.
 - A generous 4 m tolerance: the tolerance grid and the jitter bands on five
