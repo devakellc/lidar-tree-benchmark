@@ -186,7 +186,7 @@ decimated rungs.
 | Best fused mode minus best single arm, F1: native / rungs 8 to 1 | −0.009 / +0.009 to +0.022, in sample | [fusion study](../results/detector-fusion-results.md) |
 | Crown diameter RMSE, 790 common stems: stop-rule random walker / SegmentAnyTree | 1.71 m / 1.74 m | [crown benchmark](../results/crown-segmentation-results.md) |
 | Wall time per plot, native density: classical arms / ForestFormer3D / SegmentAnyTree | seconds / 64 to 104 s / 251 to 445 s | [compute cost](../results/compute-cost-results.md) |
-| Clean-container rebuild of the archive, 5 October 2026 | 1,207 of 1,221 files byte-identical, none differing | [archive guide](reproduction-archive.md) |
+| Clean-container rebuilds of the archive, 5 and 6 October 2026 | 1,207 and 1,204 of 1,221 files byte-identical, none differing; the second run's report is kept | [archive guide](reproduction-archive.md) |
 
 Every report the paper cites now opens with its five-site section; the
 historical three-site sections are marked as such and stay for the record.
