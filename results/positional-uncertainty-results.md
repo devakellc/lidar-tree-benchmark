@@ -1,4 +1,4 @@
-# Monte-Carlo stem-position uncertainty (#V3)
+# Monte-Carlo stem-position uncertainty
 
 ## Five sites, every arm
 
@@ -47,12 +47,12 @@ the historical June 2026 study on the three-site population.
 
 ## Historical study (June 2026)
 
-Every leaderboard delta the router (#P2) would switch arms on is a single point
+Every leaderboard delta the router would switch arms on is a single point
 estimate against stem coordinates that carry real uncertainty — `neon_ground_
 truth.R` stores `pos_unc` (NEON coordinate uncertainty + 0.3 m TruPulse
 rangefinder) per stem, yet `score_plot` ignores it. This arm puts **confidence
 bands** on recall / precision / F1 (and per-crown-class recall) by re-scoring every
-ladder arm — and the #P1 fusion union/layered arm — under K reproducible draws of
+ladder arm — and the fusion union/layered arm — under K reproducible draws of
 the field positions, answering two questions: which arm-vs-arm gaps survive
 ground-truth jitter, and whether fusion is *more stable* than any single arm.
 
@@ -123,7 +123,7 @@ co-sweep on SOAP).
 
 ## Readings
 
-- **Fusion is the most stable arm under field jitter.** The #P1 union/layered
+- **Fusion is the most stable arm under field jitter.** The fused union/layered
   consensus has the **tightest F1 bands of any arm** (mean width 0.016–0.017 vs
   0.020–0.028 for the single arms), at every site. Consensus over multiple
   detectors averages out the per-stem matching noise that moves any single arm's
@@ -140,9 +140,10 @@ co-sweep on SOAP).
   Widening tol 3→5 m lifts every arm's F1 (more jittered stems still find their
   apex) without materially widening the bands or reordering the arms — so the
   stability and gap-survival conclusions are not artifacts of the 4 m default.
-- **Fusion's value is recall and stability, not F1.** Consistent with #P1, the
-  fused F1 sits below the best single arm (coverage-limited precision), but its
-  bands are the tightest and its understory recall the highest (#P1). The bands
+- **Fusion's value is recall and stability, not F1.** Consistent with the
+  fusion study, the fused F1 sits below the best single arm (coverage-limited
+  precision), but its bands are the tightest and its understory recall the
+  highest. The bands
   make the trade explicit: fusion buys reproducible recall, not a higher F1 point
   estimate.
 
@@ -156,6 +157,7 @@ co-sweep on SOAP).
 - **Only stem positions are perturbed** — detections are fixed. This isolates
   ground-truth uncertainty from detector stochasticity (the question the issue
   asks); detector-side variance is out of scope.
-- **F1/precision are coverage-limited** (the #V4 isolated-FP finding), so absolute
+- **F1/precision are coverage-limited** (the matcher study's isolated-FP
+  finding), so absolute
   bands are lower bounds; the band *widths* and *overlaps* are the result.
 - **Native density only**; the driver accepts `RUNG=`/`K=`/`TOLS=` to extend.

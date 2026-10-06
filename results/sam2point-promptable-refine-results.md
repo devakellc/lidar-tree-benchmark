@@ -1,6 +1,6 @@
-# Seed→refine: CHM-VWF tops → SAM2Point promptable 3-D segmenter (#P3)
+# Seed→refine: CHM-VWF tops → SAM2Point promptable 3-D segmenter
 
-All existing deep arms (#M6 SegmentAnyTree, #M8 ForestFormer3D, #M7 TreeisoNet)
+All existing deep arms (SegmentAnyTree, ForestFormer3D, TreeisoNet)
 run in **automatic** mode. This builds the **seed→refine** stage: the strongest
 overstory detector (CHM-VWF) drives a zero-shot **promptable** 3-D segmenter
 (SAM2Point, Apache-2.0) for crown masks, decoupling "where is the tree" (the
@@ -12,8 +12,8 @@ from each 3-D apex prompt; each returned mask is a crown instance.
 
 The headline engineering result: **SAM2Point runs on the RTX 5090 (sm_120)**.
 `gpu/sam2point-sm120/` builds `FROM me-sm120-test:latest` — the
-`pytorch/pytorch:2.7.0-cuda12.8-cudnn9-devel` base the SegmentAnyTree (#M6) and
-ForestFormer3D (#M8) arms already use — so no PyTorch-on-Blackwell rebuild was
+`pytorch/pytorch:2.7.0-cuda12.8-cudnn9-devel` base the SegmentAnyTree and
+ForestFormer3D arms already use — so no PyTorch-on-Blackwell rebuild was
 needed (SAM2Point wants torch ≥ 2.3.1; torch 2.7/cu128 satisfies that *and*
 carries sm_120). The bundled demo and the custom LiDAR runner both complete on
 the GPU with no CUDA errors. `run_sam2point_arm.py` (added here) reads a LAZ,
@@ -52,7 +52,8 @@ Per plot: SOAP_031 — seeded precision 0.70 (vs seeds 0.36), recall 0.21 (vs
 - **This is the expected division of labour.** A promptable segmenter's job is
   "what is the crown of THIS seed", so it cannot exceed the seed set's recall —
   its value is mask quality/precision, which is exactly what it delivers. To gain
-  recall the seed set itself must improve (e.g. fuse seeds from #P1) before
+  recall the seed set itself must improve (e.g. fuse seeds from the
+  [cross-arm detector fusion study](detector-fusion-results.md)) before
   refining.
 - **Blackwell is no longer the blocker for promptable 3-D models in this repo.**
   The torch-2.7/cu128 `me-sm120` base carries SAM2 video inference unmodified, so
@@ -68,6 +69,7 @@ Per plot: SOAP_031 — seeded precision 0.70 (vs seeds 0.36), recall 0.21 (vs
   replicated to 3 channels (a pseudo-intensity) — a reasonable but unvalidated
   adaptation of an RGB-trained video model.
 - **Scoring is apex-proximity here**; the per-point masks are persisted to
-  `sam2point_instances/`, so the #V1 IoU/PQ harness and crown-diameter scoring can
-  be run on them once a full sweep exists.
+  `sam2point_instances/`, so the
+  [point-set IoU/PQ scorer](instance-iou-pq-results.md) and crown-diameter
+  scoring can be run on them once a full sweep exists.
 - **Cost, not correctness, bounds this arm** — the driver is `PLOTS=ALL`-ready.

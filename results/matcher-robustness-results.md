@@ -1,4 +1,4 @@
-# Matcher robustness: scaled tolerance + Hungarian re-score (#V4)
+# Matcher robustness: scaled tolerance + Hungarian re-score
 
 ## Five sites, every arm
 
@@ -166,10 +166,10 @@ understory / field-map gap) = **478 (94.3 %)**.
   height RMSE of any variant, 2.35 m vs the baseline's 3.17 m**. It declines the
   marginal, height-implausible matches the hard band let through, trading a hair
   of recall for cleaner geometry — useful where matched-apex height quality
-  matters (e.g. feeding #V3 error bars), not as a recall booster.
+  matters (e.g. feeding the stem-jitter error bars), not as a recall booster.
   (An earlier revision of this arm reported soft3d as a large F1 winner; that was
   a bug — the soft path had dropped the height gate entirely and was scoring
-  height-impossible matches as true positives, which a #V4 self-review caught.
+  height-impossible matches as true positives, which a self-review caught.
   The 3-D-radius gate is the fix.)
 - **The flat-4 m / gate-8 baseline sits on a rising slope.** F1 climbs
   monotonically across the whole tol_xy {2→5} × tol_z_up {5→12} grid, so the
@@ -183,16 +183,17 @@ understory / field-map gap) = **478 (94.3 %)**.
   only 5.7 % sit beside a matched tree. The benchmark's modest precision is
   dominated by detections of real-but-unmapped trees (regeneration, unmeasured
   neighbours), not by the detector splitting one crown into many. This is the
-  signal #P2 (router) and #P1 (fusion) need: isolated detections should be
+  signal the router and fusion studies need: isolated detections should be
   treated as probably-real, not suppressed as commission.
 
 ## Caveats
 
-- **Scoring is apex-proximity**, which #V1 shows overstates instance quality for
-  the mask-capable arms; for SegmentAnyTree/ForestFormer3D prefer the point-set
-  IoU/PQ scorer (`results/instance-iou-pq-results.md`, #V1).
+- **Scoring is apex-proximity**, which the IoU/PQ study shows overstates
+  instance quality for the mask-capable arms; for
+  SegmentAnyTree/ForestFormer3D prefer the point-set IoU/PQ scorer
+  (`results/instance-iou-pq-results.md`).
   This arm hardens the proximity matcher the CHM/apex detectors still rely on,
-  and the same `match_tol`/height-gate logic feeds the #P1 fusion dedup.
+  and the same `match_tol`/height-gate logic feeds the fusion dedup.
 - **The per-class FP attribution is by nearest stem**, so it locates each false
   positive in a crown-class neighbourhood rather than labelling the (unmapped)
   detection itself; the near/isolated split is the primary signal.
