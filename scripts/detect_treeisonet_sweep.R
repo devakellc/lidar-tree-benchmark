@@ -63,11 +63,12 @@ MASKS <- is.null(A$MASKS) || A$MASKS != "0"
 HMIN  <- if (is.null(A$HMIN)) "2" else A$HMIN
 MASK_VOXEL <- if (is.null(A$MASK_VOXEL)) "0" else A$MASK_VOXEL
 BATCH <- is.null(A$BATCH) || A$BATCH != "0"
-RUNGS_RAW <- if (is.null(A$RUNGS)) c("native", FROZEN_RUNGS) else strsplit(A$RUNGS, ",")[[1]]
+ROOT_RUNGS <- frozen_root_rungs(frozen_root(d, A$FROZEN_ROOT))
+RUNGS_RAW <- if (is.null(A$RUNGS)) c("native", ROOT_RUNGS) else strsplit(A$RUNGS, ",")[[1]]
 RUN_NATIVE <- any(tolower(RUNGS_RAW) == "native")
 RUNGS <- as.numeric(RUNGS_RAW[tolower(RUNGS_RAW) != "native"])
-if (anyNA(RUNGS) || !all(RUNGS %in% FROZEN_RUNGS))
-  stop("RUNGS must be native and/or frozen rungs ", paste(FROZEN_RUNGS, collapse = ","))
+if (anyNA(RUNGS) || !all(RUNGS %in% ROOT_RUNGS))
+  stop("RUNGS must be native and/or the root's rungs ", paste(ROOT_RUNGS, collapse = ","))
 VENV  <- file.path(.ROOT, "gpu/.venv/bin/python")
 DRV   <- file.path(.ROOT, "gpu/run_treeisonet.py")
 DRV_MASK <- file.path(.ROOT, "gpu/run_treeisonet_crowns.py")

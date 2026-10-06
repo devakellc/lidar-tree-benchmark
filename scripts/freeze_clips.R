@@ -26,8 +26,12 @@ source(.find("model_bench_lib.R"))
 # for decimation-noise replicates; 0 is the canonical freeze. YEAR is the
 # acquisition epoch of the job directory's references and tiles (2021 for the
 # benchmark; an earlier epoch freezes into its own job directory and OUT=).
+# RUNGS= freezes other all-return targets (for example the QL2 rung, 3.2) into
+# their own OUT=, with the canonical root's population, seeds and provider;
+# the arms read a root's rungs from its freeze contract.
 #   Rscript scripts/freeze_clips.R [SITES=SJER,SOAP,TEAK,WREF,ABBY] [CORES=8]
-#     [POPULATIONS=adopted,all_mapped,relaxed] [SEED_SALT=0] [YEAR=2021] [OUT=...]
+#     [POPULATIONS=adopted,all_mapped,relaxed] [SEED_SALT=0] [YEAR=2021]
+#     [RUNGS=8,4,2,1] [OUT=...]
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
 split_arg <- function(x, default) strsplit(if (is.null(x)) default else x, ",")[[1]]
@@ -41,6 +45,11 @@ YEAR  <- neon_year(if (is.null(A$YEAR)) 2021 else A$YEAR)
 OUT   <- if (is.null(A$OUT)) frozen_root(d) else A$OUT
 if (SALT != 0L && is.null(A$OUT)) stop("SEED_SALT needs its own OUT=; the canonical root is salt 0")
 if (YEAR != 2021L && is.null(A$OUT)) stop("YEAR other than 2021 needs its own OUT=")
+RUNGS <- if (is.null(A$RUNGS)) FROZEN_RUNGS else as.numeric(split_arg(A$RUNGS, ""))
+if (!length(RUNGS) || anyNA(RUNGS) || any(RUNGS <= 0) || anyDuplicated(RUNGS))
+  stop("RUNGS must be distinct positive all-return densities")
+if (!identical(RUNGS, FROZEN_RUNGS) && is.null(A$OUT))
+  stop("RUNGS other than the canonical ladder need their own OUT=")
 if (frozen_sealed(OUT)) stop("Frozen root is sealed; use a separate OUT=: ", OUT)
 
 ## ---- population ----------------------------------------------------------
@@ -98,7 +107,7 @@ code <- vapply(c("freeze_clips.R", "model_bench_lib.R", "sweep_lib.R", "site_ext
                  "neon_spatial_lib.R"), .find, character(1))
 inputs <- unlist(lapply(fields, `[[`, "inputs"), use.names = FALSE)
 contract <- list(sites = SITES, populations = FROZEN_POPULATIONS[FROZEN_POPULATIONS$population %in% POPS, ],
-                 year = YEAR, rungs = FROZEN_RUNGS, buffer = BUF, seed_salt = SALT,
+                 year = YEAR, rungs = RUNGS, buffer = BUF, seed_salt = SALT,
                  lidr_threads = FROZEN_LIDR_THREADS, point_order = FROZEN_POINT_ORDER,
                  versions = list(R = R.version.string,
                                  lidR = as.character(packageVersion("lidR")),
@@ -129,7 +138,7 @@ freeze_plot <- function(site, ctg, ci) {
                                      ci$core_half, OUT, BUF, SALT)
   native <- clip(NA)
   rows <- list(cell_row(site, ci, NA, if (is.null(native)) "unusable" else "ok", native, native))
-  for (rung in FROZEN_RUNGS) {
+  for (rung in RUNGS) {
     # The sweep's no-upsampling guard, against native all-return density.
     rows[[length(rows) + 1]] <- if (is.null(native)) cell_row(site, ci, rung, "no_native")
       else if (rung >= native$pdens) cell_row(site, ci, rung, "upsampled", native = native)

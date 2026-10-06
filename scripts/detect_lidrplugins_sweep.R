@@ -116,8 +116,12 @@ PLOTS <- if (is.null(A$PLOTS) || A$PLOTS == "ALL") NULL else strsplit(A$PLOTS, "
 CORES <- as.integer(if (is.null(A$CORES)) 6 else A$CORES)
 TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
 A_VWF <- as.numeric(if (is.null(A$A))   0.10 else A$A)
-RUNGS <- FROZEN_RUNGS
 ARMS  <- c("lmfauto", "multichm", "ptrees", "chm_vwf")
+# ARMS= runs a subset (the compute-cost timings run each detector alone).
+if (!is.null(A$ARMS)) {
+  ARMS <- intersect(ARMS, strsplit(A$ARMS, ",")[[1]])
+  if (!length(ARMS)) stop("ARMS must name lmfauto, multichm, ptrees and/or chm_vwf")
+}
 
 run_main <- function() {
   nd  <- file.path(d, "neon", SITE)
@@ -143,7 +147,7 @@ run_main <- function() {
     stems <- gt[gt$plotID == pid & abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
     if (nrow(stems) < 1) return(NULL)
     out <- list(); native_pdens <- NA_real_
-    for (rung in c(NA, RUNGS)) {
+    for (rung in c(NA, frozen_root_rungs(fz$root))) {
       prep <- frozen_clip(NULL, SITE, pid, rung, cx, cy, ph, fz$root)
       if (is.null(prep)) next
       pdens <- prep$pdens; frdens <- prep$frdens
@@ -153,14 +157,15 @@ run_main <- function() {
       if (is.null(las) || is.empty(las)) next
       res <- if (frdens >= 8) 0.25 else 0.5     # density-derived, like CHM-VWF
       rlab <- ifelse(is.na(rung), "native", as.character(rung))
-      dets <- list(
-        lmfauto  = det_lmfauto(las, hmin = 2),
-        multichm = det_multichm(las, res = res, a = A_VWF),
-        ptrees   = det_ptrees(las, hmin = 2,
+      run_det <- list(
+        lmfauto  = function() det_lmfauto(las, hmin = 2),
+        multichm = function() det_multichm(las, res = res, a = A_VWF),
+        ptrees   = function() det_ptrees(las, hmin = 2,
                               inst_path = file.path(nd, "ptrees_instances",
                                                     paste0(pid, "_", rlab, ".laz"))),
-        chm_vwf  = tryCatch(detect_lasr(prep$normalized, res, A_VWF, frdens),
-                            error = function(e) NULL))
+        chm_vwf  = function() tryCatch(detect_lasr(prep$normalized, res, A_VWF, frdens),
+                                       error = function(e) NULL))
+      dets <- lapply(run_det[ARMS], function(f) f())
       for (nm in names(dets)) {
         det <- dets[[nm]]
         if (is.null(det)) next                  # crash -> skip this detector/cell

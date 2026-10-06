@@ -163,14 +163,41 @@ boxes_to_dets <- function(boxes, chm, score_min = 0, z_floor = 2.0, keep_score =
   out
 }
 
+# Extents of the RGB tiles under <nd>/rgb, one row per tif (tile = basename).
+# Without the imagery, the rgb_tiles.csv index that write_rgb_tile_index()
+# wrote from the same tifs stands in, so an archive can omit the mosaics.
+RGB_TILE_COLS <- c("tile", "xmin", "xmax", "ymin", "ymax")
+rgb_tile_extents <- function(nd, prefix = "") {
+  tifs <- list.files(file.path(nd, "rgb"), pattern = "\\.tif$", recursive = TRUE,
+                     full.names = TRUE)
+  if (length(tifs)) {
+    e <- do.call(rbind, lapply(tifs, function(f) as.vector(terra::ext(terra::rast(f)))))
+    x <- data.frame(tile = basename(tifs), xmin = e[, 1], xmax = e[, 2],
+                    ymin = e[, 3], ymax = e[, 4], stringsAsFactors = FALSE)
+  } else {
+    idx <- file.path(nd, "rgb_tiles.csv")
+    if (!file.exists(idx)) return(NULL)
+    x <- read.csv(idx, stringsAsFactors = FALSE)
+    if (!all(RGB_TILE_COLS %in% names(x))) stop("invalid RGB tile index ", idx, call. = FALSE)
+    x <- x[, RGB_TILE_COLS]
+  }
+  x <- x[startsWith(x$tile, prefix), , drop = FALSE]
+  if (nrow(x)) x else NULL
+}
+write_rgb_tile_index <- function(nd, out = file.path(nd, "rgb_tiles.csv")) {
+  x <- rgb_tile_extents(nd)
+  if (is.null(x)) return(invisible(NULL))
+  write.csv(x, out, row.names = FALSE)
+  invisible(out)
+}
+
 # Require completed RGB tiles over the whole scoring window. An empty CSV is a
 # completed detector run; an absent CSV or missing tile is unavailable evidence.
 deepforest_plot_boxes <- function(nd, site, cx, cy, half, year = "2021") {
-  tifs <- list.files(file.path(nd, "rgb"), pattern = "\\.tif$", recursive = TRUE,
-                     full.names = TRUE)
-  tifs <- tifs[startsWith(basename(tifs), paste0(year, "_", site, "_"))]
-  if (!length(tifs)) return(NULL)
-  extents <- lapply(tifs, function(f) as.vector(terra::ext(terra::rast(f))))
+  tiles <- rgb_tile_extents(nd, paste0(year, "_", site, "_"))
+  if (is.null(tiles)) return(NULL)
+  extents <- lapply(seq_len(nrow(tiles)), function(i)
+    unlist(tiles[i, c("xmin", "xmax", "ymin", "ymax")], use.names = FALSE))
   hit <- vapply(extents, function(e) e[1] < cx + half && e[2] > cx - half &&
                   e[3] < cy + half && e[4] > cy - half, logical(1))
   if (!any(hit)) return(NULL)
@@ -179,7 +206,7 @@ deepforest_plot_boxes <- function(nd, site, cx, cy, half, year = "2021") {
     any(vapply(extents[hit], function(e) corners$x[i] >= e[1] && corners$x[i] <= e[2] &&
                  corners$y[i] >= e[3] && corners$y[i] <= e[4], logical(1))), logical(1))
   if (!all(covered)) return(NULL)
-  paths <- file.path(nd, "deepforest_boxes", sub("\\.tif$", ".csv", basename(tifs[hit])))
+  paths <- file.path(nd, "deepforest_boxes", sub("\\.tif$", ".csv", tiles$tile[hit]))
   if (!all(file.exists(paths))) return(NULL)
   boxes <- lapply(paths, function(p) read.csv(p, stringsAsFactors = FALSE))
   if (!all(vapply(boxes, function(b) all(c("x", "y", "score") %in% names(b)), logical(1))))

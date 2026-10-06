@@ -32,9 +32,19 @@ plot_half <- function(plotType) ifelse(plotType == "tower", 20, 10)
 # error drop the cell silently. Sequential runs and fresh PSOCK workers never
 # failed. Workers attach the caller's packages, run lidR single-threaded and
 # receive every global object; a closure FUN carries its own environment.
+# The sequential path runs lidR single-threaded too: lidRplugins' lmfauto
+# breaks height ties differently from run to run under several threads, so
+# results would otherwise depend on CORES.
 plot_lapply <- function(X, FUN, ..., mc.cores = 1L, mc.preschedule = FALSE) {
   cores <- min(as.integer(mc.cores), length(X))
-  if (cores <= 1L) return(lapply(X, FUN, ...))
+  if (cores <= 1L) {
+    if ("lidR" %in% loadedNamespaces()) {
+      threads <- lidR::get_lidr_threads()
+      lidR::set_lidr_threads(1L)
+      on.exit(lidR::set_lidr_threads(threads), add = TRUE)
+    }
+    return(lapply(X, FUN, ...))
+  }
   cl <- parallel::makePSOCKcluster(cores, outfile = "")   # keep workers' messages
   on.exit(parallel::stopCluster(cl), add = TRUE)
   parallel::clusterCall(cl, function(pkgs, job, opts) {

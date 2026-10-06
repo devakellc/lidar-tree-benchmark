@@ -22,6 +22,7 @@ source(.find("master_tables_lib.R"))
 # historical reference count.
 #   Rscript scripts/master_tables.R [SITES=SJER,SOAP,TEAK,WREF,ABBY] [POP=adopted]
 #     [FROZEN_ROOT=...] [N_BOOT=1000] [SEED=20261002] [OUT=...]
+#     [RUNG_JOBS=<job dir>:<root>,...]
 # CLAUDE_JOB_DIR is the re-run job directory (arm outputs under neon/<SITE>).
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
@@ -37,32 +38,8 @@ if (!frozen_sealed(ROOT)) stop("No sealed frozen root at ", ROOT)
 dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 
 ## ---- arms ------------------------------------------------------------------
-# One row per benchmark arm: the results file it writes, the rungs it is run
-# at, and the stamped directory or resume sidecar that ties it to the root.
-MT_ARMS <- data.frame(
-  arm = c("chm_vwf", "multichm", "lmfauto", "ptrees", "ams3d", "li2012",
-          "forestformer3d", "treeisonet", "segmentanytree", "deepforest",
-          "detectree2", "sam2point"),
-  file = c(rep("lidrplugins_results.csv", 4), "ams3d_results.csv", "li2012_results.csv",
-           "forestformer3d_results.csv", "treeisonet_results.csv",
-           "segmentanytree_results.csv", "deepforest_results.csv",
-           "detectree2_results.csv", "sam2point_results.csv"),
-  rungs = c(rep("native,8,4,2,1", 5), "native", rep("native,8,4,2,1", 3),
-            "native", "native", "native"),
-  provenance = c("chm_vwf_detections", "multichm_detections", "lmfauto_detections",
-                 "ptrees_detections", "ams3d_instances", "li2012_instances",
-                 "forestformer3d_results.csv.frozen", "treeisonet_instances",
-                 "segmentanytree_results.csv.frozen", "deepforest_results.csv.frozen",
-                 "detectree2_results.csv.frozen", "sam2point_instances"),
-  # The RGB arms have no density ladder: they write rung "rgb", scored once
-  # per plot against the same reference, and join the native rung here.
-  result_rung = c(rep(NA, 9), "rgb", "rgb", NA),
-  # SAM2Point writes its arm as "sam2point_seeded", next to the bare CHM-VWF
-  # seeds it was prompted with ("chm_vwf_seeds", a diagnostic, not an arm).
-  detector = c("chm_vwf", "multichm", "lmfauto", "ptrees", "ams3d", "li2012",
-               "forestformer3d", "treeisonet", "segmentanytree", "deepforest",
-               "detectree2", "sam2point_seeded"),
-  stringsAsFactors = FALSE)
+# MT_ARMS (master_tables_lib.R): one row per arm with its results file, rungs
+# and provenance.
 
 pop  <- read.csv(file.path(ROOT, "population.csv"), stringsAsFactors = FALSE)
 pst  <- read.csv(file.path(ROOT, "population_stems.csv"), stringsAsFactors = FALSE)
@@ -72,27 +49,48 @@ nref_plot <- table(paste(pst$site[pst$population == POP], pst$plotID[pst$populat
                          sep = "::"))
 root_id <- frozen_root_id(ROOT)
 
-provenance_ok <- function(site, what) {
-  path <- file.path(d, "neon", site, what)
+# RUNG_JOBS=<job dir>:<root>[,...] adds rungs frozen into their own root (the
+# QL2 rung, for one) and run in their own job directory. The root must declare
+# this root's population and only new rungs; the ladder arms are read there at
+# its rungs, and each part carries its own status.
+parts <- list(list(dir = d, root = ROOT, id = root_id, cm = cm, rungs = NULL))
+for (x in split_arg(A$RUNG_JOBS, "")) {
+  p <- strsplit(x, ":", fixed = TRUE)[[1]]
+  if (length(p) != 2) stop("RUNG_JOBS entries are <job dir>:<root>")
+  if (!frozen_sealed(p[2])) stop("No sealed frozen root at ", p[2])
+  if (!identical(frozen_sha256(file.path(p[2], "population.csv")),
+                 frozen_sha256(file.path(ROOT, "population.csv"))))
+    stop("Root ", p[2], " declares a different population from ", ROOT)
+  rr <- as.character(frozen_root_rungs(p[2]))
+  if (any(rr %in% MT_RUNGS)) stop("Root ", p[2], " repeats rungs of ", ROOT)
+  parts[[length(parts) + 1]] <- list(dir = p[1], root = p[2], id = frozen_root_id(p[2]),
+                                     cm = frozen_clip_manifest(p[2]), rungs = rr)
+}
+RUNG_ORDER <- c("native", as.character(sort(unique(as.numeric(c(
+  MT_RUNGS[-1], unlist(lapply(parts, `[[`, "rungs"))))), decreasing = TRUE)))
+cm_all <- do.call(rbind, lapply(parts, function(x)
+  if (is.null(x$rungs)) x$cm else x$cm[x$cm$rung %in% x$rungs, , drop = FALSE]))
+
+provenance_ok <- function(part, site, what) {
+  path <- file.path(part$dir, "neon", site, what)
   if (grepl("\\.frozen$", what)) {
     if (!file.exists(path)) return(FALSE)
     id <- jsonlite::read_json(path, simplifyVector = TRUE)
-    return(identical(id$clip_manifest_sha256, root_id) && identical(id$population, POP))
+    return(identical(id$clip_manifest_sha256, part$id) && identical(id$population, POP))
   }
-  dir.exists(path) && frozen_stamp_check(path, ROOT, strict = FALSE)
+  dir.exists(path) && frozen_stamp_check(path, part$root, strict = FALSE)
 }
 # Results re-scored from persisted detections (rescore_population.R) carry no
 # artifact directory of their own; their <results>.frozen sidecar ties them to
 # the root and to this population instead.
-sidecar_ok <- function(site, file) provenance_ok(site, paste0(file, ".frozen"))
+sidecar_ok <- function(part, site, file) provenance_ok(part, site, paste0(file, ".frozen"))
 
-load_arm <- function(a) {
-  rungs <- strsplit(a$rungs, ",")[[1]]
-  need <- cm[cm$status == "ok" & cm$rung %in% rungs &
-               paste(cm$site, cm$plot) %in% paste(inpop$site, inpop$plotID), , drop = FALSE]
+load_part <- function(a, part, rungs) {
+  need <- part$cm[part$cm$status == "ok" & part$cm$rung %in% rungs &
+                    paste(part$cm$site, part$cm$plot) %in% paste(inpop$site, inpop$plotID), , drop = FALSE]
   need_key <- paste(need$site, need$plot, need$rung, sep = "::")
   rows <- do.call(rbind, lapply(SITES, function(site) {
-    f <- file.path(d, "neon", site, a$file)
+    f <- file.path(part$dir, "neon", site, a$file)
     if (!file.exists(f)) return(NULL)
     x <- read.csv(f, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
     x <- x[x$detector == a$detector, , drop = FALSE]
@@ -103,7 +101,7 @@ load_arm <- function(a) {
   }))
   have <- if (is.null(rows)) character() else paste(rows$site, rows$plot, rows$rung, sep = "::")
   stamped <- all(vapply(SITES, function(site)
-    provenance_ok(site, a$provenance) || sidecar_ok(site, a$file), logical(1)))
+    provenance_ok(part, site, a$provenance) || sidecar_ok(part, site, a$file), logical(1)))
   missing <- setdiff(need_key, have)
   status <- if (is.null(rows)) "pending re-run: no output on the root" else
     if (!stamped) "pending re-run: outputs not stamped with the sealed root" else
@@ -119,18 +117,31 @@ load_arm <- function(a) {
     if (any(is.na(expect) | rows$n_ref != expect))
       stop("Reference of ", a$arm, " differs from the declared ", POP, " population")
   }
-  list(status = data.frame(arm = a$arm, file = a$file, rungs = a$rungs, status = status,
-                           cells_present = length(intersect(need_key, have)),
+  list(status = data.frame(arm = a$arm, file = a$file, rungs = paste(rungs, collapse = ","),
+                           status = status, cells_present = length(intersect(need_key, have)),
                            cells_required = length(need_key), stringsAsFactors = FALSE),
        rows = if (status == "included") rows else NULL)
+}
+# The headline root's part decides whether an arm is included; added rungs
+# join only for the full-ladder arms, each part on its own.
+load_arm <- function(a) {
+  rungs <- strsplit(a$rungs, ",")[[1]]
+  out <- list(load_part(a, parts[[1]], rungs))
+  if ("1" %in% rungs) for (part in parts[-1]) out[[length(out) + 1]] <- load_part(a, part, part$rungs)
+  keep <- function(r) {                      # scores plus the recall strata
+    for (k in setdiff(MT_STRATUM_COLS, names(r))) r[[k]] <- NA_real_
+    r[, c("site", "plot", "rung", "detector", "n_ref", "n_det", "TP", "precision",
+          "tp_core", MT_STRATUM_COLS)]
+  }
+  list(status = do.call(rbind, lapply(out, `[[`, "status")),
+       rows = if (is.null(out[[1]]$rows)) NULL else do.call(rbind, lapply(out, function(x)
+         if (is.null(x$rows)) NULL else keep(x$rows))))
 }
 
 loaded <- lapply(split(MT_ARMS, seq_len(nrow(MT_ARMS))), load_arm)
 arm_status <- do.call(rbind, lapply(loaded, `[[`, "status"))
-rows <- do.call(rbind, lapply(loaded, function(x)
-  if (is.null(x$rows)) NULL else x$rows[, c("site", "plot", "rung", "detector", "n_ref",
-                                             "n_det", "TP", "precision", "tp_core")]))
-included <- arm_status$arm[arm_status$status == "included"]
+rows <- do.call(rbind, lapply(loaded, `[[`, "rows"))
+included <- arm_status$arm[arm_status$status == "included" & !duplicated(arm_status$arm)]
 if (!length(included)) stop("No arm is complete on the sealed root yet")
 
 ## ---- nominal-box scores with paired intervals --------------------------------
@@ -153,8 +164,17 @@ score_scope <- function(x, W, table, scope) {
   if (!is.null(con)) con <- cbind(table = table, population = POP, scope = scope, con)
   list(long = long, contrasts = con)
 }
+# Five sites pooled, each region (when both are present) and each site.
 scope_runs <- function(x, W, table) {
   res <- list(score_scope(x, W, table, "five sites"))
+  site_of <- sub("::.*", "", rownames(W))
+  for (rg in names(MT_REGIONS)) {
+    sites <- intersect(MT_REGIONS[[rg]], unique(x$site))
+    if (!length(sites) || setequal(sites, unique(x$site))) next
+    keep <- site_of %in% sites
+    res[[rg]] <- score_scope(x[x$site %in% sites, , drop = FALSE], W[keep, , drop = FALSE],
+                             table, rg)
+  }
   for (site in intersect(SITES, unique(x$site))) {
     keep <- grepl(paste0("^", site, "::"), rownames(W))
     res[[site]] <- score_scope(x[x$site == site, , drop = FALSE], W[keep, , drop = FALSE],
@@ -180,20 +200,26 @@ nominal <- scope_by_rung(eq, "nominal box")
 ## ---- census-support scores ----------------------------------------------------
 # score_census_support.R writes <rule>_ladder (the ladder arms, every rung)
 # and <rule>_native (adds Li 2012); a cell scored in both is kept once.
+# An added-rung part's job directory contributes its own rungs only.
 census_rows <- function(rule) {
-  files <- file.path(d, "census_support_scores", paste0(rule, c("_ladder", "_native")),
-                     "census_support_scores.csv")
-  x <- do.call(rbind, lapply(files[file.exists(files)], function(f)
-    read.csv(f, stringsAsFactors = FALSE, colClasses = c(rung = "character"))))
+  x <- do.call(rbind, lapply(parts, function(part) {
+    files <- file.path(part$dir, "census_support_scores", paste0(rule, c("_ladder", "_native")),
+                       "census_support_scores.csv")
+    y <- do.call(rbind, lapply(files[file.exists(files)], function(f)
+      read.csv(f, stringsAsFactors = FALSE, colClasses = c(rung = "character"))))
+    if (!is.null(y) && !is.null(part$rungs)) y <- y[y$rung %in% part$rungs, , drop = FALSE]
+    y
+  }))
   if (is.null(x)) return(NULL)
   x <- x[!duplicated(paste(x$site, x$plot, x$rung, x$detector)), , drop = FALSE]
   x[x$site %in% SITES & x$detector %in% included, , drop = FALSE]
 }
-census <- list(); census_counts <- list()
+census <- list(); census_counts <- list(); census_eq <- list()
 for (rule in c("nearest", "exact")) {
   x <- census_rows(rule)
   if (is.null(x) || !nrow(x)) next
   cx <- mt_equal_support(x, unique(x$detector))
+  census_eq[[rule]] <- cx
   label <- if (rule == "nearest") "census, nearest census (headline)" else
     "census, exact 2021 (check)"
   census[[rule]] <- scope_by_rung(cx, label)
@@ -208,12 +234,15 @@ long <- do.call(rbind, c(list(nominal$long), lapply(census, `[[`, "long")))
 long$status <- "included"
 contrasts <- do.call(rbind, c(list(nominal$contrasts), lapply(census, `[[`, "contrasts")))
 # Arms not yet complete on the root stay visible as explicit pending rows.
+# A pending added-rung part names its rungs; a pending arm has no rung.
+added <- duplicated(arm_status$arm)
 pending <- arm_status[arm_status$status != "included", , drop = FALSE]
 if (nrow(pending)) {
   pend <- long[rep(1, nrow(pending)), , drop = FALSE]
   pend[] <- NA
   pend$table <- "nominal box"; pend$population <- POP; pend$scope <- "five sites"
   pend$detector <- pending$arm; pend$status <- pending$status
+  pend$rung <- ifelse(added[arm_status$status != "included"], pending$rungs, NA)
   long <- rbind(long, pend)
 }
 rownames(long) <- NULL
@@ -310,6 +339,95 @@ for (rule in names(census_counts)) {
 }
 write.csv(ref, file.path(OUT, "reference_population.csv"), row.names = FALSE)
 
+## ---- measured density per rung ------------------------------------------------------
+# Rungs are named by their all-return decimation target (points/m²); densities
+# are reported as measured first-return pulses/m². Both are measured per cell in
+# the clip manifest, over the population's usable cells.
+pop_cells <- cm_all[cm_all$status == "ok" &
+                  paste(cm_all$site, cm_all$plot) %in% paste(inpop$site, inpop$plotID), , drop = FALSE]
+dens_row <- function(x, scope) data.frame(scope = scope, rung = x$rung[1], cells = nrow(x),
+  points_median = median(x$pdens), pulses_median = median(x$frdens),
+  pulses_q25 = unname(quantile(x$frdens, 0.25)), pulses_q75 = unname(quantile(x$frdens, 0.75)),
+  stringsAsFactors = FALSE)
+dens <- do.call(rbind, lapply(RUNG_ORDER, function(r) {
+  x <- pop_cells[pop_cells$rung == r, , drop = FALSE]
+  if (!nrow(x)) return(NULL)
+  rbind(dens_row(x, "five sites"), do.call(rbind, lapply(SITES, function(s) {
+    y <- x[x$site == s, , drop = FALSE]
+    if (nrow(y)) dens_row(y, s) })))
+}))
+write.csv(dens, file.path(OUT, "rung_density.csv"), row.names = FALSE)
+pooled_pulses <- setNames(dens$pulses_median[dens$scope == "five sites"],
+                          dens$rung[dens$scope == "five sites"])
+
+## ---- recall by crown class and height band ---------------------------------------
+# On the nominal box's equal support and the same plot resamples as its scores.
+# Detections carry no crown class, so strata have recall only.
+stratum_scores <- function(x, table) do.call(rbind, lapply(unique(x$rung), function(r) {
+  xr <- x[x$rung == r, , drop = FALSE]
+  st <- do.call(rbind, lapply(split(xr, xr$detector), mt_stratum_rows))
+  if (is.null(st)) return(NULL)
+  bad <- unique(st$detector[is.na(st$TP) | is.na(st$n_ref)])
+  st <- st[!st$detector %in% bad, , drop = FALSE]
+  if (!nrow(st)) return(NULL)
+  W <- mt_plot_weights(xr$site, xr$plot, N_BOOT, SEED)
+  site_of <- sub("::.*", "", rownames(W))
+  scopes <- c(list(`five sites` = SITES), MT_REGIONS)
+  do.call(rbind, lapply(names(scopes), function(sc) {
+    sites <- intersect(scopes[[sc]], unique(st$site))
+    if (!length(sites) || (sc != "five sites" && setequal(sites, unique(st$site)))) return(NULL)
+    s <- mt_boot_scores(st[st$site %in% sites, , drop = FALSE],
+                        W[site_of %in% sites, , drop = FALSE], c("detector", "rung", "stratum"))
+    cbind(table = table, population = POP, scope = sc, mt_intervals(s, "recall"))
+  }))
+}))
+strata <- rbind(stratum_scores(eq, "nominal box"),
+                if (!is.null(census_eq$nearest))
+                  stratum_scores(census_eq$nearest, "census, nearest census (headline)"))
+write.csv(strata, file.path(OUT, "master_strata.csv"), row.names = FALSE)
+
+## ---- regions ------------------------------------------------------------------------
+# Each arm's lead over CHM-VWF in California and in Washington, and their
+# difference, paired over the plot resamples of the five-site scores.
+region_leads <- function(x, table) do.call(rbind, lapply(unique(x$rung), function(r) {
+  xr <- x[x$rung == r, , drop = FALSE]
+  if (!"chm_vwf" %in% xr$detector) return(NULL)
+  W <- mt_plot_weights(xr$site, xr$plot, N_BOOT, SEED)
+  do.call(rbind, lapply(c("recall", "precision", "F1"), function(m) {
+    z <- mt_region_leads(xr, W, "chm_vwf", metric = m)
+    if (!is.null(z)) cbind(table = table, population = POP, z)
+  }))
+}))
+leads <- rbind(region_leads(eq, "nominal box"),
+               if (!is.null(census_eq$nearest))
+                 region_leads(census_eq$nearest, "census, nearest census (headline)"))
+write.csv(leads, file.path(OUT, "master_region_leads.csv"), row.names = FALSE)
+
+## ---- rank stability -------------------------------------------------------------------
+# Spearman correlation of the full-ladder arms' F1 at native density with
+# their F1 at each decimated rung, with a plot-bootstrap interval.
+rank_rows <- function(x, table) do.call(rbind, lapply(setdiff(RUNG_ORDER, "native"), function(r) {
+  z <- mt_rank_stability(x, "native", r, N_BOOT, SEED)
+  if (!is.null(z)) cbind(table = table, population = POP, z)
+}))
+rank <- rbind(rank_rows(eq, "nominal box"),
+              if (!is.null(census_eq$nearest))
+                rank_rows(census_eq$nearest, "census, nearest census (headline)"))
+write.csv(rank, file.path(OUT, "master_rank_stability.csv"), row.names = FALSE)
+
+## ---- change across the ladder ----------------------------------------------------------
+# Each arm's change from native density to every rung, paired on shared plots,
+# over five sites, each region and each site.
+ladder_scopes <- c(list(`five sites` = SITES), MT_REGIONS, setNames(as.list(SITES), SITES))
+ladder_rows <- function(x, table) {
+  z <- mt_rung_contrasts(x, ladder_scopes, n_boot = N_BOOT, seed = SEED)
+  if (is.null(z)) NULL else cbind(table = table, population = POP, z)
+}
+ladder <- rbind(ladder_rows(eq, "nominal box"),
+                if (!is.null(census_eq$nearest))
+                  ladder_rows(census_eq$nearest, "census, nearest census (headline)"))
+write.csv(ladder, file.path(OUT, "master_rung_contrasts.csv"), row.names = FALSE)
+
 ## ---- markdown --------------------------------------------------------------------
 fmt <- function(e, l, u) ifelse(is.na(e), "—", sprintf("%.3f [%.3f, %.3f]", e, l, u))
 md <- c("<!-- generated by scripts/master_tables.R -->", "")
@@ -317,30 +435,72 @@ headline <- function(tab, scope, title) {
   x <- long[long$table == tab & long$scope == scope & long$status == "included", , drop = FALSE]
   if (!nrow(x)) return(character())
   out <- c(paste0("### ", title), "",
-           "| Arm | Rung | Plots | Stems | Recall | Precision | F1 |",
-           "| --- | --- | --- | --- | --- | --- | --- |")
-  for (r in MT_RUNGS) for (a in included) {
+           "| Arm | Rung | Pulses/m² | Plots | Stems | Recall | Precision | F1 |",
+           "| --- | --- | --- | --- | --- | --- | --- | --- |")
+  for (r in RUNG_ORDER) for (a in included) {
     y <- x[x$detector == a & x$rung == r, , drop = FALSE]
     if (!nrow(y)) next
     g <- function(m) { z <- y[y$metric == m, ]; fmt(z$estimate, z$lower, z$upper) }
-    out <- c(out, sprintf("| %s | %s | %d | %d | %s | %s | %s |", a, r, y$n_plots[1],
-                          y$n_ref[1], g("recall"), g("precision"), g("F1")))
+    out <- c(out, sprintf("| %s | %s | %.1f | %d | %d | %s | %s | %s |", a, r,
+                          pooled_pulses[[r]], y$n_plots[1], y$n_ref[1],
+                          g("recall"), g("precision"), g("F1")))
   }
   c(out, "")
 }
 md <- c(md, headline("nominal box", "five sites", "Nominal box, five sites pooled"),
         headline("census, nearest census (headline)", "five sites",
                  "Censused subplots, nearest census, five sites pooled"))
+md <- c(md, "### Measured density per rung", "",
+        paste("Rung = all-return decimation target (points/m²); Pulses/m² = measured",
+              "first-return density, median [interquartile range] over the population's cells.",
+              "The Pulses/m² column of the tables above is the five-site median."), "",
+        "| Scope | Rung | Cells | Points/m² (median) | Pulses/m² median [IQR] |",
+        "| --- | --- | --- | --- | --- |",
+        sprintf("| %s | %s | %d | %.1f | %.1f [%.1f, %.1f] |", dens$scope, dens$rung, dens$cells,
+                dens$points_median, dens$pulses_median, dens$pulses_q25, dens$pulses_q75), "")
+strata_md <- function(tab, rung, title) {
+  x <- strata[strata$table == tab & strata$scope == "five sites" & strata$rung == rung, , drop = FALSE]
+  if (is.null(x) || !nrow(x)) return(character())
+  cols <- c("overstory", "understory", "dominant", "codominant", "intermediate", "suppressed")
+  out <- c(paste0("### ", title), "",
+           paste0("| Arm | ", paste(sprintf("%s (n = %d)", cols, vapply(cols, function(k)
+             as.integer(x$n_ref[x$stratum == k][1]), integer(1))), collapse = " | "), " |"),
+           paste0("| --- |", strrep(" --- |", length(cols))))
+  for (a in intersect(included, x$detector)) {
+    y <- x[x$detector == a, , drop = FALSE]
+    out <- c(out, paste0("| ", a, " | ", paste(vapply(cols, function(k) {
+      z <- y[y$stratum == k, ]; fmt(z$estimate, z$lower, z$upper) }, ""), collapse = " | "), " |"))
+  }
+  c(out, "")
+}
+md <- c(md, strata_md("nominal box", "native", "Recall by crown class, nominal box, native density, five sites"))
+if (!is.null(leads) && nrow(leads)) {
+  z <- leads[leads$table == "nominal box" & leads$rung == "native" & leads$metric == "F1", , drop = FALSE]
+  if (nrow(z)) md <- c(md, "### F1 lead over CHM-VWF by region, nominal box, native density", "",
+    "| Arm | California | Washington | California minus Washington |", "| --- | --- | --- | --- |",
+    sprintf("| %s | %+.3f | %+.3f | %+.3f [%+.3f, %+.3f] |", z$arm, z$lead_california,
+            z$lead_washington, z$estimate, z$lower, z$upper), "")
+}
+if (!is.null(rank) && nrow(rank))
+  md <- c(md, "### Rank stability of the full-ladder arms", "",
+          "Spearman correlation of F1 at native density with F1 at each rung.", "",
+          "| Table | Rung | Arms | Plots | Spearman [95% interval] |", "| --- | --- | --- | --- | --- |",
+          sprintf("| %s | %s | %d | %d | %s |", rank$table, rank$to, rank$arms, rank$n_plots,
+                  fmt(rank$estimate, rank$lower, rank$upper)), "")
 md <- c(md, "### Arm status", "", "| Arm | Status | Cells |", "| --- | --- | --- |",
         sprintf("| %s | %s | %d / %d |", arm_status$arm, arm_status$status,
                 arm_status$cells_present, arm_status$cells_required), "")
 writeLines(md, file.path(OUT, "master_tables.md"))
 
 code <- vapply(c("master_tables.R", "master_tables_lib.R", "model_bench_lib.R"), .find, character(1))
-jsonlite::write_json(list(population = POP, sites = SITES, n_boot = N_BOOT, seed = SEED,
-                          clip_manifest_sha256 = root_id, included = included,
-                          code_md5 = unname(tools::md5sum(code))),
-                     file.path(OUT, "master_contract.json"), auto_unbox = TRUE, pretty = TRUE)
+contract <- list(population = POP, sites = SITES, n_boot = N_BOOT, seed = SEED,
+                 clip_manifest_sha256 = root_id, included = included,
+                 code_md5 = unname(tools::md5sum(code)))
+if (length(parts) > 1)                       # rungs from their own roots (RUNG_JOBS)
+  contract$rung_roots <- lapply(parts[-1], function(x)
+    list(rungs = I(x$rungs), clip_manifest_sha256 = x$id))
+jsonlite::write_json(contract, file.path(OUT, "master_contract.json"), auto_unbox = TRUE,
+                     pretty = TRUE)
 print(arm_status, row.names = FALSE)
 cat(sprintf("wrote %s (%d rows), contrasts (%d rows), reference_population (%d rows)\n",
             file.path(OUT, "master_long.csv"), nrow(long), nrow(contrasts), nrow(ref)))

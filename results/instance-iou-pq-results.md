@@ -248,23 +248,26 @@ stitched labels in the June adapter. The June runs also used their own native
 clips, so a small part of the change can come from the input clip.
 
 Re-run board, all five sites, native density (106 cells; n_ref 2,508 stems
-with at least one canopy point). AMS3D, Li 2012 and `ptrees` masks are from
-the same frozen clips. SegmentAnyTree has not been re-run on the frozen
-population yet, so it is not on this board:
+with at least one canopy point). AMS3D, Li 2012, `ptrees` and SegmentAnyTree
+masks are from the same frozen clips; SegmentAnyTree's are its persisted
+instance clouds on the sealed root:
 
 | model | cells | n_ref | P | R | F1 | Cov | SQ | PQ |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
+| segmentanytree | 106 | 2508 | 0.119 | 0.211 | 0.152 | 0.330 | 0.646 | 0.098 |
 | forestformer3d | 106 | 2508 | 0.104 | 0.192 | 0.135 | 0.326 | 0.647 | 0.087 |
 | li2012 | 106 | 2508 | 0.099 | 0.185 | 0.129 | 0.309 | 0.640 | 0.083 |
 | ptrees | 106 | 2508 | 0.055 | 0.208 | 0.087 | 0.337 | 0.644 | 0.056 |
 | ams3d | 106 | 2508 | 0.035 | 0.183 | 0.058 | 0.303 | 0.653 | 0.038 |
 | treeisonet | 106 | 2508 | 0.026 | 0.020 | 0.023 | 0.119 | 0.661 | 0.015 |
 
-Mask F1 down the density ladder (same 106 plots at every rung; "--" means no
+Mask F1 down the density ladder (same 106 plots at every rung; rungs in
+measured first-return pulses/m², median over the cells; "--" means no
 predicted mask matched):
 
-| model | native | 8 | 4 | 2 | 1 |
+| model | native (9.8) | 8 (4.7) | 4 (2.5) | 2 (1.3) | 1 (0.6) |
 |---|--:|--:|--:|--:|--:|
+| segmentanytree | 0.152 | 0.152 | 0.150 | 0.115 | 0.046 |
 | forestformer3d | 0.135 | 0.139 | 0.149 | 0.147 | 0.168 |
 | ams3d | 0.058 | 0.071 | 0.093 | 0.113 | 0.140 |
 | ptrees | 0.087 | 0.123 | 0.110 | 0.095 | 0.067 |
@@ -272,8 +275,18 @@ predicted mask matched):
 
 **Re-run readings.**
 
-- ForestFormer3D now has the best native mask F1 and PQ on the five-site
-  board, narrowly ahead of Li 2012. Its mask F1 does not fall with density.
+- These scores are against the Voronoi-on-stems proxy, not true crowns. On
+  FGI-EMIT, where true labels exist, the same proxy built from crown centroids
+  and measured crown widths cuts ForestFormer3D's mask F1 from 0.72 to 0.49
+  and SegmentAnyTree's from 0.62 to 0.47, keeping their order but compressing
+  the gap ([proxy validation](fgiemit-proxy-validation-results.md)). Read the
+  board as a ranking, not as absolute mask quality; the paper keeps it in the
+  supplement.
+- SegmentAnyTree has the best native mask F1 and PQ on the five-site board
+  (0.152 and 0.098), ahead of ForestFormer3D (0.135 and 0.087) and Li 2012.
+  Its masks hold to 2.5 pulses/m² and then fall (0.115 at 1.3 and 0.046 at
+  0.6 pulses/m²), the same cliff as its apex F1. ForestFormer3D's mask F1
+  does not fall with density.
 - TreeisoNet's masks are poor at the checkpoint voxel: F1 0.023 at native
   density and no matched mask at 1 pt/m2. The voxel is the cause; see the
   mask-voxel sensitivity below.
@@ -313,11 +326,44 @@ apex voxel, TreeisoNet's masks match ForestFormer3D's on the five-site board
 to 1 pt/m2. Native recall at IoU 0.5 is 0.32 for dominant, 0.20 for
 codominant and 0.09 for understory stems.
 
-The headline board above keeps the checkpoint voxel, the setting fixed before
-these runs. Reporting TreeisoNet masks at the apex voxel instead is a change
-of configuration, to be declared before it replaces the headline row.
+**Declared mask voxel.** The paper reports TreeisoNet masks at the
+checkpoint voxel, the setting fixed before these runs (the mask pass inherited
+it from the June crown arm and the FGI-EMIT transfer audit). The apex-voxel
+masks were scored after the five-site results were seen, so they stay a
+post hoc sensitivity, reported beside the headline row and never in its
+place. The headline board therefore understates what TreeisoNet's masks can
+do at the voxel its apex pass uses.
 
 ## Matching-rule sensitivity (#V2)
+
+### Five sites
+
+Distance F1 (the master tables, nominal box, native density) against the
+native mask board above, over the six arms with native masks:
+
+| arm | distance F1 | rank | mask F1 | rank | PQ | rank | IoU recall | rank |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|
+| forestformer3d | 0.498 | 1 | 0.135 | 2 | 0.087 | 2 | 0.192 | 3 |
+| segmentanytree | 0.495 | 2 | 0.152 | 1 | 0.098 | 1 | 0.211 | 1 |
+| li2012 | 0.456 | 3 | 0.129 | 3 | 0.083 | 3 | 0.185 | 4 |
+| treeisonet | 0.446 | 4 | 0.023 | 6 | 0.015 | 6 | 0.020 | 6 |
+| ptrees | 0.331 | 5 | 0.087 | 4 | 0.056 | 4 | 0.208 | 2 |
+| ams3d | 0.240 | 6 | 0.058 | 5 | 0.038 | 5 | 0.183 | 5 |
+
+Kendall τ between the distance ranking and the mask F1 or PQ ranking is 0.60,
+and 0.33 against IoU recall. Two arms account for the disagreement:
+TreeisoNet, fourth on distance and last on masks at its checkpoint voxel, and
+the top pair, whose distance F1 differ by 0.004 while SegmentAnyTree leads on
+every mask metric. Per site, with six arms each, τ against PQ ranges from 0.33
+(TEAK, ABBY) to 0.87 (SJER), and against IoU recall from −0.60 (ABBY) to 0.60
+(WREF): too few arms for a per-site ranking to be stable.
+`compare_matching_rules.R SITE=<site>` on the paper runs writes the per-site
+tables.
+
+### Historical D17 runs
+
+The tables below use the June 2026 runs on the historical three-site
+population.
 
 If the router (#P2) selects "best arm per rung", that choice is only trustworthy
 if the ranking is stable across reasonable metrics. This recomputes the SOAP

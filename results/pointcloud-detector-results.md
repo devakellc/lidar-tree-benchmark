@@ -1,5 +1,12 @@
 # Point-Cloud Detectors vs CHM-VWF at Native Density — Results
 
+> **Historical (June 2026, three-site population).** The paper's point-cloud
+> numbers are on the frozen five-site population: Li 2012, AMS3D and `ptrees`
+> against CHM-VWF with intervals in the
+> [model benchmark](model-benchmark-results.md#five-sites-every-arm-paper-numbers),
+> and understory recall by crown class in the
+> [master tables](master-tables-results.md#recall-by-crown-class).
+
 *Addresses [issue #6](https://github.com/agrigoriev/lidar_tree_benchmarks/issues/6):
 "Add a point-cloud detector arm (Li 2012) at native density vs CHM-VWF". The
 density-ladder sweep ([density-ladder-sweep-results.md](density-ladder-sweep-results.md))

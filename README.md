@@ -39,77 +39,72 @@ without downloading a benchmark dataset.
 
 ### Detection across point densities
 
-The [NEON model comparison](results/model-benchmark-results.md) evaluates
-classical CHM methods, point-cloud detectors, and learned instance models on
-SJER, SOAP, and TEAK. On SOAP's common set of 18 plots and 232 field stems:
+The paper's numbers come from the [master tables](results/master-tables-results.md):
+every arm on one declared population of five NEON sites (SJER, SOAP and TEAK
+in California; WREF and ABBY in Washington; 106 plots and 2,525 field stems).
+The [frozen-clip study](results/frozen-clips-results.md) fixes hash-verified
+clips at native density (median 9.8 first-return pulses/m²) and at four
+decimated rungs (4.7, 2.5, 1.3 and 0.6 pulses/m²), plus a rung at the USGS
+QL2 floor (2.0 pulses/m²) frozen in its own root. Every pooled number and
+arm-versus-arm difference carries a paired plot-bootstrap interval.
 
-- SegmentAnyTree reaches native-density detection F1 **0.48**, compared with
-  **0.38** for CHM variable-window filtering (CHM-VWF). Its F1 falls to **0.13**
-  at 1 point/m², showing that native-density performance does not establish
-  sparse-density performance.
-- The classical `multichm` detector is more stable across the density ladder,
-  with F1 **0.42–0.47** from native density through 1 point/m².
-- In the [paired RGB-LiDAR study](results/rgb-lidar-fusion-results.md), adding
-  RGB detections to the LiDAR union at 1 point/m² raises recall from **0.677**
-  to **0.741**, while F1 falls from **0.414** to **0.406**. Optical boxes and
-  native-CHM heights are fixed across rungs; this is not a wholly sparse-input
-  experiment.
-- The [native sparse epoch study](results/native-sparse-epoch-results.md)
-  compares earlier, sparser NEON flights (SJER 2017, SOAP and TEAK 2018,
-  about 4–5 first returns per m²) with the 2021 clouds decimated to the
-  bracketing rungs, on the same 586 stems. Decimation is mildly optimistic for
-  CHM-VWF and `multichm` (recall **0.03–0.05** higher than the native flight)
-  and more so for SegmentAnyTree (**0.06** at 4 and **0.19** at 8 points/m²),
-  so its sparse-rung recall is an upper bound.
+- At native density ForestFormer3D (F1 **0.498**) and SegmentAnyTree
+  (**0.495**) lead CHM variable-window filtering (CHM-VWF, **0.450**) by
+  **+0.048 [+0.028, +0.069]** and **+0.044 [+0.021, +0.067]**. `multichm`,
+  Li 2012, DeepForest and TreeisoNet are indistinguishable from CHM-VWF.
+- SegmentAnyTree holds to the QL2 floor (F1 **0.449** at 2.0 pulses/m², level
+  with `multichm`, TreeisoNet and ForestFormer3D) and collapses below it
+  (**0.38** at 1.3 and **0.13** at 0.6 pulses/m²). TreeisoNet, `multichm` and
+  ForestFormer3D hold, and lead CHM-VWF by 0.05–0.07 at 0.6 pulses/m². Native
+  rank predicts rank down to the QL2 floor (Spearman 0.71) and not below
+  (−0.05 at 1.3 pulses/m²).
+- CHM-VWF is flat across density on the California sites but loses
+  0.07–0.10 F1 in Washington; one density curve does not describe every site.
+  See the [density-ladder study](results/density-ladder-sweep-results.md).
+- The point segmenters find understory stems best: AMS3D recalls **0.63** of
+  592 intermediate and suppressed stems, against **0.17** for CHM-VWF, at a
+  large precision cost.
+- Washington replicates the California ranking at the top. ForestFormer3D and
+  SegmentAnyTree lead CHM-VWF in both regions, and the
+  [configuration provenance](docs/configuration-provenance.md) shows that no
+  setting was chosen from Washington scores.
 
-These are field-stem detection scores. Incomplete mapping and event-specific
-sampling footprints limit their interpretation as complete-census precision.
-The [reference-support audit](results/neon-reference-support-results.md)
-documents those limits. Historical three-site and paired SOAP studies use
-separate reference populations; compare methods within each study.
+The [model comparison](results/model-benchmark-results.md#five-sites-every-arm-paper-numbers)
+gives every arm by rung and site; the [detector table](results/detector-table.md)
+gives each arm's type, input, training data, hashes and licence, and the
+[compute-cost table](results/compute-cost-results.md) its wall time and memory
+per plot (seconds for the classical arms, TreeisoNet and Detectree2; one to
+seven minutes for the other learned arms). The
+[native sparse epoch study](results/native-sparse-epoch-results.md) compares
+earlier, sparser NEON flights (SJER 2017, SOAP and TEAK 2018, about 4–5 first
+returns per m²) with the 2021 clouds decimated to the bracketing rungs, on the
+same 586 stems. Decimation is mildly optimistic for CHM-VWF and `multichm`
+(recall **0.03–0.05** higher than the native flight) and more so for
+SegmentAnyTree (**0.06** at 2.5 and **0.19** at 4.7 pulses/m²), so its
+sparse-rung recall is an upper bound.
 
-The [Pacific Northwest preflight](results/pacific-northwest-extension-results.md)
-admits NEON WREF and ABBY, flown in 2021 with the same sensor class, as two
-further sites. The new five-site reference keeps stems of at least 10 cm DBH:
-106 plots and 2,525 stems, against 46 plots and 699 stems in the historical
-SJER, SOAP and TEAK sweep; the classical and learned arms have been scored at
-the new sites, in the censused-subplot study below.
-The [frozen-clip study](results/frozen-clips-results.md) declares that
-population, keeps the six-stem plot gate and freezes one seeded clip per site,
-plot and density rung; every NEON arm now reads those hash-verified clips
-instead of decimating its own.
-
-ForestFormer3D and TreeisoNet have been re-run on all five sites with
-corrected adapters; the
-[re-run comparison](results/model-benchmark-results.md#corrected-adapter-re-runs-on-the-frozen-clips)
-supersedes their June 2026 rows. On the same 530 cells, native-density F1 is
-**0.50** for ForestFormer3D and **0.45** for TreeisoNet. At 1 point/m², both
-arms are near **0.42–0.44**. ForestFormer3D's June SOAP F1 of 0.26 rises to
-0.45 on the same plots. The June TreeisoNet failure on SJER and TEAK came from
-a different voxel setting on those sites.
-
-The [censused-subplot study](results/census-support-results.md) scores
+These are field-stem detection scores, and incomplete mapping limits their
+reading as complete-census precision; the
+[reference-support audit](results/neon-reference-support-results.md)
+documents those limits. The
+[censused-subplot study](results/census-support-results.md) therefore scores
 precision only inside surveyed, censused subplots, from each plot's nearest
-full census within four years of the 2021 flights, with subplots holding
-unmapped census trees excluded. It scores 57 of the 106 plots. On identical
-detections, censused precision is 0.08–0.34 higher than nominal-box precision
-(CHM-VWF at native density: 0.78 against 0.48), and at native density the
-classical arms keep their order. At native density SegmentAnyTree (**0.68**)
-and ForestFormer3D (**0.67**) have the highest censused F1, against **0.61**
-for CHM-VWF; SegmentAnyTree falls to **0.15** at 1 point/m². The
+full census within four years of the 2021 flights. It scores 57 of the 106
+plots. On identical detections, censused precision is 0.08–0.34 higher than
+nominal-box precision (CHM-VWF at native density: 0.78 against 0.48). At native
+density SegmentAnyTree (**0.68**) and ForestFormer3D (**0.67**) have the
+highest censused F1, against **0.61** for CHM-VWF. The
 [coverage-gap study](results/coverage-gap-results.md) brackets the same bias
 from the other side: crediting detections that two other arm families also
-find raises F1 by **+0.07 to +0.14** per arm on the paper population.
+find raises F1 by **+0.07 to +0.14** per arm.
 
-The [master tables](results/master-tables-results.md) fix one reference per
-site for every paper table (the declared population: 106 plots and 2,525
-stems), explain each earlier per-report count, and attach paired plot-level
-bootstrap intervals to every pooled number and arm-versus-arm difference. All
-twelve classical, learned point, RGB and promptable arms are in.
-ForestFormer3D (**+0.048 [+0.028, +0.069]**) and SegmentAnyTree
-(**+0.044 [+0.021, +0.067]**) are the arms whose native-density F1 beats
-CHM-VWF with intervals excluding zero on the nominal box; SegmentAnyTree falls
-to F1 0.13 at 1 point/m².
+ForestFormer3D and TreeisoNet were re-run on all five sites with corrected
+adapters; the
+[re-run comparison](results/model-benchmark-results.md#corrected-adapter-re-runs-on-the-frozen-clips)
+supersedes their June 2026 rows. The historical June study on SOAP (18 plots,
+232 stems), the paired [RGB-LiDAR study](results/rgb-lidar-fusion-results.md)
+and the other three-site reports use separate reference populations; compare
+methods within each study.
 
 The [point-cloud detector study](results/pointcloud-detector-results.md)
 compares native-density understory recovery by crown class, with a separate
@@ -157,6 +152,16 @@ unknown, and independent above-ground-height accuracy is unverified. These
 results therefore support a conditional within-dataset comparison, not proof
 of performance on unseen USGS or NEON data.
 
+Two development diagnostics bridge FGI-EMIT to the NEON benchmark. The
+[proxy validation](results/fgiemit-proxy-validation-results.md) builds NEON's
+Voronoi-on-stems mask reference from FGI-EMIT's true trees: it keeps the arms'
+order and compresses their mask scores. The
+[thinning study](results/fgiemit-thinning-results.md) thins the development
+plots to the NEON densities: ForestFormer3D still leads CHM-VWF by 0.17–0.21
+apex F1, three to four times its NEON lead, so the two datasets are reported
+as a contrast rather than a density effect. SegmentAnyTree collapses below
+2 pulses/m² on the thinned plots, as on NEON.
+
 ### TEAK and USGS-like data
 
 The [USGS 3DEP example](#usgs-3dep-aoi) demonstrates acquisition and processing.
@@ -177,6 +182,12 @@ and evaluation choices. The main principles are:
 - Measure density first. First-return density (`frdens`) controls CHM
   resolution, window size, and smoothing; all-return density (`pdens`)
   controls thinning and prevents requests to upsample sparse inputs.
+- Report density as first-return pulses/m². Rungs are named by their
+  all-return decimation target (8, 4, 2 and 1 points/m²); on the frozen
+  five-site population these give medians of 4.7, 2.5, 1.3 and 0.6
+  pulses/m², and the native clouds 9.8 (all-return 17.9 points/m²). The
+  [master tables](results/master-tables-results.md) list the measured density
+  of every rung and site.
 - Compare equivalent support. Keep site, plot, density, and reference support
   aligned across methods, and report missing or failed cells explicitly. All
   NEON arms read one declared plot population and one sealed set of frozen
@@ -233,6 +244,29 @@ resources, and accepted-run artifacts are prerequisites for the larger
 studies; a clone does not include them. Most R drivers use `KEY=VALUE`
 arguments, while Python drivers use flags. Check the selected script's parser
 and linked study instructions before changing its invocation.
+
+### Rebuild the paper tables
+
+The reproduction archive holds the sealed frozen clips, plot populations,
+every arm's per-cell results and persisted detections, and the census and
+sparse-epoch inputs. One command rebuilds every table of the frozen-clip
+benchmark from it on CPU, without inference, downloads or a NEON token, and
+checks each rebuilt file against the archived copy:
+
+```sh
+docker build -t lidar-tree-benchmark-reproduce reproduce
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/repo:ro \
+  -v /path/to/archive:/archive:ro -v /path/to/scratch:/out \
+  lidar-tree-benchmark-reproduce \
+  bash scripts/reproduce_paper_tables.sh ARCHIVE=/archive OUT=/out/run CORES=8
+```
+
+The image pins R 4.3.3, lasR, lidR and the geometry packages to the versions
+the tables were computed with. The [archive guide](docs/reproduction-archive.md)
+lists its layout and what it leaves out;
+[model-provenance.json](docs/model-provenance.json) records the checkpoint
+hashes, image IDs and source commits of the learned arms.
+`scripts/stage_archive.sh` builds the archive from a working directory.
 
 ### USGS 3DEP AOI
 
@@ -298,6 +332,9 @@ scripts and configuration.
 | NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R), [preflight_site_extension.R](scripts/preflight_site_extension.R) |
 | NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
 | NEON master tables and intervals | [master_tables.R](scripts/master_tables.R), [master_tables_lib.R](scripts/master_tables_lib.R) |
+| Paper sensitivities, figures and compute cost | [paper_sensitivity.R](scripts/paper_sensitivity.R), [paper_figures.R](scripts/paper_figures.R), [compute_cost.sh](scripts/compute_cost.sh), [compute_cost_cell.R](scripts/compute_cost_cell.R) |
+| Native 3DEP cross-check | [native_ql2_crosscheck.R](scripts/native_ql2_crosscheck.R), [native_ql2_paired.R](scripts/native_ql2_paired.R), [ept_discovery.R](scripts/ept_discovery.R) |
+| Reproduction archive and table rebuild | [stage_archive.sh](scripts/stage_archive.sh), [reproduce_paper_tables.sh](scripts/reproduce_paper_tables.sh), [compare_reproduction.R](scripts/compare_reproduction.R), [reproduce/Dockerfile](reproduce/Dockerfile) |
 | NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
 | Native sparse epochs | [prepare_sparse_epoch.R](scripts/prepare_sparse_epoch.R), [audit_sparse_epoch.R](scripts/audit_sparse_epoch.R), [compare_sparse_epoch.R](scripts/compare_sparse_epoch.R) |
 | NEON density ladder | [run_sweep.R](scripts/run_sweep.R), [analyze_sweep.R](scripts/analyze_sweep.R), [compare_sites.R](scripts/compare_sites.R) |

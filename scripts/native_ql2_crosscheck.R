@@ -64,11 +64,13 @@ suppressMessages({
   library(sf); library(jsonlite)
 })
 options(lidR.progress = FALSE)
+lidR::set_lidr_threads(1L)    # TIN normalization moves by ~1 cm with the thread count
 
 src_dir <- dirname(sub("^--file=", "",
                        grep("^--file=", commandArgs(FALSE), value = TRUE)[1]))
 if (is.na(src_dir) || !nzchar(src_dir)) src_dir <- "scripts"
 source(file.path(src_dir, "sweep_lib.R"))     # detect_lasr, score_plot, plot_half
+source(file.path(src_dir, "model_bench_lib.R")) # frozen_scope (POP=)
 source(file.path(src_dir, "ept_discovery.R")) # discover_ept (for auto-resolution)
 
 JOB <- .job_dir()
@@ -92,6 +94,12 @@ QL2_HI <- as.numeric(if (is.null(A$QL2_HI)) 4.0 else A$QL2_HI)
 MAXPLOTS <- if (is.null(A$MAXPLOTS) || A$MAXPLOTS == "ALL") NA_integer_ else
   as.integer(A$MAXPLOTS)
 ONLY_PLOTS <- if (is.null(A$PLOTS)) NULL else strsplit(A$PLOTS, ",")[[1]]
+# POP= scores against that declared population of the sealed frozen root (its
+# plots and gated stems, frozen_scope) instead of the historical six-stem
+# D17 reference. CACHE_JOB= reads (and adds) the EPT candidates and per-plot
+# clouds under another job directory, so a re-score reuses the cached pulls.
+POP_SCOPED <- !is.null(A$POP)
+CACHE <- if (is.null(A$CACHE_JOB)) JOB else A$CACHE_JOB
 
 # Per-site EPT override argument: EPT_<SITE>=<url>.
 ept_override <- function(site) {
@@ -104,9 +112,9 @@ ept_override <- function(site) {
 resolve_ept <- function(site) {
   ov <- ept_override(site)
   if (!is.na(ov)) return(ov)
-  cand_path <- file.path(JOB, "neon", site, "ql2", "ept_candidates.csv")
+  cand_path <- file.path(CACHE, "neon", site, "ql2", "ept_candidates.csv")
   if (!file.exists(cand_path)) {
-    discover_ept(site, JOB, site_epsg = NEON_EPSG)   # writes candidates csv
+    discover_ept(site, CACHE, site_epsg = NEON_EPSG)   # writes candidates csv
   }
   if (!file.exists(cand_path)) return(NA_character_)
   cand <- read.csv(cand_path, stringsAsFactors = FALSE)
@@ -116,14 +124,23 @@ resolve_ept <- function(site) {
   if (length(ok)) ok[1] else NA_character_
 }
 
-# Read the native horizontal SRS (EPSG code) from an ept.json.
-ept_srs <- function(url) {
+# Read the native horizontal SRS (EPSG code) from an ept.json. The value is
+# recorded beside the EPT candidates (ept_srs.json, keyed by URL) on first
+# read, so a re-score of cached clouds runs offline.
+ept_srs <- function(url, cache_dir) {
+  f <- file.path(cache_dir, "ept_srs.json")
+  if (file.exists(f)) {
+    rec <- jsonlite::fromJSON(f)
+    if (identical(rec$url, url)) return(as.integer(rec$srs))
+  }
   j <- tryCatch(jsonlite::fromJSON(url), error = function(e) NULL)
   if (is.null(j)) return(NA_integer_)
   s <- j$srs
-  if (!is.null(s$horizontal) && nzchar(as.character(s$horizontal)))
-    return(as.integer(s$horizontal))
-  NA_integer_
+  if (is.null(s$horizontal) || !nzchar(as.character(s$horizontal))) return(NA_integer_)
+  code <- as.integer(s$horizontal)
+  dir.create(cache_dir, showWarnings = FALSE, recursive = TRUE)
+  writeLines(jsonlite::toJSON(list(url = url, srs = code), auto_unbox = TRUE, pretty = TRUE), f)
+  code
 }
 
 # Provenance manifest for a cached per-plot laz. The cache key is NOT just the
@@ -213,12 +230,13 @@ pull_plot <- function(cx, cy, pad, ept_url, ept_epsg, out_laz) {
 # branch (frdens<4) while NEON dec2 is pooled at res=0.5 -- a resolution confound
 # that contaminates the "sensor difference" delta. With it, the residual delta is
 # genuinely sensor/return-structure, not CHM resolution.
-detect_on <- function(src_las, rung, pad, res_override = NA_real_) {
+detect_on <- function(src_las, rung, pad, res_override = NA_real_, seed = NA) {
   l <- src_las
   area0 <- (2 * pad)^2
   pdens_native <- npoints(src_las) / area0
   if (!is.na(rung)) {
     if (pdens_native <= rung) return(NULL)             # never upsample
+    if (!is.na(seed)) set.seed(seed)
     l <- decimate_points(l, homogenize(density = rung, res = 5))
   }
   if (sum(l$Classification == 2L) < 10) return(NULL)
@@ -251,12 +269,13 @@ detect_on <- function(src_las, rung, pad, res_override = NA_real_) {
 # matching the cached multichm dec2 rung (multichm_sweep_results.csv rung==2,
 # which is itself density-derived at 0.5 m), so the equivalence test stays
 # resolution-consistent the same way the CHM-VWF arm is res-pinned to 0.5 m.
-detect_on_multichm <- function(src_las, rung, pad) {
+detect_on_multichm <- function(src_las, rung, pad, seed = NA) {
   l <- src_las
   area0 <- (2 * pad)^2
   pdens_native <- npoints(src_las) / area0
   if (!is.na(rung)) {
     if (pdens_native <= rung) return(NULL)             # never upsample
+    if (!is.na(seed)) set.seed(seed)
     l <- decimate_points(l, homogenize(density = rung, res = 5))
   }
   if (sum(l$Classification == 2L) < 10) return(NULL)
@@ -282,7 +301,7 @@ run_site <- function(site) {
   ept_url <- resolve_ept(site)
   cat(sprintf("\n########## %s  EPT=%s\n", site, ept_url))
   if (is.na(ept_url)) { cat("  no EPT URL resolved; skipping\n"); return(NULL) }
-  ept_epsg <- ept_srs(ept_url)
+  ept_epsg <- ept_srs(ept_url, file.path(CACHE, "neon", site, "ql2"))
   if (is.na(ept_epsg)) { cat("  could not read SRS from ept.json; skipping\n")
     return(NULL) }
   cat(sprintf("  native EPT SRS = EPSG:%d ; reproject -> %s\n", ept_epsg, OUTCRS))
@@ -290,15 +309,24 @@ run_site <- function(site) {
   nd  <- file.path(JOB, "neon", site)
   pc  <- read.csv(file.path(nd, "plot_centroids.csv"))
   gt  <- read.csv(file.path(nd, "ground_truth_stems.csv"))
+  if (POP_SCOPED) {
+    fz <- frozen_scope(JOB, site, A, gt)      # declared population + sealed root
+    gt <- fz$gt; MINTREES <- 1
+  }
   if (neon_validate_inputs(gt, pc) != NEON_EPSG)
     stop("Historical D17 field CRS must be EPSG:32611")
-  gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
-  MINTREES <- 6
-  ql2 <- file.path(nd, "ql2")
+  if (!POP_SCOPED) {
+    gt  <- gt[gt$live & gt$is_tree & !is.na(gt$E), ]
+    MINTREES <- 6
+  }
+  ql2 <- file.path(nd, "ql2")                  # results
+  clouds <- file.path(CACHE, "neon", site, "ql2")
   dir.create(ql2, showWarnings = FALSE, recursive = TRUE)
+  dir.create(clouds, showWarnings = FALSE, recursive = TRUE)
 
   rows <- list()
   pids <- pc$plotID
+  if (POP_SCOPED) pids <- intersect(pids, fz$plots)
   if (!is.null(ONLY_PLOTS)) pids <- intersect(pids, ONLY_PLOTS)
   done <- 0L
   for (pid in pids) {
@@ -310,7 +338,7 @@ run_site <- function(site) {
                 abs(gt$E - cx) <= ph & abs(gt$N - cy) <= ph, ]
     if (nrow(stems) < MINTREES) next
 
-    out_laz <- file.path(ql2, sprintf("%s.laz", pid))
+    out_laz <- file.path(clouds, sprintf("%s.laz", pid))
     # Cache reuse is provenance-gated (fix 1): a pre-existing laz is a cache HIT
     # ONLY when its sidecar manifest exists AND matches (ept_url, pad, outcrs).
     # Provenance is NEVER inferred from file size -- a manifest-less laz (or one
@@ -356,16 +384,19 @@ run_site <- function(site) {
                      native_dec2 = list(rung = 2,        res = 0.5))
     got_any <- FALSE
     # Two detectors per variant (issue #39): the CHM-VWF baseline (detect_on, res
-    # pinned per the variant) and multichm (detect_on_multichm). Each detector
-    # decimates its OWN realization for native_dec2 (homogenize is random) and is
-    # compared only to its OWN cached NEON dec2 rung downstream -- a within-
-    # detector equivalence test, never cross-detector.
+    # pinned per the variant) and multichm (detect_on_multichm). Both read the
+    # same seeded native_dec2 realization (seed_for(site, plot, "3DEP-2"), so a
+    # rerun decimates identically), and each is compared only to its OWN cached
+    # NEON dec2 rung downstream -- a within-detector equivalence test, never
+    # cross-detector.
     for (vn in names(variants)) {
+      seed <- if (is.na(variants[[vn]]$rung)) NA else
+        seed_for(site, pid, paste0("3DEP-", variants[[vn]]$rung))
       for (dn in c("chm_vwf", "multichm")) {
         v <- if (dn == "chm_vwf")
-          detect_on(las, variants[[vn]]$rung, PAD, res_override = variants[[vn]]$res)
+          detect_on(las, variants[[vn]]$rung, PAD, res_override = variants[[vn]]$res, seed = seed)
         else
-          detect_on_multichm(las, variants[[vn]]$rung, PAD)
+          detect_on_multichm(las, variants[[vn]]$rung, PAD, seed = seed)
         if (is.null(v)) { cat(sprintf("  %s [%s/%s]: skip\n", pid, vn, dn)); next }
         sc <- score_plot(stems_o, v$det, tol_xy = TOL, core_cx = cx_o,
                          core_cy = cy_o, core_half = ph)
@@ -459,10 +490,15 @@ pool_decimated <- function(site, plots) {
 # density-derived (0.5 m at pdens=2) -- so we filter on rung only and pool the
 # same paired plot set. This is the NEON baseline the native multichm arm is
 # tested against, mirroring pool_decimated for CHM-VWF.
+# On the frozen paper runs the multichm rows live in lidrplugins_results.csv.
 pool_decimated_multichm <- function(site, plots) {
   f <- file.path(JOB, "neon", site, "multichm_sweep_results.csv")
-  if (!file.exists(f)) return(NULL)
-  d <- read.csv(f, stringsAsFactors = FALSE)
+  if (!file.exists(f)) {
+    f <- file.path(JOB, "neon", site, "lidrplugins_results.csv")
+    if (!file.exists(f)) return(NULL)
+    d <- read.csv(f, stringsAsFactors = FALSE)
+    d <- d[d$detector == "multichm", ]
+  } else d <- read.csv(f, stringsAsFactors = FALSE)
   d <- d[d$rung == "2", ]
   if (!is.null(plots)) d <- d[d$plot %in% plots, ]
   if (!nrow(d)) return(NULL)

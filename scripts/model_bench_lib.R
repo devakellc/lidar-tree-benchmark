@@ -312,6 +312,13 @@ frozen_files <- function(rdir)
 # of every file) and freeze_contract.json. The clip manifest seals the root.
 # Arms take the root from FROZEN_ROOT= (default below) and never write to it.
 FROZEN_RUNGS <- c(8, 4, 2, 1)
+# The decimated rungs a root holds, from its freeze contract: FROZEN_RUNGS for
+# the canonical root, others for a root frozen with RUNGS= (freeze_clips.R).
+frozen_root_rungs <- function(root) {
+  f <- file.path(root, "freeze_contract.json")
+  r <- if (file.exists(f)) jsonlite::read_json(f, simplifyVector = TRUE)$rungs
+  if (is.null(r)) FROZEN_RUNGS else as.numeric(r)
+}
 FROZEN_FILE_KEYS <- c("rawground", "normalized", "dtm", "manifest")
 frozen_root <- function(d, root = NULL) {
   if (!is.null(root) && nzchar(root)) return(root)

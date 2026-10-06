@@ -40,7 +40,11 @@ if (args[1] == "chm") {
     classes <- setNames(rr$category, as.character(rr$instance))
     mask <- score_instance_cell(labels, r, classes, gate = .5,
                                 classes = c("A", "B", "C", "D"))
-    stopifnot(mask$n_ref == nrow(rr))
+    # Every labelled tree must be a reference apex, and the mask counts each
+    # tree with at least one point. On a native cloud that is every reference
+    # tree; on a thinned one a small tree can keep no point and has no mask.
+    ids <- unique(r[!is.na(r)])
+    stopifnot(all(as.character(ids) %in% names(classes)), mask$n_ref == length(ids))
   }
   jsonlite::write_json(list(detection = do.call(rbind, detection), mask = mask),
                        args[7], auto_unbox = TRUE, pretty = TRUE, na = "null")

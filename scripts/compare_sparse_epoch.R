@@ -99,9 +99,13 @@ if (mode == "prepare") {
 out <- if (is.null(A$OUT)) file.path(ep$job[1], "compare_report") else A$OUT
 dir.create(out, recursive = TRUE, showWarnings = FALSE)
 CLASSES <- c("dominant", "codominant", "intermediate", "suppressed")
-# Result file per arm; SegmentAnyTree joins when its GPU runs have been made.
+# Result file per arm; a learned arm joins where its runs have been made. On
+# the 2021 side, ForestFormer3D and TreeisoNet are re-scored from the headline
+# runs' persisted detections (rescore_population.R; the same sealed clips).
 ARM_FILES <- c(chm_vwf = "sweep.csv", multichm = "multichm.csv",
-               segmentanytree = "segmentanytree_results.csv")
+               segmentanytree = "segmentanytree_results.csv",
+               forestformer3d = "forestformer3d_results.csv",
+               treeisonet = "treeisonet_results.csv")
 read_side <- function(path, arm, side) {
   if (!file.exists(path)) return(NULL)
   x <- read.csv(path, stringsAsFactors = FALSE); x$rung <- as.character(x$rung)
@@ -196,8 +200,9 @@ for (a in names(ARM_FILES)) {
     if (is.null(sp) || is.null(c2)) next
     sp <- sp[sp$rung == "native", ]
     eq <- Reduce(intersect, c(list(sp$plot), lapply(c("native", "8", "4"), function(r) c2$plot[c2$rung == r])))
-    rows[[s]] <- rbind(sp[sp$plot %in% eq, ], c2[c2$rung %in% c("native", "8", "4") & c2$plot %in% eq, ])[,
-      c("plot", "side", "rung", "n_ref", "n_det", "TP", "precision")]
+    keep <- c("plot", "side", "rung", "n_ref", "n_det", "TP", "precision")
+    rows[[s]] <- rbind(sp[sp$plot %in% eq, keep],
+                       c2[c2$rung %in% c("native", "8", "4") & c2$plot %in% eq, keep])
     rows[[s]]$site <- s
   }
   if (!length(rows)) next
@@ -221,7 +226,9 @@ for (a in names(ARM_FILES)) {
 }
 bt <- do.call(rbind, boot); rownames(bt) <- NULL
 write.csv(bt, file.path(out, "sparse_minus_2021_bootstrap.csv"), row.names = FALSE)
-cat("\n## Sparse native minus 2021, shared stems, D17 (paired plot bootstrap, 95%)\n\n")
+# The markdown tables go to <OUT>/report.md as well as the console.
+sink(file.path(out, "report.md"), split = TRUE)
+cat("## Sparse native minus 2021, shared stems, D17 (paired plot bootstrap, 95%)\n\n")
 cat("| Arm | Versus | Metric | Delta | 95% interval |\n| --- | --- | --- | ---: | --- |\n")
 cat(sprintf("| %s | %s | %s | %+.3f | %+.3f to %+.3f |\n", bt$arm, bt$versus, bt$metric, bt$delta,
             bt$lo, bt$hi), sep = "")
@@ -235,3 +242,4 @@ for (st in unique(tab$stratum)) {
               paste(t$side, t$rung), t$plots, t$n_ref, f(t$frdens_median, 1), f(t$recall), f(t$precision),
               f(t$F1), f(t$rec_overstory), f(t$rec_understory)), sep = "")
 }
+sink()
