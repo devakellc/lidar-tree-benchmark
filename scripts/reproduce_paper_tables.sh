@@ -70,7 +70,7 @@ P="$W/paper_runs"; N="$P/neon"
 REBUILT=(
   paper_runs/master_tables paper_runs_all_mapped/master_tables paper_runs_relaxed/master_tables
   paper_runs/census_support_scores paper_runs/census_support_scores_strict
-  paper_runs_ql2/census_support_scores
+  paper_runs_ql2/census_support_scores paper_runs_ql2/sensitivity
   paper_runs/neon/best_treetops_geojson paper_runs/neon/crown_compare_tables.md
   paper_runs/neon/adapter_before_after sparse_2018/compare_report
   paper_runs/sensitivity paper_runs/neon/native_ql2_vs_decimated.csv
@@ -185,6 +185,13 @@ done
 run "$P" sensitivity_jitter scripts/paper_sensitivity.R MODE=jitter K=200 CORES="$CORES"
 run "$P" sensitivity_null scripts/paper_sensitivity.R MODE=null K=200 CORES="$CORES"
 run "$P" sensitivity_null_tol2 scripts/paper_sensitivity.R MODE=null TOL=2 K=200 CORES="$CORES"
+# The QL2 rung's matcher grid and null, from its own root and job directory.
+QL2_ARMS=chm_vwf,lmfauto,multichm,ptrees,ams3d,forestformer3d,treeisonet,segmentanytree
+for q in "matcher" "null K=200" "null TOL=2 K=200"; do
+  read -r -a qa <<< "$q"
+  run "$W/paper_runs_ql2" "sensitivity_ql2_${q// /_}" scripts/paper_sensitivity.R MODE="${qa[@]}" \
+    RUNGS=3.2 FROZEN_ROOT="$W/neon/frozen_2021_ql2" ARMS=$QL2_ARMS CORES="$CORES"
+done
 run "$P" calval_split scripts/calval_split.R SITES=$SITES SEED=1 FRAC=0.5 \
   SEEDS=1,2,3,4,5,6,7,8,9,10
 for s in "${SITE_LIST[@]}"; do
