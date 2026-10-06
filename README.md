@@ -64,10 +64,13 @@ arm-versus-arm difference carries a paired plot-bootstrap interval.
 - The point segmenters find understory stems best: AMS3D recalls **0.63** of
   592 intermediate and suppressed stems, against **0.17** for CHM-VWF, at a
   large precision cost.
-- Washington replicates the California ranking at the top. ForestFormer3D and
-  SegmentAnyTree lead CHM-VWF in both regions, and the
-  [configuration provenance](docs/configuration-provenance.md) shows that no
-  setting was chosen from Washington scores.
+- ForestFormer3D and SegmentAnyTree lead CHM-VWF in both regions, by about
+  0.09 in California and 0.03 in Washington, where Li 2012 is level with
+  them; the [configuration provenance](docs/configuration-provenance.md)
+  shows that no detector setting was chosen from Washington scores. On the
+  exact-2021 reference SegmentAnyTree's lead holds in both regions, while
+  ForestFormer3D's holds in California and reverses in Washington (−0.018 on
+  33 plots; [temporal-sensitivity study](results/temporal-sensitivity-results.md)).
 
 The [model comparison](results/model-benchmark-results.md#five-sites-every-arm-paper-numbers)
 gives every arm by rung and site; the [detector table](results/detector-table.md)
@@ -80,8 +83,9 @@ earlier, sparser NEON flights (SJER 2017, SOAP and TEAK 2018, about 4–5 first
 returns per m²) with the 2021 clouds decimated to the bracketing rungs, on the
 same 586 stems. Decimation is mildly optimistic for CHM-VWF and `multichm`
 (recall **0.03–0.05** higher than the native flight) and more so for
-SegmentAnyTree (**0.06** at 2.5 and **0.19** at 4.7 pulses/m²), so its
-sparse-rung recall is an upper bound.
+SegmentAnyTree (**0.06** at rung 4 and **0.19** at rung 8, about 2.9 and
+5.4 pulses/m² on those California plots), so its sparse-rung recall is an
+upper bound.
 
 These are field-stem detection scores, and incomplete mapping limits their
 reading as complete-census precision; the
@@ -157,10 +161,11 @@ Two development diagnostics bridge FGI-EMIT to the NEON benchmark. The
 Voronoi-on-stems mask reference from FGI-EMIT's true trees: it keeps the arms'
 order and compresses their mask scores. The
 [thinning study](results/fgiemit-thinning-results.md) thins the development
-plots to the NEON densities: ForestFormer3D still leads CHM-VWF by 0.17–0.21
-apex F1, three to four times its NEON lead, so the two datasets are reported
-as a contrast rather than a density effect. SegmentAnyTree collapses below
-2 pulses/m² on the thinned plots, as on NEON.
+plots to the NEON densities: at 11 pulses/m² ForestFormer3D's lead over
+CHM-VWF falls to 0.08, close to its NEON lead, and from 5 pulses/m² down it
+stays at 0.17–0.21, two to four times the NEON lead, so the two datasets are
+reported as a contrast rather than a controlled density effect.
+SegmentAnyTree collapses below 2 pulses/m² on the thinned plots, as on NEON.
 
 ### TEAK and USGS-like data
 
@@ -340,7 +345,10 @@ scripts and configuration.
 | NEON density ladder | [run_sweep.R](scripts/run_sweep.R), [analyze_sweep.R](scripts/analyze_sweep.R), [compare_sites.R](scripts/compare_sites.R) |
 | Point-cloud understory detection | [detect_pc_sweep.R](scripts/detect_pc_sweep.R), [detect_pc_ladder.R](scripts/detect_pc_ladder.R) |
 | Cross-model detection analysis | [analyze_model_benchmark.R](scripts/analyze_model_benchmark.R), [compare_model_sites.R](scripts/compare_model_sites.R) |
-| Crown-diameter evaluation | [crown_metrics_sweep.R](scripts/crown_metrics_sweep.R), [analyze_crown_metrics.R](scripts/analyze_crown_metrics.R) |
+| Crown-diameter evaluation | [crown_metrics_sweep.R](scripts/crown_metrics_sweep.R), [crown_metrics_3d.R](scripts/crown_metrics_3d.R), [crown_metrics_deepmodel.R](scripts/crown_metrics_deepmodel.R), [analyze_crown_metrics.R](scripts/analyze_crown_metrics.R) |
+| Instance masks, credited F1 and re-scoring | [score_instances_iou.R](scripts/score_instances_iou.R), [compare_matching_rules.R](scripts/compare_matching_rules.R), [coverage_gap.R](scripts/coverage_gap.R), [export_best_treetops_geojson.R](scripts/export_best_treetops_geojson.R), [rescore_population.R](scripts/rescore_population.R), [compare_adapter_reruns.R](scripts/compare_adapter_reruns.R) |
+| Calibration/validation and the historical sensitivity studies | [calval_split.R](scripts/calval_split.R), [matcher_robustness.R](scripts/matcher_robustness.R), [mc_positional_uncertainty.R](scripts/mc_positional_uncertainty.R), [temporal_sensitivity.R](scripts/temporal_sensitivity.R) |
+| FGI-EMIT proxy validation and thinning | [fgiemit_proxy_validation.R](scripts/fgiemit_proxy_validation.R), [fgiemit_thin_select.R](scripts/fgiemit_thin_select.R), [fgiemit_thin_write.py](scripts/fgiemit_thin_write.py), [run_fgiemit_thinning.py](scripts/run_fgiemit_thinning.py), [fgiemit_thinning_summary.R](scripts/fgiemit_thinning_summary.R) |
 | Detection fusion and calibration | [fuse_detectors.R](scripts/fuse_detectors.R), [calibrate_confidence.R](scripts/calibrate_confidence.R) |
 | Native and synthetic product assembly | [assemble_metapipeline_v2.R](scripts/assemble_metapipeline_v2.R), [run_ensemble_pipeline_v2.py](scripts/run_ensemble_pipeline_v2.py) |
 | TEAK review preparation and eligibility | [run_teak_comparison_workflow.R](scripts/run_teak_comparison_workflow.R) |

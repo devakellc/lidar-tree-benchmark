@@ -173,10 +173,12 @@ the heap. It only bit at high concurrency × large chunks (frequent verbose
 per-chunk logging accumulating between drains); `cf4`/`cf8` and the 112M AOI
 masked it.
 
-Fixed in r-lidar/lasR (`parallel-ept-acquisition`, `pre-devel`; PR #328 →
-`devel`): one lock for both push and drain, and gate the drain on the real
-main-thread id (`std::this_thread::get_id()` at load) instead of
-`omp_get_thread_num()`, which returns 0 for the `std::async` prefetch threads.
+Fixed in r-lidar/lasR (`parallel-ept-acquisition`, `pre-devel`; merged to
+`devel` by the upstream
+[thread-safe print-queue fix](https://github.com/r-lidar/lasR/pull/328)):
+one lock for both push and drain, and gate the drain on the real main-thread
+id (`std::this_thread::get_id()` at load) instead of `omp_get_thread_num()`,
+which returns 0 for the `std::async` prefetch threads.
 Clean-build A/B at 1.15B pts: pre-fix crashed 2/2, post-fix ran 3/3 clean; the
 partition sweep below then ran 10 consecutive `cf16` reads with no crash.
 

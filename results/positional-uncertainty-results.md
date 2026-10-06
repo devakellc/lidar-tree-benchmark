@@ -1,4 +1,4 @@
-# Monte-Carlo stem-position uncertainty (#V3)
+# Monte-Carlo stem-position uncertainty
 
 ## Five sites, every arm
 
@@ -27,10 +27,13 @@ reproduces every arm's own result rows. Pooled F1 over the five sites, 5th,
 
 **Readings.**
 
-- Stem-position uncertainty is a negligible source of error at the paper's
-  scale. Every arm's 90 % band is at most 0.008 F1 wide, a quarter or less of
-  the plot-sampling intervals in the [master tables](master-tables-results.md)
-  (about ±0.03 at native density).
+- Independent per-stem jitter at the recorded uncertainty (median 0.4 to
+  0.5 m) is a negligible source of error under the 4 m match radius: every
+  arm's 90 % band is at most 0.008 F1 wide, a quarter or less of the
+  plot-sampling intervals in the [master tables](master-tables-results.md)
+  (about ±0.03 at native density). A shared per-plot offset is not tested
+  here and would act like a change of match radius, which the
+  [matcher study](matcher-robustness-results.md) measures.
 - ForestFormer3D and SegmentAnyTree beat CHM-VWF in every one of the 200
   draws (leads 0.045 to 0.053 and 0.040 to 0.049 between the 5th and 95th
   percentiles). ForestFormer3D is ahead of SegmentAnyTree in 98 % of draws.
@@ -44,12 +47,12 @@ the historical June 2026 study on the three-site population.
 
 ## Historical study (June 2026)
 
-Every leaderboard delta the router (#P2) would switch arms on is a single point
+Every leaderboard delta the router would switch arms on is a single point
 estimate against stem coordinates that carry real uncertainty — `neon_ground_
 truth.R` stores `pos_unc` (NEON coordinate uncertainty + 0.3 m TruPulse
 rangefinder) per stem, yet `score_plot` ignores it. This arm puts **confidence
 bands** on recall / precision / F1 (and per-crown-class recall) by re-scoring every
-ladder arm — and the #P1 fusion union/layered arm — under K reproducible draws of
+ladder arm — and the fusion union/layered arm — under K reproducible draws of
 the field positions, answering two questions: which arm-vs-arm gaps survive
 ground-truth jitter, and whether fusion is *more stable* than any single arm.
 
@@ -120,7 +123,7 @@ co-sweep on SOAP).
 
 ## Readings
 
-- **Fusion is the most stable arm under field jitter.** The #P1 union/layered
+- **Fusion is the most stable arm under field jitter.** The fused union/layered
   consensus has the **tightest F1 bands of any arm** (mean width 0.016–0.017 vs
   0.020–0.028 for the single arms), at every site. Consensus over multiple
   detectors averages out the per-stem matching noise that moves any single arm's
@@ -137,9 +140,10 @@ co-sweep on SOAP).
   Widening tol 3→5 m lifts every arm's F1 (more jittered stems still find their
   apex) without materially widening the bands or reordering the arms — so the
   stability and gap-survival conclusions are not artifacts of the 4 m default.
-- **Fusion's value is recall and stability, not F1.** Consistent with #P1, the
-  fused F1 sits below the best single arm (coverage-limited precision), but its
-  bands are the tightest and its understory recall the highest (#P1). The bands
+- **Fusion's value is recall and stability, not F1.** Consistent with the
+  fusion study, the fused F1 sits below the best single arm (coverage-limited
+  precision), but its bands are the tightest and its understory recall the
+  highest. The bands
   make the trade explicit: fusion buys reproducible recall, not a higher F1 point
   estimate.
 
@@ -153,6 +157,7 @@ co-sweep on SOAP).
 - **Only stem positions are perturbed** — detections are fixed. This isolates
   ground-truth uncertainty from detector stochasticity (the question the issue
   asks); detector-side variance is out of scope.
-- **F1/precision are coverage-limited** (the #V4 isolated-FP finding), so absolute
+- **F1/precision are coverage-limited** (the matcher study's isolated-FP
+  finding), so absolute
   bands are lower bounds; the band *widths* and *overlaps* are the result.
 - **Native density only**; the driver accepts `RUNG=`/`K=`/`TOLS=` to extend.

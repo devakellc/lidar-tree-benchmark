@@ -1,6 +1,6 @@
 # Native USGS 3DEP Cross-Check of the Density-Ladder Sweep — Results
 
-*Cross-check for [issue #4](https://github.com/agrigoriev/lidar_tree_benchmarks/issues/4).
+*Cross-check of decimation against native USGS 3DEP clouds.
 The density-ladder sweep ([density-ladder-sweep-results.md](density-ladder-sweep-results.md))
 **thins** a dense NEON cloud to simulate sparse acquisitions
 ("decimation-as-simulation", a stated caveat). This note pulls the **native**
@@ -17,8 +17,8 @@ Checked on 5 October 2026 against the declared `adopted` population of the
 the only ones with a public 3DEP cloud in this workflow: 43 plots and 662
 stems, every adopted plot of SJER, SOAP and TEAK. The detectors ran again on
 the cached 3DEP clouds; the NEON side is the paper runs' frozen 2 points/m²
-rung (1.3 first-return pulses/m² median), CHM-VWF at `a` = 0.10 and 0.5 m,
-and `multichm`.
+rung (1.3 first-return pulses/m² median over five sites, about 1.5 on these
+California plots), CHM-VWF at `a` = 0.10 and 0.5 m, and `multichm`.
 
 ```sh
 export CLAUDE_JOB_DIR=$(pwd)/work/paper_runs
@@ -51,9 +51,9 @@ realization:
 - `multichm` scores slightly lower on the decimated 3DEP clouds, mostly
   through precision (−0.031 [−0.056, −0.006]); its F1 difference excludes
   zero.
-- One decimation realization moves these differences by about 0.015: an
-  earlier unseeded run of the same check gave +0.002 for CHM-VWF and −0.028
-  for `multichm`.
+- One decimation realization moves the CHM-VWF difference by about 0.016
+  and the `multichm` difference by 0.002: an earlier unseeded run of the same
+  check gave +0.002 for CHM-VWF and −0.028 for `multichm`.
 - Whether decimation predicts a true native QL2 flight is answered by the
   [native sparse epoch study](native-sparse-epoch-results.md), which uses
   NEON's own earlier, sparser flights; there, decimation is mildly optimistic.
@@ -306,15 +306,15 @@ stand-in. A true public native ~2-pulse validation over these NEON sites is
 this note were an artefact of an unmatched CHM resolution between the two arms,
 now corrected.
 
-## 5. multichm detector cross-check (issue #39)
+## 5. multichm detector cross-check
 
-[Issue #39](https://github.com/agrigoriev/lidar_tree_benchmarks/issues/39) asks
+The multichm out-of-sample question asks
 the same question for the stronger classical arm, **multichm**
 (`lidRplugins::multichm`, the density-ladder §8 / model-benchmark winner at
 SOAP): does its advantage survive on **real** (3DEP-sourced) sparse data, not
 just decimated NEON? The script now runs **both detectors on the same per-plot
 native clip** and tests each against its **own** cached NEON dec2 baseline —
-CHM-VWF vs `sweep_results.csv` (§3 above), multichm vs the #37
+CHM-VWF vs `sweep_results.csv` (§3 above), multichm vs its
 `multichm_sweep_results.csv` rung — so the native-vs-decimated equivalence is
 judged **within detector, never across**. multichm uses its ladder-arm res rule
 (0.25 m if first-returns ≥ 8 else 0.5 m); at the decimated `pdens = 2` arm the
@@ -377,7 +377,7 @@ the equivalence test, which uses the decimated-2 arm. It is a genuine note for
 operators: multichm should be run at a density-appropriate resolution, not a fine
 CHM on a very dense cloud.
 
-### Verdict (issue #39, native-3DEP arm)
+### Verdict (multichm cross-check, native-3DEP arm)
 
 **multichm's SOAP/TEAK advantage survives on real (3DEP-sourced) sparse data, and
 decimation predicts it faithfully.** With no true native ~2-pulse cloud
@@ -389,7 +389,7 @@ its native_dec2 recall matches its NEON neon_dec2 rung to **−0.014 (SOAP),
 (−0.10 on 71 stems). The one caveat is the dense `native_full` SOAP point above,
 which is a fine-CHM-on-dense-cloud artifact, not a sparse-data result. Combined
 with the cal/val arm
-([calibration-validation-results.md](calibration-validation-results.md), #39),
+([calibration-validation-results.md](calibration-validation-results.md)),
 multichm's conifer-site advantage holds **both out-of-sample and on real sparse
 3DEP-sourced data**.
 
@@ -401,7 +401,7 @@ export CLAUDE_JOB_DIR=/path/to/work        # NEON ground truth + sweep_results l
 # 1. discover covering EPT projects (writes neon/<SITE>/ql2/ept_candidates.csv)
 Rscript scripts/ept_discovery.R SITES=SOAP,SJER,TEAK
 
-# 2. pull native AOIs via PDAL, run BOTH detectors (chm_vwf + multichm, #39),
+# 2. pull native AOIs via PDAL, run BOTH detectors (chm_vwf + multichm),
 #    score, compare each to its own cached decimated-2 rung
 Rscript scripts/native_ql2_crosscheck.R SITES=SOAP,SJER,TEAK
 #   per-site:   neon/<SITE>/ql2/ql2_detect_results.csv  (detector column; +laz +json)

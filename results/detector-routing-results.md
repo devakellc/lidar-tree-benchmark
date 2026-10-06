@@ -1,4 +1,4 @@
-# Per-cell detector routing (#P2)
+# Per-cell detector routing
 
 > **Historical (three-site population), supplement only.** The routing policy
 > here was learned and scored on the June runs. The paper does not route: its
@@ -100,7 +100,7 @@ root: multichm
   flat default, and 229 cells across four classes is thin for leave-one-plot-out
   generalization.
 - **Strategic conclusion for the meta-pipeline: prefer fusion over selection.**
-  Routing's realizable gain here is marginal, whereas the fusion union (#P1) lifts
+  Routing's realizable gain here is marginal, whereas the fusion union lifts
   understory recall +0.15 over the best single arm on the same cells. Detector
   *selection* leaves most of its (already modest) oracle headroom on the table;
   detector *fusion* is the more promising direction. The router is still useful
@@ -121,8 +121,9 @@ root: multichm
   candidate picks only where present, so their low pick share partly reflects
   limited rung coverage, not only quality.
 - **Cheap features only** (`rumple`, cover, height CV, gap, mean height, density):
-  a richer feature set or a confidence-aware router (consuming the #P4 calibrated
+  a richer feature set or a confidence-aware router (consuming the calibrated
   scores) could narrow the oracle gap; this study measures what deploy-time
   geometry alone buys.
-- **F1 is coverage-limited** (the #V4 isolated-FP finding), so absolute F1 is a
+- **F1 is coverage-limited** (the matcher study's isolated-FP finding), so
+  absolute F1 is a
   lower bound; the policy *ordering* is the result.

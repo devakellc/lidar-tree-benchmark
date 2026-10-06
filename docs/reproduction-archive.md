@@ -48,6 +48,23 @@ container). The paired table the report cites reads only the decimated rows
 and is strict. The figure images are intermediate; the numbers
 each figure plots are in its strict CSV.
 
+## Last rebuild
+
+The archive was staged on 5 October 2026 from commit `da13583` (36,250
+files, 5.5 GB). It was rebuilt in the clean container on CPU with 8 cores on
+5 October (55 minutes; 1,207 of 1,221 files byte-identical, 2 equal within
+1e-8, 2 within the length and overlap allowances, 7 figure images and 3
+native QL2 cross-check rows intermediate, none differing) and again on
+6 October with the report kept: 55 minutes, exit status 0, 1,204 files
+byte-identical, 2 equal within 1e-8, 2 within the allowances (SJER: height
+RMSE 1.2 mm, summed crown IoU 0.0026), 13 intermediate (the 7 figure images,
+the native QL2 cross-check's per-plot and pooled rows, two re-detected
+treetop caches and the treetop export they feed, all lasR tie-break or
+millimetre height differences), and none differing, missing or extra. The
+6 October `reproduction_report.csv` and console log are kept beside the
+archive under `work/zenodo/reproduction_2026-10-06/`, and the deposit run
+keeps its own.
+
 ## Layout
 
 The layout mirrors the benchmark's working directory, so the commands in the

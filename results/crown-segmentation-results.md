@@ -1,16 +1,18 @@
 # Crown-Segmentation Benchmark — Results
 
-*Closes the loop on [GitHub issue #7](https://github.com/agrigoriev/lidar_tree_benchmarks/issues/7):
-the density-ladder sweep scores tree-top **detection** only; this benchmark
-delineates **crowns** from the detected tops and scores their diameter against
-NEON field crown diameter. Several segmenters are seeded from the **same**
-detected tops, run per plot on a native-density pit-free CHM, matched back to
-field stems, and scored RMSE/MAE/bias/R² by crown class (the original #7 tables
-score five; issues #35 and #32 add the `random_walker_thcr` and `watershed_seeded`
-arms, and issue #31 adds a multichm-seeded variant of the lidR segmenters, in
-dedicated sections below; issue #34 adds deep instance segmenters). A SOAP-only
-TreeisoNet `treeOff` crown arm and the deep instance segmenters SegmentAnyTree
-(#M6) and ForestFormer3D (#M8) are unioned by
+*Closes the loop on the crown-delineation question the
+[density-ladder sweep](density-ladder-sweep-results.md) left open: that sweep
+scores tree-top **detection** only; this benchmark delineates **crowns** from
+the detected tops and scores their diameter against NEON field crown diameter.
+Several segmenters are seeded from the **same** detected tops, run per plot on
+a native-density pit-free CHM, matched back to field stems, and scored
+RMSE/MAE/bias/R² by crown class (the original crown-benchmark tables score
+five; the stop-rule study and the seeded-watershed arm add the
+`random_walker_thcr` and `watershed_seeded` arms, and the seed-sensitivity
+study adds a multichm-seeded variant of the lidR segmenters, in dedicated
+sections below; the deep instance-segmenter arm adds deep instance
+segmenters). A SOAP-only TreeisoNet `treeOff` crown arm and the deep instance
+segmenters SegmentAnyTree and ForestFormer3D are unioned by
 [`scripts/analyze_crown_metrics.R`](../scripts/analyze_crown_metrics.R) into the
 summary tables where data exist. Driver:
 [`scripts/crown_metrics_sweep.R`](../scripts/crown_metrics_sweep.R). Sites: NEON
@@ -115,12 +117,12 @@ The sections below are the historical runs on the three-site D17 population.
   are a growing-rule effect on a shared surface and seed set, not a seed
   confound. 225 field stems matched across 40 plots (SJER 22, SOAP 87,
   TEAK 116). Beyond the original five CHM segmenters the benchmark now adds a
-  `th_cr` random walker (#35), a marker-controlled watershed (#32),
-  multichm-seeded lidR variants (#31), a native-to-1 pt/m² density ladder (#33),
-  and three point-cloud 3-D segmenters (#30); see the Conclusion.
+  `th_cr` random walker, a marker-controlled watershed, multichm-seeded lidR
+  variants, a native-to-1 pt/m² density ladder, and three point-cloud 3-D
+  segmenters; see the Conclusion.
 - **With a per-crown stop rule, the random walker — not lasR — is the most
   accurate classical arm, though the field is tight.** `random_walker_thcr`
-  (#35) has the lowest pooled RMSE on _both_ definitions (`d_eq` 2.42 m,
+  has the lowest pooled RMSE on _both_ definitions (`d_eq` 2.42 m,
   `d_caliper` 3.57 m), just ahead of lasR `region_growing` (2.62 / 3.72) and
   dalponte2016 (2.70 / 4.43); four arms sit within 0.3 m on `d_eq`. **No method
   reaches a positive R² on the caliper (widest-axis) definition.** The earlier
@@ -131,11 +133,12 @@ The sections below are the historical runs on the three-site D17 population.
   like the marker-free watershed it over-grows crowns into a full Voronoi-style
   tiling of the canopy, inflating diameter (pooled bias +1.85 m / +3.15 m).
   Seed-less canopy islands are dropped to background instead of being mislabelled
-  into crown 1 (see below). **Issue #35 retests with a `th_cr` stop rule**
-  (`random_walker_thcr`): each crown is truncated at `TH_CR=0.55` of its own seed
-  apex height so it can no longer tile the inter-crown gaps. Both arms run in one
-  pass; the stop rule cuts pooled `d_eq` RMSE from 3.19 to 2.42 m (bias +1.85 to
-  +0.68) — best of all arms — and `d_caliper` from 4.69 to 3.57 m (table below).
+  into crown 1 (see below). **The stop-rule study retests with a `th_cr` stop
+  rule** (`random_walker_thcr`): each crown is truncated at `TH_CR=0.55` of its
+  own seed apex height so it can no longer tile the inter-crown gaps. Both arms
+  run in one pass; the stop rule cuts pooled `d_eq` RMSE from 3.19 to 2.42 m
+  (bias +1.85 to +0.68) — best of all arms — and `d_caliper` from 4.69 to
+  3.57 m (table below).
 - **Geometric caveat is large and systematic.** Equivalent-circle diameter
   `d_eq = 2√(area/π)` underestimates the widest-axis `maxCrownDiameter` because
   a real crown is not a disc: pooled `d_caliper`-vs-`maxCD` RMSE (3.72–5.61 m)
@@ -159,10 +162,11 @@ crown diameter are processed at **native density** (no decimation;
    - lidR `silva2016(chm, ttops, max_cr_factor=0.6, exclusion=0.3)` — seeded
      Voronoi-like.
 
-   Seed-source tagging (issue #31): the two lidR segmenters that accept an
-   external `treetops` sf — `dalponte2016` and `silva2016` — are now tagged in the
-   CSV with their seed source (`dalponte2016_seedlmf` / `silva2016_seedlmf` for
-   the lmf-seeded control, `_seedmultichm` for the multichm-seeded variant; see
+   Seed-source tagging (seed-sensitivity study): the two lidR segmenters that
+   accept an external `treetops` sf — `dalponte2016` and `silva2016` — are now
+   tagged in the CSV with their seed source (`dalponte2016_seedlmf` /
+   `silva2016_seedlmf` for the lmf-seeded control, `_seedmultichm` for the
+   multichm-seeded variant; see
    the seed-sensitivity section below). The `_seedlmf` arms are the **identical**
    pipeline these historical tables score under the bare `dalponte2016` /
    `silva2016` names; the `lasr_region_growing`, `watershed_*`, and
@@ -170,7 +174,7 @@ crown diameter are processed at **native density** (no decimation;
    the multichm tops).
    - lidR `watershed(chm, th_tree=2)` — **marker-free** (EBImage); crowns
      matched to stems by polygon containment of the seed point.
-   - **Marker-controlled (seeded) watershed** (`watershed_seeded`, issue #32) —
+   - **Marker-controlled (seeded) watershed** (`watershed_seeded`) —
      the same shared `ttops` are rasterized into a seed-label image aligned to
      the CHM (`seeds_to_marker_raster`, label k = the seed's `treeID`) and a
      priority-flood watershed grows **exactly one basin per marker** over the
@@ -203,7 +207,7 @@ crown diameter are processed at **native density** (no decimation;
      Pixels in a canopy component that no seed reaches get ~0 probability for
      every marker; those are assigned to background, not forced into crown 1 by
      argmax.
-   - **Random walker + `th_cr` stop rule** (`random_walker_thcr`, issue #35) —
+   - **Random walker + `th_cr` stop rule** (`random_walker_thcr`) —
      the _same_ solve, with each crown then truncated to background below
      `TH_CR=0.55` of its own seed apex height (see "The `th_cr` stop rule"
      below). Added so the before/after comparison runs on one identical seed set.
@@ -351,11 +355,11 @@ On NEON's open-to-moderate canopies that systematically over-grows crowns into
 the gaps between stems, inflating diameter (pooled bias +1.85 m on `d_eq`,
 +3.15 m on `d_caliper`) and giving negative R². It lands close to the
 marker-free watershed, which is the expected behaviour for a label-everything
-partition. The original `#7` doc noted that a height-percentile cutoff per crown
-(analogous to lidR's `th_cr`) would likely close most of the gap; issue #35
-retests exactly that.
+partition. The original crown-benchmark write-up noted that a height-percentile
+cutoff per crown (analogous to lidR's `th_cr`) would likely close most of the
+gap; the stop-rule study retests exactly that.
 
-### The `th_cr` stop rule (issue #35)
+### The `th_cr` stop rule
 
 We add a second arm, **`random_walker_thcr`**, that reuses the _same_ Dirichlet
 solve (one solve per plot, no extra cost) and applies a per-crown height cutoff,
@@ -412,16 +416,18 @@ dalponte 2.70). The gain holds across sites (TEAK `d_eq` 3.00 to 1.81 m).
 
 ---
 
-## Marker-controlled (seeded) watershed (issue #32)
+## Marker-controlled (seeded) watershed
 
-Issue #7's watershed arm is **marker-free**: lidR/EBImage `watershed(th_tree=2)`
-finds its own basins from CHM minima, which on these open-to-moderate NEON
-canopies systematically over-grows crowns (the largest pooled bias of the five
-arms, **+2.31 m on `d_eq`**, +4.21 m on `d_caliper`). The approach doc
+The original crown benchmark's watershed arm is **marker-free**: lidR/EBImage
+`watershed(th_tree=2)` finds its own basins from CHM minima, which on these
+open-to-moderate NEON canopies systematically over-grows crowns (the largest
+pooled bias of the five arms, **+2.31 m on `d_eq`**, +4.21 m on `d_caliper`).
+The approach doc
 ([`treetop-detection-approach.md`](../docs/treetop-detection-approach.md) sec 6)
 recommends instead a **marker-controlled** watershed — treetops as basin
-markers, exactly one crown per seed — which #7 never scored against NEON crown
-diameter. This arm (`watershed_seeded`) closes that gap.
+markers, exactly one crown per seed — which the original crown benchmark never
+scored against NEON crown diameter. This arm (`watershed_seeded`) closes that
+gap.
 
 **How it differs from the marker-free arm.** The shared `ttops` (the same seed
 set every other arm uses) are rasterized into a seed-label image aligned to the
@@ -439,18 +445,19 @@ that no marker can reach over the mask stays **background**, the same
 priority-flood from a labelled seed image and would be the natural choice, but
 `imager` is **not installed** in this environment (verified with
 `requireNamespace`); EBImage's `watershed` is the marker-**free** algorithm
-already used by the #7 arm, so it cannot serve here. The flood is therefore
-implemented directly on the CHM in `priority_flood_watershed()`
-([`sweep_lib.R`](../scripts/sweep_lib.R), unit-tested in
-`tests/testthat/test-watershed-seeded.R`) — a 4-neighbour, highest-CHM-first
-frontier in base R, pure (no I/O), so it needs no `work/` data to test.
+already used by the original marker-free arm, so it cannot serve here. The
+flood is therefore implemented directly on the CHM in
+`priority_flood_watershed()` ([`sweep_lib.R`](../scripts/sweep_lib.R),
+unit-tested in `tests/testthat/test-watershed-seeded.R`) — a 4-neighbour,
+highest-CHM-first frontier in base R, pure (no I/O), so it needs no `work/`
+data to test.
 
 ### Pooled RMSE — seeded vs marker-free watershed and the region-growing controls
 
 All arms run in one pass so the comparison is on identical seeds, CHM, and
 matched stems. `dalponte2016` and `lasr_region_growing` are repeated from the
-tables above as the region-growing controls; `watershed_markerfree` is #7's
-documented negative. Regenerate with:
+tables above as the region-growing controls; `watershed_markerfree` is the
+original crown benchmark's documented negative. Regenerate with:
 
 ```sh
 Rscript scripts/crown_metrics_sweep.R SITES=SJER,SOAP,TEAK CORES=1
@@ -486,16 +493,16 @@ on both diameter definitions.
 
 ---
 
-## Crown-diameter seed sensitivity: multichm vs lmf tops (issue #31)
+## Crown-diameter seed sensitivity: multichm vs lmf tops
 
-Issue #7 seeds every crown segmenter from one shared **lmf** (CHM-VWF) top set.
-The model benchmark, however, shows `multichm` (Eysn-style multi-layer CHM local
-maxima, `lidRplugins::multichm`) is the best classical **detector** on SOAP
-(F1 0.44 vs CHM-VWF 0.38). Detection and segmentation are decoupled, so better
-tops may or may not translate into better crown width. This arm tests that
-directly: it re-seeds the lidR segmenters from `multichm` tops and scores crown
-diameter with the **same** #7 harness, side-by-side against the lmf-seeded
-control.
+The original crown benchmark seeds every crown segmenter from one shared
+**lmf** (CHM-VWF) top set. The model benchmark, however, shows `multichm`
+(Eysn-style multi-layer CHM local maxima, `lidRplugins::multichm`) is the best
+classical **detector** on SOAP (F1 0.44 vs CHM-VWF 0.38). Detection and
+segmentation are decoupled, so better tops may or may not translate into better
+crown width. This arm tests that directly: it re-seeds the lidR segmenters from
+`multichm` tops and scores crown diameter with the **same** crown-benchmark
+harness, side-by-side against the lmf-seeded control.
 
 **What is re-seeded, and what is not.** Only the two lidR segmenters that accept
 an external `treetops` sf — `dalponte2016` and `silva2016` — are run from both
@@ -520,7 +527,7 @@ lmf-seeded control. The crown tags encode the seed source
 (`dalponte2016_seedlmf` / `dalponte2016_seedmultichm`, likewise `silva2016`) so
 the canonical CSV column schema is **unchanged** — no new `seed` column — which
 keeps [`analyze_crown_metrics.R`](../scripts/analyze_crown_metrics.R) and the
-issue #33 density ladder (stacked on this PR) reading the same ten columns.
+crown density ladder (the section below) reading the same ten columns.
 
 All arms run in one pass on identical plots and the same CHM. Each seed set is
 scored on the stems ITS OWN tops matched, so n differs (multichm finds more
@@ -583,36 +590,37 @@ The script prints this same ΔRMSE/Δbias/ΔR² breakdown (pooled + per crown cl
 - per site, both diameter definitions) at the end of a run
 (`print_seed_sensitivity`).
 
-### Recommended per-density-rung seed choice (consumed by issue #33)
+### Recommended per-density-rung seed choice (consumed by the crown ladder)
 
-Issue #33 (the density ladder, stacked on top of this PR) needs a per-rung
-decision: at each density rung, seed the crown segmenters from the detector that
+The crown density ladder (the section below) needs a per-rung decision: at
+each density rung, seed the crown segmenters from the detector that
 delineates crown diameter best. The rule to apply once the table above is
 regenerated:
 
 - **Default to the seed source with the lower pooled ΔRMSE at that rung's
   density**, read from the regenerated tables. Detection and segmentation are
   decoupled, so a detector that wins on F1 (multichm on SOAP) need **not** win on
-  crown-diameter RMSE — the seed choice for #33 must be made on the
+  crown-diameter RMSE — the seed choice for the ladder must be made on the
   crown-diameter Δ, not on detection F1.
 - **Tie-break toward `lmf`** when |ΔRMSE| is within noise (the lmf seeds are the
-  established #7 control and `lasr_region_growing`, the overall RMSE leader, is
+  established control and `lasr_region_growing`, the overall RMSE leader, is
   lmf-seeded anyway), so the ladder stays on one consistent seed family unless
   multichm shows a clear crown-width gain.
 
 At **native density** the table makes the call: multichm seeds improve both
 segmenters on both diameter definitions (`d_eq` ΔRMSE −0.22 to −0.35 m, Δbias
-−0.85 to −0.94 m; larger gains on `d_caliper`), so #33 seeds from multichm at
-native. Whether that holds as density drops — multichm needs enough returns to
-resolve sub-canopy maxima — is decided per rung in #33's ladder, on the
+−0.85 to −0.94 m; larger gains on `d_caliper`), so the ladder seeds from
+multichm at native. Whether that holds as density drops — multichm needs enough
+returns to resolve sub-canopy maxima — is decided per rung in the ladder, on the
 crown-diameter Δ at each rung, not on detection F1.
 
 ---
 
-## Crown width vs density (issue #33)
+## Crown width vs density
 
-Issue #7 (and everything above) ran **native density only**. The detection
-ladder ([`run_sweep.R`](../scripts/run_sweep.R), issues #3–#6) sweeps
+The original crown benchmark (and everything above) ran **native density
+only**. The detection ladder ([`run_sweep.R`](../scripts/run_sweep.R); see the
+[density-ladder sweep](density-ladder-sweep-results.md)) sweeps
 native → 8 → 4 → 2 → 1 pts/m² and shows recall — especially understory recall —
 degrades as the cloud thins. It was unknown whether crown-diameter RMSE follows
 the same curve or **stays flat once the dominant canopy surface is resolved**:
@@ -641,13 +649,15 @@ benchmark, so the two are scored on identical bytes per `(site, plot, rung)`:
    and grow here.
 3. **Density-appropriate seeds, re-derived per rung.** Treetops are detected on
    _this rung's_ CHM, so a sparser rung is seeded from a coarser top set
-   (issue #31's recommended per-rung choice). CHM-VWF `lmf` is the control seed
-   for **every** arm; the two lidR segmenters that accept an external `treetops`
-   sf (`dalponte2016`, `silva2016`) are **also** run from the issue #31 `multichm`
-   seed at each rung, tagged `_seedlmf` / `_seedmultichm` in the algo name (no
-   schema change), so the lmf-vs-multichm Δ is available rung-by-rung and the
-   per-rung seed choice can be applied from data.
-4. **Minimum arms.** The issue #7 reference arms `dalponte2016` and
+   (the seed-sensitivity study's recommended per-rung choice). CHM-VWF `lmf` is
+   the control seed for **every** arm; the two lidR segmenters that accept an
+   external `treetops` sf (`dalponte2016`, `silva2016`) are **also** run from the
+   seed-sensitivity study's `multichm` seed at each rung, tagged `_seedlmf` /
+   `_seedmultichm` in the algo name (no schema change), so the lmf-vs-multichm Δ
+   is available rung-by-rung and the per-rung seed choice can be applied from
+   data.
+4. **Minimum arms.** The original crown benchmark's reference arms
+   `dalponte2016` and
    `lasr_region_growing`, seeded per rung, are run at every rung (the other arms
    — `silva2016`, `watershed_*`, `random_walker*` — run too, at no extra clip
    cost). `lasr_region_growing` stays lmf-seeded (its API takes a seed _stage_,
@@ -668,7 +678,8 @@ benchmark, so the two are scored on identical bytes per `(site, plot, rung)`:
 
 The output `crown_metrics_results.csv` gains a **`rung`** column;
 [`analyze_crown_metrics.R`](../scripts/analyze_crown_metrics.R) tolerates older
-CSVs that predate it (rows with no `rung` default to `native`, the #7 run).
+CSVs that predate it (rows with no `rung` default to `native`, the original
+native-only run).
 
 ### Regenerate
 
@@ -748,7 +759,7 @@ never cross them.
 
 ---
 
-## Deep model: TreeisoNet treeOff crowns (SOAP, issues #M7 / #20)
+## Deep model: TreeisoNet treeOff crowns (SOAP)
 
 The crown analogue of the TreeisoNet detection arm: its offset net (`treeOff`)
 is run zero-shot on the same native frozen SOAP clips
@@ -803,16 +814,15 @@ and its detection is poor, so n is limited to its matches.
 
 ---
 
-## Deep instance segmenters: SegmentAnyTree, ForestFormer3D (issue #34)
+## Deep instance segmenters: SegmentAnyTree, ForestFormer3D
 
-The two deep instance-segmentation **detection** arms — SegmentAnyTree
-([#M6](https://github.com/agrigoriev/lidar_tree_benchmarks/issues/17)) and
-ForestFormer3D
-([#M8](https://github.com/agrigoriev/lidar_tree_benchmarks/issues/18)) — already
-produce per-point instance labels on the **same** frozen clips the detection
-benchmark scored, but were never crown-scored. This section closes that gap by
-piping each model's instance labelling through the **same** #7/#30 crown-scoring
-harness (`crown_diameter_table` → `greedy_match` to field stems → `d_eq` /
+The two deep instance-segmentation **detection** arms — SegmentAnyTree and
+ForestFormer3D (see the [model benchmark](model-benchmark-results.md)) —
+already produce per-point instance labels on the **same** frozen clips the
+detection benchmark scored, but were never crown-scored. This section closes
+that gap by piping each model's instance labelling through the **same**
+crown-scoring harness used by the CHM and 3-D segmenter arms
+(`crown_diameter_table` → `greedy_match` to field stems → `d_eq` /
 `d_caliper` vs the NEON columns), so they sit head-to-head with the classical CHM
 arms and the TreeisoNet negative result. Driver:
 [`scripts/crown_metrics_deepmodel.R`](../scripts/crown_metrics_deepmodel.R).
@@ -832,7 +842,7 @@ cloud is **skipped with a message, never fabricated**.
 ### Method
 
 Both arms consume **persisted** per-point instance clouds (the script never runs
-a GPU container) and reuse the #30 glue verbatim:
+a GPU container) and reuse the 3-D segmenter arm's glue verbatim:
 
 - **SegmentAnyTree** — the merged per-point LAS carries the instance label as
   the `PredInstance` extra dim (`0` = non-tree, `1..N`; see
@@ -848,9 +858,10 @@ a GPU container) and reuse the #30 glue verbatim:
   is stacked into `(block, inst, X, Y, Z)` and passed through the new
   `ff3d_crown_table()` helper in
   [`scripts/model_bench_lib.R`](../scripts/model_bench_lib.R): it runs
-  `dedup_blocks()` (the #M8 cross-block apex-cluster merge — which merges only
-  duplicate detections across overlapping cylinders and **never** launders the
-  model's within-cylinder over-segmentation), then derives
+  `dedup_blocks()` (the ForestFormer3D detection arm's cross-block
+  apex-cluster merge — which merges only duplicate detections across
+  overlapping cylinders and **never** launders the model's within-cylinder
+  over-segmentation), then derives
   `crown_diameter_table(id_col = "global_id")` + `instance_apex(id_col =
   "global_id")` so diameters are **per tree**, not per cylinder.
   `algo = "forestformer3d"`.
@@ -861,14 +872,14 @@ height gate, where the field heights are AGL. Each instance apex is therefore
 converted to AGL via the cached frozen clip's `ground_dtm.tif` (`det_to_agl`,
 the same transform the detection arms use) before `greedy_match`. Crown diameter
 is scored at **one rung per plot** (native by default) so the pooled table is
-one row per matched tree, exactly as #30 — mixing rungs would double-count a
-stem. Pooling is by **summed** squared errors (RMSE/MAE/bias/R²), never a mean of
-per-plot rates.
+one row per matched tree, exactly as the 3-D segmenter arm — mixing rungs would
+double-count a stem. Pooling is by **summed** squared errors (RMSE/MAE/bias/R²),
+never a mean of per-plot rates.
 
-Estimator caveat (same as #30): this is a **convex hull of the instance's
-points**, not the dissolved-CHM polygon the #7 classical arms use — not
-identical estimators, though both target the same field column. Compare `d_eq`
-only against `ninetyCrownDiameter` and `d_caliper` only against
+Estimator caveat (same as the 3-D segmenter arm): this is a **convex hull of
+the instance's points**, not the dissolved-CHM polygon the classical arms use —
+not identical estimators, though both target the same field column. Compare
+`d_eq` only against `ninetyCrownDiameter` and `d_caliper` only against
 `maxCrownDiameter`.
 
 ### Results — deep instance segmenters
@@ -883,7 +894,7 @@ R² and the lowest widest-axis errors on the common stems.
 
 ---
 
-## 3-D instance segmenters: Li 2012, ptrees, AMS3D (issue #30)
+## 3-D instance segmenters: Li 2012, ptrees, AMS3D
 
 The five arms above all delineate crowns on a **CHM**. The model-benchmark
 **detection** arms — lidR Li 2012, lidRplugins ptrees (Vega 2014), and AMS3D
@@ -894,8 +905,9 @@ point-instance segmenters head-to-head with the CHM controls.
 
 ### Method
 
-For each site, the SAME plot set as #7 (plots with ≥6 live mapped trees carrying
-a non-NA NEON field crown diameter) is processed at **native density** from the
+For each site, the SAME plot set as the CHM arms (plots with ≥6 live mapped
+trees carrying a non-NA NEON field crown diameter) is processed at **native
+density** from the
 cached frozen normalized clip (`frozen_clip(rung=NA)`; clips are reused, never
 regenerated). Per plot, each segmenter is run **once** on the normalized clip,
 reusing the verbatim invocation from its detection arm
@@ -921,14 +933,14 @@ diameter are joined. The match → diameter → field-join glue is the pure help
 `score_crowns_against_field()` in
 [`model_bench_lib.R`](../scripts/model_bench_lib.R), unit-tested with synthetic
 instances + stems. Pooling is by **summed** squared errors over matched trees
-(RMSE/MAE/bias/R²), never a mean of per-plot rates, exactly as #7.
+(RMSE/MAE/bias/R²), never a mean of per-plot rates, exactly as the CHM arms.
 
 **Estimator caveat (important for the head-to-head).** This arm's diameter is a
-**convex hull of the instance's points**, not the dissolved-CHM polygon the #7
+**convex hull of the instance's points**, not the dissolved-CHM polygon the
 classical arms use. The two are not identical estimators (a point hull is
 sensitive to outlier returns; a CHM polygon to pixel resolution and pit-fill),
-though both target the same field column. The same geometric caveat as #7
-applies on top: `d_caliper` (widest axis) is biased high relative to `d_eq`
+though both target the same field column. The same geometric caveat as the CHM
+arms applies on top: `d_caliper` (widest axis) is biased high relative to `d_eq`
 (equivalent-circle), so compare `d_eq` only against `ninetyCrownDiameter` and
 `d_caliper` only against `maxCrownDiameter`.
 
@@ -956,11 +968,11 @@ scored on the stems its instances matched, so n differs by arm._
 AMS3D and ptrees **under**-estimate crown diameter (bias −0.5 to −1.0 m), the
 opposite sign to the CHM arms' over-grow, and match far more stems (412–475 vs
 225) by reaching sub-canopy crowns. li2012 over-segments badly here (`d_eq`
-RMSE 5.23 m). The head-to-head below places them beside the #7 controls.
+RMSE 5.23 m). The head-to-head below places them beside the CHM controls.
 
-### Head-to-head: 3-D vs the #7 CHM controls (same plot set)
+### Head-to-head: 3-D vs the CHM controls (same plot set)
 
-The #7 CHM controls (`dalponte2016`, `lasr_region_growing`) are **re-pooled on
+The CHM controls (`dalponte2016`, `lasr_region_growing`) are **re-pooled on
 the same plot set** scored by the 3-D arms for a like-for-like comparison;
 [`scripts/analyze_crown_metrics.R`](../scripts/analyze_crown_metrics.R) unions
 `crown_metrics_results.csv` (CHM arms) with `crown_metrics_3d_results.csv` (3-D
@@ -1002,27 +1014,27 @@ Six findings across the arms now in this benchmark:
 
 1. **A per-crown stop rule makes the random walker the most accurate classical
    arm.** The argmax random walker was the worst arm (`d_eq` RMSE 3.19 m); the
-   `TH_CR=0.55` truncation (#35) cuts it to 2.42 m — the lowest of any arm on
+   `TH_CR=0.55` truncation cuts it to 2.42 m — the lowest of any arm on
    both definitions (`d_caliper` 3.57 m) — just ahead of lasR `region_growing`
    (2.62 / 3.72) and dalponte2016 (2.70 / 4.43). The margins are small (four
    arms within 0.3 m on `d_eq`), so adding a stop rule matters more than the
    choice among the leaders.
 
-2. **Better tops give better crowns.** multichm seeds (#31) beat the lmf control
+2. **Better tops give better crowns.** multichm seeds beat the lmf control
    on both lidR segmenters (dalponte `d_eq` 2.70 to 2.47, silva 2.79 to 2.44)
    and match ~1.5× more stems (225 to 330) by reaching crowns the lmf tops miss.
    Detection and delineation are decoupled, yet detection quality here clearly
    propagates into crown-width accuracy.
 
 3. **Crown width is robust to point density.** Across the native-to-1 pt/m²
-   ladder (#33), pooled RMSE stays flat or improves slightly (dalponte `d_eq`
+   ladder, pooled RMSE stays flat or improves slightly (dalponte `d_eq`
    2.70 to 2.37–2.47, lasR 2.62 to 2.41), bias shrinking as the CHM smooths.
    Once the pit-free CHM resolves the dominant surface, crown width survives
    sparsity that collapses understory _detection_ recall over the same range —
    a width product tolerates far sparser data than a stem count.
 
 4. **The 3-D point segmenters have a different, complementary error profile.**
-   AMS3D and ptrees (#30) _under_-estimate width (bias −0.5 to −1.0 m) where the
+   AMS3D and ptrees _under_-estimate width (bias −0.5 to −1.0 m) where the
    CHM arms over-grow, reach 1.4–2.1× more stems, and beat the CHM controls on
    the `d_caliper` (widest-axis) definition; li2012 over-segments badly
    (`d_eq` 5.23 m) and is not recommended. They trade a small `d_eq` penalty for
@@ -1030,7 +1042,7 @@ Six findings across the arms now in this benchmark:
 
 5. **Widest-axis tracking stays hard, and over-grow is the main failure mode.**
    No arm reaches a positive R² on `d_caliper` vs `maxCrownDiameter`.
-   Marker-controlled watershed (#32) curbs the marker-free over-grow (bias
+   Marker-controlled watershed curbs the marker-free over-grow (bias
    +2.31 to +1.64 m) but still trails the region growers. Always compare `d_eq`
    to `ninetyCrownDiameter` and `d_caliper` to `maxCrownDiameter`, never cross
    them.
@@ -1060,11 +1072,11 @@ Rscript scripts/crown_metrics_sweep.R SITES=SJER,SOAP,TEAK CORES=1
 # -> work/neon/<SITE>/crown_metrics_results.csv  (one row per matched tree:
 #    site, plot, algo, crown_class, individualID, d_eq, d_caliper, area,
 #    field_maxCD, field_ninetyCD), plus the pooled RMSE tables on stdout.
-# The dalponte2016/silva2016 arms emit BOTH _seedlmf (the #7 control) and
-# _seedmultichm rows (issue #31); the run also prints the lmf-vs-multichm
-# seed-sensitivity ΔRMSE/Δbias/ΔR² breakdown at the end.
+# The dalponte2016/silva2016 arms emit BOTH _seedlmf (the original control) and
+# _seedmultichm rows (seed-sensitivity study); the run also prints the
+# lmf-vs-multichm seed-sensitivity ΔRMSE/Δbias/ΔR² breakdown at the end.
 
-# 3-D instance-segmenter crown arm (Li 2012 / ptrees / AMS3D; issue #30).
+# 3-D instance-segmenter crown arm (Li 2012 / ptrees / AMS3D).
 # Native clips at SJER+SOAP+TEAK; reuses the cached frozen clips + ground truth
 # (no LiDAR re-download). Writes the NEW crown_metrics_3d_results.csv:
 Rscript scripts/crown_metrics_3d.R SITES=SJER,SOAP,TEAK CORES=8 TOL=4
@@ -1077,8 +1089,8 @@ Rscript scripts/analyze_crown_metrics.R SITES=SJER,SOAP,TEAK
 Rscript scripts/detect_treeisonet_crowns.R SITE=SOAP PLOTS=ALL CONF=0.22
 Rscript scripts/analyze_crown_metrics.R    SITE=SOAP   # union + SOAP RMSE table
 
-# Deep instance-segmenter crown arm (SegmentAnyTree #M6 + ForestFormer3D #M8;
-# issue #34). Reads PERSISTED per-point instance clouds (no GPU container is run
+# Deep instance-segmenter crown arm (SegmentAnyTree + ForestFormer3D).
+# Reads PERSISTED per-point instance clouds (no GPU container is run
 # here) under work/neon/<SITE>/{segmentanytree,forestformer3d}_instances/ and
 # reuses the cached frozen DTMs. The clouds are written by the detection arms'
 # persistence hook (see the five-site rerun above for the full command set).

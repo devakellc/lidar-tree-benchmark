@@ -1,8 +1,9 @@
-# Crown-width + height → DBH / biomass allometry (#S1)
+# Crown-width + height → DBH / biomass allometry
 
-The crown issues (#7/#30–#35) score crown *diameter* vs field crown diameter
-only; none predicts DBH or biomass, yet DBH/above-ground biomass (AGB) are the
-operational products a detection pipeline ultimately feeds. This closes the loop:
+The [crown-segmentation studies](crown-segmentation-results.md) score crown
+*diameter* vs field crown diameter only; none predicts DBH or biomass, yet
+DBH/above-ground biomass (AGB) are the operational products a detection pipeline
+ultimately feeds. This closes the loop:
 it joins each matched crown's equivalent diameter `d_eq` (and field height) to
 NEON field `stemDiameter`/`taxonID`, fits crown-geometry → DBH models, reports how
 well each segmenter's crowns predict field DBH (per crown class, per density
@@ -78,10 +79,13 @@ AGB is a derived product (Jenkins 2003 generic) — NEON has no field AGB.
   detected apex height a deployed pipeline would use is not carried in the
   crown-metrics rows — but the benchmark shows detected height tracks field
   height closely, so the conclusion holds operationally.)
-- **Detection F1 and crown-allometry quality are decoupled — the issue's thesis,
-  confirmed with a twist.** AMS3D has the **best** crown→DBH skill (R² 0.558)
-  despite ranking *last* (9th) on detection F1 in #V2 (it splits crowns, tanking
-  precision): the crowns it does recover have widths that track DBH well.
+- **Detection F1 and crown-allometry quality are decoupled — this study's
+  thesis, confirmed with a twist.** AMS3D has the **best** crown→DBH skill (R²
+  0.558) despite ranking 9th of the ten arms on detection F1, ahead only of
+  classical Treeiso, in the matching-rule sensitivity section of the
+  [point-set IoU / panoptic-quality study](instance-iou-pq-results.md) (it
+  splits crowns, tanking precision): the crowns it does recover have widths that
+  track DBH well.
   Conversely ForestFormer3D, a true-mask deep arm, has essentially **no**
   crown→DBH skill (R² 0.021) — its masks recover trees but not DBH-predictive
   widths. So "best detector" (F1) ≠ "best for downstream DBH"; the meta-pipeline

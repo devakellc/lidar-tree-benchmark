@@ -80,8 +80,8 @@ Native F1 by site (intervals in `master_long.csv`):
   F1, −0.09 at the open SJER savanna), ForestFormer3D falls slightly everywhere
   (−0.02 to −0.10), TreeisoNet and `multichm` stay within ±0.05, and AMS3D
   rises at every site. CHM-VWF, `lmfauto` and `ptrees` change sign between
-  sites: CHM-VWF and `ptrees` gain at SJER and lose at the closed-canopy
-  sites, while `lmfauto` gains only at TEAK.
+  sites: CHM-VWF and `ptrees` gain at SJER, are flat at SOAP and lose at
+  TEAK, WREF and ABBY, while `lmfauto` gains only at TEAK.
 - The ordering is not stable across sites. SJER, the open savanna, is the
   hardest site for every arm except SAM2Point; ABBY is the easiest for nine of
   the twelve. At ABBY,
@@ -96,14 +96,14 @@ Native F1 by site (intervals in `master_long.csv`):
 
 ## Historical benchmark (June 2026)
 
-Cross-model synthesis (#R10) of every tree detector currently runnable on the
+Cross-model synthesis of every tree detector currently runnable on the
 NEON SOAP density ladder, scored on the same frozen clips by the same field-stem
 harness. The five-rung equal-set ladder now includes seven full arms:
 AMS3D, `lmfauto`, `multichm`, `ptrees`, CHM-VWF, TreeisoNet, and
 SegmentAnyTree. Li 2012 is reported native-only, and ForestFormer3D is reported
 as an additive native + 8 pts/m2 comparison.
 
-SegmentAnyTree (#M6 / #17) is no longer deferred: the rebuilt sm_120 Docker arm
+SegmentAnyTree is no longer deferred: the rebuilt sm_120 Docker arm
 completed the full SOAP ladder and wrote 90 rows to
 `work/neon/SOAP/segmentanytree_results.csv` (18 plots x 5 rungs).
 TreeisoNet and SegmentAnyTree have also now completed the cross-site SJER and
@@ -395,7 +395,7 @@ The tables below are copied from
 | treeisonet | 2 | 0.26 | 0.02 | 0.18 |
 | treeisonet | 1 | 0.18 | 0.02 | 0.07 |
 
-### ForestFormer3D (#M8) native + 8, vs baselines
+### ForestFormer3D native + 8, vs baselines
 
 | detector | rung | frdens | n_plots | n_ref | recall | precision | F1 | rec_dominant | rec_codominant | rec_understory |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -525,13 +525,13 @@ Regenerate with `compare_model_sites.R` (see the Regenerate block above); it
 writes `model_cross_site_summary.csv` and the per-arm + summary
 `model_structure_gradient*.png` density curves under `neon/figs/`.
 
-## Classical Treeiso, the unsupervised 3-D baseline (#P5)
+## Classical Treeiso, the unsupervised 3-D baseline
 
-The learned TreeisoNet (#M7) was already here; the **classical** cut-pursuit
+The learned TreeisoNet was already here; the **classical** cut-pursuit
 Treeiso (Xi & Hopkinson 2022; vendored MIT under `external/treeiso/`, run by
 `detect_treeiso_sweep.R`) is the non-learned 3-D instance segmenter FGI-EMIT uses
 as its baseline. Its graph-cut errors are decorrelated from the CHM/local-maximum
-arms, so it is a diversity member for the #P1 consensus pool — but it was
+arms, so it is a diversity member for the fusion consensus pool — but it was
 designed for dense TLS/ULS, and on sparse discrete-return ALS it **collapses**.
 
 | site (native) | n_ref | recall | precision | F1 | understory recall |
@@ -550,7 +550,7 @@ SOAP density ladder — recall halves as the cloud thins:
 Readings:
 
 - **The deep arms decisively beat the classical 3-D segmenter on ALS** — the
-  question #P5 was built to answer. SegmentAnyTree's native SOAP recall (0.642)
+  question this arm was built to answer. SegmentAnyTree's native SOAP recall (0.642)
   is **7.5×** Treeiso's (0.086); F1 0.464 vs 0.151. Treeiso's cut-pursuit needs
   the visible stems and dense returns of TLS to separate trees; on ALS canopy it
   **severely under-segments** (e.g. SOAP_031: 34 mapped core stems but only 36
@@ -577,7 +577,7 @@ Readings:
   does not evaluate point-level instance IoU or crown-shape quality. The deep
   arms' persisted per-point instance clouds are now also graded that way —
   point-set IoU≥0.5, Coverage, and Panoptic Quality against a Voronoi-on-stems
-  reference — by the #V1 scorer in
+  reference — by the IoU/PQ scorer in
   [`instance-iou-pq-results.md`](instance-iou-pq-results.md), which finds the
   apex-distance recall above overstates instance quality roughly two- to
   threefold.

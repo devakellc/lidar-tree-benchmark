@@ -1,4 +1,4 @@
-# NEON Model Benchmark — Triage & Standing Protocol (#A0)
+# NEON Model Benchmark — Triage & Standing Protocol
 
 Decision record for the deep-model benchmark. Source of truth for the runnable
 set and the rules every arm must follow. Derived from
@@ -37,7 +37,9 @@ Baselines: existing CHM-VWF and Li 2012 arms.
 - Mirror every model weight/image to a project store before first use; record
   SHA256 + source URL. Upstream links (TreeisoNet personal server, ForAINet
   Dropbox) are single points of failure.
-- Tracked in the GPU-infra plan (#I5), not here.
+- Tracked as the weights/image mirror and checksum task in
+  [the GPU-arm infrastructure plan](superpowers/plans/2026-06-08-gpu-arm-infra-m7-first.md),
+  not here.
 
 ## Density framing
 

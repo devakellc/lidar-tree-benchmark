@@ -149,7 +149,10 @@ attempt claim and sealed code remain unchanged. Python bytecode writes are
 disabled for the historical verifier.
 
 Retain the original `work/teak-detector-smoke-checkout` at revision
-`f628bd92a01c262133db180c2c86e5e1900a5c19`, its recorded absolute paths,
+`f628bd92a01c262133db180c2c86e5e1900a5c19` (the revision the replay
+dispatcher pins; it was merged to `main` as
+`6330c1010f7c14c118ffc85ee633a11707e6a827` with an identical tree), its
+recorded absolute paths,
 the accepted output directory and shared attempt claim. Also retain the
 parent packages, existing Python environment, isolated lasR runtime,
 installed model sources, checkpoints and pinned Docker images. Verification

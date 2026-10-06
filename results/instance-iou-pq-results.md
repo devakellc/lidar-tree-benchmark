@@ -1,4 +1,4 @@
-# Point-set IoU / Coverage / Panoptic-Quality scorer (#V1)
+# Point-set IoU / Coverage / Panoptic-Quality scorer
 
 A mask-aware evaluation of the deep instance-segmentation arms on the NEON
 frozen clips, added **alongside** (never replacing) the `greedy_match`
@@ -6,12 +6,13 @@ apex-distance scoring that grades the rest of the benchmark. The apex scorer
 reduces every model to one point per tree, so it is blind to point-level
 instance IoU and crown-shape quality — the limitation
 [`model-benchmark-results.md`](model-benchmark-results.md) already flags in its
-Caveats, and the exact failure mode the meta-pipeline's fusion arm (#P1) is
-meant to fix. FGI-EMIT and FOR-instanceV2 grade with point-set IoU≥0.5 +
-Coverage + Panoptic Quality; adopting that suite here makes the repo's arms
-comparable to those external leaderboards and gives fusion a mask-aware
-objective. This is the evaluation backbone the consensus arm (#P1) and the
-seed→refine arm (#P3) reference.
+Caveats, and the exact failure mode the meta-pipeline's
+[fusion arm](detector-fusion-results.md) is meant to fix. FGI-EMIT and
+FOR-instanceV2 grade with point-set IoU≥0.5 + Coverage + Panoptic Quality;
+adopting that suite here makes the repo's arms comparable to those external
+leaderboards and gives fusion a mask-aware objective. This is the evaluation
+backbone the consensus arm and the
+[seed→refine arm](sam2point-promptable-refine-results.md) reference.
 
 The ForestFormer3D rows in the generated tables below come from June 2026
 outer-cylinder runs. The
@@ -22,8 +23,8 @@ Regenerate:
 
 ```sh
 export CLAUDE_JOB_DIR=$(pwd)/work
-# the classical arms' instance clouds first (#V6; re-runs also refresh the
-# results CSVs -- CORES=1 for the lidrplugins script, its chm_vwf arm runs
+# the classical arms' persisted instance clouds first (re-runs also refresh
+# the results CSVs -- CORES=1 for the lidrplugins script, its chm_vwf arm runs
 # lasR exec, which drops dense cells under fork):
 Rscript scripts/detect_li2012_native.R SITE=SOAP CORES=6
 Rscript scripts/detect_ams3d_sweep.R SITE=SOAP CORES=6
@@ -70,25 +71,25 @@ in `pool()`. A small plot never dominates a site rate.
 
 Native per-point masks (`mask_source = "native"`):
 
-- **SegmentAnyTree** (#M6) — `segmentanytree_instances/<plot>_<rung>.laz`, the
+- **SegmentAnyTree** — `segmentanytree_instances/<plot>_<rung>.laz`, the
   `PredInstance` extra dim (0 = non-tree → dropped).
-- **ForestFormer3D** (#M8) — `forestformer3d_instances/<plot>_<rung>.laz`, with
+- **ForestFormer3D** — `forestformer3d_instances/<plot>_<rung>.laz`, with
   `UserData` (block) + `PointSourceID` (per-cylinder instance) run through
   `dedup_blocks()` to a globally consistent label per point (the block id is
   required, so `read_instance_points_laz` alone is insufficient).
-- **ptrees / AMS3D / Li2012** (#V6) — the classical segmenters always computed
+- **ptrees / AMS3D / Li2012** — the classical segmenters always computed
   per-point `treeID`/`crown_id` and threw it away before the apex collapse;
   `io_bridge.R::write_instances_laz` now persists it (integer extra dim, 0 =
   unassigned, the SAT layout) from `detect_lidrplugins_sweep.R`,
   `detect_ams3d_sweep.R`, and `detect_li2012_native.R` to
   `<arm>_instances/<plot>_<rung>.laz`. These clips are segmented from the
   normalized frozen clouds, so Z is already AGL.
-- **Treeiso** (#P5) — `treeiso_instances/<plot>_<rung>.laz` (`treeiso` extra
-  dim), persisted by its own driver since #P5; now registered in `MODELS`.
+- **Treeiso** — `treeiso_instances/<plot>_<rung>.laz` (`treeiso` extra
+  dim), persisted by its own driver; now registered in `MODELS`.
 - **TreeisoNet** — persisted masks from the corrected export; see the
   [corrected-adapter re-runs](#corrected-adapter-re-runs-on-the-frozen-clips).
 
-Apex-Voronoi proxy masks (`mask_source = "voronoi_apex"`, #V6): every cached
+Apex-Voronoi proxy masks (`mask_source = "voronoi_apex"`): every cached
 best-configuration apex set (`best_treetop_cache`, 12 arms) additionally
 becomes a mask by nearest-apex assignment within `APEX_R` (4 m) on the same
 substrate — the `fuse_detectors.R` scoring proxy, symmetric with the
@@ -140,7 +141,7 @@ width and used the 2 m fallback radius.
 | segmentanytree | 46 | 686 | 0.089 | 0.211 | 0.126 | 0.327 | 0.700 | 0.126 | 0.088 |
 | forestformer3d | 46 | 686 | 0.036 | 0.061 | 0.045 | 0.141 | 0.660 | 0.045 | 0.030 |
 
-### The completed native-mask board (#V6; all sites, native rung)
+### The completed native-mask board (all sites, native rung)
 
 The classical segmenters' persisted masks (re-run 2026-08-20; the regenerated
 results CSVs reproduce the shipped distance numbers exactly) complete the
@@ -334,7 +335,7 @@ post hoc sensitivity, reported beside the headline row and never in its
 place. The headline board therefore understates what TreeisoNet's masks can
 do at the voxel its apex pass uses.
 
-## Matching-rule sensitivity (#V2)
+## Matching-rule sensitivity
 
 ### Five sites
 
@@ -365,8 +366,9 @@ tables.
 The tables below use the June 2026 runs on the historical three-site
 population.
 
-If the router (#P2) selects "best arm per rung", that choice is only trustworthy
-if the ranking is stable across reasonable metrics. This recomputes the SOAP
+If the per-rung router selects "best arm per rung", that choice is only
+trustworthy if the ranking is stable across reasonable metrics. This
+recomputes the SOAP
 native leaderboard under apex-distance F1, point-set IoU≥0.5 recall, and
 threshold-free Coverage (`scripts/compare_matching_rules.R` →
 `work/neon/SOAP/matching_rule_ranks.csv`), and flags reorderings. The hypothesis
@@ -400,14 +402,15 @@ never mix denominators (guarding moves no rank):
 | SJER | 0.645 | 0.736 | 0.467 | 0.429 |
 | TEAK | 0.600 | 0.714 | 0.733 | 0.829 |
 
-Readings (updated for #V6 — the previous 2-of-9 data limit is closed):
+Readings (updated once the classical arms persisted their masks — the previous
+2-of-9 data limit is closed):
 
 - **τ/ρ are now defined, and they say the boards genuinely disagree.**
   Kendall τ 0.47–0.73 is a moderate, far-from-perfect agreement: the
   distance leaderboard is not a safe stand-in for the mask leaderboard. The
-  router (#P2) can keep ranking on distance F1 for apex-counting, but any
-  mask-consuming decision (crown delineation, #P3 seeds) needs the native
-  IoU/PQ board.
+  per-rung router can keep ranking on distance F1 for apex-counting, but any
+  mask-consuming decision (crown delineation, seed→refine seeds) needs the
+  native IoU/PQ board.
 - **The over-crediting hypothesis resolves with a twist.** ptrees and AMS3D
   hold their IoU **recall** (0.212/0.190 — ranks 2–3, their split fragments
   still overlap the reference) but collapse on mask **precision** (0.035/0.025
@@ -440,15 +443,15 @@ Readings (updated for #V6 — the previous 2-of-9 data limit is closed):
 - **Zero-shot on sparse ALS.** As elsewhere, these are zero-shot transfers of
   models trained on denser ULS/UAS/TLS to NEON discrete-return airborne LiDAR;
   the numbers measure that transfer, not ceiling performance.
-- **The ladder is covered but the headline tables are native.** #V6 persists
-  the classical arms at every rung and the scorer ran `RUNGS=native,8,4,2,1`
+- **The ladder is covered but the headline tables are native.** The classical
+  arms persist masks at every rung and the scorer ran `RUNGS=native,8,4,2,1`
   (the per-rung rows live in `instance_iou_pq.csv`); the tables here pool the
   native rung, where every arm has cells.
 - **Proxy rows are upper bounds, never rankings.** The `voronoi_apex` rows
   measure the apex-Voronoi proxy (and its inflation vs native masks); they are
   excluded from `compare_matching_rules.R` and should never be ranked against
   native-mask rows.
-- **Fusion pool (#P1) now includes ptrees + AMS3D** from the persisted clouds
+- **The fusion pool now includes ptrees + AMS3D** from the persisted clouds
   (SOAP native smoke: 7 single arms + modes + k1–k7 Pareto, best fused point
   k5 F1 0.430 vs best single 0.464). The five-site fusion on the full pool is
   in the [fusion study](detector-fusion-results.md).

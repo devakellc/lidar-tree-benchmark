@@ -28,8 +28,10 @@ data are as the sources state them, checked on 5 October 2026.
   independent of the training sites. Its Washington and SOAP scores are.
 - **Every learned point arm was trained on dense data.** ForestFormer3D and
   TreeisoNet on ULS, MLS or TLS at hundreds to thousands of points per m²;
-  SegmentAnyTree alone added sparsified copies down to 10 points/m², still
-  above the NEON native density (median 9.8 first-return pulses/m²).
+  SegmentAnyTree alone added sparsified copies down to 10 points/m², which
+  the NEON native clips exceed at the median (17.9 all-return points/m², 9.8
+  first-return pulses/m²; two of the 106 adopted plots sit just under 10);
+  the decimated rungs (8.4 points/m² and below) all fall under that floor.
 - **Licence conflicts.** ForestFormer3D's code is CC BY-NC 4.0 while its
   checkpoint record is GPL-3.0-or-later; the paper cites both. TreeAIBox does
   not state a separate licence for its weights.

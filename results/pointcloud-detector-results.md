@@ -7,19 +7,19 @@
 > and understory recall by crown class in the
 > [master tables](master-tables-results.md#recall-by-crown-class).
 
-*Addresses [issue #6](https://github.com/agrigoriev/lidar_tree_benchmarks/issues/6):
-"Add a point-cloud detector arm (Li 2012) at native density vs CHM-VWF". The
-density-ladder sweep ([density-ladder-sweep-results.md](density-ladder-sweep-results.md))
-is CHM-VWF only. A 2.5-D canopy height model sees only the top surface, so the
-one place high point density **should** pay off is a point-cloud detector able
-to resolve sub-dominant apexes a CHM cannot. This run tests that directly. Code:
+*Addresses the point-cloud detector arm question: add a point-cloud detector
+arm (Li 2012) at native density vs CHM-VWF. The density-ladder sweep
+([density-ladder-sweep-results.md](density-ladder-sweep-results.md)) is CHM-VWF
+only. A 2.5-D canopy height model sees only the top surface, so the one place
+high point density **should** pay off is a point-cloud detector able to resolve
+sub-dominant apexes a CHM cannot. This run tests that directly. Code:
 [scripts/detect_pc_sweep.R](../scripts/detect_pc_sweep.R). Last run: 2026-06-05.*
 
-> **Density-ladder addendum ([issue #38](https://github.com/devakellc/lidar_tree_benchmarks/issues/38)):**
-> the native-only comparison below has since been extended to a two-rung density
-> ladder (native + 8 pts/m²) on all three sites — see the **Density ladder**
-> section at the end of this document for where the point detectors cross the CHM
-> baseline as density drops. Code:
+> **Density-ladder addendum:** the native-only comparison below has since been
+> extended to a two-rung density ladder (native + 8 pts/m²) on all three sites
+> — see the [Density ladder](#density-ladder-native--8-ptsm²) section at the end
+> of this document for where the point detectors cross the CHM baseline as
+> density drops. Code:
 > [scripts/detect_pc_ladder.R](../scripts/detect_pc_ladder.R).
 
 ---
@@ -101,7 +101,8 @@ intermediate 96, suppressed 9.
 ## The understory question
 
 Combined understory = intermediate + suppressed (105 stems pooled). This is the
-metric issue #6 cares about — the stems a surface model structurally cannot see.
+metric the point-cloud detector arm question cares about — the stems a surface
+model structurally cannot see.
 
 | Detector | understory recall | understory TP / 105 | Δ recall vs CHM-VWF | Δ understory vs CHM-VWF |
 | --- | ---: | ---: | ---: | ---: |
@@ -190,11 +191,11 @@ physically see under the canopy.
 
 ---
 
-## Density ladder: native + 8 pts/m² (issue #38)
+## Density ladder: native + 8 pts/m²
 
-*Addresses [issue #38](https://github.com/devakellc/lidar_tree_benchmarks/issues/38):
-the native-only comparison above gives no **density-response** curve for the
-point-cloud detectors. The AOI results
+*Addresses the point-cloud density-ladder question: the native-only comparison
+above gives no **density-response** curve for the point-cloud detectors. The AOI
+results
 ([treetop-lasr-vs-lidr-comparison.md](treetop-lasr-vs-lidr-comparison.md)) show
 point methods **over-detect** below ~3 first-return/m² and converge with the CHM
 at higher density; this section quantifies that on field stems. Code:
@@ -216,10 +217,11 @@ arms read the identical bytes per cell and the 8-rung is reproducible across
 runs. The 8 pts/m² rung is skipped for any plot whose **native** all-return
 density is ≤ 8 (the `run_sweep.R` no-upsampling rule) — one SJER plot, hence 45
 plots at the 8-rung vs 46 at native. As a control, the **native** rung
-reproduces the `prepare_clip`-based #6 pooled numbers **exactly** (chm_vwf
-recall 0.401 / precision 0.336 / F1 0.365; understory 0.200), confirming the two
-clip providers are equivalent at native and isolating the 8-rung as the only new
-variable. Pooling is the canonical `pool` + `equal_set_guard` keyed by
+reproduces the `prepare_clip`-based pooled numbers of the native comparison
+above **exactly** (chm_vwf recall 0.401 / precision 0.336 / F1 0.365;
+understory 0.200), confirming the two clip providers are equivalent at native
+and isolating the 8-rung as the only new variable. Pooling is the canonical
+`pool` + `equal_set_guard` keyed by
 `(site, plot, rung)`; **0 cells dropped** (every arm scored every cell at
 `CORES=1`). Deltas are reported **within each rung** over an identical plot set.
 
@@ -285,12 +287,13 @@ point detectors** as density falls from native to 8 pts/m²:
 
 **Verdict.** Which detector wins is density-dependent. At **native** the
 CHM-VWF baseline is competitive — the `lmf`-class point detectors do not beat it,
-and only true 3D segmentation (Li 2012) buys a thin understory slice (the #6
-occlusion-floor finding). At **8 pts/m²** the CHM loses its resolution advantage
-and every point-cloud detector overtakes it on recall and understory, though all
-of them trade precision to do so and the F1 gap stays narrow (0.34–0.35 for the
-point arms vs 0.354 for CHM-VWF). The practical reading: if the deliverable is
-recall / sub-canopy stems at reduced density, a point-cloud detector is the
-better choice below native; if precision (or F1) matters more, CHM-VWF remains
-competitive even at 8 pts/m². The 4/2/1 rungs are left out by design — there the
+and only true 3D segmentation (Li 2012) buys a thin understory slice (the
+[occlusion-floor verdict](#verdict-occlusion-floor) of the native comparison).
+At **8 pts/m²** the CHM loses its resolution advantage and every point-cloud
+detector overtakes it on recall and understory, though all of them trade
+precision to do so and the F1 gap stays narrow (0.34–0.35 for the point arms vs
+0.354 for CHM-VWF). The practical reading: if the deliverable is recall /
+sub-canopy stems at reduced density, a point-cloud detector is the better choice
+below native; if precision (or F1) matters more, CHM-VWF remains competitive
+even at 8 pts/m². The 4/2/1 rungs are left out by design — there the
 point arms over-detect into noise, and the CHM-VWF ladder already carries them.
