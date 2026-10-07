@@ -4,7 +4,7 @@ This folder holds the draft of the benchmark paper described in the [paper
 proposal](../docs/paper-proposal.md), written on 6 October 2026 from the
 committed study reports.
 
-- [manuscript.md](manuscript.md): the main text, with seven tables and seven
+- [manuscript.md](manuscript.md): the main text, with eight tables and seven
   figures.
 - [supplement.md](supplement.md): supplementary tables and the studies the main
   text only summarises.
@@ -21,18 +21,26 @@ submission:
   funding statement.
 - Confirm the journal's limits: the abstract has 250 words, the highlights at
   most 84 characters each and the keyword list seven entries.
-- Re-stage the archive from this branch, because the chance-agreement null, the
-  leave-out rank correlations and the figures were added after the last
-  clean-container rebuild; then deposit it and replace "DOI to be assigned at
-  deposit" in the availability statement.
+- Re-stage the archive from this branch, because the chance-agreement null and
+  its seed and minimum-shift checks, the leave-out and corrected-F1 rank
+  correlations, the unsmoothed-baseline sensitivity, the instance audit and the
+  figures were added after the last clean-container rebuild; then deposit it and
+  replace "DOI to be assigned at deposit" in the availability statement.
 - Check once more for released SegmentAnyTreeV2 and SelectAnyTree weights; none
   were public on 6 October 2026.
 - After re-staging and the clean-container rebuild, replace the 1,221 rebuilt
   files of Section 4.10 (and the counts in docs/reproduction-archive.md) with
   the new rebuild's count, and drop the sentence on the earlier staging.
-- Remove the draft preamble under the title (the full-title line, the author
-  placeholder and the note on draft notes) and keep one title for the title
-  page.
+- Remove the draft preamble under the title (the author placeholder and the note
+  on draft notes) and the note under References; the "Full title" line is the
+  submission title and the H1 its short form.
+- The figure images carry a short alt text ("Figure N.") and a separate bold
+  caption paragraph; at conversion keep one caption per figure.
+- Lay out Tables 3, 5, 7 and S12c for the template's column width (landscape or
+  full width).
+- The supplement is numbered in topical order, not in order of first citation;
+  renumber if the journal asks. Add ORCIDs and check the generative-AI
+  declaration against the publisher's wording.
 - Replace the supplement's `Source:` links to repository reports with citations
   of the archived reports in the deposit.
 - Convert to the journal's template and generate the reference list.
@@ -51,6 +59,8 @@ generated tables that report documents. The archive rebuilds those tables with
 | 3.5, 4.9, 5.7 Dense-domain control | [native pipeline](../results/final-ensemble-pipeline-results.md), [FGI-EMIT thinning](../results/fgiemit-thinning-results.md), [transfer audit](../results/frozen-transfer-audit-results.md), [checkpoint overlap](../results/fgiemit-checkpoint-overlap-results.md), [model comparison](../results/model-benchmark-results.md) |
 | 4.1 Detectors, 5.9 Compute cost | [detector table](../results/detector-table.md), [compute cost](../results/compute-cost-results.md) |
 | 4.2, 5.1–5.4, 5.8 Chance agreement | [matcher robustness](../results/matcher-robustness-results.md#chance-agreement) |
+| 4.1, 5.2, 6.1, 6.7 Baseline smoothing sensitivity | [baseline smoothing sensitivity](../results/baseline-smoothing-sensitivity-results.md) |
+| 3.1, 4.1, 4.3, 6.2 Stands, apex floor, dead stems, instance assignment | [instance audit](../results/instance-audit-results.md) |
 | 4.3, 5.5 Reference completeness | [censused subplots](../results/census-support-results.md), [coverage gap](../results/coverage-gap-results.md) |
 | 4.6, 5.3 Regions | [configuration provenance](../docs/configuration-provenance.md), [master tables](../results/master-tables-results.md), [density ladder](../results/density-ladder-sweep-results.md) |
 | 4.5, 5.1, 5.2, 5.4 Accuracy, density, rank stability, crown classes | [master tables](../results/master-tables-results.md), [model comparison](../results/model-benchmark-results.md) |
@@ -63,6 +73,10 @@ generated tables that report documents. The archive rebuilds those tables with
 | Supplement S6–S8 | [fusion](../results/detector-fusion-results.md), [crown benchmark](../results/crown-segmentation-results.md), [instance IoU](../results/instance-iou-pq-results.md), [proxy validation](../results/fgiemit-proxy-validation-results.md) |
 | Supplement S9–S11 | [calibration/validation](../results/calibration-validation-results.md), [master tables](../results/master-tables-results.md), [configuration provenance](../docs/configuration-provenance.md), [detector table](../results/detector-table.md) |
 | Supplement S12 | [matcher robustness](../results/matcher-robustness-results.md#chance-agreement) |
+| Supplement S14, S18 | [instance audit](../results/instance-audit-results.md) |
+| Supplement S15 | [detector table](../results/detector-table.md), [configuration provenance](../docs/configuration-provenance.md) |
+| Supplement S16 | [baseline smoothing sensitivity](../results/baseline-smoothing-sensitivity-results.md) |
+| Supplement S17 | [master tables](../results/master-tables-results.md) |
 
 Table 1's crown-class counts and stem heights come from `figure_1.csv`, the data
 file of Figure 1.
@@ -78,8 +92,9 @@ file of Figure 1.
 - The nominal plot core on all 106 plots is the headline; censused subplots are
   the reference-completeness bracket.
 - Corrected F1 is (F1 − null F1) / (1 − null F1), where the null scores randomly
-  shifted copies of each detector's detections; a corrected lead is a difference
-  of corrected F1.
+  shifted copies of each detector's detections; the excess F1 is F1 − null F1; a
+  corrected lead is a difference of corrected F1.
+- "Weak" marks a contrast whose 95% interval ends within 0.01 of zero.
 
 ## Figures
 

@@ -68,7 +68,7 @@ Native F1 leads over CHM-VWF with paired plot-bootstrap intervals
 | --- | --- | --- | --- | --- |
 | 4 m | Five sites | +0.048 [+0.028, +0.069] | +0.044 [+0.021, +0.067] | +0.005 [−0.018, +0.028] |
 | 3 m | Five sites | +0.040 [+0.018, +0.061] | +0.037 [+0.014, +0.058] | −0.011 [−0.035, +0.011] |
-| 2 m | Five sites | +0.012 [−0.008, +0.031] | +0.026 [+0.009, +0.043] | −0.032 [−0.053, −0.011] |
+| 2 m | Five sites | +0.012 [−0.008, +0.031] | +0.026 [+0.009, +0.043] (weak) | −0.032 [−0.053, −0.011] |
 | 4 m | California | +0.086 [+0.054, +0.120] | +0.087 [+0.041, +0.131] | +0.054 [+0.020, +0.086] |
 | 3 m | California | +0.076 [+0.047, +0.105] | +0.084 [+0.036, +0.127] | +0.048 [+0.017, +0.076] |
 | 2 m | California | +0.063 [+0.040, +0.087] | +0.074 [+0.040, +0.105] | +0.035 [+0.008, +0.062] |
@@ -136,13 +136,19 @@ own result rows (4,664 cells). Native density, five sites:
   decimated rungs 67 to 79% and 44 to 66%. The plot cores hold 1.21 stems per 50
   m² (a 4 m circle), and the arms place 0.8 (Detectree2) to 5.7 (AMS3D) core
   detections in the same area, so a detection usually has a stem within 4 m.
-- Every match within 2 m is also a match within 4 m (no cell has more matches at
-  2 m), yet the excess above the null grows from 4 to 2 m for ten of the eleven
-  analysed arms (CHM-VWF 0.133 to 0.176), so the 4 m null over-subtracts. The
-  corrected F1 of the two segmenters barely depends on the radius (0.229 and
-  0.228 for SegmentAnyTree, 0.215 and 0.214 for ForestFormer3D at 4 and 2 m),
-  but CHM-VWF's rises from 0.195 to 0.211 and the other arms' change by up to
-  0.03, so the segmenters' corrected leads shrink at 2 m.
+- Every match within 2 m is also a match within 4 m (no cell has more matches
+  at 2 m), so an arm's share of stems found by skill cannot be larger at 2 m
+  than at 4 m. The excess F1 above the null grows from 4 to 2 m for ten of the
+  eleven analysed arms (CHM-VWF 0.133 to 0.176), but under the correction the
+  excess is the skill share times the headroom, so most of that growth is
+  expected as the null falls: with constant skill CHM-VWF's 0.133 would become
+  0.162, and for the two segmenters the growth equals the expectation (0.176 and
+  0.186 expected, 0.175 and 0.186 observed). The test of the correction is
+  corrected F1 itself: it is higher at 2 m for seven of the eleven arms,
+  unchanged for the two segmenters (0.229 and 0.228 for SegmentAnyTree, 0.215
+  and 0.214 for ForestFormer3D) and lower for the two RGB arms; CHM-VWF's rises
+  from 0.195 to 0.211 and the other arms' change by up to 0.03, so the
+  segmenters' corrected leads shrink at 2 m.
 - Randomly shifted copies of the segmenters' detections already lead CHM-VWF by
   0.043 and 0.027. The number of detections is part of the reason (1.65 and 1.61
   per 50 m² against 1.19 for CHM-VWF), not all of it: Li 2012 places as many
@@ -150,7 +156,9 @@ own result rows (4,664 cells). Native density, five sites:
   ForestFormer3D's lead is +0.020 at 4 m and +0.003 at 2 m and SegmentAnyTree's
   +0.034 and +0.017; the plain differences above the null are +0.005 and 0.000,
   +0.017 and +0.010. Only SegmentAnyTree's corrected lead at 4 m excludes zero,
-  and only weakly (lower limit +0.008).
+  and only weakly (lower limit +0.008). In Washington the observed leads
+  themselves are weak contrasts (+0.032 [+0.005, +0.059] and +0.030 [+0.006,
+  +0.050]).
 - By region (corrected leads, 4 m): ForestFormer3D +0.060 [+0.026, +0.094] and
   SegmentAnyTree +0.061 [+0.015, +0.103] in California, +0.004 [−0.026, +0.029]
   and +0.017 [−0.014, +0.042] in Washington, where Li 2012 is level with them
@@ -185,9 +193,43 @@ own result rows (4,664 cells). Native density, five sites:
   overstory recall. Above the null, AMS3D and ForestFormer3D recall 0.094 of
   understory stems at 4 m (0.153 and 0.108 at 2 m), SegmentAnyTree 0.061,
   `multichm` 0.040 and CHM-VWF 0.016 [−0.012, +0.050] (0.042 [+0.015, +0.071] at
-  2 m); the larger excess at 2 m shows that the 4 m subtraction also removes
+  2 m). In corrected understory recall CHM-VWF, TreeisoNet and Li 2012 rise from
+  0.02, 0.03 and 0.02 at 4 m to 0.05, 0.05 and 0.06 at 2 m, while ForestFormer3D
+  (0.15 and 0.13), SegmentAnyTree (0.08 and 0.07) and `multichm` (0.06 and 0.05)
+  do not rise, so for the canopy-surface arms the 4 m subtraction also removes
   real matches. ForestFormer3D's understory recall lead over CHM-VWF above the
   null is +0.078 [+0.037, +0.119] at 4 m.
+- Corrected recall and precision separate skill from count (`*_delta.csv`,
+  metrics `recall_scaled` and `precision_scaled`; `*_leads.csv` kind
+  `above_null_scaled` for recall and precision). At native density and 4 m the
+  two segmenters lead CHM-VWF in corrected recall by +0.108 [+0.079, +0.139] and
+  +0.112 [+0.079, +0.145] and Li 2012 by +0.060 [+0.039, +0.083], while in
+  corrected precision CHM-VWF is the highest LiDAR arm (0.193) and the
+  segmenters trail it by 0.026 [0.003, 0.052] and 0.010 [−0.012, 0.039]; at 2 m
+  the recall leads are +0.059 and +0.070 and the precision deficits 0.034 and
+  0.020. Corrected F1 equals the harmonic mean of corrected recall and corrected
+  precision within 0.003 on the five-site and regional scopes and within 0.005
+  at single sites, for every arm and radius.
+- The null's constants do not drive the results. An independent set of 200
+  offsets (`SEED=1`, `null_seed1_*.csv`) changes the pooled null F1 of any arm
+  on the five sites by at most 0.002 and any corrected F1 lead by at most 0.002
+  (regional leads and their differences move by up to 0.006 and single-site
+  leads by up to 0.013, at SJER);
+  minimum shifts of 6 m and 12 m instead of 8 m (`MIN_SHIFT=`, `null_ms6_*.csv`
+  and `null_ms12_*.csv`) change the segmenters' native corrected leads by at
+  most 0.001 (ForestFormer3D +0.020 and +0.021, SegmentAnyTree +0.034 and
+  +0.035). The bootstrap therefore treats the null as fixed.
+- Rank stability survives the correction (`corrected_rank_stability.R`,
+  `null_corrected_rank.csv`, from the per-draw corrected F1 in
+  `*_corrected_draws.csv`): the Spearman correlation between the eight ladder
+  arms' corrected F1 at native density and at rungs 8, 4, 3.2, 2 and 1 is 0.76
+  [0.67, 0.93], 0.81 [0.52, 0.90], 0.71 [0.31, 0.88], −0.19 [−0.29, 0.36] and
+  −0.17 [−0.40, 0.02] at 4 m and 0.76 [0.62, 0.90], 0.64 [0.38, 0.83], 0.36
+  [−0.02, 0.67], −0.05 [−0.33, 0.26] and −0.17 [−0.36, 0.00] at 2 m, against
+  0.83, 0.76, 0.71, −0.05 and −0.19 in observed F1.
+- The unsmoothed-baseline sensitivity agrees: against CHM-VWF run without its
+  sub-8 pulses/m² smoothing, the observed leads of the non-collapsing arms below
+  native density are within 0.03 of zero (baseline smoothing sensitivity study).
 
 `null_*.csv` (4 m) and `null_tol2_*.csv` (2 m) in `paper_runs/sensitivity` hold
 every arm, rung, scope and stratum: pooled observed and null scores, observed

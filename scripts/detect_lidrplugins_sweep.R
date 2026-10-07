@@ -115,7 +115,11 @@ SITE  <- if (is.null(A$SITE))  "SOAP" else A$SITE
 PLOTS <- if (is.null(A$PLOTS) || A$PLOTS == "ALL") NULL else strsplit(A$PLOTS, ",")[[1]]
 CORES <- as.integer(if (is.null(A$CORES)) 6 else A$CORES)
 TOL   <- as.numeric(if (is.null(A$TOL)) 4.0 else A$TOL)
-A_VWF <- as.numeric(if (is.null(A$A))   0.10 else A$A)
+A_VWF <- as.numeric(if (is.null(A[["A"]])) 0.10 else A[["A"]])  # exact match: A$A would read ARMS=
+# SMOOTH_BELOW= passes the baseline's smoothing threshold to detect_lasr (first
+# returns/m² below which the 0.5 m canopy model is smoothed; 8 is the paper
+# rule, 0 disables the smoothing for the sensitivity run).
+SMOOTH_BELOW <- as.numeric(if (is.null(A$SMOOTH_BELOW)) 8 else A$SMOOTH_BELOW)
 ARMS  <- c("lmfauto", "multichm", "ptrees", "chm_vwf")
 # ARMS= runs a subset (the compute-cost timings run each detector alone).
 if (!is.null(A$ARMS)) {
@@ -163,7 +167,8 @@ run_main <- function() {
         ptrees   = function() det_ptrees(las, hmin = 2,
                               inst_path = file.path(nd, "ptrees_instances",
                                                     paste0(pid, "_", rlab, ".laz"))),
-        chm_vwf  = function() tryCatch(detect_lasr(prep$normalized, res, A_VWF, frdens),
+        chm_vwf  = function() tryCatch(detect_lasr(prep$normalized, res, A_VWF, frdens,
+                                                   smooth_below = SMOOTH_BELOW),
                                        error = function(e) NULL))
       dets <- lapply(run_det[ARMS], function(f) f())
       for (nm in names(dets)) {
