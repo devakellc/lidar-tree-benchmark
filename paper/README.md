@@ -21,10 +21,11 @@ submission:
   funding statement.
 - Confirm the journal's limits: the abstract has 250 words, the highlights at
   most 84 characters each and the keyword list seven entries.
-- Re-stage the archive from this branch, because the chance-agreement null, the
-  leave-out rank correlations and the figures were added after the last
-  clean-container rebuild; then deposit it and replace "DOI to be assigned at
-  deposit" in the availability statement.
+- Re-stage the archive from this branch, because the chance-agreement null and
+  its seed and minimum-shift checks, the leave-out and corrected-F1 rank
+  correlations, the unsmoothed-baseline sensitivity, the instance audit and the
+  figures were added after the last clean-container rebuild; then deposit it and
+  replace "DOI to be assigned at deposit" in the availability statement.
 - Check once more for released SegmentAnyTreeV2 and SelectAnyTree weights; none
   were public on 6 October 2026.
 - After re-staging and the clean-container rebuild, replace the 1,221 rebuilt
@@ -93,7 +94,7 @@ file of Figure 1.
 - Corrected F1 is (F1 − null F1) / (1 − null F1), where the null scores randomly
   shifted copies of each detector's detections; the excess F1 is F1 − null F1; a
   corrected lead is a difference of corrected F1.
-- "Weak" marks a contrast whose 95% interval ends within about 0.01 of zero.
+- "Weak" marks a contrast whose 95% interval ends within 0.01 of zero.
 
 ## Figures
 

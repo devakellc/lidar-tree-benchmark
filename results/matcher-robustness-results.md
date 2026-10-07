@@ -208,10 +208,13 @@ own result rows (4,664 cells). Native density, five sites:
   segmenters trail it by 0.026 [0.003, 0.052] and 0.010 [−0.012, 0.039]; at 2 m
   the recall leads are +0.059 and +0.070 and the precision deficits 0.034 and
   0.020. Corrected F1 equals the harmonic mean of corrected recall and corrected
-  precision within 0.003 for every arm, radius and scope.
+  precision within 0.003 on the five-site and regional scopes and within 0.005
+  at single sites, for every arm and radius.
 - The null's constants do not drive the results. An independent set of 200
   offsets (`SEED=1`, `null_seed1_*.csv`) changes the pooled null F1 of any arm
-  on the five sites by at most 0.002 and any corrected lead by at most 0.002;
+  on the five sites by at most 0.002 and any corrected F1 lead by at most 0.002
+  (regional leads and their differences move by up to 0.006 and single-site
+  leads by up to 0.013, at SJER);
   minimum shifts of 6 m and 12 m instead of 8 m (`MIN_SHIFT=`, `null_ms6_*.csv`
   and `null_ms12_*.csv`) change the segmenters' native corrected leads by at
   most 0.001 (ForestFormer3D +0.020 and +0.021, SegmentAnyTree +0.034 and
