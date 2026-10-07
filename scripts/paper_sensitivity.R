@@ -42,7 +42,10 @@ source(.find("master_tables_lib.R"))
 #   Rscript scripts/paper_sensitivity.R MODE=matcher|exact2021|jitter|null
 #     [SITES=SJER,SOAP,TEAK,WREF,ABBY] [ARMS=...] [RUNGS=native,8,4,2,1]
 #     [POP=adopted] [FROZEN_ROOT=...] [K=200] [CORES=8] [OUT=<dir>]
-#     [TOL=4] (null only; another radius writes null_tol<TOL>_*.csv)
+#     [TOL=4] [MIN_SHIFT=8] [SEED=0] (null only: another radius, minimum
+#     shift or seed offset writes null[_tol<TOL>][_ms<MIN_SHIFT>][_seed<SEED>]_*.csv;
+#     the null also writes <prefix>_corrected_draws.csv, the per-draw corrected
+#     F1 of every arm on the five sites, for rank statistics across rungs)
 # A rung frozen in its own root runs from that rung's job directory, e.g. the
 # QL2 rung: CLAUDE_JOB_DIR=<paper_runs_ql2> ... RUNGS=3.2 FROZEN_ROOT=<root>
 # ARMS=<the eight ladder arms>.
@@ -69,7 +72,10 @@ OUT   <- if (is.null(A$OUT)) file.path(d, "sensitivity") else A$OUT
 POP   <- if (is.null(A$POP)) "adopted" else A$POP
 BASE_TOL <- 4; TOL_CAP <- 12; LAMBDA <- 0.5
 NULL_TOL <- as.numeric(if (is.null(A$TOL)) BASE_TOL else A$TOL)
-NULL_SFX <- if (NULL_TOL == BASE_TOL) "null" else sprintf("null_tol%g", NULL_TOL)
+MIN_SHIFT <- as.numeric(if (is.null(A$MIN_SHIFT)) 8 else A$MIN_SHIFT)
+SEED <- as.integer(if (is.null(A$SEED)) 0 else A$SEED)
+NULL_SFX <- paste0("null", if (NULL_TOL != BASE_TOL) sprintf("_tol%g", NULL_TOL),
+                   if (MIN_SHIFT != 8) sprintf("_ms%g", MIN_SHIFT), if (SEED != 0) sprintf("_seed%d", SEED))
 dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 if (length(setdiff(ARMS, MT_ARMS$arm))) stop("Unknown arms: ", paste(setdiff(ARMS, MT_ARMS$arm), collapse = ", "))
 
@@ -140,7 +146,8 @@ run_plot <- function(site, pid, ctx) {
   tol_vec <- match_tol(stems$maxCrownDiameter, stems$pos_unc, base_tol = BASE_TOL, k = 1, tol_cap = TOL_CAP)
   # Null shifts: one set per plot, shared by every arm and rung.
   offs <- if (MODE == "null") lapply(seq_len(K), function(k)
-    null_offset(2 * (ph + NULL_TOL), seed_for(site, pid, "null") + k)) else NULL
+    null_offset(2 * (ph + NULL_TOL), seed_for(site, pid, "null") + SEED * 1000003L + k,
+                min_shift = MIN_SHIFT)) else NULL
   rows <- list()
   for (rung in RUNGS) {
     rv <- if (rung == "native") NA_real_ else as.numeric(rung)
@@ -313,19 +320,26 @@ if (MODE == "null") {
         s <- mt_boot_scores(xx, W[keep, , drop = FALSE], c("variant", "detector", "rung"))
         mets <- if (st == "all") c("recall", "precision", "F1") else "recall"
         est <- cbind(scope = sc, stratum = st, mt_intervals(s, mets))
-        # Observed minus null, per arm; for F1 also the share of the headroom
-        # above the null, (observed - null) / (1 - null), as in Cohen's kappa.
-        E1 <- s$estimate$F1; names(E1) <- s$groups; D1 <- s$draws$F1
-        scaled <- function(v, a) list(e = (E1[g(v, a)] - E1[g("null", a)]) / (1 - E1[g("null", a)]),
-                                      d = (D1[, g(v, a)] - D1[, g("null", a)]) / (1 - D1[, g("null", a)]))
-        dl <- do.call(rbind, lapply(arms, function(a) rbind(
-          do.call(rbind, lapply(mets, function(m)
-            cbind(scope = sc, stratum = st, detector = a, rung = r,
-                  mt_contrast(s, g("null", a), g("baseline", a), m)))),
-          if (st == "all") { k <- scaled("baseline", a)
-            cbind(data.frame(scope = sc, stratum = st, detector = a, rung = r,
-                             from = g("null", a), to = g("baseline", a), metric = "F1_scaled",
-                             estimate = unname(k$e)), mt_interval(k$d)) })))
+        # Observed minus null, per arm, and the corrected score, the excess
+        # over the null scaled by the headroom, (observed - null) / (1 - null),
+        # as in Cohen's kappa: metric "<m>_scaled" for every metric pooled.
+        scaled <- function(v, a, m = "F1") {
+          E <- s$estimate[[m]]; names(E) <- s$groups; D <- s$draws[[m]]
+          list(e = unname((E[g(v, a)] - E[g("null", a)]) / (1 - E[g("null", a)])),
+               d = (D[, g(v, a)] - D[, g("null", a)]) / (1 - D[, g("null", a)]))
+        }
+        dl <- do.call(rbind, lapply(arms, function(a) do.call(rbind, lapply(mets, function(m) {
+          k <- scaled("baseline", a, m)
+          rbind(cbind(scope = sc, stratum = st, detector = a, rung = r,
+                      mt_contrast(s, g("null", a), g("baseline", a), m)),
+                cbind(data.frame(scope = sc, stratum = st, detector = a, rung = r,
+                                 from = g("null", a), to = g("baseline", a), metric = paste0(m, "_scaled"),
+                                 estimate = k$e), mt_interval(k$d)))
+        }))))
+        # Per-draw corrected F1 on the five sites, for rank statistics across rungs.
+        cd <- if (sc == "five sites" && st == "all") do.call(rbind, lapply(arms, function(a)
+          data.frame(draw = seq_len(MT_N_BOOT), rung = r, detector = a,
+                     value = scaled("baseline", a)$d))) else NULL
         # Lead over CHM-VWF: observed, under the null, and above the null.
         ld <- if ("chm_vwf" %in% arms) do.call(rbind, lapply(setdiff(arms, "chm_vwf"), function(a)
           do.call(rbind, lapply(mets, function(m) {
@@ -340,10 +354,10 @@ if (MODE == "null") {
               cbind(data.frame(scope = sc, stratum = st, detector = a, rung = r, metric = m,
                                kind = "above_null", estimate = lead("baseline") - lead("null")),
                     mt_interval(dd("baseline") - dd("null"))),
-              if (m == "F1") {
-                ka <- scaled("baseline", a); kc <- scaled("baseline", "chm_vwf")
+              {
+                ka <- scaled("baseline", a, m); kc <- scaled("baseline", "chm_vwf", m)
                 cbind(data.frame(scope = sc, stratum = st, detector = a, rung = r, metric = m,
-                                 kind = "above_null_scaled", estimate = unname(ka$e - kc$e)),
+                                 kind = "above_null_scaled", estimate = ka$e - kc$e),
                       mt_interval(ka$d - kc$d))
               })
           })))) else NULL
@@ -355,14 +369,14 @@ if (MODE == "null") {
           lead_e <- function(v, a) c(E[g(v, a)] - E[g(v, "chm_vwf")])
           lead_d <- function(v, a) D[, g(v, a)] - D[, g(v, "chm_vwf")]
           regd[[sc]] <- lapply(setNames(nm = setdiff(arms, "chm_vwf")), function(a) {
-            ka <- scaled("baseline", a)
+            ka <- scaled("baseline", a, "F1")
             list(observed = list(e = lead_e("baseline", a), d = lead_d("baseline", a)),
                  above_null = list(e = lead_e("baseline", a) - lead_e("null", a),
                                    d = lead_d("baseline", a) - lead_d("null", a)),
                  above_null_scaled = list(e = unname(ka$e - kc$e), d = ka$d - kc$d))
           })
         }
-        out[[length(out) + 1]] <- list(est = est, delta = dl, leads = ld)
+        out[[length(out) + 1]] <- list(est = est, delta = dl, leads = ld, draws = cd)
       }
     }
     if (all(c("California", "Washington") %in% names(regd))) {
@@ -385,6 +399,8 @@ if (MODE == "null") {
   write.csv(do.call(rbind, lapply(parts, `[[`, "delta")), file.path(OUT, paste0(NULL_SFX, "_delta.csv")),
             row.names = FALSE)
   write.csv(do.call(rbind, lapply(parts, `[[`, "leads")), file.path(OUT, paste0(NULL_SFX, "_leads.csv")),
+            row.names = FALSE)
+  write.csv(do.call(rbind, lapply(parts, `[[`, "draws")), file.path(OUT, paste0(NULL_SFX, "_corrected_draws.csv")),
             row.names = FALSE)
   cat(sprintf("wrote %s and %s_delta/leads/strata.csv\n", file.path(OUT, paste0(NULL_SFX, "_pooled.csv")),
               NULL_SFX))
@@ -414,12 +430,22 @@ pool_rung <- function(x) {
           if (!all(c(from, to) %in% s$groups)) return(NULL)
           cbind(scope = sc, variant = v, detector = a, rung = x$rung[1], mt_contrast(s, from, to, m))
         }))))))
-    # Paired lead of each arm over CHM-VWF within a variant.
+    # Paired lead of each arm over CHM-VWF within a variant, and the paired
+    # change of that lead from the baseline variant (metric "F1_lead").
+    E <- s$estimate$F1; names(E) <- s$groups; D <- s$draws$F1
     ld <- do.call(rbind, lapply(unique(xs$variant), function(v)
       do.call(rbind, lapply(setdiff(unique(xs$detector), "chm_vwf"), function(a) {
         from <- paste(v, "chm_vwf", x$rung[1], sep = "|"); to <- paste(v, a, x$rung[1], sep = "|")
         if (!all(c(from, to) %in% s$groups)) return(NULL)
-        cbind(scope = sc, variant = v, detector = a, rung = x$rung[1], mt_contrast(s, from, to, "F1"))
+        lead <- cbind(scope = sc, variant = v, detector = a, rung = x$rung[1], mt_contrast(s, from, to, "F1"))
+        if (v == "baseline") return(lead)
+        b0 <- paste("baseline", "chm_vwf", x$rung[1], sep = "|"); b1 <- paste("baseline", a, x$rung[1], sep = "|")
+        if (!all(c(b0, b1) %in% s$groups)) return(lead)
+        chg <- (D[, to] - D[, from]) - (D[, b1] - D[, b0])
+        rbind(lead, cbind(data.frame(scope = sc, variant = paste(v, "minus baseline"), detector = a,
+                                     rung = x$rung[1], from = b1, to = to, metric = "F1_lead",
+                                     estimate = unname((E[to] - E[from]) - (E[b1] - E[b0])),
+                                     stringsAsFactors = FALSE), mt_interval(chg)))
       }))))
     list(est = est, delta = vs, leads = ld)
   }))

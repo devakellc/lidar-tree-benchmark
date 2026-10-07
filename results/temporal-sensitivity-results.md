@@ -71,9 +71,16 @@ plot-bootstrap intervals (`exact2021_leads.csv`):
 | California (11 plots) | +0.089 [+0.049, +0.138] | +0.075 [+0.016, +0.135] | +0.126 [+0.057, +0.191] | +0.113 [+0.031, +0.196] |
 | Washington (33 plots) | +0.020 [−0.008, +0.048] | −0.018 [−0.061, +0.020] | +0.033 [+0.008, +0.058] | +0.025 [−0.002, +0.053] |
 
-On the exact-2021 cut SegmentAnyTree's lead excludes zero overall and in
-California and is narrowly positive in Washington; ForestFormer3D's vanishes
-overall and reverses, within its interval, in Washington.
+On the exact-2021 cut SegmentAnyTree's lead excludes zero overall (weakly)
+and in California and is not distinguishable from zero in Washington;
+ForestFormer3D's vanishes overall and is negative, within an interval that
+spans zero, in Washington. The paired change of each lead between the two
+references (metric `F1_lead`, variant `exact2021 minus baseline` in
+`exact2021_leads.csv`): ForestFormer3D −0.034 [−0.060, −0.014] on the 44
+plots, −0.014 [−0.038, +0.001] in California and −0.038 [−0.072, −0.013] in
+Washington; SegmentAnyTree −0.011 [−0.021, −0.003], −0.014 [−0.045, +0.010]
+and −0.008 [−0.018, −0.000]. The cut moves ForestFormer3D's lead and barely
+moves SegmentAnyTree's.
 `paper_runs/sensitivity/` holds every rung and scope (`exact2021_pooled.csv`,
 `exact2021_delta.csv`, `exact2021_leads.csv`).
 
