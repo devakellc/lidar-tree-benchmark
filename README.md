@@ -64,7 +64,8 @@ arm-versus-arm difference carries a paired plot-bootstrap interval.
   TreeisoNet, `multichm` and ForestFormer3D hold and lead CHM-VWF by 0.05–0.07
   at 0.6 pulses/m², but corrected for chance those leads are −0.008 to +0.021,
   and against CHM-VWF run without its sub-8 pulses/m² smoothing (a post hoc
-  sensitivity) they are within 0.03 of zero at every decimated rung; see the
+  sensitivity on the four decimated rungs other than the QL2 rung) they are
+  within 0.03 of zero; see the
   [baseline smoothing
   sensitivity](results/baseline-smoothing-sensitivity-results.md).
   SegmentAnyTree's collapse is a failure of its instance grouping, not of its

@@ -277,9 +277,9 @@ F1) / (1 − null F1); a corrected lead is a difference of corrected F1 with a
 paired 95% interval. The rung at the QL2 floor (2.0 pulses/m²) was scored from
 its own root with the same offsets and resamples. The null is a Monte Carlo
 estimate: on the five sites an independent set of 200 offsets changes the pooled
-null F1 of any detector by at most 0.002 and any corrected lead by at most 0.002
-(regional leads and their differences move by up to 0.006 and single-site leads
-by up to 0.013, at SJER), and minimum shifts of 6 m or 12 m instead of 8 m
+null F1 of any detector by at most 0.002 and any corrected F1 lead by at most
+0.002 (regional leads and their differences move by up to 0.006 and single-site
+leads by up to 0.013, at SJER), and minimum shifts of 6 m or 12 m instead of 8 m
 change the two segmenters' native corrected leads by at most 0.001
 (ForestFormer3D +0.020 and +0.021, SegmentAnyTree +0.034 and +0.035, against
 +0.020 and +0.034 at 8 m). Source: [matcher-robustness
@@ -438,7 +438,7 @@ estimate can sit at the end of its interval. Under random orderings, a Spearman
 correlation of at least 0.62 arises in 5% of orderings of eight detectors (0.71
 in 3%) and 0.77 in 5% of orderings of six; the eight-detector values at 4.7, 2.5
 and 2.0 pulses/m² have chance probabilities 0.008, 0.018 and 0.029, those at 1.3
-and 0.6 pulses/m² 0.56 and 0.67, and the six-detector 0.54 has 0.15.
+and 0.6 pulses/m² 0.56 and 0.69, and the six-detector 0.54 has 0.15.
 
 ## S14. Reference stands
 
@@ -587,9 +587,13 @@ keeps grouping but with ever smaller instances. TreeisoNet's apexes below 2 m
 are at most 0.3% at any rung and SegmentAnyTree has none. Scoring
 ForestFormer3D's apexes below 2 m as removed would raise its five-site F1 by
 +0.002 at native density and by +0.004, +0.007, +0.011 and +0.013 on the rungs
-from 4.7 to 0.6 pulses/m², recomputed from the pooled counts; no rank changes.
-SegmentAnyTree returned no core detection in 2 of the 106 plots at 1.3 pulses/m²
-and in 19 at 0.6; ForestFormer3D, `ptrees` and AMS3D each in one plot at 0.6.
+from 4.7 to 0.6 pulses/m², recomputed from the pooled counts. In the order by F1
+of Table 4 it would lift ForestFormer3D to a nominal second at 1.3 pulses/m²
+(0.449 against TreeisoNet's 0.444 and `multichm`'s 0.440) and to a nominal third
+at 0.6 pulses/m², 0.0002 above `multichm`; the order at the other rungs is
+unchanged. SegmentAnyTree returned no core detection in 2 of the 106 plots at
+1.3 pulses/m² and in 19 at 0.6; ForestFormer3D, `ptrees` and AMS3D each in one
+plot at 0.6.
 
 **Table S18b.** Native false positives of CHM-VWF and TreeisoNet near mapped
 dead stems: the cores hold 498 mapped dead stems of at least 10 cm DBH measured

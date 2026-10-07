@@ -61,9 +61,13 @@ floor would have removed (CHM-VWF has a 2 m floor by construction).
   SegmentAnyTree has none and TreeisoNet at most 0.3%. Removing ForestFormer3D's
   as false positives would raise its five-site F1 by +0.002 at native density,
   +0.004 at 4.7, +0.007 at 2.5, +0.011 at 1.3 and +0.013 at 0.6 pulses/m²
-  (recomputed from the pooled counts); no rank or conclusion changes. The
-  FGI-EMIT thinning protocol applies a 2 m apex rule to the same arms, so its
-  NEON comparison columns are scored without a floor the FGI-EMIT rows have.
+  (recomputed from the pooled counts). In the within-rung order by F1 that
+  would lift ForestFormer3D to a nominal second at 1.3 pulses/m² (0.449 against
+  TreeisoNet's 0.444 and `multichm`'s 0.440) and a nominal third at 0.6
+  (0.0002 above `multichm`); the order at the other rungs is unchanged and the
+  rank break below the QL2 floor remains. The FGI-EMIT thinning protocol
+  applies a 2 m apex rule to the same arms, so its NEON comparison columns are
+  scored without a floor the FGI-EMIT rows have.
 - SegmentAnyTree returned no core detection in 2 of the 106 plots at 1.3
   pulses/m² and in 19 at 0.6; ForestFormer3D, `ptrees` and AMS3D each in one
   plot at 0.6. Empty cells are scored as zero recall, not dropped.

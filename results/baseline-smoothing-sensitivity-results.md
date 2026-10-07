@@ -50,11 +50,12 @@ Observed F1 lead over the declared baseline / over the unsmoothed baseline:
 **Readings.**
 
 - Without the smoothing the baseline is flat down the ladder: F1 0.454, 0.463,
-  0.453, 0.449 and 0.431 from native density to 0.6 pulses/m², against 0.450,
-  0.395, 0.396, 0.383 and 0.374 as declared. The smoothing costs 0.06 to 0.07 F1
-  on every decimated rung, through recall (−0.12 to −0.17) with a smaller gain
-  in precision (+0.06 to +0.07); the unsmoothed baseline places 2,152 to 2,653
-  core detections on the rungs against 1,337 to 1,510.
+  0.453, 0.449 and 0.431 at native density and the 4.7, 2.5, 1.3 and 0.6
+  pulses/m² rungs (the QL2 rung was not run), against 0.450, 0.395, 0.396,
+  0.383 and 0.374 as declared. The smoothing costs 0.06 to 0.07 F1 on each of
+  the four decimated rungs run, through recall (−0.12 to −0.17) with a smaller
+  gain in precision (+0.06 to +0.07); the unsmoothed baseline places 2,152 to
+  2,653 core detections on the rungs against 1,337 to 1,510.
 - Against the unsmoothed baseline the observed leads of ForestFormer3D,
   TreeisoNet and `multichm` below native density, and SegmentAnyTree's at 4.7
   and 2.5 pulses/m², are −0.013 to +0.024; only the two segmenters' leads at
