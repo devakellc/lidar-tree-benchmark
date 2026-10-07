@@ -59,9 +59,30 @@ for both cuts, paired plot-bootstrap intervals:
   −0.007 [−0.021, +0.004]. The subset drives this: ForestFormer3D had
   matched 64% of the 239 stems the cut removes (153 of its 1,024 matches)
   and CHM-VWF 32% (77 of 786), so more of its detections become false
-  positives against the smaller reference. SegmentAnyTree keeps its lead in
-  both regions (Washington 0.490 against 0.465). `paper_runs/sensitivity/`
-  holds every rung and scope (`exact2021_pooled.csv`, `exact2021_delta.csv`).
+  positives against the smaller reference. SegmentAnyTree keeps a positive
+  lead in both regions (Washington 0.490 against 0.465).
+
+Leads over CHM-VWF in native F1 on the same plots for both cuts, with paired
+plot-bootstrap intervals (`exact2021_leads.csv`):
+
+| Scope | ForestFormer3D, ±4 yr | ForestFormer3D, exact 2021 | SegmentAnyTree, ±4 yr | SegmentAnyTree, exact 2021 |
+| --- | --- | --- | --- | --- |
+| Five sites (44 plots) | +0.034 [+0.010, +0.059] | +0.000 [−0.034, +0.034] | +0.050 [+0.023, +0.075] | +0.039 [+0.008, +0.069] |
+| California (11 plots) | +0.089 [+0.049, +0.138] | +0.075 [+0.016, +0.135] | +0.126 [+0.057, +0.191] | +0.113 [+0.031, +0.196] |
+| Washington (33 plots) | +0.020 [−0.008, +0.048] | −0.018 [−0.061, +0.020] | +0.033 [+0.008, +0.058] | +0.025 [−0.002, +0.053] |
+
+On the exact-2021 cut SegmentAnyTree's lead excludes zero overall (weakly)
+and in California and is not distinguishable from zero in Washington;
+ForestFormer3D's vanishes overall and is negative, within an interval that
+spans zero, in Washington. The paired change of each lead between the two
+references (metric `F1_lead`, variant `exact2021 minus baseline` in
+`exact2021_leads.csv`): ForestFormer3D −0.034 [−0.060, −0.014] on the 44
+plots, −0.014 [−0.038, +0.001] in California and −0.038 [−0.072, −0.013] in
+Washington; SegmentAnyTree −0.011 [−0.021, −0.003], −0.014 [−0.045, +0.010]
+and −0.008 [−0.018, −0.000]. The cut moves ForestFormer3D's lead and barely
+moves SegmentAnyTree's.
+`paper_runs/sensitivity/` holds every rung and scope (`exact2021_pooled.csv`,
+`exact2021_delta.csv`, `exact2021_leads.csv`).
 
 The sections below are the historical June 2026 check: CHM-VWF only, on the
 three-site population.

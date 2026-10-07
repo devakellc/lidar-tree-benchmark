@@ -49,11 +49,11 @@ plot's hull. They still sit beside the NEON rungs they stand for.
 
 ## Apex F1
 
-Pooled over the ten plots by summed counts. CHM-VWF follows the NEON paper
-rule (0.25 m canopy model at 8 or more pulses/m², else 0.5 m with
-smoothing). The learned arms are scored under the NEON reduction (every
-instance whose top is at least 2 m above ground, the rule of the NEON runs)
-and under the development matrix's fixed filter (at least 40 points and
+Pooled over the ten plots by summed counts. CHM-VWF follows the NEON paper rule
+(0.25 m canopy model at 8 or more pulses/m², else 0.5 m with smoothing). The
+learned arms are scored under the NEON reduction (every instance whose top is at
+least 2 m above ground, a floor the NEON runs do not apply to the learned arms'
+apexes) and under the development matrix's fixed filter (at least 40 points and
 1.5 m vertical extent):
 
 | Pulses/m² | CHM-VWF | ForestFormer3D | SegmentAnyTree | ForestFormer3D, fixed filter | SegmentAnyTree, fixed filter |

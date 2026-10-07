@@ -25,30 +25,57 @@ source(.find("master_tables_lib.R"))
 #   exact2021  only the core stems measured in 2021 (baseline matcher)
 #   jitter     K draws of stem positions, sigma = pos_unc (baseline matcher);
 #              draw k uses seed seed_for(site, plot, "native") + k
+#   null       chance agreement: K random toroidal shifts of each cell's
+#              detections within the core plus the match radius, at least
+#              8 m from no shift (greedy matcher at radius TOL, default the
+#              baseline's 4 m); draw k uses seed seed_for(site, plot, "null")
+#              + k for every arm and rung
 # The baseline must reproduce every arm's own result row (n_ref, n_det, TP);
 # the script stops on any difference. Matcher and exact-2021 variants are
 # pooled by summed counts with paired plot-bootstrap intervals (the master
-# tables' resamples) over five sites, each region and each site; jitter is
-# pooled per draw into 5th/50th/95th-percentile bands.
-#   Rscript scripts/paper_sensitivity.R MODE=matcher|exact2021|jitter
+# tables' resamples) over five sites, each region and each site, with each
+# arm's paired lead over CHM-VWF within a variant; jitter is pooled per draw
+# into 5th/50th/95th-percentile bands. The null pools each cell's mean counts
+# over the K shifts as a "null" variant beside the observed one, with the
+# observed score above the null and the lead over CHM-VWF above the null,
+# overall and for overstory and understory stems.
+#   Rscript scripts/paper_sensitivity.R MODE=matcher|exact2021|jitter|null
 #     [SITES=SJER,SOAP,TEAK,WREF,ABBY] [ARMS=...] [RUNGS=native,8,4,2,1]
 #     [POP=adopted] [FROZEN_ROOT=...] [K=200] [CORES=8] [OUT=<dir>]
-# Writes <OUT>/<mode>_cells.csv and <OUT>/<mode>_pooled.csv (jitter:
-# <mode>_draws.csv and <mode>_bands.csv); OUT defaults to
-# $CLAUDE_JOB_DIR/sensitivity.
+#     [TOL=4] [MIN_SHIFT=8] [SEED=0] (null only: another radius, minimum
+#     shift or seed offset writes null[_tol<TOL>][_ms<MIN_SHIFT>][_seed<SEED>]_*.csv;
+#     the null also writes <prefix>_corrected_draws.csv, the per-draw corrected
+#     F1 of every arm on the five sites, for rank statistics across rungs)
+# A rung frozen in its own root runs from that rung's job directory, e.g. the
+# QL2 rung: CLAUDE_JOB_DIR=<paper_runs_ql2> ... RUNGS=3.2 FROZEN_ROOT=<root>
+# ARMS=<the eight ladder arms>.
+# Writes <OUT>/<mode>_cells.csv, <OUT>/<mode>_pooled.csv and
+# <OUT>/<mode>_leads.csv (jitter: <mode>_draws.csv and <mode>_bands.csv;
+# null: null_cells.csv, null_pooled.csv, null_delta.csv, null_leads.csv and
+# null_strata.csv); OUT defaults to $CLAUDE_JOB_DIR/sensitivity.
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
 split_arg <- function(x, default) strsplit(if (is.null(x)) default else x, ",")[[1]]
 d     <- .job_dir()
-MODE  <- match.arg(A$MODE, c("matcher", "exact2021", "jitter"))
+MODE  <- match.arg(A$MODE, c("matcher", "exact2021", "jitter", "null"))
 SITES <- split_arg(A$SITES, "SJER,SOAP,TEAK,WREF,ABBY")
 ARMS  <- split_arg(A$ARMS, paste(MT_ARMS$arm, collapse = ","))
 RUNGS <- split_arg(A$RUNGS, "native,8,4,2,1")
+# A rung frozen in its own root (the QL2 rung, RUNGS=3.2 with FROZEN_ROOT and
+# that rung's job directory) is scored for the arms that carry the ladder.
+LADDER_RUNGS <- "native,8,4,2,1"
+extra <- setdiff(RUNGS, strsplit(LADDER_RUNGS, ",")[[1]])
+if (length(extra)) MT_ARMS$rungs[MT_ARMS$rungs == LADDER_RUNGS] <- paste(c(LADDER_RUNGS, extra), collapse = ",")
 K     <- as.integer(if (is.null(A$K)) 200 else A$K)
 CORES <- as.integer(if (is.null(A$CORES)) 8 else A$CORES)
 OUT   <- if (is.null(A$OUT)) file.path(d, "sensitivity") else A$OUT
 POP   <- if (is.null(A$POP)) "adopted" else A$POP
 BASE_TOL <- 4; TOL_CAP <- 12; LAMBDA <- 0.5
+NULL_TOL <- as.numeric(if (is.null(A$TOL)) BASE_TOL else A$TOL)
+MIN_SHIFT <- as.numeric(if (is.null(A$MIN_SHIFT)) 8 else A$MIN_SHIFT)
+SEED <- as.integer(if (is.null(A$SEED)) 0 else A$SEED)
+NULL_SFX <- paste0("null", if (NULL_TOL != BASE_TOL) sprintf("_tol%g", NULL_TOL),
+                   if (MIN_SHIFT != 8) sprintf("_ms%g", MIN_SHIFT), if (SEED != 0) sprintf("_seed%d", SEED))
 dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 if (length(setdiff(ARMS, MT_ARMS$arm))) stop("Unknown arms: ", paste(setdiff(ARMS, MT_ARMS$arm), collapse = ", "))
 
@@ -63,6 +90,7 @@ CONFIGS <- c(list(
     list(name = sprintf("grid_tx%g_tz%g", tx, tz), method = "greedy", scaled = FALSE,
          tx = tx, tz = tz, lambda = NULL))), recursive = FALSE))
 BASELINE <- CONFIGS[[1]]
+NULL_CFG <- list(name = "null", method = "greedy", scaled = FALSE, tx = NULL_TOL, tz = 8, lambda = NULL)
 
 # SAM2Point's per-point labels are heights above ground (rescore_population.R).
 CENSUS_INSTANCE_SOURCES$sam2point <- list(dir = "sam2point_instances", id = "sam2point", agl = FALSE)
@@ -116,6 +144,10 @@ run_plot <- function(site, pid, ctx) {
   native <- frozen_clip(NULL, site, pid, NA, cx, cy, ph, ctx$root)
   chm <- if (any(ARMS %in% c("deepforest", "detectree2")) && !is.null(native)) plot_chm(native) else NULL
   tol_vec <- match_tol(stems$maxCrownDiameter, stems$pos_unc, base_tol = BASE_TOL, k = 1, tol_cap = TOL_CAP)
+  # Null shifts: one set per plot, shared by every arm and rung.
+  offs <- if (MODE == "null") lapply(seq_len(K), function(k)
+    null_offset(2 * (ph + NULL_TOL), seed_for(site, pid, "null") + SEED * 1000003L + k,
+                min_shift = MIN_SHIFT)) else NULL
   rows <- list()
   for (rung in RUNGS) {
     rv <- if (rung == "native") NA_real_ else as.numeric(rung)
@@ -128,11 +160,21 @@ run_plot <- function(site, pid, ctx) {
         optical_dets(ctx$nd, arm, pid, cx, cy, ph, chm, ctx$df_boxes) else
         census_cell_detections(ctx$nd, arm, site, pid, rv, ctx$root, cell)
       if (is.null(det)) next
-      score <- function(st, cfg, variant) {
-        sc <- score_plot(st, det, tol_xy = if (cfg$scaled) tol_vec else cfg$tx, core_cx = cx,
+      score <- function(st, cfg, variant, dt = det) {
+        sc <- score_plot(st, dt, tol_xy = if (cfg$scaled) tol_vec else cfg$tx, core_cx = cx,
                          core_cy = cy, core_half = ph, method = cfg$method,
                          tol_z_up = cfg$tz, lambda = cfg$lambda)
         sc$tp_core <- ifelse(sc$n_det > 0, round(sc$precision * sc$n_det), 0)
+        # Overstory (dominant, codominant) and understory (intermediate,
+        # suppressed) counts, per-class TP recovered as round(recall x n).
+        cls <- function(k) {
+          n <- vapply(k, function(c) sc[[paste0("n_", c)]], numeric(1))
+          r <- vapply(k, function(c) sc[[paste0("rec_", c)]], numeric(1))
+          c(n = sum(n), tp = sum(ifelse(n > 0 & is.finite(r), round(r * n), 0)))
+        }
+        o <- cls(c("dominant", "codominant")); u <- cls(c("intermediate", "suppressed"))
+        sc$n_over <- o[["n"]]; sc$tp_over <- o[["tp"]]
+        sc$n_under <- u[["n"]]; sc$tp_under <- u[["tp"]]
         cbind(data.frame(variant = variant, site = site, plot = pid, rung = rung,
                          detector = arm, stringsAsFactors = FALSE), sc)
       }
@@ -142,6 +184,18 @@ run_plot <- function(site, pid, ctx) {
         rows[[length(rows) + 1]] <- score(stems, BASELINE, "baseline")
         st21 <- stems[!is.na(stems$meas_year) & stems$meas_year == 2021, , drop = FALSE]
         if (nrow(st21)) rows[[length(rows) + 1]] <- score(st21, BASELINE, "exact2021")
+      } else if (MODE == "null") {
+        rows[[length(rows) + 1]] <- score(stems, BASELINE, "baseline")
+        # At another radius the observed score is a variant of its own; the
+        # 4 m baseline stays for the check against the arms' own results.
+        if (NULL_TOL != BASE_TOL) rows[[length(rows) + 1]] <- score(stems, NULL_CFG, "observed")
+        for (k in seq_len(K)) {
+          r <- score(stems, NULL_CFG, sprintf("null%03d", k),
+                     shift_detections(det, cx, cy, ph + NULL_TOL, offs[[k]]))
+          rows[[length(rows) + 1]] <- r[, c("variant", "site", "plot", "rung", "detector",
+                                            "n_ref", "n_det", "TP", "tp_core", "n_over",
+                                            "tp_over", "n_under", "tp_under")]
+        }
       } else {
         rows[[length(rows) + 1]] <- score(stems, BASELINE, "baseline")
         seed0 <- seed_for(site, pid, "native")
@@ -229,6 +283,130 @@ if (MODE == "jitter") {
   quit(save = "no")
 }
 
+if (MODE == "null") {
+  # Each cell's null is its mean count over the K shifts, pooled like an
+  # observed variant on the same plots and resamples.
+  cl <- as.data.table(cells)
+  if (NULL_TOL != BASE_TOL) {
+    cl <- cl[variant != "baseline"]
+    cl[variant == "observed", variant := "baseline"]
+  }
+  cnt <- c("n_ref", "n_det", "TP", "tp_core", "n_over", "tp_over", "n_under", "tp_under")
+  nul <- cl[variant != "baseline", c(lapply(.SD, mean), list(draws = .N)),
+            by = .(site, plot, rung, detector), .SDcols = cnt]
+  if (any(nul$draws != K)) stop("A cell is missing null draws")
+  nul[, variant := "null"]
+  cn <- rbind(cl[variant == "baseline", c("variant", "site", "plot", "rung", "detector", cnt), with = FALSE],
+              nul[, c("variant", "site", "plot", "rung", "detector", cnt), with = FALSE])
+  cn <- as.data.frame(cn)
+  write.csv(cn, file.path(OUT, paste0(NULL_SFX, "_cells.csv")), row.names = FALSE)
+  strata <- list(all = c("n_ref", "TP"), overstory = c("n_over", "tp_over"),
+                 understory = c("n_under", "tp_under"))
+  pool_null <- function(x) {
+    key <- paste(x$site, x$plot, sep = "::")
+    common <- Reduce(intersect, lapply(split(key, paste(x$variant, x$detector)), unique))
+    x <- x[key %in% common, , drop = FALSE]
+    W <- mt_plot_weights(x$site, x$plot, MT_N_BOOT, MT_SEED)
+    site_of <- sub("::.*", "", rownames(W))
+    r <- x$rung[1]; arms <- unique(x$detector)
+    g <- function(v, a) paste(v, a, r, sep = "|")
+    out <- list(); regd <- list()
+    for (sc in names(scopes)) {
+      keep <- site_of %in% scopes[[sc]]
+      if (!any(keep)) next
+      xs <- x[x$site %in% scopes[[sc]], , drop = FALSE]
+      for (st in names(strata)) {
+        xx <- xs; xx$n_ref <- xs[[strata[[st]][1]]]; xx$TP <- xs[[strata[[st]][2]]]
+        s <- mt_boot_scores(xx, W[keep, , drop = FALSE], c("variant", "detector", "rung"))
+        mets <- if (st == "all") c("recall", "precision", "F1") else "recall"
+        est <- cbind(scope = sc, stratum = st, mt_intervals(s, mets))
+        # Observed minus null, per arm, and the corrected score, the excess
+        # over the null scaled by the headroom, (observed - null) / (1 - null),
+        # as in Cohen's kappa: metric "<m>_scaled" for every metric pooled.
+        scaled <- function(v, a, m = "F1") {
+          E <- s$estimate[[m]]; names(E) <- s$groups; D <- s$draws[[m]]
+          list(e = unname((E[g(v, a)] - E[g("null", a)]) / (1 - E[g("null", a)])),
+               d = (D[, g(v, a)] - D[, g("null", a)]) / (1 - D[, g("null", a)]))
+        }
+        dl <- do.call(rbind, lapply(arms, function(a) do.call(rbind, lapply(mets, function(m) {
+          k <- scaled("baseline", a, m)
+          rbind(cbind(scope = sc, stratum = st, detector = a, rung = r,
+                      mt_contrast(s, g("null", a), g("baseline", a), m)),
+                cbind(data.frame(scope = sc, stratum = st, detector = a, rung = r,
+                                 from = g("null", a), to = g("baseline", a), metric = paste0(m, "_scaled"),
+                                 estimate = k$e), mt_interval(k$d)))
+        }))))
+        # Per-draw corrected F1 on the five sites, for rank statistics across rungs.
+        cd <- if (sc == "five sites" && st == "all") do.call(rbind, lapply(arms, function(a)
+          data.frame(draw = seq_len(MT_N_BOOT), rung = r, detector = a,
+                     value = scaled("baseline", a)$d))) else NULL
+        # Lead over CHM-VWF: observed, under the null, and above the null.
+        ld <- if ("chm_vwf" %in% arms) do.call(rbind, lapply(setdiff(arms, "chm_vwf"), function(a)
+          do.call(rbind, lapply(mets, function(m) {
+            E <- s$estimate[[m]]; names(E) <- s$groups; D <- s$draws[[m]]
+            lead <- function(v) c(E[g(v, a)] - E[g(v, "chm_vwf")])
+            dd <- function(v) D[, g(v, a)] - D[, g(v, "chm_vwf")]
+            rbind(
+              cbind(data.frame(scope = sc, stratum = st, detector = a, rung = r, metric = m,
+                               kind = "observed", estimate = lead("baseline")), mt_interval(dd("baseline"))),
+              cbind(data.frame(scope = sc, stratum = st, detector = a, rung = r, metric = m,
+                               kind = "null", estimate = lead("null")), mt_interval(dd("null"))),
+              cbind(data.frame(scope = sc, stratum = st, detector = a, rung = r, metric = m,
+                               kind = "above_null", estimate = lead("baseline") - lead("null")),
+                    mt_interval(dd("baseline") - dd("null"))),
+              {
+                ka <- scaled("baseline", a, m); kc <- scaled("baseline", "chm_vwf", m)
+                cbind(data.frame(scope = sc, stratum = st, detector = a, rung = r, metric = m,
+                                 kind = "above_null_scaled", estimate = ka$e - kc$e),
+                      mt_interval(ka$d - kc$d))
+              })
+          })))) else NULL
+        # Regional leads kept per draw for the California minus Washington
+        # difference (both regions use the same resample columns of W).
+        if (st == "all" && sc %in% c("California", "Washington") && "chm_vwf" %in% arms) {
+          E <- s$estimate$F1; names(E) <- s$groups; D <- s$draws$F1
+          kc <- scaled("baseline", "chm_vwf")
+          lead_e <- function(v, a) c(E[g(v, a)] - E[g(v, "chm_vwf")])
+          lead_d <- function(v, a) D[, g(v, a)] - D[, g(v, "chm_vwf")]
+          regd[[sc]] <- lapply(setNames(nm = setdiff(arms, "chm_vwf")), function(a) {
+            ka <- scaled("baseline", a, "F1")
+            list(observed = list(e = lead_e("baseline", a), d = lead_d("baseline", a)),
+                 above_null = list(e = lead_e("baseline", a) - lead_e("null", a),
+                                   d = lead_d("baseline", a) - lead_d("null", a)),
+                 above_null_scaled = list(e = unname(ka$e - kc$e), d = ka$d - kc$d))
+          })
+        }
+        out[[length(out) + 1]] <- list(est = est, delta = dl, leads = ld, draws = cd)
+      }
+    }
+    if (all(c("California", "Washington") %in% names(regd))) {
+      rd <- do.call(rbind, lapply(names(regd$California), function(a)
+        do.call(rbind, lapply(names(regd$California[[a]]), function(k) {
+          ca <- regd$California[[a]][[k]]; wa <- regd$Washington[[a]][[k]]
+          cbind(data.frame(scope = "California minus Washington", stratum = "all", detector = a,
+                           rung = r, metric = "F1", kind = k, estimate = unname(ca$e - wa$e)),
+                mt_interval(ca$d - wa$d))
+        }))))
+      out[[length(out) + 1]] <- list(est = NULL, delta = NULL, leads = rd)
+    }
+    out
+  }
+  parts <- unlist(lapply(split(cn, cn$rung), pool_null), recursive = FALSE)
+  est <- do.call(rbind, lapply(parts, `[[`, "est"))
+  write.csv(est[est$stratum == "all", setdiff(names(est), "stratum")],
+            file.path(OUT, paste0(NULL_SFX, "_pooled.csv")), row.names = FALSE)
+  write.csv(est[est$stratum != "all", ], file.path(OUT, paste0(NULL_SFX, "_strata.csv")), row.names = FALSE)
+  write.csv(do.call(rbind, lapply(parts, `[[`, "delta")), file.path(OUT, paste0(NULL_SFX, "_delta.csv")),
+            row.names = FALSE)
+  write.csv(do.call(rbind, lapply(parts, `[[`, "leads")), file.path(OUT, paste0(NULL_SFX, "_leads.csv")),
+            row.names = FALSE)
+  write.csv(do.call(rbind, lapply(parts, `[[`, "draws")), file.path(OUT, paste0(NULL_SFX, "_corrected_draws.csv")),
+            row.names = FALSE)
+  cat(sprintf("wrote %s and %s_delta/leads/strata.csv\n", file.path(OUT, paste0(NULL_SFX, "_pooled.csv")),
+              NULL_SFX))
+  quit(save = "no")
+}
+
 write.csv(cells, file.path(OUT, paste0(MODE, "_cells.csv")), row.names = FALSE)
 # Per rung, the plots every arm-variant scored (exact-2021 drops plots without
 # 2021 stems for both cuts, so the baseline is compared on the same plots).
@@ -252,12 +430,31 @@ pool_rung <- function(x) {
           if (!all(c(from, to) %in% s$groups)) return(NULL)
           cbind(scope = sc, variant = v, detector = a, rung = x$rung[1], mt_contrast(s, from, to, m))
         }))))))
-    list(est = est, delta = vs)
+    # Paired lead of each arm over CHM-VWF within a variant, and the paired
+    # change of that lead from the baseline variant (metric "F1_lead").
+    E <- s$estimate$F1; names(E) <- s$groups; D <- s$draws$F1
+    ld <- do.call(rbind, lapply(unique(xs$variant), function(v)
+      do.call(rbind, lapply(setdiff(unique(xs$detector), "chm_vwf"), function(a) {
+        from <- paste(v, "chm_vwf", x$rung[1], sep = "|"); to <- paste(v, a, x$rung[1], sep = "|")
+        if (!all(c(from, to) %in% s$groups)) return(NULL)
+        lead <- cbind(scope = sc, variant = v, detector = a, rung = x$rung[1], mt_contrast(s, from, to, "F1"))
+        if (v == "baseline") return(lead)
+        b0 <- paste("baseline", "chm_vwf", x$rung[1], sep = "|"); b1 <- paste("baseline", a, x$rung[1], sep = "|")
+        if (!all(c(b0, b1) %in% s$groups)) return(lead)
+        chg <- (D[, to] - D[, from]) - (D[, b1] - D[, b0])
+        rbind(lead, cbind(data.frame(scope = sc, variant = paste(v, "minus baseline"), detector = a,
+                                     rung = x$rung[1], from = b1, to = to, metric = "F1_lead",
+                                     estimate = unname((E[to] - E[from]) - (E[b1] - E[b0])),
+                                     stringsAsFactors = FALSE), mt_interval(chg)))
+      }))))
+    list(est = est, delta = vs, leads = ld)
   }))
 }
 parts <- lapply(split(cells, cells$rung), pool_rung)
 pooled <- do.call(rbind, lapply(parts, function(p) do.call(rbind, p[, "est"])))
 delta <- do.call(rbind, lapply(parts, function(p) do.call(rbind, p[, "delta"])))
+leads <- do.call(rbind, lapply(parts, function(p) do.call(rbind, p[, "leads"])))
+write.csv(leads, file.path(OUT, paste0(MODE, "_leads.csv")), row.names = FALSE)
 # Isolated share of core false positives (score_plot's fp structure), baseline.
 fps <- as.data.table(cells)[variant == "baseline", .(fp_near = sum(fp_near, na.rm = TRUE),
   fp_isolated = sum(fp_isolated, na.rm = TRUE)), by = .(detector, rung)]

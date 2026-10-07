@@ -52,25 +52,45 @@ arm-versus-arm difference carries a paired plot-bootstrap interval.
   (**0.495**) lead CHM variable-window filtering (CHM-VWF, **0.450**) by
   **+0.048 [+0.028, +0.069]** and **+0.044 [+0.021, +0.067]**. `multichm`,
   Li 2012, DeepForest and TreeisoNet are indistinguishable from CHM-VWF.
-- SegmentAnyTree holds to the QL2 floor (F1 **0.449** at 2.0 pulses/m², level
-  with `multichm`, TreeisoNet and ForestFormer3D) and collapses below it
-  (**0.38** at 1.3 and **0.13** at 0.6 pulses/m²). TreeisoNet, `multichm` and
-  ForestFormer3D hold, and lead CHM-VWF by 0.05–0.07 at 0.6 pulses/m². Native
-  rank predicts rank down to the QL2 floor (Spearman 0.71) and not below
-  (−0.05 at 1.3 pulses/m²).
+- Randomly shifted copies of each arm's detections reach 70–79% of its
+  native F1 at the 4 m match radius, a zero-skill score that tends to
+  overstate the chance part. Corrected for chance, ForestFormer3D's lead is
+  **+0.020 [−0.002, +0.041]** and SegmentAnyTree's **+0.034 [+0.008,
+  +0.057]** (+0.003 and +0.017 at 2 m); see the
+  [matcher-robustness study](results/matcher-robustness-results.md#chance-agreement).
+- SegmentAnyTree stays level with the leading arms at the QL2 floor (F1
+  **0.449** at 2.0 pulses/m², with almost a quarter of its recall lost) and
+  collapses below it (**0.38** at 1.3 and **0.13** at 0.6 pulses/m²).
+  TreeisoNet, `multichm` and ForestFormer3D hold and lead CHM-VWF by 0.05–0.07
+  at 0.6 pulses/m², but corrected for chance those leads are −0.008 to +0.021,
+  and against CHM-VWF run without its sub-8 pulses/m² smoothing (a post hoc
+  sensitivity) they are within 0.03 of zero at every decimated rung; see the
+  [baseline smoothing
+  sensitivity](results/baseline-smoothing-sensitivity-results.md).
+  SegmentAnyTree's collapse is a failure of its instance grouping, not of its
+  semantic head ([instance audit](results/instance-audit-results.md)). Native
+  rank predicts rank down to the QL2 floor (Spearman 0.71) and not below (−0.05
+  at 1.3 pulses/m²); SegmentAnyTree and AMS3D carry the break, and without them
+  the other six keep 0.54.
 - CHM-VWF is flat across density on the California sites but loses
   0.07–0.10 F1 in Washington; one density curve does not describe every site.
   See the [density-ladder study](results/density-ladder-sweep-results.md).
 - The point segmenters find understory stems best: AMS3D recalls **0.63** of
   592 intermediate and suppressed stems, against **0.17** for CHM-VWF, at a
-  large precision cost.
+  large precision cost. The null reaches 79–97% of every arm's understory
+  recall at 4 m; above it AMS3D and ForestFormer3D recall 0.09 (0.15 and
+  0.11 at 2 m).
 - ForestFormer3D and SegmentAnyTree lead CHM-VWF in both regions, by about
   0.09 in California and 0.03 in Washington, where Li 2012 is level with
   them; the [configuration provenance](docs/configuration-provenance.md)
-  shows that no detector setting was chosen from Washington scores. On the
-  exact-2021 reference SegmentAnyTree's lead holds in both regions, while
-  ForestFormer3D's holds in California and reverses in Washington (−0.018 on
-  33 plots; [temporal-sensitivity study](results/temporal-sensitivity-results.md)).
+  shows that no detector setting was chosen from Washington scores. Corrected
+  for chance at native density, both leads are clear in California and not
+  in Washington. On the
+  exact-2021 reference SegmentAnyTree's lead holds overall and in California
+  and is positive but not distinguishable from zero in Washington, while
+  ForestFormer3D's holds in California and is negative in Washington, within
+  an interval that spans zero (−0.018 [−0.061, +0.020] on 33 plots;
+  [temporal-sensitivity study](results/temporal-sensitivity-results.md)).
 
 The [model comparison](results/model-benchmark-results.md#five-sites-every-arm-paper-numbers)
 gives every arm by rung and site; the [detector table](results/detector-table.md)
@@ -337,7 +357,7 @@ scripts and configuration.
 | NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R), [preflight_site_extension.R](scripts/preflight_site_extension.R) |
 | NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
 | NEON master tables and intervals | [master_tables.R](scripts/master_tables.R), [master_tables_lib.R](scripts/master_tables_lib.R) |
-| Paper sensitivities, figures and compute cost | [paper_sensitivity.R](scripts/paper_sensitivity.R), [paper_figures.R](scripts/paper_figures.R), [compute_cost.sh](scripts/compute_cost.sh), [compute_cost_cell.R](scripts/compute_cost_cell.R) |
+| Paper sensitivities, figures and compute cost | [paper_sensitivity.R](scripts/paper_sensitivity.R), [corrected_rank_stability.R](scripts/corrected_rank_stability.R), [baseline_smoothing_sensitivity.R](scripts/baseline_smoothing_sensitivity.R), [instance_audit.R](scripts/instance_audit.R), [paper_figures.R](scripts/paper_figures.R), [compute_cost.sh](scripts/compute_cost.sh), [compute_cost_cell.R](scripts/compute_cost_cell.R) |
 | Native 3DEP cross-check | [native_ql2_crosscheck.R](scripts/native_ql2_crosscheck.R), [native_ql2_paired.R](scripts/native_ql2_paired.R), [ept_discovery.R](scripts/ept_discovery.R) |
 | Reproduction archive and table rebuild | [stage_archive.sh](scripts/stage_archive.sh), [reproduce_paper_tables.sh](scripts/reproduce_paper_tables.sh), [compare_reproduction.R](scripts/compare_reproduction.R), [reproduce/Dockerfile](reproduce/Dockerfile) |
 | NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
@@ -360,6 +380,8 @@ scripts and configuration.
 - [results](results/) — committed study reports and interpretation limits.
 - [docs](docs/) — methodology, study protocols, execution guides, and the
   [paper proposal](docs/paper-proposal.md).
+- [paper](paper/) — the draft manuscript of the benchmark paper, its
+  supplement and figures.
 - [Data and code availability](docs/data-code-availability.md) — data
   sources, model licences and what the archive holds; the
   [bibliography](docs/references.bib) holds the verified references.

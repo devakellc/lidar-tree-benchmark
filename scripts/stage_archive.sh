@@ -41,10 +41,11 @@ SITES=(SJER SOAP TEAK WREF ABBY)
 JUNE_SITES=(SJER SOAP TEAK)
 # Job directories run on the sealed 2021 root: the headline population, the
 # two sensitivity populations, the new-plot runs they were re-scored from,
-# and the TreeisoNet voxel and mask-voxel sensitivity runs; and the QL2-rung
-# run on its own root.
+# and the TreeisoNet voxel and mask-voxel sensitivity runs; the QL2-rung run
+# on its own root; and the unsmoothed CHM-VWF sensitivity run.
 JOBS=(paper_runs paper_runs_all_mapped paper_runs_relaxed paper_runs_new_relaxed
-      paper_runs_new_allmapped paper_runs_voxel0 paper_runs_maskvoxel paper_runs_ql2)
+      paper_runs_new_allmapped paper_runs_voxel0 paper_runs_maskvoxel paper_runs_ql2
+      paper_runs_nosmooth)
 ROOTS=(frozen_2021 frozen_2021_ql2)
 QL2_SITES=(SJER SOAP TEAK)
 SPARSE=(sparse_2017 sparse_2018 sparse_compare_2021)

@@ -147,3 +147,28 @@ test_that("score_plot scores a reference without heights on position alone", {
   expect_true(all(is.na(unlist(sc[c("rec_h_short", "rec_h_mid", "rec_h_tall")]))))
   expect_identical(sc$n_h_tall, 0L)
 })
+
+test_that("null_offset is reproducible, leaves the RNG alone and keeps its minimum shift", {
+  set.seed(1); before <- runif(1); set.seed(1)
+  o1 <- null_offset(28, 42); o2 <- null_offset(28, 42)
+  expect_identical(o1, o2)
+  expect_identical(runif(1), before)                        # caller's stream unchanged
+  offs <- lapply(1:200, function(k) null_offset(28, 1000 + k))
+  d <- vapply(offs, function(o) sqrt(sum(pmin(o, 28 - o)^2)), numeric(1))
+  expect_true(all(d >= 8))
+  expect_true(all(vapply(offs, function(o) all(o >= 0 & o < 28), logical(1))))
+  expect_error(null_offset(10, 1, min_shift = 8), "too large")
+})
+
+test_that("shift_detections wraps inside the window and drops what lies outside it", {
+  det <- data.frame(x = c(-13, 0, 13, 40), y = c(0, 13, -13, 0), z = c(5, 10, 15, 20))
+  s <- shift_detections(det, cx = 0, cy = 0, half = 14, offset = c(10, 20))
+  expect_equal(nrow(s), 3)                                 # the detection at x = 40 is outside
+  expect_equal(s$z, c(5, 10, 15))                          # heights kept
+  expect_true(all(abs(s$x) <= 14 & abs(s$y) <= 14))
+  expect_equal(s$x, c(-3, 10, -5))                         # 13 + 10 wraps to -5
+  expect_equal(s$y, c(-8, 5, 7))
+  # Pairwise toroidal spacing is unchanged.
+  tor <- function(a, b) { d <- abs(a - b) %% 28; pmin(d, 28 - d) }
+  expect_equal(tor(s$x[1], s$x[2]), tor(det$x[1], det$x[2]))
+})

@@ -12,7 +12,8 @@
 # mask-voxel run); fusion; crown diameters; the sparse-epoch report; the
 # adapter before/after comparison; the master tables of the three populations
 # (the headline with the QL2 rung); the scoring sensitivities (matcher,
-# exact-2021 references, stem-position jitter), the calibration/validation
+# exact-2021 references, stem-position jitter, chance agreement), the
+# calibration/validation
 # split, the matching-rule ranks and the native QL2 cross-check; the figures.
 #
 # Detector inference is not repeated: the archive holds every arm's per-cell
@@ -69,7 +70,8 @@ P="$W/paper_runs"; N="$P/neon"
 REBUILT=(
   paper_runs/master_tables paper_runs_all_mapped/master_tables paper_runs_relaxed/master_tables
   paper_runs/census_support_scores paper_runs/census_support_scores_strict
-  paper_runs_ql2/census_support_scores
+  paper_runs_ql2/census_support_scores paper_runs_ql2/sensitivity
+  paper_runs_nosmooth/sensitivity paper_runs/sensitivity/null_corrected_rank.csv
   paper_runs/neon/best_treetops_geojson paper_runs/neon/crown_compare_tables.md
   paper_runs/neon/adapter_before_after sparse_2018/compare_report
   paper_runs/sensitivity paper_runs/neon/native_ql2_vs_decimated.csv
@@ -87,6 +89,7 @@ for s in "${SITE_LIST[@]}"; do
     REBUILT+=("paper_runs/neon/$s/$f")
   done
   REBUILT+=("paper_runs_maskvoxel/neon/$s/instance_iou_pq.csv")
+  REBUILT+=("paper_runs_nosmooth/neon/$s/lidrplugins_results.csv")
   for pop in all_mapped relaxed; do
     for arm in "${LEARNED[@]}"; do
       REBUILT+=("paper_runs_$pop/neon/$s/${arm}_results.csv" "paper_runs_$pop/neon/$s/${arm}_results.csv.frozen")
@@ -175,12 +178,41 @@ for pop in all_mapped relaxed; do
   run "$W/paper_runs_$pop" "master_tables_$pop" scripts/master_tables.R POP=$pop
 done
 
-## 10. Scoring sensitivities from persisted detections, the calibration/
-## validation split, the matching-rule ranks and the native QL2 cross-check.
+## 10. Scoring sensitivities from persisted detections (matcher, exact-2021,
+## stem jitter and the chance-agreement null), the calibration/validation
+## split, the matching-rule ranks and the native QL2 cross-check.
 for mode in matcher exact2021; do
   run "$P" "sensitivity_$mode" scripts/paper_sensitivity.R MODE=$mode CORES="$CORES"
 done
 run "$P" sensitivity_jitter scripts/paper_sensitivity.R MODE=jitter K=200 CORES="$CORES"
+run "$P" sensitivity_null scripts/paper_sensitivity.R MODE=null K=200 CORES="$CORES"
+run "$P" sensitivity_null_tol2 scripts/paper_sensitivity.R MODE=null TOL=2 K=200 CORES="$CORES"
+# Null checks: an independent set of shifts (Monte Carlo error) and two
+# other minimum shifts.
+run "$P" sensitivity_null_seed1 scripts/paper_sensitivity.R MODE=null SEED=1 K=200 CORES="$CORES"
+for ms in 6 12; do
+  run "$P" "sensitivity_null_ms$ms" scripts/paper_sensitivity.R MODE=null MIN_SHIFT=$ms K=200 CORES="$CORES"
+done
+# The QL2 rung's matcher grid and null, from its own root and job directory.
+QL2_ARMS=chm_vwf,lmfauto,multichm,ptrees,ams3d,forestformer3d,treeisonet,segmentanytree
+for q in "matcher" "null K=200" "null TOL=2 K=200"; do
+  read -r -a qa <<< "$q"
+  run "$W/paper_runs_ql2" "sensitivity_ql2_${q// /_}" scripts/paper_sensitivity.R MODE="${qa[@]}" \
+    RUNGS=3.2 FROZEN_ROOT="$W/neon/frozen_2021_ql2" ARMS=$QL2_ARMS CORES="$CORES"
+done
+# The baseline without its sub-8 pulses/m² smoothing, on the sealed clips, in
+# its own job directory (lasR runs single-threaded per site), and the audit
+# of the learned arms' persisted instances.
+NSJ="$W/paper_runs_nosmooth"; mkdir -p "$NSJ/neon"
+ln -sfn "$W/neon/frozen_2021" "$NSJ/neon/frozen_2021"
+for s in "${SITE_LIST[@]}"; do
+  mkdir -p "$NSJ/neon/$s"
+  for f in ground_truth_stems.csv plot_centroids.csv; do ln -sfn "$N/$s/$f" "$NSJ/neon/$s/$f"; done
+  run "$NSJ" "nosmooth_$s" scripts/detect_lidrplugins_sweep.R SITE=$s ARMS=chm_vwf SMOOTH_BELOW=0 CORES=1
+done
+run "$P" baseline_smoothing scripts/baseline_smoothing_sensitivity.R NOSMOOTH="$NSJ"
+run "$P" instance_audit scripts/instance_audit.R CORES="$CORES"
+run "$P" corrected_rank scripts/corrected_rank_stability.R
 run "$P" calval_split scripts/calval_split.R SITES=$SITES SEED=1 FRAC=0.5 \
   SEEDS=1,2,3,4,5,6,7,8,9,10
 for s in "${SITE_LIST[@]}"; do

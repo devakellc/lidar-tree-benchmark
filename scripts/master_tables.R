@@ -414,6 +414,20 @@ rank <- rbind(rank_rows(eq, "nominal box"),
               if (!is.null(census_eq$nearest))
                 rank_rows(census_eq$nearest, "census, nearest census (headline)"))
 write.csv(rank, file.path(OUT, "master_rank_stability.csv"), row.names = FALSE)
+# The interval resamples plots, not arms. Leave-out rows recompute each
+# correlation without one full-ladder arm, and without the pair of arms whose
+# changes are largest below the QL2 floor (SegmentAnyTree and AMS3D).
+ladder_arms <- MT_ARMS$arm[MT_ARMS$rungs == "native,8,4,2,1"]
+leave_sets <- c(as.list(ladder_arms), list(c("segmentanytree", "ams3d")))
+leave_rows <- function(x, table) do.call(rbind, lapply(leave_sets, function(ex)
+  do.call(rbind, lapply(setdiff(RUNG_ORDER, "native"), function(r) {
+    z <- mt_rank_stability(x, "native", r, N_BOOT, SEED, exclude = ex)
+    if (!is.null(z)) cbind(table = table, population = POP, left_out = paste(ex, collapse = "+"), z)
+  }))))
+leave <- rbind(leave_rows(eq, "nominal box"),
+               if (!is.null(census_eq$nearest))
+                 leave_rows(census_eq$nearest, "census, nearest census (headline)"))
+write.csv(leave, file.path(OUT, "master_rank_leave_out.csv"), row.names = FALSE)
 
 ## ---- change across the ladder ----------------------------------------------------------
 # Each arm's change from native density to every rung, paired on shared plots,
