@@ -276,12 +276,14 @@ and tends to overstate the chance part of a score. Corrected F1 is (F1 − null
 F1) / (1 − null F1); a corrected lead is a difference of corrected F1 with a
 paired 95% interval. The rung at the QL2 floor (2.0 pulses/m²) was scored from
 its own root with the same offsets and resamples. The null is a Monte Carlo
-estimate: an independent set of 200 offsets changes the pooled null F1 of any
-detector on the five sites by at most 0.002 and any corrected lead by at most
-0.002, and minimum shifts of 6 m or 12 m instead of 8 m change the two
-segmenters' native corrected leads by at most 0.001 (ForestFormer3D +0.020 and
-+0.021, SegmentAnyTree +0.034 and +0.035, against +0.020 and +0.034 at 8 m).
-Source: [matcher-robustness study](../results/matcher-robustness-results.md).
+estimate: on the five sites an independent set of 200 offsets changes the pooled
+null F1 of any detector by at most 0.002 and any corrected lead by at most 0.002
+(regional leads and their differences move by up to 0.006 and single-site leads
+by up to 0.013, at SJER), and minimum shifts of 6 m or 12 m instead of 8 m
+change the two segmenters' native corrected leads by at most 0.001
+(ForestFormer3D +0.020 and +0.021, SegmentAnyTree +0.034 and +0.035, against
++0.020 and +0.034 at 8 m). Source: [matcher-robustness
+study](../results/matcher-robustness-results.md).
 
 **Table S12a.** Native density, five sites: observed and null F1 at radii of 4
 and 2 m, corrected F1, and at 4 m the plain difference above the null.
@@ -377,7 +379,8 @@ sites, (score − null) / (1 − null), with the corrected leads over CHM-VWF
 | AMS3D | 0.321 [0.268, 0.383] | 0.035 [0.028, 0.043] | +0.125 [+0.077, +0.171] | −0.158 [−0.189, −0.132] | 0.327 [0.284, 0.374] | 0.050 [0.042, 0.058] | +0.116 [+0.081, +0.154] | −0.162 [−0.190, −0.139] |
 
 Corrected F1 equals the harmonic mean of corrected recall and corrected
-precision within 0.003 for every detector, radius and scope.
+precision within 0.003 on the five-site and regional scopes and within 0.005 at
+single sites, for every detector and radius.
 
 **Table S12f.** Corrected leads over CHM-VWF by site at native density and 4 m,
 with the share of CHM-VWF's F1 that the null reproduces at that site and the
@@ -433,9 +436,9 @@ give the median first-return density in pulses/m².
 With six or seven detectors the correlation takes few values, so a point
 estimate can sit at the end of its interval. Under random orderings, a Spearman
 correlation of at least 0.62 arises in 5% of orderings of eight detectors (0.71
-in 2.5%) and 0.77 in 5% of orderings of six; the eight-detector values at 4.7,
-2.5 and 2.0 pulses/m² have chance probabilities 0.008, 0.018 and 0.029, those at
-1.3 and 0.6 pulses/m² 0.56 and 0.67, and the six-detector 0.54 has 0.15.
+in 3%) and 0.77 in 5% of orderings of six; the eight-detector values at 4.7, 2.5
+and 2.0 pulses/m² have chance probabilities 0.008, 0.018 and 0.029, those at 1.3
+and 0.6 pulses/m² 0.56 and 0.67, and the six-detector 0.54 has 0.15.
 
 ## S14. Reference stands
 
@@ -517,8 +520,10 @@ without smoothing, by density, with paired intervals.
 
 Without the smoothing the baseline is flat down the ladder and the leads of the
 non-collapsing detectors below native density are within 0.03 of zero; only the
-two segmenters' leads at 4.7 pulses/m² exclude zero. The headline tables keep
-the declared rule (Section 6.7 of the manuscript).
+two segmenters' leads at 4.7 pulses/m² exclude zero, both weakly, and below the
+QL2 floor SegmentAnyTree, which collapses, is 0.073 and 0.303 behind the
+unsmoothed baseline. The headline tables keep the declared rule (Section 6.7 of
+the manuscript).
 
 ## S17. Recall by height band and dominance class
 
@@ -579,9 +584,12 @@ SegmentAnyTree's semantic head keeps labelling most core points as tree while
 its instance grouping empties, consistent with a fixed 0.3 m clustering radius
 on clouds whose mean point spacing grows to 0.95 m (Table S15); ForestFormer3D
 keeps grouping but with ever smaller instances. TreeisoNet's apexes below 2 m
-are at most 0.3% at any rung and SegmentAnyTree has none. SegmentAnyTree
-returned no core detection in 2 of the 106 plots at 1.3 pulses/m² and in 19 at
-0.6; ForestFormer3D, `ptrees` and AMS3D each in one plot at 0.6.
+are at most 0.3% at any rung and SegmentAnyTree has none. Scoring
+ForestFormer3D's apexes below 2 m as removed would raise its five-site F1 by
++0.002 at native density and by +0.004, +0.007, +0.011 and +0.013 on the rungs
+from 4.7 to 0.6 pulses/m², recomputed from the pooled counts; no rank changes.
+SegmentAnyTree returned no core detection in 2 of the 106 plots at 1.3 pulses/m²
+and in 19 at 0.6; ForestFormer3D, `ptrees` and AMS3D each in one plot at 0.6.
 
 **Table S18b.** Native false positives of CHM-VWF and TreeisoNet near mapped
 dead stems: the cores hold 498 mapped dead stems of at least 10 cm DBH measured

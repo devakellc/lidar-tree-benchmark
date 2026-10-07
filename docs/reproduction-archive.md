@@ -78,6 +78,7 @@ study reports run unchanged with `CLAUDE_JOB_DIR` pointing into a copy.
 | `neon/<SITE>/ql2/` | Native USGS 3DEP clouds over the plots (SJER, SOAP, TEAK) with their provenance sidecars, the EPT candidates and the EPT's recorded SRS, read by the QL2 cross-check |
 | `paper_runs/` | Headline population (`adopted`): per-site field stems, plot centroids, every arm's results and persisted detections or instance clouds, optical box caches, RGB tile extents, census-support bundles and scores, master tables, scoring sensitivities, the paper's figures with the numbers each plots |
 | `paper_runs_ql2/` | Every full-ladder arm on the QL2 rung, with its census bundle and scores |
+| `paper_runs_nosmooth/` | CHM-VWF run with its sub-8 pulses/m² smoothing disabled, the baseline smoothing sensitivity |
 | `paper_runs_all_mapped/`, `paper_runs_relaxed/` | Sensitivity populations on the same root |
 | `paper_runs_new_relaxed/`, `paper_runs_new_allmapped/` | Learned-arm runs on the plots only the sensitivity populations hold |
 | `paper_runs_voxel0/`, `paper_runs_maskvoxel/` | TreeisoNet voxel and mask-voxel sensitivity runs |

@@ -215,11 +215,13 @@ Paired F1 differences against CHM-VWF, nominal box, five sites:
   +0.040]); ForestFormer3D's lead over Li 2012 (+0.029 [−0.007, +0.068]) is
   no longer distinguishable from zero, SegmentAnyTree's over Li 2012 remains
   (+0.038 [+0.009, +0.066], a weak contrast), and Li 2012's own censused lead
-  over CHM-VWF, +0.030 [+0.011, +0.049], excludes zero while its nominal lead
-  does not. On the same 57 plots the nominal leads of SegmentAnyTree and
-  ForestFormer3D are +0.041 [+0.018, +0.066] and +0.026 [−0.000, +0.053], so
-  the complete reference widens their leads by about 0.03. The RGB arms are
-  not in the census scorer.
+  over CHM-VWF, +0.030 [+0.011, +0.049], excludes zero, as does its nominal
+  lead on the same 57 plots (+0.018 [+0.005, +0.032], a weak contrast), while
+  its nominal lead on all 106 plots does not (+0.006 [−0.009, +0.019]). On the
+  same 57 plots the nominal leads of SegmentAnyTree and ForestFormer3D are
+  +0.041 [+0.018, +0.066] and +0.026 [−0.000, +0.053], so the complete
+  reference widens their leads by about 0.03. The RGB arms are not in the
+  census scorer.
 - On the same 57 plots, restricting precision to censused subplots raises it
   by 0.29 to 0.34 for CHM-VWF across rungs and by 0.08 to 0.33 for the other
   arms, while recall moves by at most 0.026. The native-density F1 order

@@ -56,14 +56,15 @@ Observed F1 lead over the declared baseline / over the unsmoothed baseline:
   in precision (+0.06 to +0.07); the unsmoothed baseline places 2,152 to 2,653
   core detections on the rungs against 1,337 to 1,510.
 - Against the unsmoothed baseline the observed leads of ForestFormer3D,
-  SegmentAnyTree, TreeisoNet and `multichm` below native density are −0.013 to
-  +0.024; only the two segmenters' leads at 4.7 pulses/m² exclude zero (+0.024
-  [+0.003, +0.046] and +0.023 [+0.004, +0.042]). SegmentAnyTree is 0.073 and
-  0.303 behind it at 1.3 and 0.6 pulses/m². Every lead over CHM-VWF below native
-  density in the paper's Table 4 is therefore a lead over a configuration that
-  under-detects by about 0.06 F1, which agrees with the chance-agreement
-  correction (matcher-robustness study): corrected for chance, the same leads
-  are −0.008 to +0.021 at 0.6 pulses/m².
+  TreeisoNet and `multichm` below native density, and SegmentAnyTree's at 4.7
+  and 2.5 pulses/m², are −0.013 to +0.024; only the two segmenters' leads at
+  4.7 pulses/m² exclude zero, both weakly (+0.024 [+0.003, +0.046] and +0.023
+  [+0.004, +0.042]). Below the QL2 floor SegmentAnyTree, which collapses, is
+  0.073 and 0.303 behind the unsmoothed baseline. Every lead over CHM-VWF below
+  native density in the paper's Table 4 is therefore a lead over a
+  configuration that under-detects by about 0.06 F1, which agrees with the
+  chance-agreement correction (matcher-robustness study): corrected for chance,
+  the same leads are −0.008 to +0.021 at 0.6 pulses/m².
 - Dominant-class recall shows the mechanism: the declared baseline keeps 0.56 to
   0.54 of the 347 dominant stems on the rungs against 0.71 at native density;
   the unsmoothed one keeps 0.65 to 0.71.
