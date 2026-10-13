@@ -17,6 +17,12 @@ mkdir -p "$(dirname "$REPO")"
 git -C "$REPO" checkout --quiet "$REF"
 [ "$(git -C "$REPO" rev-parse HEAD)" = "$REF" ] || { echo "checkout is not $REF" >&2; exit 1; }
 bash "$GPU/mirror_weights.sh" FORESTMAMBA       # -> gpu/store/forestmamba/v6_epoch_1500_fix.pth
-docker image inspect ff3d-sm120 > /dev/null || { echo "build ff3d-sm120 first" >&2; exit 1; }
-docker build -t "$IMAGE" "$HERE"
+BASE_ID="sha256:fd60f5cdc5ae880af13b339f4aa1f1e891a3809c7f39fb15d2b5ff04978799f3"
+got="$(docker image inspect ff3d-sm120 --format '{{.Id}}' 2>/dev/null)" ||
+  { echo "build ff3d-sm120 first (gpu/forestformer3d-sm120)" >&2; exit 1; }
+[ "$got" = "$BASE_ID" ] || echo "warning: ff3d-sm120 is $got, not the benchmark's base $BASE_ID" >&2
+docker build --build-arg FM_REF="$REF" -t "$IMAGE" "$HERE"
+docker run --rm --entrypoint pip "$IMAGE" freeze > "$HERE/fm_freeze.txt.new"
+cmp -s "$HERE/fm_freeze.txt.new" "$HERE/fm_freeze.txt" && rm "$HERE/fm_freeze.txt.new" ||
+  echo "warning: the image's packages differ from fm_freeze.txt; see fm_freeze.txt.new" >&2
 echo "ForestMamba $REF + checkpoint ready; image $IMAGE"

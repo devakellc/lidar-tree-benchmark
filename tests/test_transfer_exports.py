@@ -276,6 +276,33 @@ class ForestMambaExportTests(unittest.TestCase):
         np.testing.assert_array_equal(ids, [0] * 4)
         np.testing.assert_array_equal(scores, [0] * 4)
 
+    def test_noise_returns_leave_the_scene_and_ground_sets_the_height_origin(self):
+        xyz = np.array([[10, 20, 353.5], [11, 21, 383.5], [12, 22, 400], [13, 23, 384],
+                        [14, 24, 900]], dtype=np.float64)
+        cls = np.array([7, 2, 5, 2, 18])               # low noise, ground, veg, ground, high noise
+        keep, offset, rule = fm.stage_frame(xyz, cls)
+        np.testing.assert_array_equal(keep, [False, True, True, True, False])
+        self.assertEqual(offset[2], 383.5)              # lowest ground, not the noise return
+        np.testing.assert_allclose(offset[:2], [12, 22])  # mean x/y of the kept rows
+        self.assertEqual(rule, "lowest ground return")
+
+    def test_height_origin_falls_back_without_ground_and_on_all_noise(self):
+        xyz = np.array([[0, 0, 5], [1, 1, 3], [2, 2, -40]], dtype=np.float64)
+        keep, offset, rule = fm.stage_frame(xyz, np.array([5, 1, 7]))
+        np.testing.assert_array_equal(keep, [True, True, False])
+        self.assertEqual((offset[2], rule), (3, "lowest non-noise return"))
+        keep, _, rule = fm.stage_frame(xyz[:1], np.array([7]))
+        self.assertFalse(keep.any())
+        self.assertEqual(rule, "no non-noise return")
+
+    def test_excluded_rows_are_exported_as_background(self):
+        keep = np.array([False, True, True, False, True])
+        ids, scores = fm.expand_to_rows(keep, np.array([1, 0, 2]), np.array([.5, 0, .7]))
+        np.testing.assert_array_equal(ids, [0, 1, 0, 0, 2])
+        np.testing.assert_allclose(scores, [0, .5, 0, 0, .7])
+        with self.assertRaises(ValueError):
+            fm.expand_to_rows(keep, np.array([1, 2]), np.array([.5, .7]))
+
     def test_scenes_use_the_forestformer3d_test_route_and_export_schema(self):
         self.assertEqual(fm.native_scene_name("/tmp/SOAP_031_native.laz"),
                          "test_SOAP_031_native")
@@ -342,6 +369,34 @@ class ForestMambaCheckpointTests(unittest.TestCase):
             self.save_mmengine_like(path, extra=dict(hook=print))
             with self.assertRaisesRegex(pickle.UnpicklingError, "builtins print"):
                 fmck.load_state_dict(path)
+
+    def test_legacy_pickles_are_refused_before_anything_is_unpickled(self):
+        import pickle
+        ran = []
+
+        class Payload:
+            def __reduce__(self):
+                return (ran.append, ("executed",))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "legacy.pth"
+            with open(path, "wb") as stream:     # a non-zip checkpoint whose first record runs code
+                pickle.dump(Payload(), stream, protocol=2)
+            with self.assertRaisesRegex(ValueError, "zip"):
+                fmck.load_state_dict(path)
+        self.assertEqual(ran, [])
+
+    def test_torchscript_archives_are_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "scripted.pth"
+            self.torch.jit.save(self.torch.jit.script(self.torch.nn.Linear(2, 2)), str(path))
+            with self.assertRaisesRegex(ValueError, "TorchScript"):
+                fmck.load_state_dict(path)
+
+    def test_the_module_level_loader_is_restricted_too(self):
+        import io
+        import pickle
+        with self.assertRaisesRegex(pickle.UnpicklingError, "builtins print"):
+            fmck._PickleModule.load(io.BytesIO(pickle.dumps(print, protocol=2)))
 
 
 if __name__ == "__main__":

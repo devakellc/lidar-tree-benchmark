@@ -11,6 +11,7 @@ never imported or called; any other global stops the load.
 """
 import _compat_pickle
 import pickle
+import zipfile
 
 import torch
 
@@ -53,12 +54,23 @@ class _Unpickler(pickle.Unpickler):
 
 class _PickleModule:          # the pickle_module duck type torch.load expects
     Unpickler = _Unpickler
-    load = staticmethod(pickle.load)
+    load = staticmethod(lambda f, **kwargs: _Unpickler(f, **kwargs).load())
     __name__ = "fm_checkpoint_pickle"
 
 
 def load_state_dict(path):
-    """The checkpoint's state_dict (CPU tensors)."""
+    """The checkpoint's state_dict (CPU tensors).
+
+    Only a plain torch zip checkpoint is read: the legacy and tar formats read
+    records with pickle_module.load outside the archive, and torch hands a
+    TorchScript archive to torch.jit.load before any unpickler runs.
+    """
+    if not zipfile.is_zipfile(path):
+        raise ValueError(f"Not a zip checkpoint: {path}")
+    with zipfile.ZipFile(path) as archive:
+        names = archive.namelist()
+    if any(n.endswith("/constants.pkl") or "/code/" in n for n in names):
+        raise ValueError(f"TorchScript archive refused: {path}")
     # weights_only=False only because torch requires it with a custom
     # pickle_module; _Unpickler.find_class is the allowlist that keeps it safe.
     checkpoint = torch.load(path, map_location="cpu", weights_only=False,

@@ -30,7 +30,7 @@ fm_synth_prep <- function(dir) {
 
 # What the container writes: the input rows in order, UserData 0, the instance
 # in PointSourceID and the source row in ff3d_row. Instances follow the cones.
-fm_fake_export <- function(input, out, scramble = FALSE) {
+fm_fake_export <- function(input, out, scramble = FALSE, config = "cfg.py") {
   las <- suppressWarnings(lidR::readLAS(input))
   n <- nrow(las@data); ids <- integer(n); ids[2001:n] <- rep(1:3, each = 400)
   las@data$UserData <- 0L
@@ -38,7 +38,8 @@ fm_fake_export <- function(input, out, scramble = FALSE) {
   las@data$ff3d_row <- if (scramble) rev(seq_len(n) - 1L) else seq_len(n) - 1L
   las <- lidR::add_lasattribute(las, las@data$ff3d_row, "ff3d_row", "source row")
   suppressWarnings(lidR::writeLAS(las, out))
-  writeLines('{"scene": "test_rawground"}', paste0(out, ".json"))
+  jsonlite::write_json(list(scene = "test_rawground", config = config),
+                       paste0(out, ".json"), auto_unbox = TRUE)
   ff3d_collapse(out)
 }
 
@@ -77,6 +78,32 @@ test_that("a container crash skips the cell; a broken export stops the run", {
                            function(input, out) fm_fake_export(input, out, scramble = TRUE)),
                "in order")
   expect_false(file.exists(dest))                       # nothing persisted on a breach
+})
+
+test_that("a driver that ran another configuration stops the run", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  s <- fm_synth_prep(d)
+  dest <- file.path(d, "P_native.laz")
+  expect_error(fm_run_cell(s$prep, s$stems, s$cx, s$cy, 20, dest,
+                           function(input, out) fm_fake_export(input, out, config = "other.py"),
+                           config = "cfg.py"), "configuration")
+  expect_false(file.exists(dest))
+  row <- fm_run_cell(s$prep, s$stems, s$cx, s$cy, 20, dest,
+                     function(input, out) fm_fake_export(input, out), config = "cfg.py")
+  expect_equal(row$TP, 3L)
+})
+
+test_that("only the checkpoint pinned in the checksum manifest is accepted", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  ck <- file.path(d, "model.pth"); writeLines("weights", ck)
+  sha <- digest::digest(file = ck, algo = "sha256")
+  man <- file.path(d, "CHECKSUMS.sha256")
+  writeLines(c(paste0(strrep("0", 64), "  other.pth"), paste0(sha, "  model.pth")), man)
+  expect_identical(fm_checkpoint_pinned(ck, man), sha)
+  writeLines("tampered", ck)
+  expect_error(fm_checkpoint_pinned(ck, man), "does not match")
+  file.copy(ck, file.path(d, "unlisted.pth"))
+  expect_error(fm_checkpoint_pinned(file.path(d, "unlisted.pth"), man), "not pinned")
 })
 
 test_that("rung arguments keep native first and refuse unknown rungs", {

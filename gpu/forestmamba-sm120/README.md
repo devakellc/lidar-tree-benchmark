@@ -27,10 +27,18 @@ initial values (0.25 and 0.5), so the peak window is fixed, not learned.
 
 [`Dockerfile`](Dockerfile) builds `forestmamba-sm120` **from the ForestFormer3D
 image** (`ff3d-sm120`, see [../forestformer3d-sm120](../forestformer3d-sm120)):
-the same torch, spconv, MinkowskiEngine, OpenMMLab stack and mmengine/mmdet3d
-file swaps, plus the Mamba kernels. [`fm_freeze.txt`](fm_freeze.txt) is the
-authoritative version lock; it differs from the ForestFormer3D lock by nine
-packages.
+the same torch, spconv, MinkowskiEngine and OpenMMLab stack, plus the Mamba
+kernels and the upstream mmengine/mmdet3d file swaps. The swaps (`base_model.py`
+with the `epoch` argument the driver calls, and `transforms_3d.py`) are copied
+from the pinned checkout at build time, so the image does not depend on how its
+base was built; they are byte-identical to ForestFormer3D's. The benchmark's
+base image was `sha256:fd60f5cdc5ae…`, the image of the ForestFormer3D paper
+runs; `setup.sh` warns when the local base differs.
+[`fm_freeze.txt`](fm_freeze.txt) is the version lock of the result. Against the
+committed ForestFormer3D lock it adds the nine packages the Dockerfile installs
+and four that the base image carries beyond that lock (`markdown-it-py`,
+`mdurl`, `importlib-metadata` 9.0.0 and `ninja` 1.11.1.4); none is on the
+numerical path.
 
 - **Mamba kernels.** Prebuilt `mamba-ssm 2.3.2.post1` and `causal-conv1d
   1.6.2.post1` wheels for torch 2.7, CUDA 12 and Python 3.11, pinned by URL and
@@ -55,14 +63,25 @@ bash gpu/forestmamba-sm120/setup.sh      # needs the ff3d-sm120 image
 [`fm_arm.py`](fm_arm.py) takes one raw-with-ground LAZ and writes one LAZ
 (`fm_entry.sh` is the container entry; the arm runs it as the invoking user):
 
-- The clip is staged as one native `test_*` scene, centred on its mean x/y and
-  minimum z because float32 cannot hold UTM coordinates to the centimetre. The
-  upstream sliding-cylinder test route runs once over the whole scene.
-- The checkpoint is read by [`fm_checkpoint.py`](fm_checkpoint.py), an unpickler
-  that resolves only the audited globals (torch tensor rebuilds, numpy arrays,
-  `OrderedDict`) and never instantiates the logger objects stored next to the
-  weights. It is then loaded with a **strict** `load_state_dict`: mmengine's own
-  loader only warns on missing or mis-shaped tensors. The release stores its 49
+- The clip is staged as one native `test_*` scene and the upstream
+  sliding-cylinder test route runs once over it. Classified noise (ASPRS
+  classes 7 and 18) stays out of the scene and is exported as background.
+  ForestMamba reads staged z as height: its canopy-peak queries keep peaks of at
+  least 1.5 m and search a window of 0.25·h^0.5 m, and its decoder orders
+  queries vertically. z is therefore measured from the lowest ground return
+  (the lowest remaining return when a clip has no ground), not from the lowest
+  return of any class: one noise return 30 m below ground would otherwise raise
+  every height by 30 m, and decimation keeps or drops it rung by rung. x and y
+  are centred on their mean, because float32 cannot hold UTM coordinates to the
+  centimetre.
+- The sweep refuses a checkpoint whose SHA-256 is not the one pinned in
+  [CHECKSUMS.sha256](../CHECKSUMS.sha256). [`fm_checkpoint.py`](fm_checkpoint.py)
+  then reads only a plain torch zip archive (legacy, tar and TorchScript files
+  are refused before anything is unpickled) through an unpickler that resolves
+  only the audited globals (torch tensor rebuilds, numpy arrays, `OrderedDict`)
+  and never instantiates the logger objects stored next to the weights. The
+  state is loaded with a **strict** `load_state_dict`: mmengine's own loader
+  only warns on missing or mis-shaped tensors. The release stores its 49
   sparse-convolution weights as `(k,k,k,in,out)`; mmdet3d's spconv-2 load hook
   permutes them to spconv 2's `(out,k,k,k,in)`, verified tensor by tensor.
 - ForestMamba saves -1 background and dense instance IDs 1..M (ForestFormer3D
@@ -74,8 +93,9 @@ bash gpu/forestmamba-sm120/setup.sh      # needs the ff3d-sm120 image
   `UserData` 0, the per-point confidence in `ff3d_score` and the source row in
   `ff3d_row`. `ff3d_scene_check` and `ff3d_collapse` read it unchanged.
 - The receipt (`<out>.laz.json`) records the seed, the determinism settings,
-  the strict load, timings, peak memory, the centring offset, the instance and
-  background counts, the semantic label counts and the package versions.
+  the strict load, the configuration, the height-origin rule and the number of
+  noise rows left out, timings, peak memory, the staging offset, the instance
+  and background counts, the semantic label counts and the package versions.
 
 **Repeatability.** Python, numpy and torch are seeded before the scene,
 because the query supplement's farthest-point sampling draws a random start,
@@ -96,15 +116,17 @@ both prediction sets are scored by the authors' evaluator
 authors' predictions, the evaluator reproduces their published per-scene table
 exactly.
 
-| Scene | Points | Authors P / R / F1 | This port P / R / F1 | Authors' instances matched (IoU ≥ 0.5) | Tree/background agreement |
-|---|---:|---|---|---:|---:|
-| RMIT | 260,438 | 0.839 / 0.812 / 0.825 | 0.867 / 0.812 / 0.839 | 60 of 62 | 99.5% |
-| NIBIO2 plot 15 | 489,366 | 0.989 / 0.912 / 0.949 | 0.989 / 0.922 / 0.954 | 93 of 94 | 98.8% |
-| TUWIEN | 1,401,559 | 0.839 / 0.743 / 0.788 | 0.839 / 0.743 / 0.788 | 30 of 31 | 99.0% |
+| Scene | Points | Authors P / R / F1 | This port P / R / F1 | F1, earlier run | Authors' instances matched (IoU ≥ 0.5) | Tree/background agreement |
+|---|---:|---|---|---:|---:|---:|
+| RMIT | 260,438 | 0.839 / 0.812 / 0.825 | 0.839 / 0.812 / 0.825 | 0.839 | 61 of 62 | 99.4% |
+| NIBIO2 plot 15 | 489,366 | 0.989 / 0.912 / 0.949 | 0.989 / 0.922 / 0.954 | 0.954 | 94 of 94 | 99.1% |
+| TUWIEN | 1,401,559 | 0.839 / 0.743 / 0.788 | 0.871 / 0.771 / 0.818 | 0.788 | 31 of 31 | 99.0% |
 
-The port reproduces the release within the run-to-run variation above. These
-are the checkpoint's own test scenes, not airborne data; they show that the
-Blackwell port preserves the model, not how it transfers to NEON.
+The table is the final image's run; the earlier run, with the same model path,
+shows the run-to-run variation (up to 0.03 F1 on a scene). The port reproduces
+the release within that variation. These are the checkpoint's own test scenes,
+not airborne data; they show that the Blackwell port preserves the model, not
+how it transfers to NEON.
 
 ## Run
 

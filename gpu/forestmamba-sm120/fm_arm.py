@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 """ForestMamba benchmark arm: one whole scene in, one row-indexed LAZ out.
 
-Stages one LAZ as a native ForAINetV2 `test_*` scene, centred on its mean x/y
-and minimum z because float32 cannot hold UTM coordinates to the centimetre.
-Runs the upstream sliding-cylinder test route of the pinned ForestMamba
-checkout once, then writes every input row back in order: PointSourceID is the
-instance (0 = background), UserData 0, ff3d_score the aligned per-point
+Stages one LAZ as a native ForAINetV2 `test_*` scene and runs the upstream
+sliding-cylinder test route of the pinned ForestMamba checkout once. Classified
+noise (ASPRS 7, 18) stays out of the scene. The model reads staged z as height
+(canopy-peak queries, the decoder's vertical ordering), so z counts from the
+lowest ground return; x and y are centred on their mean because float32 cannot
+hold UTM coordinates to the centimetre (fm_export.stage_frame). Every input row
+is written back in order: PointSourceID is the instance (0 = background, which
+includes the noise rows), UserData 0, ff3d_score the aligned per-point
 confidence and ff3d_row the source row. This is the ForestFormer3D whole-scene
 schema, so its readers (ff3d_scene_check, ff3d_collapse, the crown and IoU/PQ
 arms) apply unchanged.
@@ -35,17 +38,15 @@ import numpy as np
 os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from fm_export import (EMPTY_SAMPLE_ERROR, native_scene_name,  # noqa: E402
-                       restore_dense, scene_output, validate_empty_sample_error)
+from fm_export import (EMPTY_SAMPLE_ERROR, expand_to_rows,  # noqa: E402
+                       native_scene_name, restore_dense, scene_output, stage_frame,
+                       validate_empty_sample_error)
 
 CONFIG = "configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6.py"
 ROOT = "data/ForAINetV2"                       # relative to the checkout (ephemeral)
 INST = os.path.join(ROOT, "forainetv2_instance_data")
 META = os.path.join(ROOT, "meta_data")
 WORK_DIR = "./work_dirs/arm"
-# Row batch of the exact nearest-neighbour mapping (same result as upstream's
-# 20,000 rows, bounded memory on native-density ALS).
-NN_CHUNK = 2048
 
 
 def seed_everything(seed):
@@ -104,7 +105,6 @@ def build_model(checkpoint):
     cfg.test_dataloader.dataset.data_root = ROOT + "/"    # upstream: an absolute path
     cfg.vis_backends = [dict(type="LocalVisBackend")]
     cfg.visualizer.vis_backends = cfg.vis_backends
-    cfg.model.chunk = NN_CHUNK
     cfg.load_from = None
     cfg.resume = False
     runner = Runner.from_cfg(cfg)
@@ -178,17 +178,20 @@ def main(argv):
     source = laspy.read(in_laz)
     scan = native_scene_name(in_laz)
     xyz = np.column_stack([source.x, source.y, source.z]).astype(np.float64)
+    keep, offset, origin = stage_frame(xyz, np.asarray(source.classification))
     receipt = dict(scene=scan, layout="whole_scene", route="upstream_test", seed=seed,
                    deterministic_algorithms=True,
                    pythonhashseed=os.environ.get("PYTHONHASHSEED"),
-                   checkpoint_load="strict", config=CONFIG, nn_chunk=NN_CHUNK,
-                   source_rows=len(source.points))
-    if not len(xyz):
-        scene_output(source, np.zeros(0, dtype=int), np.zeros(0)).write(out_laz)
-        receipt.update(points=0, instances=0, background=0, route="empty_input")
+                   checkpoint_load="strict", config=CONFIG,
+                   source_rows=len(source.points), z_origin=origin,
+                   noise_rows_excluded=int((~keep).sum()))
+    if not keep.any():
+        n = len(source.points)
+        scene_output(source, np.zeros(n, dtype=int), np.zeros(n)).write(out_laz)
+        receipt.update(points=0, instances=0, background=n,
+                       route="empty_input" if not n else "no_scene_points")
     else:
-        offset = np.array([xyz[:, 0].mean(), xyz[:, 1].mean(), xyz[:, 2].min()])
-        staged = (xyz - offset).astype(np.float32)
+        staged = (xyz[keep] - offset).astype(np.float32)
         from mmdet3d.utils import register_all_modules
         register_all_modules()
         stage_scenes([(scan, staged)])
@@ -196,13 +199,11 @@ def main(argv):
         runner, model = build_model(checkpoint)
         model_seconds = time.time() - loaded
         (_, points, vertices, empty, run), = list(infer_scenes(runner, model, [scan], seed))
-        _, ids, scores = restore_dense(points, vertices, offset)
+        _, staged_ids, staged_scores = restore_dense(points, vertices, offset)
         if empty is not None:
-            validate_empty_sample_error(empty, ids)
+            validate_empty_sample_error(empty, staged_ids)
+        ids, scores = expand_to_rows(keep, staged_ids, staged_scores)
         # The export keeps the exact source rows, not the rounded PLY positions.
-        if not np.array_equal(staged, (np.column_stack(
-                [source.x, source.y, source.z]) - offset).astype(np.float32)):
-            raise ValueError("Whole-scene source changed during inference")
         scene_output(source, ids, scores).write(out_laz)
         semantic = np.asarray(vertices["semantic_pred"])
         receipt.update(run, model_seconds=round(model_seconds, 3), offset=offset.tolist(),

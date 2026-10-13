@@ -147,6 +147,8 @@ load_ff3d_points <- function(path) {
 MODELS <- list(
   segmentanytree = list(dir = "segmentanytree_instances", load = load_sat_points),
   forestformer3d = list(dir = "forestformer3d_instances", load = load_ff3d_points),
+  # ForestMamba writes ForestFormer3D's whole-scene schema (one block).
+  forestmamba    = list(dir = "forestmamba_instances",    load = load_ff3d_points),
   ptrees         = list(dir = "ptrees_instances",  load = make_laz_loader("treeID")),
   ams3d          = list(dir = "ams3d_instances",   load = make_laz_loader("crown_id")),
   li2012         = list(dir = "li2012_instances",  load = make_laz_loader("treeID")),

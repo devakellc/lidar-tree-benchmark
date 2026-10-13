@@ -12,13 +12,16 @@
 #     scene.laz --ff3d_scene_check--> --ff3d_collapse--> apex(x,y,z UTM)
 #     --agl_guard(ground_dtm.tif)--> apex(z AGL) --score_plot.
 #
-# The checkout is copied to a per-run workspace, because upstream writes data/
-# and work_dirs/ inside it. The driver loads the checkpoint strictly and seeds
-# torch, numpy and Python with SEED before every scene: the query supplement's
-# farthest-point sampling draws a random start. Every run writes
-# forestmamba_run_manifest.json (image ID, upstream revision and local
-# modification hash, checkpoint and code hashes, seed, frozen root, population)
-# and every cell a receipt next to its persisted instance cloud.
+# The checkpoint must be the one pinned in gpu/CHECKSUMS.sha256. The checkout
+# is copied to a per-run workspace, because upstream writes data/ and
+# work_dirs/ inside it. The driver loads the checkpoint strictly, leaves
+# classified noise out of the scene, measures height from the lowest ground
+# return and seeds torch, numpy and Python with SEED before every scene: the
+# query supplement's farthest-point sampling draws a random start. Every run
+# writes forestmamba_run_manifest.json, whose identity (image ID, upstream
+# revision and local modification hash, configuration, checkpoint hash, code
+# hashes, seed, match tolerance, frozen root, population) a resumed run must
+# repeat, and every cell a receipt next to its persisted instance cloud.
 #
 # Usage:
 #   Rscript scripts/detect_forestmamba_sweep.R [SITE=SOAP] [PLOTS=ALL]
@@ -58,9 +61,10 @@ fm_parse_rungs <- function(x) {
 # export that breaks the row-indexed contract stops the run instead. The checked
 # export is persisted at `dest` with the driver's receipt and a cell receipt,
 # then its apexes are height-normalised and scored.
-fm_run_cell <- function(prep, stems, cx, cy, ph, dest, run, tol = 4) {
+fm_run_cell <- function(prep, stems, cx, cy, ph, dest, run, tol = 4, config = NULL) {
   cell <- tempfile("fm_cell_"); dir.create(cell)
   on.exit(unlink(cell, recursive = TRUE), add = TRUE)
+  cell <- container_path(cell)              # the mounts resolve symlinks; so must the paths
   input <- file.path(cell, "rawground.laz")   # the container mounts this copy, never the root
   if (!file.copy(prep$rawground, input)) stop("Cannot stage ", prep$rawground)
   out_laz <- file.path(cell, "scene.laz")
@@ -69,6 +73,11 @@ fm_run_cell <- function(prep, stems, cx, cy, ph, dest, run, tol = 4) {
   seconds <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
   if (is.null(det_abs)) return(NULL)
   ff3d_scene_check(out_laz, input)
+  if (!is.null(config)) {
+    rc <- jsonlite::read_json(paste0(out_laz, ".json"))
+    if (!identical(rc$config, config))
+      stop("The driver ran configuration ", rc$config, ", not ", config)
+  }
   if (!file.copy(out_laz, dest, overwrite = TRUE)) stop("Cannot persist ", dest)
   if (file.exists(paste0(out_laz, ".json")))
     file.copy(paste0(out_laz, ".json"), paste0(dest, ".json"), overwrite = TRUE)
@@ -84,6 +93,18 @@ fm_run_cell <- function(prep, stems, cx, cy, ph, dest, run, tol = 4) {
                  error = function(e) NULL)
   if (is.null(sc)) return(NULL)
   cbind(data.frame(n_apex = nrow(det), seconds = round(seconds, 1)), sc)
+}
+
+# The checkpoint's SHA-256, provided its basename is pinned with that hash in
+# the checksum manifest (gpu/CHECKSUMS.sha256); anything else stops the run.
+fm_checkpoint_pinned <- function(path, manifest) {
+  if (!file.exists(manifest)) stop("Missing checksum manifest ", manifest)
+  m <- read.table(manifest, stringsAsFactors = FALSE, col.names = c("sha256", "file"))
+  want <- m$sha256[m$file == basename(path)]
+  if (length(want) != 1L) stop(basename(path), " is not pinned in ", manifest)
+  got <- digest::digest(file = path, algo = "sha256")
+  if (!identical(got, want)) stop(basename(path), " does not match its pinned SHA-256")
+  got
 }
 
 # Run the container as the invoking user, so its outputs and the workspace it
@@ -115,6 +136,7 @@ run_main <- function() {
   FF3D    <- file.path(gpu, "forestformer3d-sm120")   # the shared whole-scene export
   for (f in c(ENTRY, DRIVER, CKPT, REPO, file.path(FF3D, "ff3d_export.py")))
     if (!file.exists(f)) stop("Missing ", f, call. = FALSE)
+  CKPT_SHA256 <- fm_checkpoint_pinned(CKPT, file.path(gpu, "CHECKSUMS.sha256"))
   # Arguments the container sees must resolve like run_docker_arm's mounts.
   CKPT <- container_path(CKPT); ENTRY <- container_path(ENTRY)
   DRIVER <- container_path(DRIVER); FF3D <- container_path(FF3D)
@@ -138,19 +160,22 @@ run_main <- function() {
   frozen_resume_guard(result_file, fz)
   results <- if (file.exists(result_file))
     read.csv(result_file, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
+  # The code that makes and scores a row is part of the identity, so a resumed
+  # run cannot mix rows from edited code, a changed tolerance or another config.
   code <- c(ENTRY, DRIVER, file.path(dirname(DRIVER), c("fm_export.py", "fm_checkpoint.py")),
             file.path(FF3D, "ff3d_export.py"), .find("detect_forestmamba_sweep.R"),
-            .find("io_bridge.R"), .find("model_runner.R"))
+            .find("io_bridge.R"), .find("model_runner.R"), .find("sweep_lib.R"),
+            .find("model_bench_lib.R"))
   update_run_manifest(file.path(nd, "forestmamba_run_manifest.json"),
     identity = list(layout = "whole_scene", image = IMAGE, image_id = docker_image_id(IMAGE),
       source = git_source_identity(REPO, c("configs", "oneformer3d", "tools")),
       config = FM_CONFIG,
       checkpoint = list(file = basename(CKPT), md5 = unname(tools::md5sum(CKPT)),
-                        sha256 = digest::digest(file = CKPT, algo = "sha256")),
-      seed = SEED, frozen_root = frozen_root_id(fz$root), population = fz$population),
+                        sha256 = CKPT_SHA256),
+      code = file_digests(code), seed = SEED, tol = TOL,
+      frozen_root = frozen_root_id(fz$root), population = fz$population),
     pass = list(rungs = as.list(c(if (rg$native) "native", as.character(rg$rungs))),
-                timeout = TIMEOUT, started = format(Sys.time(), tz = "UTC", usetz = TRUE),
-                code = file_digests(code)),
+                timeout = TIMEOUT, started = format(Sys.time(), tz = "UTC", usetz = TRUE)),
     resuming = !is.null(results))
   done <- if (is.null(results)) character() else paste(results$plot, results$rung)
   ws <- file.path(tempdir(), "fm_model")
@@ -192,12 +217,12 @@ run_main <- function() {
         nskip <- nskip + 1L; next           # finished in an earlier pass
       }
       row <- fm_run_cell(prep, stems, cx, cy, ph, dest,
-                         container(sprintf("%s/%s", pid, tag)), tol = TOL)
+                         container(sprintf("%s/%s", pid, tag)), tol = TOL, config = FM_CONFIG)
       if (is.null(row)) next
       out[[length(out) + 1]] <- cbind(data.frame(site = SITE, plot = pid,
         plotType = ci$plotType, detector = "forestmamba", rung = tag,
         pdens = round(prep$pdens, 2), frdens = round(prep$frdens, 2),
-        layout = "whole_scene"), row)
+        layout = "whole_scene", tol = TOL), row)
       ncell <- ncell + 1L
     }
     cat(sprintf("  %s: %d cells, %d already done\n", pid, ncell, nskip))
