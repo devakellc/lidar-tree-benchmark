@@ -22,6 +22,8 @@ def load(name, path):
 
 ff = load("ff_export", "gpu/forestformer3d-sm120/ff3d_export.py")
 ti = load("ti_export", "gpu/treeisonet_export.py")
+fm = load("fm_export", "gpu/forestmamba-sm120/fm_export.py")
+fmck = load("fm_checkpoint", "gpu/forestmamba-sm120/fm_checkpoint.py")
 
 
 class ExportTests(unittest.TestCase):
@@ -218,6 +220,128 @@ class WholeSceneTests(unittest.TestCase):
             self.assertIn("ff3d_row", restored.point_format.extra_dimension_names)
         out = ff.scene_output(self.source(), [0]*4, [-1]*4)
         np.testing.assert_array_equal(out.ff3d_score, [0]*4)
+
+
+class ForestMambaExportTests(unittest.TestCase):
+    """ForestMamba saves -1 background and dense 1..M instance IDs."""
+
+    def setUp(self):
+        self.points = np.array([[0, 0, 0], [0, 0, 10], [2, 3, 5], [2, 3, 6]],
+                               dtype=np.float32)
+
+    def vertices(self, labels, scores=None):
+        vertex = dict(zip(("x", "y", "z"), self.points.T))
+        vertex.update(instance_pred=np.asarray(labels),
+                      score=np.asarray([.5] * len(labels) if scores is None else scores,
+                                       dtype=np.float32))
+        return vertex
+
+    def test_dense_ids_are_kept_and_background_becomes_zero(self):
+        xyz, ids, scores = fm.restore_dense(
+            self.points, self.vertices([-1, 1, 2, 2], [0, .7, .9, .9]), [100, 200, -2])
+        np.testing.assert_array_equal(ids, [0, 1, 2, 2])     # not shifted like FF3D's IDs
+        np.testing.assert_allclose(scores, [0, .7, .9, .9])
+        self.assertEqual(xyz.dtype, np.float64)
+        np.testing.assert_array_equal(xyz, self.points + [100, 200, -2])
+
+    def test_background_scores_are_zeroed(self):
+        _, _, scores = fm.restore_dense(
+            self.points, self.vertices([-1, -1, 1, 1], [-1, 3, .4, .4]), [0, 0, 0])
+        np.testing.assert_allclose(scores, [0, 0, .4, .4])
+
+    def test_zero_ids_ids_below_minus_one_and_fractions_are_rejected(self):
+        for labels in ([0, 1, 1, 1], [-2, 1, 1, 1], [-1, 1.5, 1, 1]):
+            with self.assertRaisesRegex(ValueError, "background"):
+                fm.restore_dense(self.points, self.vertices(labels), [0, 0, 0])
+
+    def test_gaps_in_the_dense_numbering_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "not the dense"):
+            fm.restore_dense(self.points, self.vertices([-1, 1, 3, 3]), [0, 0, 0])
+
+    def test_point_count_and_order_changes_are_rejected(self):
+        vertex = self.vertices([-1, 1, 2, 2])
+        with self.assertRaisesRegex(ValueError, "count, order"):
+            fm.restore_dense(self.points[:3], vertex, [0, 0, 0])
+        with self.assertRaisesRegex(ValueError, "count, order"):
+            fm.restore_dense(self.points[[1, 0, 2, 3]], vertex, [0, 0, 0])
+
+    def test_invalid_confidence_is_rejected(self):
+        for scores in ([0, -.1, .5, .5], [0, np.nan, .5, .5], [np.inf, .5, .5, .5]):
+            with self.assertRaisesRegex(ValueError, "confidence"):
+                fm.restore_dense(self.points, self.vertices([-1, 1, 2, 2], scores), [0, 0, 0])
+
+    def test_all_background_scene_is_valid(self):
+        _, ids, scores = fm.restore_dense(self.points, self.vertices([-1] * 4, [0] * 4),
+                                          [0, 0, 0])
+        np.testing.assert_array_equal(ids, [0] * 4)
+        np.testing.assert_array_equal(scores, [0] * 4)
+
+    def test_scenes_use_the_forestformer3d_test_route_and_export_schema(self):
+        self.assertEqual(fm.native_scene_name("/tmp/SOAP_031_native.laz"),
+                         "test_SOAP_031_native")
+        for name in ("scene_output", "native_scene_name", "validate_empty_sample_error"):
+            self.assertTrue(getattr(fm, name).__code__.co_filename.endswith(
+                "forestformer3d-sm120/ff3d_export.py"), name)
+
+
+class ForestMambaCheckpointTests(unittest.TestCase):
+    """The released checkpoint is an mmengine pickle: tensors, numpy and a
+    logging HistoryBuffer (pickled through builtins.getattr). Only those
+    globals may resolve; the HistoryBuffer is never instantiated."""
+
+    def setUp(self):
+        try:
+            import torch
+        except ImportError:
+            self.skipTest("Optional torch environment is not installed")
+        self.torch = torch
+
+    def save_mmengine_like(self, path, extra=None):
+        from collections import OrderedDict
+        names = ("mmengine", "mmengine.logging", "mmengine.logging.history_buffer")
+        saved = {n: sys.modules.get(n) for n in names}
+        module = types.ModuleType(names[-1])
+
+        class HistoryBuffer:
+            def min(self):
+                return 0
+
+        HistoryBuffer.__module__ = HistoryBuffer.min.__module__ = names[-1]
+        HistoryBuffer.__qualname__, HistoryBuffer.min.__qualname__ = \
+            "HistoryBuffer", "HistoryBuffer.min"
+        module.HistoryBuffer = HistoryBuffer
+        for n in names:
+            sys.modules[n] = module if n == names[-1] else types.ModuleType(n)
+        try:
+            state = OrderedDict(w=self.torch.arange(6.).reshape(2, 3),
+                                n=self.torch.tensor(7))
+            hub = {"buf": HistoryBuffer(), "stats": {"min": HistoryBuffer.min},
+                   "arr": np.arange(3), "dtype": np.dtype("float32")}
+            self.torch.save(dict(state_dict=state, message_hub=hub, **(extra or {})), path)
+        finally:
+            for n, m in saved.items():
+                if m is None:
+                    sys.modules.pop(n, None)
+                else:
+                    sys.modules[n] = m
+        return state
+
+    def test_state_dict_loads_without_importing_or_running_mmengine(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "ckpt.pth"
+            state = self.save_mmengine_like(path)
+            loaded = fmck.load_state_dict(path)
+        self.assertEqual(list(loaded), ["w", "n"])
+        for key in state:
+            self.torch.testing.assert_close(loaded[key], state[key], rtol=0, atol=0)
+
+    def test_any_other_global_is_refused(self):
+        import pickle
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "ckpt.pth"
+            self.save_mmengine_like(path, extra=dict(hook=print))
+            with self.assertRaisesRegex(pickle.UnpicklingError, "builtins print"):
+                fmck.load_state_dict(path)
 
 
 if __name__ == "__main__":

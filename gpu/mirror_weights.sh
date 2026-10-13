@@ -7,13 +7,15 @@
 # path 504s here); other sources use curl.
 #
 # Usage:
-#   bash gpu/mirror_weights.sh        # TreeisoNet only (the #M7 detection arm)
-#   bash gpu/mirror_weights.sh ALL    # + SegmentAnyTree (#M6) + ForestFormer3D (#M8)
+#   bash gpu/mirror_weights.sh              # TreeisoNet only (the #M7 detection arm)
+#   bash gpu/mirror_weights.sh ALL          # + SegmentAnyTree (#M6) + ForestFormer3D (#M8)
+#                                           #   + ForestMamba
+#   bash gpu/mirror_weights.sh FORESTMAMBA  # the ForestMamba checkpoint only
 set -euo pipefail
 WHICH="${1:-treeisonet}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 STORE="$HERE/store"; MAN="$HERE/CHECKSUMS.sha256"
-mkdir -p "$STORE/treeaibox" "$STORE/segmentanytree" "$STORE/forestformer3d"
+mkdir -p "$STORE/treeaibox" "$STORE/segmentanytree" "$STORE/forestformer3d" "$STORE/forestmamba"
 touch "$MAN"
 verify() {  # dest sha_prefix(sanity; "" to skip)
   local dest="$1" pre="$2" base got exp
@@ -39,11 +41,28 @@ url_get() {  # url dest sha_prefix  (curl for non-release sources)
   [ -f "$dest" ] || { echo "GET $(basename "$dest")"; curl -fL --retry 3 "$url" -o "$dest"; }
   verify "$dest" "$3"
 }
-# --- TreeisoNet ALS (the #M7 detection arm; always fetched) ---
-gh_get "treeisonet_als_reclamation_treeloc_esegformer3D_128_10cm_GPU4GB.pth" \
-       "$STORE/treeaibox/als_treeloc.pth" c6e15a21
-gh_get "treeisonet_als_reclamation_treeoff_esegformer3D_128_10cm_GPU4GB.pth" \
-       "$STORE/treeaibox/als_treeoff.pth" 6cf5d890
+gdrive_get() {  # file_id dest sha_prefix  (public Google Drive file)
+  # Large files answer with a virus-scan form; its uuid confirms the download.
+  local id="$1" dest="$2" base="https://drive.usercontent.google.com/download" uuid
+  if [ ! -f "$dest" ]; then echo "GET $(basename "$dest")"
+    uuid="$(curl -fsSL "$base?id=$id&export=download" | grep -o 'name="uuid" value="[^"]*"' |
+            sed 's/.*value="//; s/"$//' || true)"
+    curl -fL --retry 3 "$base?id=$id&export=download&confirm=t${uuid:+&uuid=$uuid}" -o "$dest"
+  fi
+  verify "$dest" "$3"
+}
+# --- TreeisoNet ALS (the #M7 detection arm; fetched unless only ForestMamba is asked) ---
+if [ "$WHICH" != "FORESTMAMBA" ]; then
+  gh_get "treeisonet_als_reclamation_treeloc_esegformer3D_128_10cm_GPU4GB.pth" \
+         "$STORE/treeaibox/als_treeloc.pth" c6e15a21
+  gh_get "treeisonet_als_reclamation_treeoff_esegformer3D_128_10cm_GPU4GB.pth" \
+         "$STORE/treeaibox/als_treeoff.pth" 6cf5d890
+fi
+# --- ForestMamba v6 release checkpoint (the authors' Google Drive folder
+# 1wf_IcXNIZgxOg_Dkrt45ph2ssdBeWCHm); its SHA-256 is pinned in the manifest ---
+if [ "$WHICH" = "ALL" ] || [ "$WHICH" = "FORESTMAMBA" ]; then
+  gdrive_get 1XJ__eeYUDLbdaj77f_ryxydIs3FiTQaT "$STORE/forestmamba/v6_epoch_1500_fix.pth" a398d6e5
+fi
 if [ "$WHICH" = "ALL" ]; then
   url_get "https://media.githubusercontent.com/media/SmartForest-no/SegmentAnyTree/main/model_file/PointGroup-PAPER.pt" \
           "$STORE/segmentanytree/PointGroup-PAPER.pt" 0b4d74b4

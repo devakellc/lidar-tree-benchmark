@@ -9,6 +9,8 @@
 # poller samples nvidia-smi for the peak device memory above the idle level.
 # Run it with the GPU otherwise idle and the CPU quiet, one call at a time.
 #   bash scripts/compute_cost.sh OUT=<new dir> [WORK=work] [ARMS=...] [SITES=...]
+# ARMS defaults to the paper's twelve arms; ARMS=forestmamba times the
+# ForestMamba arm, which is not one of them, the same way.
 # Writes <OUT>/compute_cost_cells.csv and <OUT>/compute_cost.md.
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -76,6 +78,8 @@ while read -r S P; do
         [ -n "$J" ] || J=$(one_plot_job "$S" "$P")
         export CLAUDE_JOB_DIR="$J"
         case "$arm" in
+          forestmamba)    timed "$arm" "$S" "$P" "$lf" Rscript scripts/detect_forestmamba_sweep.R \
+                            SITE=$S POP=adopted RUNGS=native TIMEOUT=3600 ;;
           forestformer3d) timed "$arm" "$S" "$P" "$lf" Rscript scripts/detect_forestformer3d_sweep.R \
                             SITE=$S POP=adopted RUNGS=native TIMEOUT=3600 ;;
           treeisonet)     timed "$arm" "$S" "$P" "$lf" Rscript scripts/detect_treeisonet_sweep.R \
