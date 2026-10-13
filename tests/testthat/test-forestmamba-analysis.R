@@ -217,3 +217,142 @@ test_that("a cell without core detections counts zero true positives everywhere"
                       c("S1::P1::1", "S1::P2::1"), c("S1::P1" = 10L, "S1::P2" = 10L))
   expect_identical(got$rows$tp_core, c(0, 2))
 })
+
+test_that("the rungs default to the sealed root's and must be among them", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  root <- fma_root(d)
+  expect_identical(fma_rungs(NULL, root), MT_RUNGS)        # no contract: the ladder rungs
+  jsonlite::write_json(list(rungs = 3.2), file.path(root, "freeze_contract.json"))
+  expect_identical(fma_rungs(NULL, root), c("native", "3.2"))
+  expect_identical(fma_rungs("3.2", root), "3.2")
+  expect_identical(fma_rungs("native,3.2", root), c("native", "3.2"))
+  expect_error(fma_rungs("8", root), "not a rung of")
+})
+
+test_that("tables follow the analysed rungs, with sites and strata at the end rungs", {
+  cells <- function(r) rbind(
+    fma_cells("forestmamba", "S1", c("P1", "P2"), r, c(6, 4), c(8, 8), c(6, 4)),
+    fma_cells("other", "S1", c("P1", "P2"), r, c(3, 5), c(6, 6), c(3, 5)))
+  md <- function(eq, rungs) {
+    sc <- fma_scores(eq, "forestmamba", "S1", n_boot = 50, seed = 1, regions = list())
+    st <- fma_strata(eq, "forestmamba", n_boot = 50, seed = 1)
+    fma_tables(sc$long, sc$contrasts, st$long, st$contrasts, NULL, NULL, "other",
+               "forestmamba", rungs)
+  }
+  q <- md(cells("3.2"), "3.2")
+  expect_true(all(c("F1 per site at rung 3.2:",
+                    "Recall by stratum at rung 3.2, five sites:") %in% q))
+  expect_false(any(grepl("Change in F1 from native", q)))
+  l <- md(rbind(cells("native"), cells("4"), cells("1")), c("native", "4", "1"))
+  expect_true(all(c("F1 per site at rung native:", "F1 per site at rung 1:") %in% l))
+  expect_false("F1 per site at rung 4:" %in% l)
+})
+
+test_that("semantics pool the driver's label counts and instances per rung", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  put <- function(key, sem, inst, bg, noise = 0) {
+    jsonlite::write_json(list(seconds = 1), file.path(d, paste0(key, ".receipt.json")),
+                         auto_unbox = TRUE)
+    jsonlite::write_json(list(points = sum(unlist(sem)), semantic_counts = sem,
+                              instances = inst, background = bg,
+                              noise_rows_excluded = noise),
+                         file.path(d, paste0(key, ".laz.json")), auto_unbox = TRUE)
+  }
+  # Excluded noise rows are exported as background but were never labelled.
+  put("S1_P1_native", list(`0` = 50, `1` = 10, `2` = 40), 5, 62, noise = 2)
+  put("S1_P2_native", list(`0` = 30, `1` = 10, `2` = 60), 9, 40)
+  put("S1_P1_1", list(`0` = 20, `1` = 80), 30, 25)                # no leaf label at all
+  put("S1_P1_3.2", list(`0` = 10, `1` = 5, `2` = 5), 2, 12)
+  s <- fma_semantics(d)
+  expect_identical(s$rung, c("native", "3.2", "1"))
+  expect_equal(s$cells, c(2L, 1L, 1L))
+  expect_equal(s$ground[1], 80 / 200)
+  expect_equal(s$wood[1], 20 / 200)
+  expect_equal(s$leaf[3], 0)
+  expect_equal(s$wood_of_vegetation[3], 1)
+  expect_equal(s$unassigned[1], 100 / 200)
+  expect_equal(s$median_instances[1], 7)
+  expect_null(fma_semantics(file.path(d, "none")))
+})
+
+test_that("the label table gives each rung's shares in percent", {
+  eq <- rbind(fma_cells("forestmamba", "S1", c("P1", "P2"), "native", c(6, 4), c(8, 8), c(6, 4)),
+              fma_cells("other", "S1", c("P1", "P2"), "native", c(3, 5), c(6, 6), c(3, 5)))
+  sc <- fma_scores(eq, "forestmamba", "S1", n_boot = 20, seed = 1, regions = list())
+  st <- fma_strata(eq, "forestmamba", n_boot = 20, seed = 1)
+  sm <- data.frame(rung = c("native", "1"), cells = c(2L, 1L), ground = c(.4, .2),
+                   wood = c(.1, .8), leaf = c(.5, 0), wood_of_vegetation = c(1 / 6, 1),
+                   unassigned = c(.5, .25), median_instances = c(7, 30))
+  md <- fma_tables(sc$long, sc$contrasts, st$long, st$contrasts, NULL, NULL, "other",
+                   "forestmamba", "native", semantics = sm)
+  expect_true("| native | 2 | 40.0 | 10.0 | 50.0 | 16.7 | 50.0 | 7 |" %in% md)
+  expect_true("| 1 | 1 | 20.0 | 80.0 | 0.0 | 100.0 | 25.0 | 30 |" %in% md)
+})
+
+test_that("censused scores pool the shared admitted cells and refuse mixed support", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  cen <- function(arm, plots, TP, n_det, tp_core) {
+    x <- fma_cells(arm, "S1", plots, "native", TP, n_det, tp_core)
+    x$support_id <- paste0("bundle_", plots); x$support_policy <- "subplot_exclusion"
+    x$reference_population <- "adopted"; x
+  }
+  fm <- cen("forestmamba", c("P1", "P2"), c(6, 4), c(8, 8), c(6, 4))
+  ot <- rbind(cen("other", c("P1", "P2", "P3"), c(3, 5, 2), c(6, 6, 4), c(3, 5, 2)),
+              cen("unused", "P1", 1, 1, 1))
+  write.csv(fm, file.path(d, "fm.csv"), row.names = FALSE)
+  put_base <- function(x) write.csv(x, file.path(d, "base.csv"), row.names = FALSE)
+  put_base(ot)
+  s <- fma_census(file.path(d, "fm.csv"), file.path(d, "base.csv"), "other", "forestmamba",
+                  n_boot = 50, seed = 1)
+  f1 <- s$long[s$long$metric == "F1", ]
+  expect_true(all(f1$scope == "five sites"))
+  expect_setequal(f1$detector, c("forestmamba", "other"))
+  expect_equal(f1$estimate[f1$detector == "other"], 0.5)        # P1 and P2 only
+  con <- s$contrasts[s$contrasts$metric == "F1", ]
+  expect_equal(con$estimate, f1$estimate[f1$detector == "forestmamba"] - 0.5)
+  eq <- s$cells[s$cells$detector %in% c("forestmamba", "other"), ]
+  sc <- fma_scores(eq, "forestmamba", "S1", n_boot = 20, seed = 1, regions = list())
+  st <- fma_strata(eq, "forestmamba", n_boot = 20, seed = 1)
+  md <- fma_tables(sc$long, sc$contrasts, st$long, st$contrasts, NULL, NULL, "other",
+                   "forestmamba", "native", census = s)
+  one <- fma_census(file.path(d, "fm.csv"), file.path(d, "base.csv"), "other", "forestmamba",
+                    n_boot = 50, seed = 1, keys = "S1::P1::native")   # the declared cells only
+  expect_setequal(paste(one$cells$plot, one$cells$detector),
+                  c("P1 forestmamba", "P1 other"))
+  i <- match("Censused F1 inside the admitted subplots, 2 plots:", md)
+  expect_false(is.na(i))                     # heading, blank, header, rule, then the arms
+  expect_true(startsWith(md[i + 5], "| other | 0.500 ["))
+  ot$support_id[ot$detector == "other" & ot$plot == "P1"] <- "another_bundle"
+  put_base(ot)
+  expect_error(fma_census(file.path(d, "fm.csv"), file.path(d, "base.csv"), "other",
+                          "forestmamba", n_boot = 50, seed = 1),
+               "Different reference support")
+})
+
+test_that("detections per reference stem pool summed counts per arm and rung", {
+  eq <- rbind(fma_cells("forestmamba", "S1", c("P1", "P2"), "native", c(6, 4), c(8, 12), c(6, 4)),
+              fma_cells("forestmamba", "S1", c("P1", "P2"), "1", c(6, 4), c(30, 10), c(6, 4)),
+              fma_cells("other", "S1", c("P1", "P2"), "native", c(3, 5), c(6, 6), c(3, 5)))
+  r <- fma_detection_ratio(eq)
+  expect_equal(r$per_stem[r$detector == "forestmamba" & r$rung == "native"], 20 / 20)
+  expect_equal(r$per_stem[r$detector == "forestmamba" & r$rung == "1"], 40 / 20)
+  expect_equal(r$per_stem[r$detector == "other"], 12 / 20)
+  md <- fma_ratio_table(r, "other", "forestmamba", c("native", "1"))
+  expect_identical(md[1], "Core detections per reference stem, five sites:")
+  expect_true("| forestmamba | 1.00 | 2.00 |" %in% md)
+  expect_true("| other | 0.60 | — |" %in% md)
+})
+
+test_that("the report carries the detection ratio and prints undefined mask scores as a dash", {
+  eq <- rbind(fma_cells("forestmamba", "S1", c("P1", "P2"), "native", c(6, 4), c(8, 8), c(6, 4)),
+              fma_cells("other", "S1", c("P1", "P2"), "native", c(3, 5), c(6, 6), c(3, 5)))
+  sc <- fma_scores(eq, "forestmamba", "S1", n_boot = 20, seed = 1, regions = list())
+  st <- fma_strata(eq, "forestmamba", n_boot = 20, seed = 1)
+  mk <- data.frame(model = c("forestmamba", "other"), rung = "native", F1 = c(0.2, NA),
+                   PQ = c(0.1, 0), coverage = c(0.3, 0.01))
+  md <- fma_tables(sc$long, sc$contrasts, st$long, st$contrasts, NULL, NULL, "other",
+                   "forestmamba", "native", masks = mk, ratio = fma_detection_ratio(eq))
+  expect_true("Core detections per reference stem, five sites:" %in% md)
+  i <- match("Point-mask F1 against the Voronoi-on-stems proxy, five sites:", md)
+  expect_identical(md[i + 5], "| other | — |")
+})

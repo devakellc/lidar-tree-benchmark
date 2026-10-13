@@ -110,8 +110,9 @@ inference time. The benchmark report measures the variation on repeated runs.
 
 [`fm_parity.py`](fm_parity.py) compares this port with the authors' own
 published predictions of the same checkpoint on three FOR-instanceV2 test
-scenes. Each scene's published points are staged exactly as a NEON clip is, and
-both prediction sets are scored by the authors' evaluator
+scenes. Each scene's published points, already in local coordinates and
+without ASPRS classes, go through the driver's staging, strict load and test
+route, and both prediction sets are scored by the authors' evaluator
 (`tools/eval_predictions.py`) against the same reference labels. Run on the
 authors' predictions, the evaluator reproduces their published per-scene table
 exactly.

@@ -20,6 +20,9 @@ CENSUS_INSTANCE_SOURCES <- list(
   segmentanytree = list(dir = "segmentanytree_instances", id = "PredInstance", agl = TRUE),
   forestformer3d = list(dir = "forestformer3d_instances", agl = TRUE,
                         reader = function(f) ff3d_collapse(f, merge_tol = 2.0)),
+  # ForestMamba writes the same whole-scene schema; its sweep reads it alike.
+  forestmamba    = list(dir = "forestmamba_instances", agl = TRUE,
+                        reader = function(f) ff3d_collapse(f, merge_tol = 2.0)),
   ams3d   = list(dir = "ams3d_instances",   id = "crown_id", agl = FALSE),
   ptrees  = list(dir = "ptrees_instances",  id = "treeID",   agl = FALSE),
   li2012  = list(dir = "li2012_instances",  id = "treeID",   agl = FALSE),

@@ -16,18 +16,24 @@
 #   Rscript scripts/analyze_forestmamba.R RUNS=<ForestMamba job dir>
 #     BASE=<comparison job dir> [SITES=SJER,SOAP,TEAK,WREF,ABBY] [POP=adopted]
 #     [ARMS=forestformer3d,segmentanytree,treeisonet,chm_vwf] [FROZEN_ROOT=...]
-#     [REPEATS=<job dir>,...] [REPEAT_RUNGS=native,1] [N_BOOT=1000]
-#     [SEED=20261002] [NULL_CELLS=<BASE>/sensitivity/null_cells.csv] [K=200]
-#     [CORES=4] [OUT=<RUNS>/neon/forestmamba_analysis]
+#     [RUNGS=<the root's rungs>] [REPEATS=<job dir>,...] [REPEAT_RUNGS=native,1]
+#     [N_BOOT=1000] [SEED=20261002] [NULL_CELLS=<BASE>/sensitivity/null_cells.csv]
+#     [K=200] [CORES=4] [CENSUS=<RUNS>/census_support_scores/nearest_ladder/
+#     census_support_scores.csv] [BASE_CENSUS=the same under BASE]
+#     [OUT=<RUNS>/neon/forestmamba_analysis]
+# A rung frozen into its own root (the QL2 rung) is analysed the same way, from
+# the job directories run on that root: FROZEN_ROOT=<root> RUNGS=3.2.
 # With the paper's chance-agreement cells (paper_sensitivity.R MODE=null at its
 # defaults: 200 shifts, 4 m, at least 8 m), ForestMamba's own null is scored on
 # the same per-plot shifts and every arm's corrected F1, (F1 - null) /
 # (1 - null), is compared on the same resamples.
 # Writes status.csv, scores.csv, contrasts.csv, strata.csv, strata_contrasts.csv,
-# rung_change.csv, compute.csv, repeats.csv (with REPEATS), null_cells.csv,
-# corrected.csv and corrected_contrasts.csv (with the null cells), masks.csv
-# (when score_instances_iou.R has scored the ForestMamba clouds) and tables.md
-# (the report's tables) under OUT.
+# rung_change.csv (with native and another rung), detection_ratio.csv,
+# compute.csv, semantics.csv (the model's point labels per rung), repeats.csv
+# (with REPEATS), null_cells.csv, corrected.csv and corrected_contrasts.csv
+# (with the null cells), census_scores.csv and census_contrasts.csv (when
+# score_census_support.R has scored the ForestMamba clouds), masks.csv (when
+# score_instances_iou.R has) and tables.md (the report's tables) under OUT.
 .bs_file <- grep("^--file=", commandArgs(FALSE), value = TRUE)
 bs <- Find(file.exists, c(
   if (length(.bs_file)) file.path(dirname(sub("^--file=", "", .bs_file[1])), "bootstrap.R"),
@@ -104,6 +110,17 @@ fma_arm_rows <- function(dir, sites, spec, root, root_id, pop, need_key, nref) {
   for (k in setdiff(MT_STRATUM_COLS, names(rows))) rows[[k]] <- NA_real_
   list(status = out, rows = rows[, c("site", "plot", "rung", "detector", "n_ref", "n_det",
                                      "TP", "precision", "tp_core", MT_STRATUM_COLS)])
+}
+
+# The rungs to analyse: RUNGS= (comma-separated), by default every rung the
+# sealed root holds, native first.
+fma_rungs <- function(arg, root) {
+  held <- c("native", as.character(frozen_root_rungs(root)))
+  if (is.null(arg)) return(held)
+  rungs <- trimws(strsplit(arg, ",", fixed = TRUE)[[1]])
+  bad <- setdiff(rungs, held)
+  if (length(bad)) stop("Rung ", paste(bad, collapse = ","), " is not a rung of ", root)
+  rungs
 }
 
 # Bootstrap scores of each rung's equal set: the plots of that rung are
@@ -277,6 +294,30 @@ fma_masks <- function(runs, base, sites, models, need_key) {
           pool_pq(y))))
 }
 
+# Censused-subplot scores (score_census_support.R) of the focus arm from
+# `focus_csv` and of `arms` from `base_csv`, on the admitted cells every arm
+# scored among `keys` (site::plot::rung, the declared cells; all when NULL),
+# pooled over all sites with paired plot resamples per rung. The rows keep
+# their support identity, so cells scored on different support stop
+# (equal_set_guard checks it through mt_equal_support).
+fma_census <- function(focus_csv, base_csv, arms, focus = FMA_FOCUS$arm,
+                       n_boot = MT_N_BOOT, seed = MT_SEED, keys = NULL) {
+  read <- function(f, keep) {
+    x <- read.csv(f, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
+    x[x$detector %in% keep, , drop = FALSE]
+  }
+  a <- read(focus_csv, focus); b <- read(base_csv, arms)
+  cols <- intersect(names(a), names(b))
+  x <- rbind(a[, cols, drop = FALSE], b[, cols, drop = FALSE])
+  if (!is.null(keys)) x <- x[paste(x$site, x$plot, x$rung, sep = "::") %in% keys, , drop = FALSE]
+  x$tp_core[x$n_det == 0] <- 0
+  if (anyNA(x[c("TP", "n_ref", "n_det", "tp_core")])) stop("Missing counts in the censused scores")
+  eq <- mt_equal_support(x, c(focus, arms))
+  s <- fma_scores(eq, focus, character(), n_boot, seed, regions = list())
+  list(long = s$long[s$long$scope == "five sites", , drop = FALSE],
+       contrasts = s$contrasts[s$contrasts$scope == "five sites", , drop = FALSE], cells = eq)
+}
+
 # Repeated ForestMamba runs (a named list of result rows) on the cells every
 # run and every comparison arm scored: each run's pooled recall, precision and
 # F1 per rung, and its F1 minus each arm's (columns d_F1_<arm>).
@@ -332,6 +373,61 @@ fma_compute <- function(inst_dirs) {
                               function(x) cbind(rung = x$rung[1], agg(x)))))
 }
 
+# ForestMamba's point labels per rung, pooled from the driver receipts: the
+# shares of staged clip points labelled ground, wood and leaf (FOR-instanceV2's
+# classes 0, 1 and 2), wood's share of the vegetation labels, the share in no
+# instance, and the median instance count per clip. Rungs run native first,
+# then from dense to sparse.
+fma_semantics <- function(inst_dirs) {
+  rows <- do.call(rbind, lapply(inst_dirs, function(dir) {
+    files <- list.files(dir, pattern = "[.]receipt[.]json$", full.names = TRUE)
+    do.call(rbind, lapply(files, function(f) {
+      key <- sub("[.]receipt[.]json$", "", basename(f))
+      drv <- file.path(dir, paste0(key, ".laz.json"))
+      if (!file.exists(drv)) return(NULL)
+      drv <- jsonlite::read_json(drv)
+      num <- function(v) if (is.null(v)) 0 else as.numeric(v)
+      lab <- function(k) num(drv$semantic_counts[[k]])
+      # Excluded noise rows are exported as background but were never labelled.
+      data.frame(rung = sub(".*_", "", key), points = num(drv$points),
+                 ground = lab("0"), wood = lab("1"), leaf = lab("2"),
+                 unassigned = num(drv$background) - num(drv$noise_rows_excluded),
+                 instances = num(drv$instances), stringsAsFactors = FALSE)
+    }))
+  }))
+  if (is.null(rows)) return(NULL)
+  sparse <- setdiff(unique(rows$rung), "native")
+  rungs <- c(intersect("native", rows$rung), sparse[order(-as.numeric(sparse))])
+  do.call(rbind, lapply(rungs, function(r) {
+    x <- rows[rows$rung == r, , drop = FALSE]
+    n <- sum(x$points)
+    data.frame(rung = r, cells = nrow(x), ground = sum(x$ground) / n,
+               wood = sum(x$wood) / n, leaf = sum(x$leaf) / n,
+               wood_of_vegetation = sum(x$wood) / (sum(x$wood) + sum(x$leaf)),
+               unassigned = sum(x$unassigned) / n,
+               median_instances = median(x$instances), stringsAsFactors = FALSE)
+  }))
+}
+
+# Core detections per reference stem per arm and rung, from summed counts:
+# above 1 an arm reports more trees than the field maps.
+fma_detection_ratio <- function(eq) {
+  do.call(rbind, lapply(split(eq, paste(eq$detector, eq$rung)), function(x)
+    data.frame(detector = x$detector[1], rung = x$rung[1], cells = nrow(x),
+               per_stem = sum(x$n_det) / sum(x$n_ref), stringsAsFactors = FALSE)))
+}
+
+# A Markdown table: a header row, the rule and one row per element of `rows`.
+fma_tab <- function(head, rows) c(paste0("| ", paste(head, collapse = " | "), " |"),
+  paste0("|", paste(rep(" --- |", length(head)), collapse = "")),
+  vapply(rows, function(r) paste0("| ", paste(r, collapse = " | "), " |"), ""), "")
+
+fma_ratio_table <- function(ratio, arms, focus, rungs)
+  c("Core detections per reference stem, five sites:", "",
+    fma_tab(c("Arm", rungs), lapply(c(focus, arms), function(a) c(a, vapply(rungs, function(r) {
+      v <- ratio$per_stem[ratio$detector == a & ratio$rung == r]
+      if (length(v)) sprintf("%.2f", v) else "—" }, "")))))
+
 # "est [lo, hi]"; signed values (differences) carry their sign, with a true minus.
 fma_fmt <- function(est, lo, hi, k = 3, signed = FALSE) {
   f <- paste0(if (signed) "%+." else "%.", k, "f")
@@ -341,10 +437,9 @@ fma_fmt <- function(est, lo, hi, k = 3, signed = FALSE) {
 
 # The report's tables as Markdown lines.
 fma_tables <- function(long, con, strata, scon, change, compute, arms, focus, rungs,
-                       repeats = NULL, corrected = NULL, masks = NULL) {
-  tab <- function(head, rows) c(paste0("| ", paste(head, collapse = " | "), " |"),
-    paste0("|", paste(rep(" --- |", length(head)), collapse = "")),
-    vapply(rows, function(r) paste0("| ", paste(r, collapse = " | "), " |"), ""), "")
+                       repeats = NULL, corrected = NULL, masks = NULL, semantics = NULL,
+                       census = NULL, ratio = NULL) {
+  tab <- fma_tab
   cell <- function(d, signed = FALSE)
     if (nrow(d)) fma_fmt(d$estimate, d$lower, d$upper, signed = signed) else "—"
   dcell <- function(d) cell(d, signed = TRUE)
@@ -357,14 +452,16 @@ fma_tables <- function(long, con, strata, scon, change, compute, arms, focus, ru
     out <- c(out, sprintf("ForestMamba minus arm, %s, five sites:", m), "",
       tab(c("Arm", rungs), lapply(arms, function(a) c(a, vapply(rungs, function(r)
         dcell(c5[c5$from == paste(a, r, sep = "|") & c5$metric == m, ]), "")))))
+  if (!is.null(ratio)) out <- c(out, fma_ratio_table(ratio, arms, focus, rungs))
   sites <- setdiff(unique(long$scope), c("five sites", names(MT_REGIONS)))
-  for (r in intersect(c("native", "1"), rungs)) {
+  ends <- unique(rungs[c(1, length(rungs))])        # native and the sparsest rung
+  for (r in ends) {
     fr <- long[long$metric == "F1" & long$rung == r, ]
     out <- c(out, sprintf("F1 per site at rung %s:", r), "",
       tab(c("Arm", sites), lapply(c(focus, arms), function(a) c(a, vapply(sites, function(s)
         cell(fr[fr$scope == s & fr$detector == a, ]), "")))))
   }
-  for (r in intersect(c("native", "1"), rungs)) {
+  for (r in ends) {
     st <- strata[strata$rung == r, ]
     out <- c(out, sprintf("Recall by stratum at rung %s, five sites:", r), "",
       tab(c("Arm", FMA_STRATA), lapply(c(focus, arms), function(a) c(a, vapply(FMA_STRATA,
@@ -386,14 +483,32 @@ fma_tables <- function(long, con, strata, scon, change, compute, arms, focus, ru
       tab(c("Arm", rungs), lapply(arms, function(a) c(a, vapply(rungs, function(r)
         dcell(cc[cc$from == paste(a, r, sep = "|"), ]), "")))))
   }
+  if (!is.null(census)) {
+    cl <- census$long[census$long$metric == "F1", ]
+    cc <- census$contrasts[census$contrasts$metric == "F1", ]
+    out <- c(out, sprintf("Censused F1 inside the admitted subplots, %d plots:",
+                          length(unique(paste(census$cells$site, census$cells$plot)))), "",
+      tab(c("Arm", rungs), lapply(c(focus, arms), function(a) c(a, vapply(rungs, function(r)
+        cell(cl[cl$detector == a & cl$rung == r, ]), "")))),
+      "ForestMamba minus arm, censused F1:", "",
+      tab(c("Arm", rungs), lapply(arms, function(a) c(a, vapply(rungs, function(r)
+        dcell(cc[cc$from == paste(a, r, sep = "|"), ]), "")))))
+  }
   if (!is.null(masks)) {
     mm <- intersect(c(focus, arms), unique(masks$model))
     for (k in c("F1", "PQ", "coverage")) out <- c(out,
       sprintf("Point-mask %s against the Voronoi-on-stems proxy, five sites:", k), "",
       tab(c("Model", rungs), lapply(mm, function(a) c(a, vapply(rungs, function(r) {
-        v <- masks[[k]][masks$model == a & masks$rung == r]
-        if (length(v)) sprintf("%.3f", v) else "—" }, "")))))
+        v <- masks[[k]][masks$model == a & masks$rung == r]   # NA: no mask matched
+        if (length(v) && !is.na(v)) sprintf("%.3f", v) else "—" }, "")))))
   }
+  if (!is.null(semantics)) out <- c(out,
+    "ForestMamba's point labels per rung, percent of staged clip points:", "",
+    tab(c("Rung", "Cells", "Ground", "Wood", "Leaf", "Wood of vegetation",
+          "In no instance", "Median instances per clip"),
+        lapply(seq_len(nrow(semantics)), function(i) with(semantics[i, ], c(rung, cells,
+          sprintf("%.1f", 100 * c(ground, wood, leaf, wood_of_vegetation, unassigned)),
+          sprintf("%.0f", median_instances))))))
   if (!is.null(repeats)) out <- c(out,
     "Repeated ForestMamba runs on the shared cells (F1, and F1 minus each arm):", "",
     tab(c("Run", "Rung", "Cells", "F1", paste("minus", arms)),
@@ -429,6 +544,10 @@ run_main <- function() {
   NULL_CELLS <- if (is.null(A$NULL_CELLS)) file.path(BASE, "sensitivity", "null_cells.csv") else
     A$NULL_CELLS
   K      <- as.integer(if (is.null(A$K)) 200 else A$K)
+  census_csv <- function(dir) file.path(dir, "census_support_scores", "nearest_ladder",
+                                        "census_support_scores.csv")
+  CENSUS <- if (is.null(A$CENSUS)) census_csv(RUNS) else A$CENSUS
+  BASE_CENSUS <- if (is.null(A$BASE_CENSUS)) census_csv(BASE) else A$BASE_CENSUS
   CORES  <- as.integer(if (is.null(A$CORES)) 4 else A$CORES)
   if (!frozen_sealed(ROOT)) stop("No sealed frozen root at ", ROOT)
   if (!all(ARMS %in% MT_ARMS$arm)) stop("Unknown arm in ", paste(ARMS, collapse = ","))
@@ -440,7 +559,7 @@ run_main <- function() {
   inpop <- pop[pop$site %in% SITES & pop[[paste0("in_", POP)]], , drop = FALSE]
   nref <- table(paste(pst$site[pst$population == POP], pst$plotID[pst$population == POP],
                       sep = "::"))
-  rungs <- MT_RUNGS
+  rungs <- fma_rungs(A$RUNGS, ROOT)
   need <- cm[cm$status == "ok" & cm$rung %in% rungs &
                paste(cm$site, cm$plot) %in% paste(inpop$site, inpop$plotID), , drop = FALSE]
   need_key <- paste(need$site, need$plot, need$rung, sep = "::")
@@ -460,14 +579,19 @@ run_main <- function() {
 
   sc <- fma_scores(eq, FMA_FOCUS$arm, SITES, N_BOOT, SEED)
   st <- fma_strata(eq, FMA_FOCUS$arm, n_boot = N_BOOT, seed = SEED)
-  ch <- mt_rung_contrasts(eq, list("five sites" = SITES), n_boot = N_BOOT, seed = SEED)
+  ch <- if ("native" %in% rungs && length(rungs) > 1)
+    mt_rung_contrasts(eq, list("five sites" = SITES), n_boot = N_BOOT, seed = SEED)
   cp <- fma_compute(file.path(RUNS, "neon", SITES, "forestmamba_instances"))
+  sm <- fma_semantics(file.path(RUNS, "neon", SITES, "forestmamba_instances"))
+  dr <- fma_detection_ratio(eq)
   write.csv(sc$long, file.path(OUT, "scores.csv"), row.names = FALSE)
   write.csv(sc$contrasts, file.path(OUT, "contrasts.csv"), row.names = FALSE)
   write.csv(st$long, file.path(OUT, "strata.csv"), row.names = FALSE)
   write.csv(st$contrasts, file.path(OUT, "strata_contrasts.csv"), row.names = FALSE)
-  write.csv(ch, file.path(OUT, "rung_change.csv"), row.names = FALSE)
+  if (!is.null(ch)) write.csv(ch, file.path(OUT, "rung_change.csv"), row.names = FALSE)
   if (!is.null(cp)) write.csv(cp, file.path(OUT, "compute.csv"), row.names = FALSE)
+  if (!is.null(sm)) write.csv(sm, file.path(OUT, "semantics.csv"), row.names = FALSE)
+  write.csv(dr, file.path(OUT, "detection_ratio.csv"), row.names = FALSE)
   rp <- NULL
   if (length(REPEATS)) {
     rkey <- need_key[sub(".*::", "", need_key) %in% REPEAT_RUNGS]
@@ -503,11 +627,17 @@ run_main <- function() {
     write.csv(cr$scores, file.path(OUT, "corrected.csv"), row.names = FALSE)
     write.csv(cr$contrasts, file.path(OUT, "corrected_contrasts.csv"), row.names = FALSE)
   } else cat("no chance-agreement cells at ", NULL_CELLS, "; corrected F1 skipped\n", sep = "")
+  cs <- NULL
+  if (file.exists(CENSUS) && file.exists(BASE_CENSUS)) {
+    cs <- fma_census(CENSUS, BASE_CENSUS, ARMS, FMA_FOCUS$arm, N_BOOT, SEED, keys = need_key)
+    write.csv(cs$long, file.path(OUT, "census_scores.csv"), row.names = FALSE)
+    write.csv(cs$contrasts, file.path(OUT, "census_contrasts.csv"), row.names = FALSE)
+  } else cat("no censused scores at ", CENSUS, "; censused F1 skipped\n", sep = "")
   mk <- fma_masks(RUNS, BASE, SITES,
                   intersect(ARMS, c("forestformer3d", "segmentanytree", "treeisonet")), need_key)
   if (!is.null(mk)) write.csv(mk, file.path(OUT, "masks.csv"), row.names = FALSE)
   md <- fma_tables(sc$long, sc$contrasts, st$long, st$contrasts, ch, cp, ARMS,
-                   FMA_FOCUS$arm, rungs, rp, cr, mk)
+                   FMA_FOCUS$arm, rungs, rp, cr, mk, sm, cs, dr)
   writeLines(c(sprintf("Population %s, %d plots, %d cells per arm; root %s; %d draws, seed %d.",
                        POP, length(unique(paste(eq$site, eq$plot))), nrow(eq) /
                          length(unique(eq$detector)), substr(root_id, 1, 12), N_BOOT, SEED),
