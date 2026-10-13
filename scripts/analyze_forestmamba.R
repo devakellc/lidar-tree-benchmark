@@ -30,8 +30,9 @@
 # Writes status.csv, scores.csv, contrasts.csv, strata.csv, strata_contrasts.csv,
 # rung_change.csv (with native and another rung), detection_ratio.csv,
 # compute.csv, semantics.csv (the model's point labels per rung), repeats.csv
-# (with REPEATS), null_cells.csv, corrected.csv and corrected_contrasts.csv
-# (with the null cells), census_scores.csv and census_contrasts.csv (when
+# (with REPEATS), null_cells.csv, corrected.csv, corrected_contrasts.csv,
+# null_strata.csv and null_strata_contrasts.csv (with the null cells),
+# census_scores.csv and census_contrasts.csv (when
 # score_census_support.R has scored the ForestMamba clouds), masks.csv (when
 # score_instances_iou.R has), pulses.csv (each rung's median pulse density),
 # figure.png with figure.csv (the scores against pulse density, with the QL2
@@ -274,6 +275,44 @@ fma_corrected <- function(cells, focus, n_boot = MT_N_BOOT, seed = MT_SEED) {
   list(scores = do.call(rbind, sc), contrasts = do.call(rbind, con))
 }
 
+# Recall of each crown-class stratum above the chance null, as the paper reads
+# understory recall: pooled baseline minus pooled null recall per arm, rung and
+# stratum (overstory: dominant and codominant; understory: intermediate and
+# suppressed), its scaled form, excess / (1 - null), and focus-minus-arm
+# contrasts of the excess, on the same plot resamples as fma_corrected().
+fma_null_strata <- function(cells, focus, n_boot = MT_N_BOOT, seed = MT_SEED) {
+  sc <- list(); con <- list()
+  for (r in unique(cells$rung)) {
+    x <- cells[cells$rung == r, , drop = FALSE]
+    key <- paste(x$site, x$plot, sep = "::")
+    x <- x[key %in% Reduce(intersect, lapply(split(key, paste(x$variant, x$detector)),
+                                             unique)), , drop = FALSE]
+    W <- mt_plot_weights(x$site, x$plot, n_boot, seed)
+    arms <- unique(x$detector)
+    for (k in c("overstory", "understory")) {
+      cnt <- if (k == "overstory") c("n_over", "tp_over") else c("n_under", "tp_under")
+      y <- data.frame(site = x$site, plot = x$plot, rung = x$rung, detector = x$detector,
+                      variant = x$variant, n_ref = x[[cnt[1]]], TP = x[[cnt[2]]],
+                      n_det = x$n_det, tp_core = x$tp_core, stringsAsFactors = FALSE)
+      s <- mt_boot_scores(y, W, c("variant", "detector", "rung"))
+      E <- s$estimate$recall; names(E) <- s$groups; D <- s$draws$recall
+      g <- function(v, a) paste(v, a, r, sep = "|")
+      ex <- function(a) list(e = unname(E[g("baseline", a)] - E[g("null", a)]),
+                             d = D[, g("baseline", a)] - D[, g("null", a)])
+      for (a in arms) sc[[length(sc) + 1]] <- cbind(data.frame(detector = a, rung = r,
+        stratum = k, n_ref = sum(y$n_ref[y$detector == a & y$variant == "baseline"]),
+        recall = unname(E[g("baseline", a)]), null_recall = unname(E[g("null", a)]),
+        estimate = ex(a)$e, scaled = ex(a)$e / (1 - unname(E[g("null", a)])),
+        stringsAsFactors = FALSE), mt_interval(ex(a)$d))
+      for (a in setdiff(arms, focus)) con[[length(con) + 1]] <- cbind(data.frame(rung = r,
+        stratum = k, from = paste(a, r, sep = "|"), to = paste(focus, r, sep = "|"),
+        metric = "recall_above_null", estimate = ex(focus)$e - ex(a)$e,
+        stringsAsFactors = FALSE), mt_interval(ex(focus)$d - ex(a)$d))
+    }
+  }
+  list(scores = do.call(rbind, sc), contrasts = do.call(rbind, con))
+}
+
 # Point-mask scores of score_instances_iou.R (Voronoi-on-stems proxy masks):
 # ForestMamba's rows from `runs`, the `models` from `base`, native masks only,
 # on the declared cells every model scored, pooled per rung by summed counts.
@@ -494,16 +533,24 @@ fma_figure <- function(x, png_file) {
 }
 
 # "est [lo, hi]"; signed values (differences) carry their sign, with a true minus.
+# Values are rounded first, so one that rounds to zero prints without a sign.
+fma_round <- function(v, k) { v <- round(v, k); v[!is.na(v) & v == 0] <- 0; v }
 fma_fmt <- function(est, lo, hi, k = 3, signed = FALSE) {
   f <- paste0(if (signed) "%+." else "%.", k, "f")
-  out <- ifelse(is.na(est), "—", sprintf(paste0(f, " [", f, ", ", f, "]"), est, lo, hi))
+  out <- ifelse(is.na(est), "—", sprintf(paste0(f, " [", f, ", ", f, "]"),
+                fma_round(est, k), fma_round(lo, k), fma_round(hi, k)))
+  if (signed) gsub("-", "\u2212", out, fixed = TRUE) else out
+}
+fma_num <- function(v, k = 3, signed = FALSE) {
+  out <- ifelse(is.na(v), "—", sprintf(paste0(if (signed) "%+." else "%.", k, "f"),
+                                       fma_round(v, k)))
   if (signed) gsub("-", "\u2212", out, fixed = TRUE) else out
 }
 
 # The report's tables as Markdown lines.
 fma_tables <- function(long, con, strata, scon, change, compute, arms, focus, rungs,
                        repeats = NULL, corrected = NULL, masks = NULL, semantics = NULL,
-                       census = NULL, ratio = NULL) {
+                       census = NULL, ratio = NULL, null_strata = NULL) {
   tab <- fma_tab
   cell <- function(d, signed = FALSE)
     if (nrow(d)) fma_fmt(d$estimate, d$lower, d$upper, signed = signed) else "—"
@@ -548,6 +595,24 @@ fma_tables <- function(long, con, strata, scon, change, compute, arms, focus, ru
       tab(c("Arm", rungs), lapply(arms, function(a) c(a, vapply(rungs, function(r)
         dcell(cc[cc$from == paste(a, r, sep = "|"), ]), "")))))
   }
+  if (!is.null(null_strata)) for (r in ends) {
+    ns <- null_strata$scores[null_strata$scores$rung == r, ]
+    nc <- null_strata$contrasts[null_strata$contrasts$rung == r, ]
+    v <- function(d, signed = FALSE)
+      if (nrow(d)) fma_fmt(d$estimate, d$lower, d$upper, signed = signed) else "—"
+    out <- c(out, sprintf("Recall above the chance null at rung %s, five sites:", r), "",
+      tab(c("Arm", "Overstory", "Understory", "Understory, scaled"),
+          lapply(c(focus, arms), function(a) {
+            o <- ns[ns$detector == a & ns$stratum == "overstory", ]
+            u <- ns[ns$detector == a & ns$stratum == "understory", ]
+            c(a, v(o, TRUE), v(u, TRUE), if (nrow(u)) fma_num(u$scaled, signed = TRUE) else "—")
+          })),
+      sprintf("ForestMamba minus arm, recall above the chance null at rung %s:", r), "",
+      tab(c("Arm", "Overstory", "Understory"), lapply(arms, function(a) {
+        k <- nc[nc$from == paste(a, r, sep = "|"), ]
+        c(a, v(k[k$stratum == "overstory", ], TRUE), v(k[k$stratum == "understory", ], TRUE))
+      })))
+  }
   if (!is.null(census)) {
     cl <- census$long[census$long$metric == "F1", ]
     cc <- census$contrasts[census$contrasts$metric == "F1", ]
@@ -578,9 +643,8 @@ fma_tables <- function(long, con, strata, scon, change, compute, arms, focus, ru
     "Repeated ForestMamba runs on the shared cells (F1, and F1 minus each arm):", "",
     tab(c("Run", "Rung", "Cells", "F1", paste("minus", arms)),
         lapply(seq_len(nrow(repeats)), function(i) c(repeats$run[i], repeats$rung[i],
-          repeats$cells[i], sprintf("%.3f", repeats$F1[i]), vapply(arms, function(a)
-            gsub("-", "\u2212", sprintf("%+.3f", repeats[[paste0("d_F1_", a)]][i]),
-                 fixed = TRUE), "")))))
+          repeats$cells[i], fma_num(repeats$F1[i]), vapply(arms, function(a)
+            fma_num(repeats[[paste0("d_F1_", a)]][i], signed = TRUE), "")))))
   if (!is.null(compute)) out <- c(out, "ForestMamba compute per cell:", "",
     tab(c("Rung", "Cells", "Median points", "Median wall, s", "Median inference, s",
           "Median model load, s", "Total wall, h", "Max GPU allocated, MiB"),
@@ -672,7 +736,7 @@ run_main <- function() {
     rp <- fma_repeats(runs, eq[eq$detector != FMA_FOCUS$arm & eq$rung %in% REPEAT_RUNGS, ])
     write.csv(rp, file.path(OUT, "repeats.csv"), row.names = FALSE)
   }
-  cr <- NULL
+  cr <- NULL; ns <- NULL
   if (file.exists(NULL_CELLS)) {
     fmn <- fma_null_cells(RUNS, SITES, POP, rungs, root = ROOT, K = K, cores = CORES)
     own <- eq[eq$detector == FMA_FOCUS$arm, , drop = FALSE]
@@ -689,6 +753,9 @@ run_main <- function() {
                           "paper_sensitivity.R MODE=null on this root")
     }
     cr <- fma_corrected(rbind(fmn, pn), FMA_FOCUS$arm, N_BOOT, SEED)
+    ns <- fma_null_strata(rbind(fmn, pn), FMA_FOCUS$arm, N_BOOT, SEED)
+    write.csv(ns$scores, file.path(OUT, "null_strata.csv"), row.names = FALSE)
+    write.csv(ns$contrasts, file.path(OUT, "null_strata_contrasts.csv"), row.names = FALSE)
     write.csv(fmn, file.path(OUT, "null_cells.csv"), row.names = FALSE)
     write.csv(cr$scores, file.path(OUT, "corrected.csv"), row.names = FALSE)
     write.csv(cr$contrasts, file.path(OUT, "corrected_contrasts.csv"), row.names = FALSE)
@@ -716,7 +783,7 @@ run_main <- function() {
                   intersect(ARMS, c("forestformer3d", "segmentanytree", "treeisonet")), need_key)
   if (!is.null(mk)) write.csv(mk, file.path(OUT, "masks.csv"), row.names = FALSE)
   md <- fma_tables(sc$long, sc$contrasts, st$long, st$contrasts, ch, cp, ARMS,
-                   FMA_FOCUS$arm, rungs, rp, cr, mk, sm, cs, dr)
+                   FMA_FOCUS$arm, rungs, rp, cr, mk, sm, cs, dr, ns)
   writeLines(c(sprintf("Population %s, %d plots, %d cells per arm; root %s; %d draws, seed %d.",
                        POP, length(unique(paste(eq$site, eq$plot))), nrow(eq) /
                          length(unique(eq$detector)), substr(root_id, 1, 12), N_BOOT, SEED),

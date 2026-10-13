@@ -379,3 +379,42 @@ test_that("the figure data join scores, corrected F1 and each rung's pulse densi
   fma_figure(x, f)                                            # recall and precision absent
   expect_gt(file.size(f), 0)
 })
+
+test_that("stratum recall above the null is the pooled difference, with paired contrasts", {
+  cell <- function(variant, arm, plot, tp_under, tp_over) data.frame(variant = variant,
+    site = "S1", plot = plot, rung = "native", detector = arm, n_ref = 10, n_det = 8, TP = 5,
+    tp_core = 5, n_over = 6, tp_over = tp_over, n_under = 4, tp_under = tp_under)
+  x <- rbind(cell("baseline", "forestmamba", c("P1", "P2"), c(3, 2), c(4, 4)),
+             cell("null", "forestmamba", c("P1", "P2"), c(1, 1.5), c(2, 3)),
+             cell("baseline", "ff", c("P1", "P2"), c(2, 2), c(5, 4)),
+             cell("null", "ff", c("P1", "P2"), c(1, 1), c(3, 3)))
+  r <- fma_null_strata(x, "forestmamba", n_boot = 100, seed = 3)
+  u <- r$scores[r$scores$stratum == "understory", ]
+  expect_equal(u$recall[u$detector == "forestmamba"], 5 / 8)
+  expect_equal(u$null_recall[u$detector == "forestmamba"], 2.5 / 8)
+  expect_equal(u$estimate[u$detector == "forestmamba"], (5 - 2.5) / 8)
+  expect_equal(u$scaled[u$detector == "ff"], (4 / 8 - 2 / 8) / (1 - 2 / 8))
+  o <- r$contrasts[r$contrasts$stratum == "overstory", ]
+  expect_equal(o$estimate, (8 - 5) / 12 - (9 - 6) / 12)
+  expect_identical(o$from, "ff|native")
+  expect_true(all(r$scores$lower <= r$scores$estimate & r$scores$estimate <= r$scores$upper))
+  eq <- rbind(fma_cells("forestmamba", "S1", c("P1", "P2"), "native", c(6, 4), c(8, 8), c(6, 4)),
+              fma_cells("ff", "S1", c("P1", "P2"), "native", c(3, 5), c(6, 6), c(3, 5)))
+  sc <- fma_scores(eq, "forestmamba", "S1", n_boot = 20, seed = 1, regions = list())
+  st <- fma_strata(eq, "forestmamba", n_boot = 20, seed = 1)
+  md <- fma_tables(sc$long, sc$contrasts, st$long, st$contrasts, NULL, NULL, "ff",
+                   "forestmamba", "native", null_strata = r)
+  i <- match("Recall above the chance null at rung native, five sites:", md)
+  expect_false(is.na(i))
+  expect_identical(md[i + 2], "| Arm | Overstory | Understory | Understory, scaled |")
+  expect_true(startsWith(md[i + 4], "| forestmamba | +0.250 ["))   # an excess, signed
+  j <- match("ForestMamba minus arm, recall above the chance null at rung native:", md)
+  expect_true(startsWith(md[j + 4], "| ff | +0.000 ["))
+})
+
+test_that("values that round to zero print without a minus sign", {
+  expect_identical(fma_fmt(-5.6e-17, -1e-4, 0.2, signed = TRUE), "+0.000 [+0.000, +0.200]")
+  expect_identical(fma_fmt(-0.0123, -0.05, 0.01, signed = TRUE), "−0.012 [−0.050, +0.010]")
+  expect_identical(fma_fmt(NA, NA, NA), "—")
+  expect_identical(fma_num(c(-4e-17, -0.0204, NA), signed = TRUE), c("+0.000", "\u22120.020", "—"))
+})
