@@ -437,3 +437,21 @@ test_that("a censused rung the comparison arms hold but ForestMamba lacks is nam
                           "forestmamba", n_boot = 20, seed = 1, keys = keys),
                "no censused forestmamba rows at rung 8")
 })
+
+test_that("repeats report the share of cells whose counts match the first run", {
+  run1 <- fma_cells("forestmamba", "S1", c("P1", "P2", "P3", "P4"), "native",
+                    c(6, 4, 3, 2), c(8, 8, 5, 4), c(6, 4, 3, 2))
+  run2 <- run1
+  run2$TP[1] <- 5; run2$tp_core[1] <- 5; run2$precision[1] <- 5 / 8   # one cell changes
+  arms <- fma_cells("ff", "S1", c("P1", "P2", "P3", "P4"), "native",
+                    c(3, 5, 2, 2), c(6, 6, 4, 4), c(3, 5, 2, 2))
+  r <- fma_repeats(list(seed0 = run1, repeat1 = run2), arms)
+  expect_equal(r$same_counts, c(1, 0.75))
+  eq <- rbind(run1, arms)
+  sc <- fma_scores(eq, "forestmamba", "S1", n_boot = 20, seed = 1, regions = list())
+  st <- fma_strata(eq, "forestmamba", n_boot = 20, seed = 1)
+  md <- fma_tables(sc$long, sc$contrasts, st$long, st$contrasts, NULL, NULL, "ff",
+                   "forestmamba", "native", repeats = r)
+  expect_true(any(grepl("^\\| Run \\| Rung \\| Cells \\| Cells with the first run's counts \\|", md)))
+  expect_true(any(grepl("^\\| repeat1 \\| native \\| 4 \\| 75% \\|", md)))
+})

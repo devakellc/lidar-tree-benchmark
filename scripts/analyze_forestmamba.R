@@ -364,7 +364,9 @@ fma_census <- function(focus_csv, base_csv, arms, focus = FMA_FOCUS$arm,
 
 # Repeated ForestMamba runs (a named list of result rows) on the cells every
 # run and every comparison arm scored: each run's pooled recall, precision and
-# F1 per rung, and its F1 minus each arm's (columns d_F1_<arm>).
+# F1 per rung, its F1 minus each arm's (columns d_F1_<arm>), and the share of
+# cells whose counts (detections, matched stems, matched detections) equal the
+# first run's (same_counts).
 fma_repeats <- function(runs, arms) {
   key <- function(x) paste(x$site, x$plot, x$rung, sep = "::")
   common <- Reduce(intersect, c(lapply(runs, key), lapply(split(arms, arms$detector), key)))
@@ -377,10 +379,18 @@ fma_repeats <- function(runs, arms) {
     data.frame(cells = nrow(x), recall = r, precision = p,
                F1 = if (isTRUE(r + p > 0)) 2 * r * p / (r + p) else NA_real_)
   }
+  counts <- function(x) {
+    tp_core <- if (is.null(x$tp_core)) round(x$precision * x$n_det) else x$tp_core
+    tp_core[x$n_det == 0] <- 0
+    setNames(paste(x$n_det, x$TP, tp_core), key(x))
+  }
+  first <- counts(runs[[1]])
   do.call(rbind, lapply(names(runs), function(n) {
     x <- runs[[n]][key(runs[[n]]) %in% common, , drop = FALSE]
     do.call(rbind, lapply(unique(x$rung), function(r) {
-      p <- pooled(x[x$rung == r, , drop = FALSE])
+      xr <- x[x$rung == r, , drop = FALSE]
+      p <- pooled(xr)
+      p$same_counts <- mean(counts(xr) == first[key(xr)])
       a <- arms[arms$rung == r & key(arms) %in% common, , drop = FALSE]
       d <- vapply(split(a, a$detector), function(y) p$F1 - pooled(y)$F1, numeric(1))
       cbind(data.frame(run = n, rung = r, stringsAsFactors = FALSE), p,
@@ -646,9 +656,11 @@ fma_tables <- function(long, con, strata, scon, change, compute, arms, focus, ru
           sprintf("%.0f", median_instances))))))
   if (!is.null(repeats)) out <- c(out,
     "Repeated ForestMamba runs on the shared cells (F1, and F1 minus each arm):", "",
-    tab(c("Run", "Rung", "Cells", "F1", paste("minus", arms)),
+    tab(c("Run", "Rung", "Cells", "Cells with the first run's counts", "F1",
+          paste("minus", arms)),
         lapply(seq_len(nrow(repeats)), function(i) c(repeats$run[i], repeats$rung[i],
-          repeats$cells[i], fma_num(repeats$F1[i]), vapply(arms, function(a)
+          repeats$cells[i], sprintf("%.0f%%", 100 * repeats$same_counts[i]),
+          fma_num(repeats$F1[i]), vapply(arms, function(a)
             fma_num(repeats[[paste0("d_F1_", a)]][i], signed = TRUE), "")))))
   if (!is.null(compute)) out <- c(out, "ForestMamba compute per cell:", "",
     tab(c("Rung", "Cells", "Median points", "Median wall, s", "Median inference, s",
