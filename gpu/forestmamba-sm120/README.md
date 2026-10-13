@@ -141,6 +141,9 @@ FM_CKPT=$PWD/gpu/store/forestmamba/v6_epoch_1500_fix.pth \
   Rscript tests/run_tests.R
 ```
 
-On the 5090 a native tower clip takes about 52 s per cell: about 40 s of
-inference over 529 overlapping 16 m cylinders, with about 350 MiB of GPU memory
-allocated.
+On the 5090 a native tower clip takes a median 56 s per cell, container start
+to export, of which 44 s are inference over its overlapping 16 m cylinders; a
+native distributed clip takes 38 s. Torch allocates at most 679 MiB of GPU
+memory on the ladder (2.4 GiB reserved). The
+[benchmark report](../../results/forestmamba-results.md#compute) gives the
+compute per rung.

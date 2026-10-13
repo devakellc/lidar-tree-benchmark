@@ -765,7 +765,8 @@ run_main <- function() {
     cs <- fma_census(CENSUS, BASE_CENSUS, ARMS, FMA_FOCUS$arm, N_BOOT, SEED, keys = need_key)
     write.csv(cs$long, file.path(OUT, "census_scores.csv"), row.names = FALSE)
     write.csv(cs$contrasts, file.path(OUT, "census_contrasts.csv"), row.names = FALSE)
-  } else cat("no censused scores at ", CENSUS, "; censused F1 skipped\n", sep = "")
+  } else cat("no censused scores at ", if (file.exists(CENSUS)) BASE_CENSUS else CENSUS,
+             "; censused F1 skipped\n", sep = "")
   pulses <- fma_pulses(cm, need_key)
   write.csv(data.frame(rung = names(pulses), pulses = unname(pulses)),
             file.path(OUT, "pulses.csv"), row.names = FALSE)

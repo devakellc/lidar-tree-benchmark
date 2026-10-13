@@ -279,6 +279,18 @@ The [point-cloud detector study](results/pointcloud-detector-results.md)
 compares native-density understory recovery by crown class, with a separate
 two-rung density-ladder extension.
 
+The [ForestMamba benchmark](results/forestmamba-results.md) runs a newer
+zero-shot segmenter, which seeds its tree queries at canopy-height peaks, on
+the same population, rungs and QL2 root. It was added after the paper's tables
+were fixed and is not one of its arms. At native density it scores F1
+**0.442** [0.421, 0.464], 0.056 below ForestFormer3D, because it places only
+0.78 detections per field stem. Thinning raises its detection count: below
+native density it is level with ForestFormer3D on every rung and with the
+other learned arms at the QL2 floor (**0.454**), and level with CHM-VWF run
+without its sparse-density smoothing except at 0.6 pulses/m², where it is
+behind. Its censused F1 at native density (**0.564**) is the lowest of the
+five arms compared.
+
 ### Crown delineation
 
 The [crown benchmark](results/crown-segmentation-results.md) compares growing
