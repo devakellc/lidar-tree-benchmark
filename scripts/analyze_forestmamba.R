@@ -20,7 +20,7 @@
 #     [N_BOOT=1000] [SEED=20261002] [NULL_CELLS=<BASE>/sensitivity/null_cells.csv]
 #     [K=200] [CORES=4] [CENSUS=<RUNS>/census_support_scores/nearest_ladder/
 #     census_support_scores.csv] [BASE_CENSUS=the same under BASE]
-#     [OUT=<RUNS>/neon/forestmamba_analysis]
+#     [QL2=<the QL2 rung's analysis OUT>] [OUT=<RUNS>/neon/forestmamba_analysis]
 # A rung frozen into its own root (the QL2 rung) is analysed the same way, from
 # the job directories run on that root: FROZEN_ROOT=<root> RUNGS=3.2.
 # With the paper's chance-agreement cells (paper_sensitivity.R MODE=null at its
@@ -33,7 +33,9 @@
 # (with REPEATS), null_cells.csv, corrected.csv and corrected_contrasts.csv
 # (with the null cells), census_scores.csv and census_contrasts.csv (when
 # score_census_support.R has scored the ForestMamba clouds), masks.csv (when
-# score_instances_iou.R has) and tables.md (the report's tables) under OUT.
+# score_instances_iou.R has), pulses.csv (each rung's median pulse density),
+# figure.png with figure.csv (the scores against pulse density, with the QL2
+# rung's from QL2=) and tables.md (the report's tables) under OUT.
 .bs_file <- grep("^--file=", commandArgs(FALSE), value = TRUE)
 bs <- Find(file.exists, c(
   if (length(.bs_file)) file.path(dirname(sub("^--file=", "", .bs_file[1])), "bootstrap.R"),
@@ -428,6 +430,69 @@ fma_ratio_table <- function(ratio, arms, focus, rungs)
       v <- ratio$per_stem[ratio$detector == a & ratio$rung == r]
       if (length(v)) sprintf("%.2f", v) else "—" }, "")))))
 
+# Median first-return pulse density per rung over the declared cells `keys`
+# (site::plot::rung) of a sealed root's clip manifest.
+fma_pulses <- function(cm, keys) {
+  x <- cm[paste(cm$site, cm$plot, cm$rung, sep = "::") %in% keys, , drop = FALSE]
+  vapply(split(as.numeric(x$frdens), x$rung), median, numeric(1))
+}
+
+# The figure's points: pooled F1, recall and precision (all sites) and the
+# corrected F1 of every arm and rung, at the rung's median pulse density.
+fma_figure_data <- function(long, corrected, pulses) {
+  keep <- c("detector", "rung", "metric", "estimate", "lower", "upper")
+  a <- long[long$scope == "five sites" & long$metric %in% c("F1", "recall", "precision"),
+            keep, drop = FALSE]
+  b <- if (length(corrected) && nrow(corrected))
+    data.frame(detector = corrected$detector, rung = corrected$rung, metric = "F1_corrected",
+               estimate = corrected$estimate, lower = corrected$lower, upper = corrected$upper,
+               stringsAsFactors = FALSE)
+  x <- rbind(a, b)
+  x$pulses <- unname(pulses[as.character(x$rung)])
+  x[!is.na(x$pulses), , drop = FALSE]
+}
+
+# F1, recall, precision and corrected F1 against pulse density with the 95%
+# intervals, drawn as the paper's Figure 2 draws its ladder arms (base
+# graphics; the paper's colours and symbols for its arms).
+FMA_COL <- c(forestmamba = "#117733", forestformer3d = "#D55E00", segmentanytree = "#0072B2",
+             treeisonet = "#CC79A7", chm_vwf = "#000000")
+FMA_PCH <- c(forestmamba = 8, forestformer3d = 16, segmentanytree = 15, treeisonet = 17,
+             chm_vwf = 16)
+FMA_LABEL <- c(forestmamba = "ForestMamba", forestformer3d = "ForestFormer3D",
+               segmentanytree = "SegmentAnyTree", treeisonet = "TreeisoNet", chm_vwf = "CHM-VWF")
+fma_figure <- function(x, png_file) {
+  png(png_file, width = 9, height = 8, units = "in", res = 200)
+  on.exit(dev.off())
+  par(mfrow = c(2, 2), mar = c(4, 4, 2.5, 1))
+  mains <- c(F1 = "(a) F1", recall = "(b) Recall", precision = "(c) Precision",
+             F1_corrected = "(d) F1 corrected for chance (4 m)")
+  ticks <- sort(unique(x$pulses), decreasing = TRUE)
+  arms <- intersect(names(FMA_COL), unique(x$detector))
+  dodge <- setNames(exp(seq(-0.03, 0.03, length.out = length(arms))), arms)  # readable intervals
+  for (m in names(mains)) {
+    y <- x[x$metric == m, , drop = FALSE]
+    if (!nrow(y)) { plot.new(); next }
+    plot(NA, xlim = rev(range(x$pulses)) * c(1.1, 0.9), log = "x", xaxt = "n",
+         ylim = c(min(0, y$lower, na.rm = TRUE), max(y$upper, na.rm = TRUE)),
+         xlab = "First-return pulses/m²", ylab = sub("^\\(.\\) ", "", mains[[m]]),
+         main = mains[[m]])
+    axis(1, at = ticks, labels = formatC(ticks, format = "f", digits = 1), cex.axis = 0.8)
+    abline(v = c(2, 8), lty = 3, col = "grey40")          # the QL2 and QL1 floors
+    text(c(2, 8), par("usr")[4], c("QL2", "QL1"), pos = 1, cex = 0.7, col = "grey30")
+    for (a in intersect(arms, unique(y$detector))) {
+      z <- y[y$detector == a, , drop = FALSE]; z <- z[order(-z$pulses), , drop = FALSE]
+      px <- z$pulses * dodge[[a]]
+      segments(px, z$lower, px, z$upper, col = adjustcolor(FMA_COL[[a]], 0.6))
+      lines(px, z$estimate, col = FMA_COL[[a]], type = "o", pch = FMA_PCH[[a]],
+            cex = 0.8, lwd = if (a == "forestmamba") 2 else 1)
+    }
+    if (m == "F1") legend("bottomleft", legend = FMA_LABEL[arms], col = FMA_COL[arms],
+                          pch = FMA_PCH[arms], lty = 1, bty = "n", cex = 0.7)
+  }
+  invisible(png_file)
+}
+
 # "est [lo, hi]"; signed values (differences) carry their sign, with a true minus.
 fma_fmt <- function(est, lo, hi, k = 3, signed = FALSE) {
   f <- paste0(if (signed) "%+." else "%.", k, "f")
@@ -548,6 +613,7 @@ run_main <- function() {
                                         "census_support_scores.csv")
   CENSUS <- if (is.null(A$CENSUS)) census_csv(RUNS) else A$CENSUS
   BASE_CENSUS <- if (is.null(A$BASE_CENSUS)) census_csv(BASE) else A$BASE_CENSUS
+  QL2    <- A$QL2                         # the QL2 rung's analysis OUT, for the figure
   CORES  <- as.integer(if (is.null(A$CORES)) 4 else A$CORES)
   if (!frozen_sealed(ROOT)) stop("No sealed frozen root at ", ROOT)
   if (!all(ARMS %in% MT_ARMS$arm)) stop("Unknown arm in ", paste(ARMS, collapse = ","))
@@ -633,6 +699,19 @@ run_main <- function() {
     write.csv(cs$long, file.path(OUT, "census_scores.csv"), row.names = FALSE)
     write.csv(cs$contrasts, file.path(OUT, "census_contrasts.csv"), row.names = FALSE)
   } else cat("no censused scores at ", CENSUS, "; censused F1 skipped\n", sep = "")
+  pulses <- fma_pulses(cm, need_key)
+  write.csv(data.frame(rung = names(pulses), pulses = unname(pulses)),
+            file.path(OUT, "pulses.csv"), row.names = FALSE)
+  fg <- fma_figure_data(sc$long, if (!is.null(cr)) cr$scores, pulses)
+  if (!is.null(QL2)) {
+    q <- function(f) read.csv(file.path(QL2, f), stringsAsFactors = FALSE,
+                              colClasses = c(rung = "character"))
+    qp <- q("pulses.csv")
+    fg <- rbind(fg, fma_figure_data(q("scores.csv"), if (file.exists(file.path(QL2,
+      "corrected.csv"))) q("corrected.csv"), setNames(qp$pulses, qp$rung)))
+  }
+  write.csv(fg, file.path(OUT, "figure.csv"), row.names = FALSE)
+  fma_figure(fg, file.path(OUT, "figure.png"))
   mk <- fma_masks(RUNS, BASE, SITES,
                   intersect(ARMS, c("forestformer3d", "segmentanytree", "treeisonet")), need_key)
   if (!is.null(mk)) write.csv(mk, file.path(OUT, "masks.csv"), row.names = FALSE)

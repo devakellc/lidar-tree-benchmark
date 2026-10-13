@@ -356,3 +356,26 @@ test_that("the report carries the detection ratio and prints undefined mask scor
   i <- match("Point-mask F1 against the Voronoi-on-stems proxy, five sites:", md)
   expect_identical(md[i + 5], "| other | — |")
 })
+
+test_that("pulse density per rung is the median over the declared cells", {
+  cm <- data.frame(site = "S1", plot = c("P1", "P2", "P3", "P1"),
+                   rung = c("native", "native", "native", "1"), frdens = c(8, 10, 30, 0.6))
+  p <- fma_pulses(cm, c("S1::P1::native", "S1::P2::native", "S1::P1::1"))
+  expect_equal(p[["native"]], 9)
+  expect_equal(p[["1"]], 0.6)
+})
+
+test_that("the figure data join scores, corrected F1 and each rung's pulse density", {
+  long <- data.frame(scope = c("five sites", "five sites", "S1"), detector = "forestmamba",
+                     rung = c("native", "1", "native"), metric = "F1",
+                     estimate = c(.5, .4, .6), lower = c(.45, .35, .5), upper = c(.55, .45, .7))
+  cor <- data.frame(detector = "forestmamba", rung = "native", estimate = .2, lower = -.1,
+                    upper = .3)
+  x <- fma_figure_data(long, cor, c(native = 9.8, `1` = 0.6))
+  expect_equal(nrow(x), 3L)                                   # the site scope is left out
+  expect_equal(x$pulses[x$metric == "F1" & x$rung == "1"], 0.6)
+  expect_equal(x$estimate[x$metric == "F1_corrected"], .2)
+  f <- tempfile(fileext = ".png"); on.exit(unlink(f))
+  fma_figure(x, f)                                            # recall and precision absent
+  expect_gt(file.size(f), 0)
+})
