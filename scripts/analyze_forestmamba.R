@@ -351,6 +351,9 @@ fma_census <- function(focus_csv, base_csv, arms, focus = FMA_FOCUS$arm,
   cols <- intersect(names(a), names(b))
   x <- rbind(a[, cols, drop = FALSE], b[, cols, drop = FALSE])
   if (!is.null(keys)) x <- x[paste(x$site, x$plot, x$rung, sep = "::") %in% keys, , drop = FALSE]
+  miss <- setdiff(unique(x$rung), unique(x$rung[x$detector == focus]))
+  if (length(miss)) stop("There are no censused ", focus, " rows at rung ",
+                         paste(miss, collapse = ", "), "; score them with score_census_support.R")
   x$tp_core[x$n_det == 0] <- 0
   if (anyNA(x[c("TP", "n_ref", "n_det", "tp_core")])) stop("Missing counts in the censused scores")
   eq <- mt_equal_support(x, c(focus, arms))
@@ -533,17 +536,19 @@ fma_figure <- function(x, png_file) {
 }
 
 # "est [lo, hi]"; signed values (differences) carry their sign, with a true minus.
-# Values are rounded first, so one that rounds to zero prints without a sign.
-fma_round <- function(v, k) { v <- round(v, k); v[!is.na(v) & v == 0] <- 0; v }
+# Floating-point noise (|v| < 1e-9, as when two equal scores are subtracted)
+# prints as zero; any other value keeps its sign, so a negative bound that
+# rounds to zero prints as -0.000, as the paper prints it.
+fma_denoise <- function(v) { v[!is.na(v) & abs(v) < 1e-9] <- 0; v }
 fma_fmt <- function(est, lo, hi, k = 3, signed = FALSE) {
   f <- paste0(if (signed) "%+." else "%.", k, "f")
-  out <- ifelse(is.na(est), "—", sprintf(paste0(f, " [", f, ", ", f, "]"),
-                fma_round(est, k), fma_round(lo, k), fma_round(hi, k)))
+  out <- ifelse(is.na(est), "\u2014", sprintf(paste0(f, " [", f, ", ", f, "]"),
+                fma_denoise(est), fma_denoise(lo), fma_denoise(hi)))
   if (signed) gsub("-", "\u2212", out, fixed = TRUE) else out
 }
 fma_num <- function(v, k = 3, signed = FALSE) {
-  out <- ifelse(is.na(v), "—", sprintf(paste0(if (signed) "%+." else "%.", k, "f"),
-                                       fma_round(v, k)))
+  out <- ifelse(is.na(v), "\u2014", sprintf(paste0(if (signed) "%+." else "%.", k, "f"),
+                                             fma_denoise(v)))
   if (signed) gsub("-", "\u2212", out, fixed = TRUE) else out
 }
 

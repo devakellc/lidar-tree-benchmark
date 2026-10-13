@@ -23,7 +23,6 @@ def load(name, path):
 ff = load("ff_export", "gpu/forestformer3d-sm120/ff3d_export.py")
 ti = load("ti_export", "gpu/treeisonet_export.py")
 fm = load("fm_export", "gpu/forestmamba-sm120/fm_export.py")
-fmck = load("fm_checkpoint", "gpu/forestmamba-sm120/fm_checkpoint.py")
 
 
 class ExportTests(unittest.TestCase):
@@ -322,6 +321,8 @@ class ForestMambaCheckpointTests(unittest.TestCase):
         except ImportError:
             self.skipTest("Optional torch environment is not installed")
         self.torch = torch
+        # fm_checkpoint imports torch, so it loads here, after the check.
+        self.fmck = load("fm_checkpoint", "gpu/forestmamba-sm120/fm_checkpoint.py")
 
     def save_mmengine_like(self, path, extra=None):
         from collections import OrderedDict
@@ -357,7 +358,7 @@ class ForestMambaCheckpointTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "ckpt.pth"
             state = self.save_mmengine_like(path)
-            loaded = fmck.load_state_dict(path)
+            loaded = self.fmck.load_state_dict(path)
         self.assertEqual(list(loaded), ["w", "n"])
         for key in state:
             self.torch.testing.assert_close(loaded[key], state[key], rtol=0, atol=0)
@@ -368,7 +369,7 @@ class ForestMambaCheckpointTests(unittest.TestCase):
             path = Path(tmp) / "ckpt.pth"
             self.save_mmengine_like(path, extra=dict(hook=print))
             with self.assertRaisesRegex(pickle.UnpicklingError, "builtins print"):
-                fmck.load_state_dict(path)
+                self.fmck.load_state_dict(path)
 
     def test_legacy_pickles_are_refused_before_anything_is_unpickled(self):
         import pickle
@@ -382,7 +383,7 @@ class ForestMambaCheckpointTests(unittest.TestCase):
             with open(path, "wb") as stream:     # a non-zip checkpoint whose first record runs code
                 pickle.dump(Payload(), stream, protocol=2)
             with self.assertRaisesRegex(ValueError, "zip"):
-                fmck.load_state_dict(path)
+                self.fmck.load_state_dict(path)
         self.assertEqual(ran, [])
 
     def test_torchscript_archives_are_refused(self):
@@ -390,13 +391,13 @@ class ForestMambaCheckpointTests(unittest.TestCase):
             path = Path(tmp) / "scripted.pth"
             self.torch.jit.save(self.torch.jit.script(self.torch.nn.Linear(2, 2)), str(path))
             with self.assertRaisesRegex(ValueError, "TorchScript"):
-                fmck.load_state_dict(path)
+                self.fmck.load_state_dict(path)
 
     def test_the_module_level_loader_is_restricted_too(self):
         import io
         import pickle
         with self.assertRaisesRegex(pickle.UnpicklingError, "builtins print"):
-            fmck._PickleModule.load(io.BytesIO(pickle.dumps(print, protocol=2)))
+            self.fmck._PickleModule.load(io.BytesIO(pickle.dumps(print, protocol=2)))
 
 
 if __name__ == "__main__":

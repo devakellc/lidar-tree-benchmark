@@ -129,6 +129,35 @@ the release within that variation. These are the checkpoint's own test scenes,
 not airborne data; they show that the Blackwell port preserves the model, not
 how it transfers to NEON.
 
+The authors' predictions are files of their public Google Drive folder (the
+checkpoint's folder):
+
+| File | Drive file ID | SHA-256 |
+|---|---|---|
+| `RMIT_RMIT_test_test.ply` | `15Mf8zsVxrOsaD_P_ggu14KT9S1iwgQ7j` | `bec57ec7275299fed42317e4e9bc49f68c9f94d232fecf44e61e663e07909380` |
+| `NIBIO2_NIBIO2_plot15_annotated_test.ply` | `17Ed1IxDwQHyENonXXZuox_Yo3WdtanrI` | `51d3906f412d180ee96d548ac2e6a9490b91d13a1f758608599c51d36a2849e1` |
+| `TUWIEN_TUWIEN_test_test.ply` | `10EpaognmjfeQwFKkHCOwCO3XId2_MHy2` | `82b1fa231d939098cff76cf6fb71fc179c0b6383117bf67b1e87dde31fa07857` |
+
+With the three files in `IN` and a new output directory `OUT`, the check runs
+in the image on a copy of the pinned checkout, as the arm does:
+
+```sh
+GPU=$PWD/gpu; STORE=$GPU/store/forestmamba; WS=$(mktemp -d)
+rsync -a --exclude=.git --exclude=data --exclude=work_dirs "$STORE/ForestMamba/" "$WS/"
+docker run --rm --gpus all --network none --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -e PYTHONHASHSEED=0 -e WANDB_MODE=disabled \
+  -v "${WS}:${WS}" -v "${STORE}:${STORE}:ro" -v "${IN}:${IN}:ro" -v "${OUT}:${OUT}" \
+  -v "${GPU}/forestmamba-sm120:${GPU}/forestmamba-sm120:ro" \
+  -v "${GPU}/forestformer3d-sm120:${GPU}/forestformer3d-sm120:ro" \
+  -w "$WS" forestmamba-sm120 \
+  python "$GPU/forestmamba-sm120/fm_parity.py" "$STORE/v6_epoch_1500_fix.pth" "$OUT" 0 \
+  "$IN/RMIT_RMIT_test_test.ply" "$IN/NIBIO2_NIBIO2_plot15_annotated_test.ply" \
+  "$IN/TUWIEN_TUWIEN_test_test.ply"
+```
+
+It writes `OUT/parity.json`, the source of the table, and each scene's points
+with this port's predictions and the authors' reference labels.
+
 ## Run
 
 The NEON density-ladder arm is

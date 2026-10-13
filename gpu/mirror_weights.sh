@@ -52,7 +52,7 @@ gdrive_get() {  # file_id dest sha_prefix  (public Google Drive file)
     if ! curl -fL --retry 3 "$base?id=$id&export=download&confirm=t${uuid:+&uuid=$uuid}" \
          -o "$dest.part"; then rm -f "$dest.part"; echo "FAIL download $(basename "$dest")"; exit 1; fi
     got="$(sha256sum "$dest.part" | cut -d' ' -f1)"
-    exp="$(grep "  $(basename "$dest")\$" "$MAN" | cut -d' ' -f1)"
+    exp="$(grep "  $(basename "$dest")\$" "$MAN" | cut -d' ' -f1 || true)"   # unpinned: empty
     if [ -z "$exp" ] || [ "$got" != "$exp" ]; then
       rm -f "$dest.part"; echo "FAIL manifest $(basename "$dest"): $got != ${exp:-unpinned}"; exit 1
     fi

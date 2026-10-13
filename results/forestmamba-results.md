@@ -15,8 +15,10 @@ after the paper's tables were fixed, and none of their numbers changes.
   ForestFormer3D and 0.052 below SegmentAnyTree, level with TreeisoNet and
   CHM-VWF. It is the most conservative learned arm: 0.78 core detections per
   field stem against 1.33 to 1.36 for the two segmenters, so it has the
-  highest precision of the five arms (0.480) and the lowest recall (0.410).
-- **Down the ladder.** Its F1 rises to 0.469 at 4.7 pulses/m² and loses only
+  highest precision of the five arms (0.480) and the lowest recall (0.410;
+  0.054 below CHM-VWF's, a weak contrast).
+- **Down the ladder.** Its F1 rises to 0.469 at 4.7 pulses/m² (+0.027, weak)
+  and loses only
   0.034 from native density to 0.6 pulses/m², the smallest loss of the three
   segmenters (ForestFormer3D 0.078, SegmentAnyTree 0.367). On every decimated
   rung it is level with ForestFormer3D. It leads the declared CHM-VWF by 0.06
@@ -25,16 +27,18 @@ after the paper's tables were fixed, and none of their numbers changes.
   behind (−0.023, weak).
 - **Chance agreement.** Shifted copies of its detections earn 69 to 72% of its
   F1, as for the other arms. Corrected for chance it is level with
-  ForestFormer3D on every rung and ahead of CHM-VWF only at 4.7 to
-  1.3 pulses/m², by 0.02 to 0.04.
+  ForestFormer3D on every rung. It is ahead of CHM-VWF at 4.7 pulses/m²
+  (+0.040) and weakly at 2.5 and 1.3 pulses/m² (+0.028 and +0.021), and level
+  with it at native density, at the QL2 floor and at 0.6 pulses/m².
 - **Censused subplots.** Its low recall costs most where precision is
-  measured inside surveyed census subplots: censused F1 0.564 at native density
-  against 0.668 for ForestFormer3D and 0.608 for CHM-VWF, the lowest of the
-  five arms. Below native density it is level with ForestFormer3D at 2.5 and
+  measured inside surveyed census subplots: censused F1 0.564 at native density,
+  the lowest point estimate of the five arms, behind ForestFormer3D (0.668)
+  and SegmentAnyTree, weakly behind TreeisoNet and level with CHM-VWF (0.608).
+  Below native density it is level with ForestFormer3D at 2.5 and
   1.3 pulses/m² and leads CHM-VWF by 0.07 to 0.11.
 - **Understory.** It recalls 0.247 of the 592 intermediate and suppressed
-  stems at native density, 0.045 above the chance null (ForestFormer3D 0.454
-  and 0.094).
+  stems at native density, 0.045 above the chance null (weak; ForestFormer3D
+  0.454 and 0.094).
 - **Sites.** The native deficit is largest at ABBY, where it places 0.60
   detections per stem against 1.29 for ForestFormer3D; its ABBY F1 rises from
   0.424 at native density to 0.550 at 2.5 pulses/m², where ForestFormer3D's
@@ -251,8 +255,9 @@ Core detections per reference stem on every rung:
 
 - At native density ForestMamba places 0.78 core detections per field stem,
   the fewest of the five arms, and its recall (0.410) is the lowest: 0.211
-  below ForestFormer3D and 0.054 below CHM-VWF. Its precision (0.480) is the
-  highest, 0.043 to 0.086 above the others.
+  below ForestFormer3D and 0.054 below CHM-VWF (−0.054 [−0.101, −0.007],
+  weak). Its precision (0.480) is the highest, 0.043 to 0.086 above the
+  others.
 - Thinning raises its detection count to about one per stem and its recall to
   0.498 at 2.5 pulses/m², while precision falls from 0.480 to 0.402 at
   0.6 pulses/m². ForestFormer3D moves the other way, from 1.36 detections per
@@ -275,7 +280,7 @@ ForestMamba minus each arm, corrected F1:
 
 | ForestMamba minus | native (9.8) | 8 (4.7) | 4 (2.5) | QL2 3.2 (2.0) | 2 (1.3) | 1 (0.6) |
 | --- | --- | --- | --- | --- | --- | --- |
-| ForestFormer3D | −0.018 [−0.039, +0.004] | −0.001 [−0.024, +0.021] | +0.016 [−0.001, +0.036] | +0.007 [−0.015, +0.027] | +0.006 [−0.014, +0.027] | +0.000 [−0.019, +0.019] |
+| ForestFormer3D | −0.018 [−0.039, +0.004] | −0.001 [−0.024, +0.021] | +0.016 [−0.001, +0.036] | +0.007 [−0.015, +0.027] | +0.006 [−0.014, +0.027] | −0.000 [−0.019, +0.019] |
 | SegmentAnyTree | −0.032 [−0.057, −0.005] | −0.013 [−0.033, +0.009] | −0.006 [−0.026, +0.016] | +0.004 [−0.020, +0.027] | +0.033 [+0.011, +0.056] | +0.117 [+0.094, +0.139] |
 | TreeisoNet | +0.013 [−0.010, +0.038] | +0.022 [−0.001, +0.045] | +0.011 [−0.007, +0.031] | +0.004 [−0.016, +0.025] | +0.002 [−0.014, +0.018] | −0.020 [−0.039, −0.001] |
 | CHM-VWF | +0.002 [−0.023, +0.028] | +0.040 [+0.016, +0.066] | +0.028 [+0.006, +0.048] | +0.020 [−0.001, +0.043] | +0.021 [+0.001, +0.045] | +0.000 [−0.024, +0.021] |
@@ -300,7 +305,8 @@ Null F1 as a share of observed F1:
   (−0.032 [−0.057, −0.005], weak) and leads it at 1.3 and 0.6 pulses/m².
 - Against CHM-VWF the corrected lead is +0.040 [+0.016, +0.066] at
   4.7 pulses/m², weaker at 2.5 and 1.3 pulses/m² (+0.028 [+0.006, +0.048] and
-  +0.021 [+0.001, +0.045], both weak), and zero at native density and at
+  +0.021 [+0.001, +0.045], both weak), level at the QL2 floor
+  (+0.020 [−0.001, +0.043]), and zero at native density and at
   0.6 pulses/m².
 
 ## Censused subplots
@@ -322,7 +328,7 @@ ForestMamba minus each arm, censused F1:
 | --- | --- | --- | --- | --- | --- | --- |
 | ForestFormer3D | −0.103 [−0.145, −0.068] | −0.048 [−0.080, −0.014] | −0.006 [−0.034, +0.024] | −0.011 [−0.038, +0.016] | −0.006 [−0.035, +0.022] | −0.026 [−0.050, −0.001] |
 | SegmentAnyTree | −0.112 [−0.162, −0.067] | −0.045 [−0.073, −0.017] | −0.018 [−0.039, +0.002] | +0.009 [−0.019, +0.039] | +0.130 [+0.096, +0.167] | +0.395 [+0.359, +0.430] |
-| TreeisoNet | −0.057 [−0.107, −0.006] | −0.013 [−0.044, +0.017] | −0.027 [−0.051, +0.000] | −0.026 [−0.051, −0.001] | −0.033 [−0.058, −0.005] | −0.051 [−0.086, −0.009] |
+| TreeisoNet | −0.057 [−0.107, −0.006] | −0.013 [−0.044, +0.017] | −0.027 [−0.051, −0.000] | −0.026 [−0.051, −0.001] | −0.033 [−0.058, −0.005] | −0.051 [−0.086, −0.009] |
 | CHM-VWF | −0.044 [−0.100, +0.006] | +0.108 [+0.074, +0.140] | +0.104 [+0.065, +0.145] | +0.108 [+0.074, +0.149] | +0.102 [+0.062, +0.144] | +0.066 [+0.036, +0.093] |
 
 Censused recall and precision:
@@ -338,15 +344,19 @@ Censused recall and precision:
 - Inside the censused subplots fewer unmatched detections are unmapped trees,
   so precision rises for every arm and recall weighs more in the ranking.
   ForestMamba's censused precision at native density (0.770) is second only
-  to CHM-VWF's (0.779), but its censused recall (0.445) is the lowest, so its
-  censused F1 (0.564) is the lowest of the five arms: −0.103 [−0.145, −0.068]
-  against ForestFormer3D and −0.044 [−0.100, +0.006] against CHM-VWF.
+  to CHM-VWF's (0.779), with which it is level, but its censused recall
+  (0.445) is the lowest point estimate, level with CHM-VWF's and 0.10 to 0.22
+  below the learned arms'. Its censused F1 (0.564) is therefore the lowest
+  point estimate of the five arms: behind ForestFormer3D
+  (−0.103 [−0.145, −0.068]) and SegmentAnyTree (−0.112 [−0.162, −0.067]),
+  weakly behind TreeisoNet (−0.057 [−0.107, −0.006]) and level with CHM-VWF
+  (−0.044 [−0.100, +0.006]).
 - Below native density the gap narrows. ForestMamba is behind ForestFormer3D
   at 4.7 pulses/m² (−0.048 [−0.080, −0.014]) and 0.6 pulses/m²
   (−0.026 [−0.050, −0.001], weak) and level at 2.5 and 1.3 pulses/m² (−0.006
   at both); it is ahead of CHM-VWF by 0.066 to 0.108 on every decimated rung
-  and behind TreeisoNet at 1.3 and 0.6 pulses/m² (−0.033 [−0.058, −0.005] and
-  −0.051 [−0.086, −0.009], both weak).
+  and behind TreeisoNet at 2.5, 1.3 and 0.6 pulses/m² (−0.027 [−0.051, −0.000],
+  −0.033 [−0.058, −0.005] and −0.051 [−0.086, −0.009], all weak).
 
 ## Crown classes
 
@@ -366,8 +376,8 @@ understory recall:
 
 | Arm | Overstory above null, native (9.8) | Understory above null, native (9.8) | Overstory above null, QL2 3.2 (2.0) | Understory above null, QL2 3.2 (2.0) | Overstory above null, 1 (0.6) | Understory above null, 1 (0.6) |
 | --- | --- | --- | --- | --- | --- | --- |
-| ForestMamba | +0.146 [+0.122, +0.173] | +0.045 [+0.007, +0.085] | +0.163 [+0.141, +0.189] | +0.042 [+0.011, +0.076] | +0.144 [+0.121, +0.170] | +0.030 [+0.000, +0.064] |
-| ForestFormer3D | +0.190 [+0.163, +0.217] | +0.094 [+0.050, +0.136] | +0.170 [+0.143, +0.197] | +0.043 [+0.000, +0.086] | +0.144 [+0.116, +0.169] | +0.036 [+0.001, +0.070] |
+| ForestMamba | +0.146 [+0.122, +0.173] | +0.045 [+0.007, +0.085] | +0.163 [+0.141, +0.189] | +0.042 [+0.011, +0.076] | +0.144 [+0.121, +0.170] | +0.030 [−0.000, +0.064] |
+| ForestFormer3D | +0.190 [+0.163, +0.217] | +0.094 [+0.050, +0.136] | +0.170 [+0.143, +0.197] | +0.043 [−0.000, +0.086] | +0.144 [+0.116, +0.169] | +0.036 [+0.001, +0.070] |
 | SegmentAnyTree | +0.211 [+0.184, +0.237] | +0.061 [+0.020, +0.099] | +0.152 [+0.128, +0.181] | +0.047 [+0.011, +0.085] | +0.028 [+0.018, +0.039] | +0.011 [+0.000, +0.024] |
 | TreeisoNet | +0.168 [+0.143, +0.194] | +0.023 [−0.005, +0.054] | +0.164 [+0.139, +0.189] | +0.033 [+0.003, +0.068] | +0.157 [+0.131, +0.183] | +0.020 [−0.013, +0.053] |
 | CHM-VWF | +0.167 [+0.139, +0.194] | +0.016 [−0.012, +0.050] | +0.124 [+0.100, +0.149] | +0.005 [−0.020, +0.034] | +0.126 [+0.106, +0.149] | −0.010 [−0.034, +0.016] |
@@ -378,7 +388,7 @@ ForestMamba minus each arm, recall above the null:
 | --- | --- | --- | --- | --- | --- | --- |
 | ForestFormer3D | −0.044 [−0.063, −0.024] | −0.049 [−0.092, −0.006] | −0.006 [−0.028, +0.013] | −0.001 [−0.038, +0.036] | +0.001 [−0.017, +0.019] | −0.006 [−0.042, +0.030] |
 | SegmentAnyTree | −0.065 [−0.085, −0.042] | −0.016 [−0.055, +0.031] | +0.011 [−0.010, +0.032] | −0.005 [−0.036, +0.029] | +0.117 [+0.095, +0.141] | +0.019 [−0.012, +0.051] |
-| TreeisoNet | −0.022 [−0.041, −0.002] | +0.021 [−0.016, +0.055] | +0.000 [−0.019, +0.018] | +0.009 [−0.015, +0.031] | −0.013 [−0.030, +0.008] | +0.010 [−0.019, +0.039] |
+| TreeisoNet | −0.022 [−0.041, −0.002] | +0.021 [−0.016, +0.055] | −0.000 [−0.019, +0.018] | +0.009 [−0.015, +0.031] | −0.013 [−0.030, +0.008] | +0.010 [−0.019, +0.039] |
 | CHM-VWF | −0.020 [−0.042, +0.002] | +0.029 [−0.003, +0.060] | +0.039 [+0.022, +0.059] | +0.037 [+0.012, +0.062] | +0.018 [+0.003, +0.034] | +0.040 [+0.009, +0.073] |
 
 - ForestMamba finds the fewest overstory stems at native density (0.460;
@@ -422,7 +432,7 @@ F1 per site at 0.6 pulses/m², and ForestMamba minus each arm:
 
 | ForestMamba minus | SJER | SOAP | TEAK | WREF | ABBY |
 | --- | --- | --- | --- | --- | --- |
-| ForestFormer3D | −0.030 [−0.055, +0.016] | −0.002 [−0.033, +0.041] | −0.037 [−0.073, +0.000] | −0.029 [−0.061, +0.000] | +0.014 [−0.007, +0.033] |
+| ForestFormer3D | −0.030 [−0.055, +0.016] | −0.002 [−0.033, +0.041] | −0.037 [−0.073, −0.000] | −0.029 [−0.061, −0.000] | +0.014 [−0.007, +0.033] |
 | SegmentAnyTree | +0.100 [−0.095, +0.289] | +0.214 [+0.132, +0.301] | +0.283 [+0.239, +0.331] | +0.270 [+0.239, +0.304] | +0.336 [+0.290, +0.374] |
 | TreeisoNet | −0.032 [−0.063, +0.018] | −0.075 [−0.132, −0.032] | −0.030 [−0.079, +0.010] | +0.017 [−0.013, +0.053] | −0.047 [−0.078, −0.010] |
 | CHM-VWF | −0.067 [−0.184, +0.056] | −0.034 [−0.086, +0.033] | +0.011 [−0.045, +0.065] | +0.039 [+0.002, +0.071] | +0.081 [+0.045, +0.115] |
@@ -451,7 +461,9 @@ Washington: WREF and ABBY, 63 plots), and ForestMamba minus each arm:
   It leads TreeisoNet at TEAK and WREF (+0.070 and +0.071) and CHM-VWF at WREF
   (+0.072 [+0.043, +0.104]) and SOAP (+0.048 [+0.002, +0.094], weak), and
   trails all four arms at ABBY by 0.12 to 0.15.
-- ABBY carries the native deficit. There ForestMamba places 0.60 core
+- ABBY carries the largest share of the native deficit: without it the
+  four-site deficit to ForestFormer3D is −0.029, against −0.056 on five sites.
+  There ForestMamba places 0.60 core
   detections per field stem (ForestFormer3D 1.29, CHM-VWF 1.35) and recalls
   0.35 of the stems; at 4.7 pulses/m² it places 0.93 and recalls 0.53. Its
   ABBY F1 rises from 0.424 at native density to 0.522, 0.550 and 0.544 at
@@ -463,7 +475,9 @@ Washington: WREF and ABBY, 63 plots), and ForestMamba minus each arm:
   in California, a weak contrast, and −0.064 [−0.094, −0.032] in Washington.
   In California ForestMamba leads TreeisoNet and CHM-VWF (+0.065 and +0.052);
   in Washington it trails both by about 0.03, within intervals that reach
-  zero. At 0.6 pulses/m² it is level with ForestFormer3D in both regions.
+  zero. At 0.6 pulses/m² it is level with ForestFormer3D in Washington
+  (−0.010 [−0.028, +0.008]) and weakly behind in California
+  (−0.022 [−0.042, −0.000]).
 
 ## What the model labels on airborne clips
 
@@ -487,8 +501,9 @@ clip with its buffer), and its core detections per stem:
   airborne canopies are out of the checkpoint's training domain.
 - The instance head still returns about one detection per field stem on every
   decimated rung, so the label shift does not become a detection failure like
-  SegmentAnyTree's, whose grouping stops forming instances below 2.5
-  pulses/m² (see the [instance audit](instance-audit-results.md)). The
+  SegmentAnyTree's, whose instance grouping breaks down below 2.5 pulses/m²
+  (0.57 detections per stem at 1.3 and 0.13 at 0.6 pulses/m²; see the
+  [instance audit](instance-audit-results.md)). The
   instance count per clip is highest at 2.5 and 2.0 pulses/m² (medians 153 and
   155, against 112 at native density).
 
@@ -565,7 +580,7 @@ ForestMamba minus each arm at the QL2 floor:
   at this density.
 - The five-site tie hides site differences: against ForestFormer3D,
   ForestMamba is ahead at SJER, SOAP and ABBY (+0.034 to +0.057) and behind at
-  TEAK and WREF (−0.036 and −0.047).
+  TEAK (−0.036 [−0.064, −0.003], weak) and WREF (−0.047 [−0.075, −0.021]).
 
 ## Run-to-run variation
 
@@ -608,7 +623,9 @@ Each job directory links the sites' `ground_truth_stems.csv`,
 `plot_centroids.csv` and `vst/`, and the sealed root under `neon/`, as the
 paper's job directories do. `W` is the work directory that holds the sealed
 roots under `neon/` and the paper's re-run job directories `paper_runs` and
-`paper_runs_ql2`:
+`paper_runs_ql2`, and `paper_runs_nosmooth`, the CHM-VWF re-run without its
+smoothing (built as in the
+[smoothing study](baseline-smoothing-sensitivity-results.md#reproduce)):
 
 ```sh
 for S in SJER SOAP TEAK ABBY WREF; do
@@ -634,11 +651,17 @@ Rscript scripts/analyze_forestmamba.R RUNS=$W/forestmamba_runs_ql2 \
 Rscript scripts/analyze_forestmamba.R RUNS=$W/forestmamba_runs \
   BASE=$W/paper_runs REPEATS=$W/forestmamba_runs_repeat1 CORES=8 \
   QL2=$W/forestmamba_runs_ql2/neon/forestmamba_analysis
+Rscript scripts/analyze_forestmamba.R RUNS=$W/forestmamba_runs \
+  BASE=$W/paper_runs_nosmooth ARMS=chm_vwf CORES=8 \
+  OUT=$W/forestmamba_runs/neon/forestmamba_analysis_nosmooth
 bash scripts/compute_cost.sh OUT=$W/compute_cost_forestmamba WORK=$W ARMS=forestmamba
 ```
 
 The analyses write their CSV files, `figure.png` and `tables.md` under
 `neon/forestmamba_analysis` of each run directory; the main analysis reads the
-QL2 analysis for the figure's QL2 points. The port check runs
-[`fm_parity.py`](../gpu/forestmamba-sm120/fm_parity.py) in the image on the
-authors' published FOR-instanceV2 test predictions.
+QL2 analysis for the figure's QL2 points. The comparison with the unsmoothed
+baseline writes to `neon/forestmamba_analysis_nosmooth`; that job directory
+has no chance or census inputs, so it holds nominal-box scores only. The
+[runtime README](../gpu/forestmamba-sm120/README.md#port-check) gives the port
+check: [`fm_parity.py`](../gpu/forestmamba-sm120/fm_parity.py) run in the
+image on the authors' published FOR-instanceV2 test predictions.

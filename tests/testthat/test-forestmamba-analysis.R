@@ -412,9 +412,28 @@ test_that("stratum recall above the null is the pooled difference, with paired c
   expect_true(startsWith(md[j + 4], "| ff | +0.000 ["))
 })
 
-test_that("values that round to zero print without a minus sign", {
-  expect_identical(fma_fmt(-5.6e-17, -1e-4, 0.2, signed = TRUE), "+0.000 [+0.000, +0.200]")
-  expect_identical(fma_fmt(-0.0123, -0.05, 0.01, signed = TRUE), "−0.012 [−0.050, +0.010]")
-  expect_identical(fma_fmt(NA, NA, NA), "—")
-  expect_identical(fma_num(c(-4e-17, -0.0204, NA), signed = TRUE), c("+0.000", "\u22120.020", "—"))
+test_that("floating-point zeros print unsigned and small negative bounds keep their sign", {
+  # A bound of -1e-4 still excludes zero, as the paper prints it ([-0.000, ...]);
+  # only noise from subtracting equal scores prints as +0.000.
+  expect_identical(fma_fmt(-5.6e-17, -1e-4, 0.2, signed = TRUE), "+0.000 [\u22120.000, +0.200]")
+  expect_identical(fma_fmt(-0.0123, -0.05, 0.01, signed = TRUE), "\u22120.012 [\u22120.050, +0.010]")
+  expect_identical(fma_fmt(NA, NA, NA), "\u2014")
+  expect_identical(fma_num(c(-4e-17, -0.0204, -3e-4, NA), signed = TRUE),
+                   c("+0.000", "\u22120.020", "\u22120.000", "\u2014"))
+})
+
+test_that("a censused rung the comparison arms hold but ForestMamba lacks is named, not crashed on", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  cen <- function(arm, rung) {
+    x <- fma_cells(arm, "S1", c("P1", "P2"), rung, c(6, 4), c(8, 8), c(6, 4))
+    x$support_id <- paste0("bundle_", x$plot); x$support_policy <- "subplot_exclusion"
+    x$reference_population <- "adopted"; x
+  }
+  write.csv(cen("forestmamba", "native"), file.path(d, "fm.csv"), row.names = FALSE)
+  write.csv(rbind(cen("other", "native"), cen("other", "8")), file.path(d, "base.csv"),
+            row.names = FALSE)
+  keys <- c(outer(c("S1::P1::", "S1::P2::"), c("native", "8"), paste0))
+  expect_error(fma_census(file.path(d, "fm.csv"), file.path(d, "base.csv"), "other",
+                          "forestmamba", n_boot = 20, seed = 1, keys = keys),
+               "no censused forestmamba rows at rung 8")
 })
