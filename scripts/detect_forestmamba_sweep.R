@@ -55,6 +55,18 @@ fm_parse_rungs <- function(x) {
   list(native = any(native), rungs = rungs)
 }
 
+# Files a result row depends on besides the model: the code that makes and
+# scores it, with the libraries that gate the reference stems, and the site's
+# reference stems and plot centroids. Their digests join the run identity, so a
+# resumed pass cannot mix rows from edited code or another reference.
+fm_identity_files <- function(entry, driver, ff3d, nd) list(
+  code = c(entry, driver, file.path(dirname(driver), c("fm_export.py", "fm_checkpoint.py")),
+           file.path(ff3d, "ff3d_export.py"),
+           vapply(c("detect_forestmamba_sweep.R", "io_bridge.R", "model_runner.R", "sweep_lib.R",
+                    "model_bench_lib.R", "site_extension_lib.R", "neon_spatial_lib.R",
+                    "neon_reference_support_lib.R"), .find, "", USE.NAMES = FALSE)),
+  reference = file.path(nd, c("ground_truth_stems.csv", "plot_centroids.csv")))
+
 # One cell: `run(input, out)` runs the container on a staged copy of the frozen
 # raw clip and returns ff3d_collapse()'s apexes, or NULL when the container
 # crashed or wrote an unreadable file (the cell is then skipped). A readable
@@ -160,19 +172,18 @@ run_main <- function() {
   frozen_resume_guard(result_file, fz)
   results <- if (file.exists(result_file))
     read.csv(result_file, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
-  # The code that makes and scores a row is part of the identity, so a resumed
-  # run cannot mix rows from edited code, a changed tolerance or another config.
-  code <- c(ENTRY, DRIVER, file.path(dirname(DRIVER), c("fm_export.py", "fm_checkpoint.py")),
-            file.path(FF3D, "ff3d_export.py"), .find("detect_forestmamba_sweep.R"),
-            .find("io_bridge.R"), .find("model_runner.R"), .find("sweep_lib.R"),
-            .find("model_bench_lib.R"))
+  # The code that makes and scores a row and the reference it is scored against
+  # are part of the identity, so a resumed run cannot mix rows from edited code,
+  # another reference, a changed tolerance or another config.
+  files <- fm_identity_files(ENTRY, DRIVER, FF3D, nd)
   update_run_manifest(file.path(nd, "forestmamba_run_manifest.json"),
     identity = list(layout = "whole_scene", image = IMAGE, image_id = docker_image_id(IMAGE),
       source = git_source_identity(REPO, c("configs", "oneformer3d", "tools")),
       config = FM_CONFIG,
       checkpoint = list(file = basename(CKPT), md5 = unname(tools::md5sum(CKPT)),
                         sha256 = CKPT_SHA256),
-      code = file_digests(code), seed = SEED, tol = TOL,
+      code = file_digests(files$code), reference = file_digests(files$reference),
+      seed = SEED, tol = TOL,
       frozen_root = frozen_root_id(fz$root), population = fz$population),
     pass = list(rungs = as.list(c(if (rg$native) "native", as.character(rg$rungs))),
                 timeout = TIMEOUT, started = format(Sys.time(), tz = "UTC", usetz = TRUE)),

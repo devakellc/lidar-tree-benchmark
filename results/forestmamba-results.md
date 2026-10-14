@@ -18,13 +18,12 @@ after the paper's tables were fixed, and none of their numbers changes.
   highest precision of the five arms (0.480) and the lowest recall (0.410;
   0.054 below CHM-VWF's, a weak contrast).
 - **Down the ladder.** Its F1 rises to 0.469 at 4.7 pulses/m² (+0.027, weak)
-  and loses only
-  0.034 from native density to 0.6 pulses/m², the smallest loss of the three
-  segmenters (ForestFormer3D 0.078, SegmentAnyTree 0.367). On every decimated
-  rung it is level with ForestFormer3D. It leads the declared CHM-VWF by 0.06
-  to 0.07 F1 from 4.7 to 1.3 pulses/m², but is level with CHM-VWF run without
-  its sparse-density smoothing on every rung but the sparsest, where it is
-  behind (−0.023, weak).
+  and loses only 0.034 from native density to 0.6 pulses/m², the smallest loss
+  of the three segmenters (ForestFormer3D 0.078, SegmentAnyTree 0.367). On
+  every decimated rung it is level with ForestFormer3D. It leads the declared
+  CHM-VWF by 0.06 to 0.07 F1 from 4.7 to 1.3 pulses/m², but is level with
+  CHM-VWF run without its sparse-density smoothing on every rung but the
+  sparsest, where it is behind (−0.023, weak).
 - **Chance agreement.** Shifted copies of its detections earn 69 to 72% of its
   F1, as for the other arms. Corrected for chance it is level with
   ForestFormer3D on every rung. It is ahead of CHM-VWF at 4.7 pulses/m²
@@ -51,6 +50,13 @@ after the paper's tables were fixed, and none of their numbers changes.
   with ForestFormer3D, SegmentAnyTree and TreeisoNet (0.449 to 0.452) and
   0.062 above CHM-VWF; corrected for chance the four learned arms are level
   and none leads CHM-VWF clearly.
+- **Run-to-run variation.** A second run of the native and sparsest rungs
+  changes the counts of 79 to 86% of cells but pooled F1 by at most 0.007
+  (0.442 and 0.437 at native density, 0.408 and 0.415 at 0.6 pulses/m²): the
+  readings hold, while weak contrasts can cross zero between runs.
+- **Compute.** A median 55 s per plot at native density, model load
+  included, about 1.6 times faster than ForestFormer3D re-timed in the same
+  session (92 s), with up to 3,168 MiB of device memory.
 
 ## Model
 
@@ -584,7 +590,68 @@ ForestMamba minus each arm at the QL2 floor:
 
 ## Run-to-run variation
 
+The native and 0.6 pulses/m² rungs were run a second time with the same image,
+checkpoint, seed and settings, into a separate job directory (212 cells).
+Pooled on the five sites, with ForestMamba's F1 minus each arm's:
+
+| Run | Rung | Cells | Cells with the first run's counts | Recall | Precision | F1 | F1 minus ForestFormer3D | F1 minus SegmentAnyTree | F1 minus TreeisoNet | F1 minus CHM-VWF |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| first | native (9.8) | 106 | 100% | 0.410 | 0.480 | 0.442 | −0.056 | −0.052 | −0.004 | −0.008 |
+| repeat | native (9.8) | 106 | 21% | 0.406 | 0.474 | 0.437 | −0.061 | −0.058 | −0.009 | −0.013 |
+| first | 1 (0.6) | 106 | 100% | 0.414 | 0.402 | 0.408 | −0.012 | +0.280 | −0.031 | +0.034 |
+| repeat | 1 (0.6) | 106 | 14% | 0.421 | 0.410 | 0.415 | −0.005 | +0.287 | −0.024 | +0.042 |
+
+- Only 21% of the native cells and 14% of the 0.6 pulses/m² cells give the
+  same counts in both runs: the kernels outside torch's deterministic control
+  move single detections from run to run, so per-cell scores do not repeat.
+- Pooled over the 106 plots the changes largely cancel: F1 moves by −0.005 at
+  native density and +0.007 at 0.6 pulses/m², and each contrast with another
+  arm by the same amount, against plot-sampling intervals of about ±0.02. The
+  readings above hold in both runs (the native deficit to ForestFormer3D is
+  −0.056 and −0.061, for example), but a contrast whose interval ends within
+  0.01 of zero, a weak contrast, can cross zero between runs.
+- The paper's ForestFormer3D and TreeisoNet runs were not repeated, so their
+  run-to-run variation is not measured.
+
 ## Compute
+
+From the run receipts: the wall time per cell from container start to export,
+the inference time over the scene's overlapping 16 m cylinders, and the peak
+GPU memory that torch allocated:
+
+| Rung | Cells | Points per clip, median | Wall per cell, s | Inference, s | Peak GPU allocated, MiB | Total wall, h |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| native (9.8) | 106 | 109,572 | 41.8 | 30.1 | 679 | 1.36 |
+| 8 (4.7) | 106 | 44,162 | 38.1 | 26.5 | 236 | 1.27 |
+| 4 (2.5) | 106 | 22,454 | 36.9 | 25.3 | 176 | 1.23 |
+| QL2 3.2 (2.0) | 106 | 17,986 | 36.3 | 24.7 | 163 | 1.22 |
+| 2 (1.3) | 106 | 11,250 | 36.0 | 24.4 | 144 | 1.21 |
+| 1 (0.6) | 106 | 5,625 | 35.1 | 23.5 | 131 | 1.21 |
+| ladder, all five rungs | 530 | 22,454 | 40.6 | 29.0 | 679 | 6.28 |
+
+The harness of the [compute-cost study](compute-cost-results.md) times
+ForestMamba as it times the paper's learned arms: its own sweep on a scratch
+job directory that holds one plot, model load and container start included, on
+the study's nine plots at native density (the first tower and distributed plot
+of each site; SJER's adopted plots are all tower plots), one call at a time
+with the GPU otherwise idle. ForestFormer3D was re-timed in the same session:
+
+| Arm | Plots | Median wall, s | Maximum wall, s | Total wall, s | Peak GPU memory, MiB |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| ForestMamba | 9 | 55.1 | 62.2 | 453.6 | 3,168 |
+| ForestFormer3D | 9 | 91.6 | 97.0 | 720.1 | 1,946 |
+
+- ForestMamba takes a median 55 s per plot (39 to 43 s on the distributed
+  plots, 55 to 62 s on the tower plots), about 1.6 times less than
+  ForestFormer3D's 92 s in the same session (60 to 65 s and 92 to 97 s). The
+  re-timed ForestFormer3D is close to the study's 98 s median; there
+  SegmentAnyTree took 411 s per plot, TreeisoNet 8 s and the classical arms
+  seconds.
+- Its peak device memory above the idle level, as `nvidia-smi` sees it with
+  each framework's cache, is 1,138 to 3,168 MiB per plot against 1,052 to
+  1,946 MiB for ForestFormer3D; torch itself allocates at most 679 MiB on the
+  ladder. Neither arm's host memory is measured, as both run in Docker outside
+  the timed process.
 
 ## Limitations
 

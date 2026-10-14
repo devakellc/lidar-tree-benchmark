@@ -118,6 +118,27 @@ test_that("rung arguments keep native first and refuse unknown rungs", {
 # restore and the determinism settings; a repeat with the same seed must agree
 # closely (the sparse-convolution kernels keep runs from being bit-identical).
 # Skips unless FM_REPO and FM_CKPT point at the pinned checkout and checkpoint.
+test_that("the run identity covers the reference stems and the libraries that gate them", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  nd <- file.path(d, "SITE"); dir.create(nd)
+  writeLines(c("individualID,E,N", "a,1,2"), file.path(nd, "ground_truth_stems.csv"))
+  writeLines(c("plotID,easting,northing", "P1,1,2"), file.path(nd, "plot_centroids.csv"))
+  gpu <- file.path("..", "..", "gpu")
+  f <- fm_identity_files(file.path(gpu, "forestmamba-sm120", "fm_entry.sh"),
+                         file.path(gpu, "forestmamba-sm120", "fm_arm.py"),
+                         file.path(gpu, "forestformer3d-sm120"), nd)
+  expect_true(all(c("site_extension_lib.R", "neon_spatial_lib.R",
+                    "neon_reference_support_lib.R") %in% basename(f$code)))
+  expect_true(all(file.exists(c(f$code, f$reference))))
+  id <- function() list(code = file_digests(f$code), reference = file_digests(f$reference))
+  m <- file.path(d, "manifest.json")
+  update_run_manifest(m, id(), list(rungs = "native"), resuming = FALSE)
+  expect_silent(update_run_manifest(m, id(), list(rungs = "8"), resuming = TRUE))
+  write("b,3,4", file.path(nd, "ground_truth_stems.csv"), append = TRUE)  # reference changed
+  expect_error(update_run_manifest(m, id(), list(rungs = "4"), resuming = TRUE),
+               "another model identity")
+})
+
 test_that("LIVE (gated): a scene through fm_arm.py is indexed, restored and repeatable", {
   IMG  <- Sys.getenv("FM_IMAGE", "forestmamba-sm120")
   REPO <- Sys.getenv("FM_REPO"); CKPT <- Sys.getenv("FM_CKPT")
