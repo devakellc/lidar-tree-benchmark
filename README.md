@@ -288,7 +288,8 @@ were fixed and is not one of its arms. At native density it scores F1
 native density it is level with ForestFormer3D on every rung and with the
 other learned arms at the QL2 floor (**0.454**). On the four decimated ladder
 rungs it is also level with CHM-VWF run without its sparse-density smoothing,
-except at 0.6 pulses/m², where it is weakly behind. Its censused F1 at native
+except at 0.6 pulses/m², where it is weakly behind in one of two runs. Its
+censused F1 at native
 density (**0.564**) is the lowest point estimate of the five arms compared,
 level with CHM-VWF's.
 

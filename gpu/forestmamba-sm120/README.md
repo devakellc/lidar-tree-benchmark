@@ -142,7 +142,7 @@ With the three files in `IN` and a new output directory `OUT`, the check runs
 in the image on a copy of the pinned checkout, as the arm does:
 
 ```sh
-GPU=$PWD/gpu; STORE=$GPU/store/forestmamba; WS=$(mktemp -d)
+GPU=$PWD/gpu; STORE=$GPU/store/forestmamba; WS=$(mktemp -d); mkdir -p "$OUT"
 rsync -a --exclude=.git --exclude=data --exclude=work_dirs "$STORE/ForestMamba/" "$WS/"
 docker run --rm --gpus all --network none --user "$(id -u):$(id -g)" -e HOME=/tmp \
   -e PYTHONHASHSEED=0 -e WANDB_MODE=disabled \
@@ -170,7 +170,7 @@ FM_CKPT=$PWD/gpu/store/forestmamba/v6_epoch_1500_fix.pth \
   Rscript tests/run_tests.R
 ```
 
-On the 5090 a native tower clip takes a median 56 s per cell, container start
+On the 5090 a native tower clip takes a median 55 s per cell, container start
 to export, of which 44 s are inference over its overlapping 16 m cylinders; a
 native distributed clip takes 38 s. Torch allocates at most 679 MiB of GPU
 memory on the ladder (2.4 GiB reserved). The

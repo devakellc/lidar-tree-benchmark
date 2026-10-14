@@ -455,3 +455,39 @@ test_that("repeats report the share of cells whose counts match the first run", 
   expect_true(any(grepl("^\\| Run \\| Rung \\| Cells \\| Cells with the first run's counts \\|", md)))
   expect_true(any(grepl("^\\| repeat1 \\| native \\| 4 \\| 75% \\|", md)))
 })
+
+test_that("repeat contrasts re-score each run against the arms on the same plot resamples", {
+  cells <- function(arm, rung, TP) fma_cells(arm, "S1", c("P1", "P2", "P3"), rung, TP,
+                                             c(8, 8, 8), TP)
+  run1 <- rbind(cells("forestmamba", "native", c(6, 4, 5)), cells("forestmamba", "1", c(5, 4, 4)))
+  run2 <- run1
+  run2$TP[1] <- 3; run2$tp_core[1] <- 3; run2$precision[1] <- 3 / 8
+  ff <- rbind(cells("ff", "native", c(3, 5, 4)), cells("ff", "1", c(4, 3, 4)))
+  eq <- rbind(run1, ff)
+  rc <- fma_repeat_contrasts(eq, list(repeat1 = run2), "forestmamba", "S1", n_boot = 50,
+                             seed = 1, regions = list())
+  con <- function(x) x[x$scope == "five sites" & x$metric == "F1", ]
+  f <- rc[rc$kind == "contrast", ]
+  base <- con(fma_scores(eq, "forestmamba", "S1", n_boot = 50, seed = 1, regions = list())$contrasts)
+  rep2 <- con(fma_scores(rbind(run2, ff), "forestmamba", "S1", n_boot = 50, seed = 1,
+                         regions = list())$contrasts)
+  expect_equal(con(f[f$run == "seed0", ])$estimate, base$estimate)
+  expect_equal(con(f[f$run == "repeat1", ])$estimate, rep2$estimate)
+  expect_equal(con(f[f$run == "repeat1", ])$upper, rep2$upper)
+  ch <- rc[rc$kind == "rung_change" & rc$run == "repeat1", ]
+  expect_equal(ch$estimate,
+               mt_rung_contrasts(run2, list("five sites" = "S1"), n_boot = 50, seed = 1,
+                                 metrics = "F1")$estimate)
+  expect_error(fma_repeat_contrasts(eq, list(repeat1 = run2[-1, ]), "forestmamba", "S1",
+                                    n_boot = 50, seed = 1, regions = list()),
+               "does not cover")
+  sc <- fma_scores(eq, "forestmamba", "S1", n_boot = 20, seed = 1, regions = list())
+  st <- fma_strata(eq, "forestmamba", n_boot = 20, seed = 1)
+  md <- fma_tables(sc$long, sc$contrasts, st$long, st$contrasts, NULL, NULL, "ff",
+                   "forestmamba", c("native", "1"), repeat_contrasts = rc)
+  i <- match("ForestMamba minus arm, F1, five sites, in each run of the repeated rungs:", md)
+  expect_false(is.na(i))
+  expect_identical(md[i + 2], "| Arm | Rung | seed0 | repeat1 |")
+  j <- match("ForestMamba's change in F1 from native, five sites, in each run:", md)
+  expect_true(startsWith(md[j + 4], "| 1 | "))
+})

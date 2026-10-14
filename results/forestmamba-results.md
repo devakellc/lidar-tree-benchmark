@@ -18,12 +18,13 @@ after the paper's tables were fixed, and none of their numbers changes.
   highest precision of the five arms (0.480) and the lowest recall (0.410;
   0.054 below CHM-VWF's, a weak contrast).
 - **Down the ladder.** Its F1 rises to 0.469 at 4.7 pulses/m² (+0.027, weak)
-  and loses only 0.034 from native density to 0.6 pulses/m², the smallest loss
-  of the three segmenters (ForestFormer3D 0.078, SegmentAnyTree 0.367). On
-  every decimated rung it is level with ForestFormer3D. It leads the declared
-  CHM-VWF by 0.06 to 0.07 F1 from 4.7 to 1.3 pulses/m², but is level with
-  CHM-VWF run without its sparse-density smoothing on every rung but the
-  sparsest, where it is behind (−0.023, weak).
+  and loses only 0.034 from native density to 0.6 pulses/m² (0.022, level, in
+  a repeat run), the smallest loss of the three segmenters (ForestFormer3D
+  0.078, SegmentAnyTree 0.367). On every decimated rung it is level with
+  ForestFormer3D. It leads the declared CHM-VWF by 0.06 to 0.07 F1 from 4.7 to
+  1.3 pulses/m², but on the ladder rungs it is level with CHM-VWF run without
+  its sparse-density smoothing (not run on the QL2 rung), except at
+  0.6 pulses/m², where it is weakly behind in one of two runs.
 - **Chance agreement.** Shifted copies of its detections earn 69 to 72% of its
   F1, as for the other arms. Corrected for chance it is level with
   ForestFormer3D on every rung. It is ahead of CHM-VWF at 4.7 pulses/m²
@@ -51,12 +52,14 @@ after the paper's tables were fixed, and none of their numbers changes.
   0.062 above CHM-VWF; corrected for chance the four learned arms are level
   and none leads CHM-VWF clearly.
 - **Run-to-run variation.** A second run of the native and sparsest rungs
-  changes the counts of 79 to 86% of cells but pooled F1 by at most 0.007
-  (0.442 and 0.437 at native density, 0.408 and 0.415 at 0.6 pulses/m²): the
-  readings hold, while weak contrasts can cross zero between runs.
+  changes the counts of 79 to 86% of cells. Pooled F1 moves by at most 0.007
+  and every five-site contrast with another arm keeps its direction, but
+  ForestMamba's own loss to 0.6 pulses/m² is level in the repeat, and site and
+  region contrasts move by up to 0.023.
 - **Compute.** A median 55 s per plot at native density, model load
   included, about 1.6 times faster than ForestFormer3D re-timed in the same
-  session (92 s), with up to 3,168 MiB of device memory.
+  session (92 s); torch allocates at most 679 MiB against ForestFormer3D's
+  1,044 MiB.
 
 ## Model
 
@@ -204,9 +207,10 @@ The dotted lines are the USGS QL1 (8 pulses/m²) and QL2 (2 pulses/m²) floors.*
 - Thinning raises its F1 at 4.7 pulses/m² (+0.027 [+0.007, +0.046], weak),
   the only gain from native density on the ladder whose interval excludes
   zero; it is level at 2.5 and 1.3 pulses/m² and loses 0.034 [0.011, 0.059]
-  at 0.6 pulses/m². ForestFormer3D loses 0.04 to 0.08 from 2.5 pulses/m²
-  down, SegmentAnyTree collapses below 2.5 pulses/m², TreeisoNet is flat, and
-  CHM-VWF loses 0.055 to 0.077 below native density.
+  at 0.6 pulses/m² (0.022 [−0.001, 0.049], level, in the repeat run).
+  ForestFormer3D loses 0.04 to 0.08 from 2.5 pulses/m² down, SegmentAnyTree
+  collapses below the QL2 floor, TreeisoNet is flat, and CHM-VWF loses 0.055
+  to 0.077 below native density.
 - The gap to ForestFormer3D therefore closes below native density: −0.018
   [−0.038, +0.001] at 4.7 pulses/m², +0.006 and +0.008 at 2.5 and
   1.3 pulses/m², and −0.012 [−0.027, +0.003] at 0.6 pulses/m². ForestMamba
@@ -219,7 +223,7 @@ The dotted lines are the USGS QL1 (8 pulses/m²) and QL2 (2 pulses/m²) floors.*
   Against CHM-VWF run without the rule, a post hoc sensitivity run on the five
   ladder rungs, ForestMamba is level from native density to 1.3 pulses/m²
   (−0.011 to +0.010) and behind at 0.6 pulses/m² (−0.023 [−0.041, −0.006],
-  weak):
+  weak, and level in the repeat run, −0.016 [−0.034, +0.002]):
 
 | Comparison | native (9.8) | 8 (4.7) | 4 (2.5) | QL2 3.2 (2.0) | 2 (1.3) | 1 (0.6) |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -461,6 +465,10 @@ Washington: WREF and ABBY, 63 plots), and ForestMamba minus each arm:
 | TreeisoNet | +0.065 [+0.027, +0.105] | −0.036 [−0.072, +0.004] |
 | CHM-VWF | +0.052 [+0.015, +0.090] | −0.032 [−0.073, +0.010] |
 
+- Site and region contrasts move by up to 0.023 F1 between two runs of the
+  same clips (see [run-to-run variation](#run-to-run-variation)), so a site
+  reading near zero can change category between runs; the values here are the
+  first run's.
 - At native density ForestMamba's F1 is below ForestFormer3D's at every
   site: by 0.015 to 0.026 at SJER, SOAP and WREF, within intervals that span
   zero, by 0.053 [0.029, 0.077] at TEAK and by 0.118 [0.053, 0.178] at ABBY.
@@ -507,7 +515,7 @@ clip with its buffer), and its core detections per stem:
   airborne canopies are out of the checkpoint's training domain.
 - The instance head still returns about one detection per field stem on every
   decimated rung, so the label shift does not become a detection failure like
-  SegmentAnyTree's, whose instance grouping breaks down below 2.5 pulses/m²
+  SegmentAnyTree's, whose instance grouping breaks down below the QL2 floor
   (0.57 detections per stem at 1.3 and 0.13 at 0.6 pulses/m²; see the
   [instance audit](instance-audit-results.md)). The
   instance count per clip is highest at 2.5 and 2.0 pulses/m² (medians 153 and
@@ -601,15 +609,38 @@ Pooled on the five sites, with ForestMamba's F1 minus each arm's:
 | first | 1 (0.6) | 106 | 100% | 0.414 | 0.402 | 0.408 | −0.012 | +0.280 | −0.031 | +0.034 |
 | repeat | 1 (0.6) | 106 | 14% | 0.421 | 0.410 | 0.415 | −0.005 | +0.287 | −0.024 | +0.042 |
 
+The five-site contrasts of each run, on the same plot resamples:
+
+| F1 contrast, five sites | Rung | First run | Repeat |
+| --- | --- | --- | --- |
+| ForestMamba minus ForestFormer3D | native (9.8) | −0.056 [−0.078, −0.032] | −0.061 [−0.083, −0.036] |
+| ForestMamba minus SegmentAnyTree | native (9.8) | −0.052 [−0.081, −0.022] | −0.058 [−0.085, −0.027] |
+| ForestMamba minus TreeisoNet | native (9.8) | −0.004 [−0.032, +0.027] | −0.009 [−0.037, +0.021] |
+| ForestMamba minus CHM-VWF | native (9.8) | −0.008 [−0.040, +0.025] | −0.013 [−0.045, +0.020] |
+| ForestMamba minus CHM-VWF without smoothing | native (9.8) | −0.011 [−0.043, +0.021] | −0.016 [−0.047, +0.015] |
+| ForestMamba minus ForestFormer3D | 1 (0.6) | −0.012 [−0.027, +0.003] | −0.005 [−0.020, +0.009] |
+| ForestMamba minus SegmentAnyTree | 1 (0.6) | +0.280 [+0.254, +0.303] | +0.287 [+0.262, +0.309] |
+| ForestMamba minus TreeisoNet | 1 (0.6) | −0.031 [−0.051, −0.011] | −0.024 [−0.046, −0.003] |
+| ForestMamba minus CHM-VWF | 1 (0.6) | +0.034 [+0.011, +0.054] | +0.042 [+0.019, +0.062] |
+| ForestMamba minus CHM-VWF without smoothing | 1 (0.6) | −0.023 [−0.041, −0.006] | −0.016 [−0.034, +0.002] |
+| ForestMamba, change from native | 1 (0.6) | −0.034 [−0.059, −0.011] | −0.022 [−0.049, +0.001] |
+
 - Only 21% of the native cells and 14% of the 0.6 pulses/m² cells give the
   same counts in both runs: the kernels outside torch's deterministic control
   move single detections from run to run, so per-cell scores do not repeat.
 - Pooled over the 106 plots the changes largely cancel: F1 moves by −0.005 at
-  native density and +0.007 at 0.6 pulses/m², and each contrast with another
-  arm by the same amount, against plot-sampling intervals of about ±0.02. The
-  readings above hold in both runs (the native deficit to ForestFormer3D is
-  −0.056 and −0.061, for example), but a contrast whose interval ends within
-  0.01 of zero, a weak contrast, can cross zero between runs.
+  native density and +0.007 at 0.6 pulses/m², and every five-site contrast
+  with another arm by at most 0.007 with its direction kept. The deficit to
+  TreeisoNet at 0.6 pulses/m² is weak in the repeat.
+- ForestMamba's own change from native density to 0.6 pulses/m² moves more,
+  by 0.012: a loss of 0.034 that excludes zero in the first run is a level
+  0.022 in the repeat, and its weak deficit to CHM-VWF without smoothing at
+  0.6 pulses/m² is level in the repeat.
+- Contrasts at single sites and regions move by up to 0.023 F1 (at SJER), and
+  11 of the 56 change between level, weak and clear: at native density the
+  deficit to ForestFormer3D at WREF is level in the first run (−0.026) and
+  clear in the repeat (−0.044). Site and region readings near zero are within
+  this variation. Corrected, censused and stratum scores were not repeated.
 - The paper's ForestFormer3D and TreeisoNet runs were not repeated, so their
   run-to-run variation is not measured.
 
@@ -619,7 +650,7 @@ From the run receipts: the wall time per cell from container start to export,
 the inference time over the scene's overlapping 16 m cylinders, and the peak
 GPU memory that torch allocated:
 
-| Rung | Cells | Points per clip, median | Wall per cell, s | Inference, s | Peak GPU allocated, MiB | Total wall, h |
+| Rung | Cells | Points per clip, median | Wall per cell, median, s | Inference, median, s | Peak GPU allocated, MiB | Total wall, h |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | native (9.8) | 106 | 109,572 | 41.8 | 30.1 | 679 | 1.36 |
 | 8 (4.7) | 106 | 44,162 | 38.1 | 26.5 | 236 | 1.27 |
@@ -647,11 +678,13 @@ with the GPU otherwise idle. ForestFormer3D was re-timed in the same session:
   re-timed ForestFormer3D is close to the study's 98 s median; there
   SegmentAnyTree took 411 s per plot, TreeisoNet 8 s and the classical arms
   seconds.
-- Its peak device memory above the idle level, as `nvidia-smi` sees it with
-  each framework's cache, is 1,138 to 3,168 MiB per plot against 1,052 to
-  1,946 MiB for ForestFormer3D; torch itself allocates at most 679 MiB on the
-  ladder. Neither arm's host memory is measured, as both run in Docker outside
-  the timed process.
+- By the drivers' receipts on these plots, torch allocates 273 to 679 MiB
+  for ForestMamba and 355 to 1,044 MiB for ForestFormer3D, but ForestMamba's
+  allocator keeps more cached (up to 2,454 MiB reserved against 1,310), so its
+  device peak above the idle level, as `nvidia-smi` sees it, is higher: 1,138
+  to 3,168 MiB per plot against 1,052 to 1,946 MiB. The drivers' processes
+  peak at 2.6 to 2.8 GiB of host memory (ForestFormer3D 2.5 to 2.6 GiB); the
+  harness's own host-memory column does not see the containers.
 
 ## Limitations
 
@@ -664,9 +697,10 @@ with the GPU otherwise idle. ForestFormer3D was re-timed in the same session:
   and window from measured density; ForestMamba's would need retraining or an
   altered inference path to do so, which this benchmark does not attempt.
 - Runs are not bit-repeatable: the sparse-convolution and voxel-hashing
-  kernels are outside torch's deterministic control. The repeated rungs bound
-  what this does to the pooled scores; the paper did not measure it for
-  ForestFormer3D or TreeisoNet.
+  kernels are outside torch's deterministic control. One repeat of two rungs
+  gives one measure of what this does (pooled F1 moves by up to 0.007, single
+  sites by up to 0.023); the paper did not measure it for ForestFormer3D or
+  TreeisoNet.
 - The reference is the field-stem population of the nominal plot core, with
   the incomplete-mapping limits of the
   [reference-support audit](neon-reference-support-results.md); censused
@@ -721,7 +755,8 @@ Rscript scripts/analyze_forestmamba.R RUNS=$W/forestmamba_runs \
 Rscript scripts/analyze_forestmamba.R RUNS=$W/forestmamba_runs \
   BASE=$W/paper_runs_nosmooth ARMS=chm_vwf CORES=8 \
   OUT=$W/forestmamba_runs/neon/forestmamba_analysis_nosmooth
-bash scripts/compute_cost.sh OUT=$W/compute_cost_forestmamba WORK=$W ARMS=forestmamba
+bash scripts/compute_cost.sh OUT=$W/compute_cost_forestmamba WORK=$W \
+  ARMS=forestmamba,forestformer3d
 ```
 
 The analyses write their CSV files, `figure.png` and `tables.md` under

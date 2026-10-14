@@ -20,8 +20,9 @@
 # query supplement's farthest-point sampling draws a random start. Every run
 # writes forestmamba_run_manifest.json, whose identity (image ID, upstream
 # revision and local modification hash, configuration, checkpoint hash, code
-# hashes, seed, match tolerance, frozen root, population) a resumed run must
-# repeat, and every cell a receipt next to its persisted instance cloud.
+# hashes, the hashes of the site's reference stems and plot centroids, seed,
+# match tolerance, frozen root, population) a resumed run must repeat, and
+# every cell a receipt next to its persisted instance cloud.
 #
 # Usage:
 #   Rscript scripts/detect_forestmamba_sweep.R [SITE=SOAP] [PLOTS=ALL]

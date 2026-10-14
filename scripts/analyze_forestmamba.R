@@ -30,7 +30,7 @@
 # Writes status.csv, scores.csv, contrasts.csv, strata.csv, strata_contrasts.csv,
 # rung_change.csv (with native and another rung), detection_ratio.csv,
 # compute.csv, semantics.csv (the model's point labels per rung), repeats.csv
-# (with REPEATS), null_cells.csv, corrected.csv, corrected_contrasts.csv,
+# and repeat_contrasts.csv (with REPEATS), null_cells.csv, corrected.csv, corrected_contrasts.csv,
 # null_strata.csv and null_strata_contrasts.csv (with the null cells),
 # census_scores.csv and census_contrasts.csv (when
 # score_census_support.R has scored the ForestMamba clouds), masks.csv (when
@@ -399,6 +399,32 @@ fma_repeats <- function(runs, arms) {
   }))
 }
 
+# Contrasts of each repeated run (a named list of the focus arm's rows): its
+# rows replace the focus arm's in the equal-support set `eq` (the repeated
+# rungs), and the focus-minus-arm F1 contrasts of every scope and the focus
+# arm's change from native are drawn on the same plot resamples as the first
+# run's (run "seed0"). A repeat must cover the first run's cells.
+fma_repeat_contrasts <- function(eq, reps, focus, sites, n_boot = MT_N_BOOT, seed = MT_SEED,
+                                 regions = MT_REGIONS) {
+  key <- function(x) paste(x$site, x$plot, x$rung, sep = "::")
+  first <- eq[eq$detector == focus, , drop = FALSE]
+  cols <- c("scope", "rung", "from", "to", "metric", "estimate", "lower", "upper")
+  runs <- c(list(seed0 = first), reps)
+  do.call(rbind, lapply(names(runs), function(n) {
+    x <- runs[[n]][key(runs[[n]]) %in% key(first), names(first), drop = FALSE]
+    if (!setequal(key(x), key(first)))
+      stop("Repeat ", n, " does not cover the first run's cells")
+    s <- fma_scores(rbind(eq[eq$detector != focus, , drop = FALSE], x), focus, sites,
+                    n_boot, seed, metrics = "F1", regions = regions)
+    ch <- mt_rung_contrasts(x, list("five sites" = sites), n_boot = n_boot, seed = seed,
+                            metrics = "F1")
+    rbind(cbind(data.frame(run = n, kind = "contrast", stringsAsFactors = FALSE),
+                s$contrasts[, cols]),
+          if (!is.null(ch)) cbind(data.frame(run = n, kind = "rung_change",
+                                             stringsAsFactors = FALSE), ch[, cols]))
+  }))
+}
+
 # Per-cell compute of the ForestMamba run from its receipts: the cell receipt's
 # wall time (container start to export) and the driver receipt's phases.
 fma_compute <- function(inst_dirs) {
@@ -474,7 +500,8 @@ fma_detection_ratio <- function(eq) {
 # A Markdown table: a header row, the rule and one row per element of `rows`.
 fma_tab <- function(head, rows) c(paste0("| ", paste(head, collapse = " | "), " |"),
   paste0("|", paste(rep(" --- |", length(head)), collapse = "")),
-  vapply(rows, function(r) paste0("| ", paste(r, collapse = " | "), " |"), ""), "")
+  vapply(rows, function(r) paste0("| ", paste(r, collapse = " | "), " |"), "",
+         USE.NAMES = FALSE), "")
 
 fma_ratio_table <- function(ratio, arms, focus, rungs)
   c("Core detections per reference stem, five sites:", "",
@@ -565,7 +592,8 @@ fma_num <- function(v, k = 3, signed = FALSE) {
 # The report's tables as Markdown lines.
 fma_tables <- function(long, con, strata, scon, change, compute, arms, focus, rungs,
                        repeats = NULL, corrected = NULL, masks = NULL, semantics = NULL,
-                       census = NULL, ratio = NULL, null_strata = NULL) {
+                       census = NULL, ratio = NULL, null_strata = NULL,
+                       repeat_contrasts = NULL) {
   tab <- fma_tab
   cell <- function(d, signed = FALSE)
     if (nrow(d)) fma_fmt(d$estimate, d$lower, d$upper, signed = signed) else "—"
@@ -662,6 +690,20 @@ fma_tables <- function(long, con, strata, scon, change, compute, arms, focus, ru
           repeats$cells[i], sprintf("%.0f%%", 100 * repeats$same_counts[i]),
           fma_num(repeats$F1[i]), vapply(arms, function(a)
             fma_num(repeats[[paste0("d_F1_", a)]][i], signed = TRUE), "")))))
+  if (!is.null(repeat_contrasts)) {
+    rc <- repeat_contrasts[repeat_contrasts$scope == "five sites", , drop = FALSE]
+    runs <- unique(rc$run)
+    con <- rc[rc$kind == "contrast", , drop = FALSE]
+    con$arm <- sub("[|].*", "", con$from)
+    ch <- rc[rc$kind == "rung_change", , drop = FALSE]
+    v <- function(d) if (nrow(d)) fma_fmt(d$estimate, d$lower, d$upper, signed = TRUE) else "—"
+    out <- c(out, "ForestMamba minus arm, F1, five sites, in each run of the repeated rungs:", "",
+      tab(c("Arm", "Rung", runs), lapply(split(con, paste(con$arm, con$rung)), function(d)
+        c(d$arm[1], d$rung[1], vapply(runs, function(n) v(d[d$run == n, ]), "")))),
+      "ForestMamba's change in F1 from native, five sites, in each run:", "",
+      tab(c("Rung", runs), lapply(unique(ch$rung), function(r)
+        c(r, vapply(runs, function(n) v(ch[ch$run == n & ch$rung == r, ]), "")))))
+  }
   if (!is.null(compute)) out <- c(out, "ForestMamba compute per cell:", "",
     tab(c("Rung", "Cells", "Median points", "Median wall, s", "Median inference, s",
           "Median model load, s", "Total wall, h", "Max GPU allocated, MiB"),
@@ -739,7 +781,7 @@ run_main <- function() {
   if (!is.null(cp)) write.csv(cp, file.path(OUT, "compute.csv"), row.names = FALSE)
   if (!is.null(sm)) write.csv(sm, file.path(OUT, "semantics.csv"), row.names = FALSE)
   write.csv(dr, file.path(OUT, "detection_ratio.csv"), row.names = FALSE)
-  rp <- NULL
+  rp <- NULL; rc <- NULL
   if (length(REPEATS)) {
     rkey <- need_key[sub(".*::", "", need_key) %in% REPEAT_RUNGS]
     reps <- lapply(REPEATS, function(dir)
@@ -752,6 +794,9 @@ run_main <- function() {
               setNames(lapply(reps, `[[`, "rows"), paste0("repeat", seq_along(reps))))
     rp <- fma_repeats(runs, eq[eq$detector != FMA_FOCUS$arm & eq$rung %in% REPEAT_RUNGS, ])
     write.csv(rp, file.path(OUT, "repeats.csv"), row.names = FALSE)
+    rc <- fma_repeat_contrasts(eq[eq$rung %in% REPEAT_RUNGS, ], runs[-1], FMA_FOCUS$arm, SITES,
+                               N_BOOT, SEED)
+    write.csv(rc, file.path(OUT, "repeat_contrasts.csv"), row.names = FALSE)
   }
   cr <- NULL; ns <- NULL
   if (file.exists(NULL_CELLS)) {
@@ -801,7 +846,7 @@ run_main <- function() {
                   intersect(ARMS, c("forestformer3d", "segmentanytree", "treeisonet")), need_key)
   if (!is.null(mk)) write.csv(mk, file.path(OUT, "masks.csv"), row.names = FALSE)
   md <- fma_tables(sc$long, sc$contrasts, st$long, st$contrasts, ch, cp, ARMS,
-                   FMA_FOCUS$arm, rungs, rp, cr, mk, sm, cs, dr, ns)
+                   FMA_FOCUS$arm, rungs, rp, cr, mk, sm, cs, dr, ns, rc)
   writeLines(c(sprintf("Population %s, %d plots, %d cells per arm; root %s; %d draws, seed %d.",
                        POP, length(unique(paste(eq$site, eq$plot))), nrow(eq) /
                          length(unique(eq$detector)), substr(root_id, 1, 12), N_BOOT, SEED),
