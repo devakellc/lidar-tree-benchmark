@@ -169,11 +169,13 @@ test_that("corrected F1 scales the excess over the null by the headroom", {
 
 test_that("count checks catch a differing or a missing cell", {
   a <- data.frame(site = "S1", plot = c("P1", "P2"), rung = "native", n_ref = 10,
-                  n_det = c(5, 6), TP = c(3, 4), stringsAsFactors = FALSE)
+                  n_det = c(5, 6), TP = c(3, 4), tp_core = c(3, 4), stringsAsFactors = FALSE)
   b <- a; b$TP[2] <- 5
   expect_equal(nrow(fma_count_mismatch(a, a)), 0L)
   expect_identical(fma_count_mismatch(a, b)$plot, "P2")
   expect_identical(fma_count_mismatch(a, a[1, ])$plot, "P2")
+  d <- a; d$tp_core[1] <- 2                       # matched detections differ
+  expect_identical(fma_count_mismatch(a, d)$plot, "P1")
 })
 
 test_that("masks pool the harness rows of every model on their shared cells", {

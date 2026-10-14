@@ -238,13 +238,13 @@ fma_null_cells <- function(job, sites, pop, rungs, root = NULL, K = 200, cores =
   }))
 }
 
-# Rows of `a` whose (site, plot, rung) counts differ from `b`'s, or are missing there.
+# Rows of `a` whose (site, plot, rung) counts (references, detections, matched
+# stems and matched detections) differ from `b`'s, or are missing there.
 fma_count_mismatch <- function(a, b) {
-  k <- c("site", "plot", "rung")
-  m <- merge(a[, c(k, "n_ref", "n_det", "TP")], b[, c(k, "n_ref", "n_det", "TP")],
-             by = k, all.x = TRUE, suffixes = c("", ".own"))
+  k <- c("site", "plot", "rung"); v <- c("n_ref", "n_det", "TP", "tp_core")
+  m <- merge(a[, c(k, v)], b[, c(k, v)], by = k, all.x = TRUE, suffixes = c("", ".own"))
   m[is.na(m$TP.own) | m$n_ref != m$n_ref.own | m$n_det != m$n_det.own |
-      m$TP != m$TP.own, , drop = FALSE]
+      m$TP != m$TP.own | m$tp_core != m$tp_core.own, , drop = FALSE]
 }
 
 # Corrected F1, (observed - null) / (1 - null), per arm and rung on the cells

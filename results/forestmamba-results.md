@@ -56,10 +56,10 @@ after the paper's tables were fixed, and none of their numbers changes.
   and every five-site contrast with another arm keeps its direction, but
   ForestMamba's own loss to 0.6 pulses/m² is level in the repeat, and site and
   region contrasts move by up to 0.023.
-- **Compute.** A median 55 s per plot at native density, model load
-  included, about 1.6 times faster than ForestFormer3D re-timed in the same
-  session (92 s); torch allocates at most 679 MiB against ForestFormer3D's
-  1,044 MiB.
+- **Compute.** On the compute-cost study's nine native plots (five tower, four
+  distributed), a median 55 s per plot, model load included, about 1.6 times
+  faster than ForestFormer3D re-timed in the same session (92 s); torch
+  allocates at most 679 MiB against ForestFormer3D's 1,044 MiB.
 
 ## Model
 
@@ -221,7 +221,8 @@ The dotted lines are the USGS QL1 (8 pulses/m²) and QL2 (2 pulses/m²) floors.*
   TreeisoNet only at 0.6 pulses/m² (−0.031 [−0.051, −0.011]).
 - Its leads over CHM-VWF on the decimated rungs (+0.034 to +0.074) follow the
   baseline's smoothing rule. Below 8 pulses/m² the declared CHM-VWF smooths its
-  canopy model, which costs it 0.06 to 0.07 F1 on each decimated rung (see the
+  canopy model, which costs it 0.06 to 0.07 F1 on each of the four decimated
+  ladder rungs it was run without (see the
   [baseline smoothing sensitivity](baseline-smoothing-sensitivity-results.md)).
   Against CHM-VWF run without the rule, a post hoc sensitivity run on the five
   ladder rungs, ForestMamba is level from native density to 1.3 pulses/m²
@@ -756,8 +757,8 @@ Rscript scripts/analyze_forestmamba.R RUNS=$W/forestmamba_runs \
   BASE=$W/paper_runs REPEATS=$W/forestmamba_runs_repeat1 CORES=8 \
   QL2=$W/forestmamba_runs_ql2/neon/forestmamba_analysis
 Rscript scripts/analyze_forestmamba.R RUNS=$W/forestmamba_runs \
-  BASE=$W/paper_runs_nosmooth ARMS=chm_vwf CORES=8 \
-  OUT=$W/forestmamba_runs/neon/forestmamba_analysis_nosmooth
+  BASE=$W/paper_runs_nosmooth ARMS=chm_vwf REPEATS=$W/forestmamba_runs_repeat1 \
+  CORES=8 OUT=$W/forestmamba_runs/neon/forestmamba_analysis_nosmooth
 bash scripts/compute_cost.sh OUT=$W/compute_cost_forestmamba WORK=$W \
   ARMS=forestmamba,forestformer3d
 ```
@@ -765,8 +766,15 @@ bash scripts/compute_cost.sh OUT=$W/compute_cost_forestmamba WORK=$W \
 The analyses write their CSV files, `figure.png` and `tables.md` under
 `neon/forestmamba_analysis` of each run directory; the main analysis reads the
 QL2 analysis for the figure's QL2 points. The comparison with the unsmoothed
-baseline writes to `neon/forestmamba_analysis_nosmooth`; that job directory
-has no chance or census inputs, so it holds nominal-box scores only. The
+baseline writes to `neon/forestmamba_analysis_nosmooth`, with the repeat run's
+contrasts; that job directory has no chance or census inputs, so it holds
+nominal-box scores only. The compute-cost step also re-times ForestFormer3D
+from the checkout and checkpoint of the paper's re-runs under
+`gpu/store/forestformer3d`: `SmartForest-no/ForestFormer3D` at commit
+`6a75c37` in `ForestFormer3D/` (the sweep applies its local patch to a
+workspace copy) and `epoch_3000_fix.pth` in its `work_dirs/clean_forestformer/`,
+unpacked from the `clean_forestformer.zip` that `bash gpu/mirror_weights.sh ALL`
+fetches. The
 benchmark's job directories were made before the sweep's run identity covered
 the reference stems and plot centroids, so resuming them with the current
 sweep stops by design; extend them by running into a new job directory. The
