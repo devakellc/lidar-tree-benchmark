@@ -85,6 +85,26 @@ test_that("ForestFormer3D apexes are re-derived from its scored cloud", {
                ignore_attr = TRUE)
 })
 
+test_that("ForestMamba apexes are re-derived from its whole-scene cloud", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  root <- census_root(d); nd <- file.path(d, "SITE")
+  inst <- file.path(nd, "forestmamba_instances"); frozen_stamp(inst, root)
+  # the ForestFormer3D whole-scene schema: one block (UserData 0), background 0
+  las <- LAS(data.frame(X = c(500001, 500001.5, 500009, 500005),
+                        Y = c(4700001, 4700001.5, 4700009, 4700005),
+                        Z = c(110, 112, 105, 101), UserData = 0L,
+                        PointSourceID = c(1L, 1L, 2L, 0L)))
+  sf::st_crs(las) <- 32618
+  writeLAS(las, file.path(inst, "HARV_033_native.laz"))
+  dtm <- terra::rast(xmin = 500000, xmax = 500010, ymin = 4700000, ymax = 4700010,
+                     resolution = 1, crs = "EPSG:32618", vals = 100)
+  dtm_path <- file.path(d, "dtm.tif"); terra::writeRaster(dtm, dtm_path)
+  det <- census_cell_detections(nd, "forestmamba", "HARV", "HARV_033", NA, root,
+                                cell = list(dtm = dtm_path))
+  expect_identical(attr(det, "source"), "instances")
+  expect_equal(sort(det$z), c(5, 12), tolerance = 1e-6)
+})
+
 test_that("only declared bundles are loaded, each admitted once", {
   d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
   b <- census_fixture()
