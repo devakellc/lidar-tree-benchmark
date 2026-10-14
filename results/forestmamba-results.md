@@ -151,7 +151,10 @@ mask numbers exactly. As in the paper, a contrast whose interval ends within
   ForestMamba's detections are shifted by the same 200 toroidal offsets per
   plot that `paper_sensitivity.R MODE=null` applied to the other arms
   (re-scoring the persisted ForestFormer3D clouds this way reproduces the
-  paper's null counts exactly).
+  paper's null counts exactly). The same re-scoring of ForestMamba's 636
+  persisted clouds (530 ladder and 106 QL2 cells) with the final code gives
+  every cell the counts its run recorded; the analysis stops on any
+  difference.
 - Censused precision is scored inside the 57 admitted plots (1,190 censused
   references) of the [censused-subplot study](census-support-results.md),
   under its nearest-census declaration.
@@ -764,6 +767,9 @@ The analyses write their CSV files, `figure.png` and `tables.md` under
 QL2 analysis for the figure's QL2 points. The comparison with the unsmoothed
 baseline writes to `neon/forestmamba_analysis_nosmooth`; that job directory
 has no chance or census inputs, so it holds nominal-box scores only. The
+benchmark's job directories were made before the sweep's run identity covered
+the reference stems and plot centroids, so resuming them with the current
+sweep stops by design; extend them by running into a new job directory. The
 [runtime README](../gpu/forestmamba-sm120/README.md#port-check) gives the port
 check: [`fm_parity.py`](../gpu/forestmamba-sm120/fm_parity.py) run in the
 image on the authors' published FOR-instanceV2 test predictions.
