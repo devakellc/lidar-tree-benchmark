@@ -1,0 +1,24 @@
+{
+  "note": "Scouted candidate AOIs. density_pulses_m2 is true ground first-return density (EPT summarise value x k^2) over a 200 m square at the centre. Shares are fractions of first returns by normalized height.",
+  "ept_base": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public",
+  "aois": [
+    {"id": "carr_toy", "state": "CA", "ept": "CA_CarrHirzDeltaFires_2_2019", "lon": -121.9731, "lat": 40.8443, "side_m": 500,
+     "scout": {"density_pulses_m2": 15.1, "gt2m": 0.90, "h1_5_5m": 0.063, "h5_15m": 0.45, "gt15m": 0.40, "acquired": "2019-10 (adjusted GPS time ~2.56e8 s)"},
+     "role": "mature closed canopy; the lidar_tree_benchmarks toy AOI (scripts/extract.json)"},
+    {"id": "mck_marcola", "state": "OR", "ept": "OR_McKenzieRiver_1_2021", "lon": -122.80, "lat": 44.17, "side_m": 500,
+     "scout": {"density_pulses_m2": 15.5, "gt2m": 0.69, "h1_5_5m": 0.034, "h5_15m": 0.20, "gt15m": 0.47},
+     "role": "mature canopy with gaps"},
+    {"id": "mck_leaburg", "state": "OR", "ept": "OR_McKenzieRiver_1_2021", "lon": -122.62, "lat": 44.11, "side_m": 500,
+     "scout": {"density_pulses_m2": 20.0, "gt2m": 0.14, "h1_5_5m": 0.098, "h5_15m": 0.06, "gt15m": 0.00, "acquired": "2021-07-05"},
+     "role": "young regeneration; best small-tree candidate"},
+    {"id": "wwf_mill", "state": "OR", "ept": "OR_WWildfires_1_A22", "lon": -122.40, "lat": 44.75, "side_m": 500,
+     "scout": {"density_pulses_m2": 10.7, "gt2m": 0.56, "h1_5_5m": 0.012, "h5_15m": 0.07, "gt15m": 0.49},
+     "role": "mature canopy with gaps"}
+  ],
+  "rejected": [
+    {"id": "wwf_glide", "ept": "OR_WWildfires_1_A22", "lon": -122.85, "lat": 43.30, "reason": "no points at this centre"},
+    {"id": "sn_arnold", "ept": "CA_SierraNevada_3_2022", "lon": -120.35, "lat": 38.25, "reason": "no points at this centre"},
+    {"id": "sn_pollock", "ept": "CA_SierraNevada_3_2022", "lon": -120.58, "lat": 38.75, "reason": "no points at this centre"}
+  ],
+  "todo": "add a CA regeneration AOI before freezing the set"
+}
