@@ -28,11 +28,17 @@ submission:
   figures were added after the last clean-container rebuild; then deposit it and
   replace "DOI to be assigned at deposit" in the availability statement.
 - Decide whether the re-staged archive carries the ForestMamba runs that Section
-  6.8 quotes; they are not in the staged archive and the one-command rebuild
-  does not cover them. If they stay out, say so in the availability statement.
-- ForestMamba stays outside the tables, figures, highlights and abstract counts
-  by design: adding it to Table 2, Table 8 or Figure 3 would re-open the rank
-  statistics of Sections 4.5 and 5.2, which are stated for eight detectors.
+  6.8 quotes. They are not in the staged archive, the one-command rebuild does
+  not cover them, and neither `docs/model-provenance.json` nor the models table
+  of `docs/data-code-availability.md` records the ForestMamba checkpoint;
+  Section 4.10 and the availability statement say so. If the runs go in, drop
+  those two sentences and add the checkpoint to the provenance records.
+- ForestMamba stays outside the result tables, figures, highlights and abstract
+  counts by design, and Section 6.8 says so: adding it to Table 4 or Figure 3
+  would re-open the rank statistics of Sections 4.5 and 5.2, which are stated
+  for eight detectors, and adding it to the other result tables would change
+  the eleven-detector counts of the highlights and abstract. Only Table S15
+  carries its settings.
 - Check once more for released SegmentAnyTreeV2 and SelectAnyTree weights; none
   were public on 6 October 2026.
 - After re-staging and the clean-container rebuild, replace the 1,221 rebuilt
@@ -74,7 +80,7 @@ generated tables that report documents. The archive rebuilds those tables with
 | 4.10 Implementation and reproducibility | [reproduction archive](../docs/reproduction-archive.md) |
 | 4.4, 4.8, 5.8 Uncertainty and sensitivity | [matcher robustness](../results/matcher-robustness-results.md), [positional uncertainty](../results/positional-uncertainty-results.md), [temporal sensitivity](../results/temporal-sensitivity-results.md), [calibration/validation](../results/calibration-validation-results.md) |
 | 6, 7 Discussion and conclusions | the reports of the sections they summarise |
-| 2.5, 4.8, 6.8, 7 ForestMamba, added after the tables were fixed | [ForestMamba benchmark](../results/forestmamba-results.md) |
+| 2.5, 4.8, 4.10, 6.7, 6.8, 7, S15 and the availability statement: ForestMamba, added after the tables were fixed | [ForestMamba benchmark](../results/forestmamba-results.md), [ForestMamba runtime](../gpu/forestmamba-sm120/README.md) |
 | Supplement S1, S3, S13 | [master tables](../results/master-tables-results.md) |
 | Supplement S2 | [model comparison](../results/model-benchmark-results.md) |
 | Supplement S4, S5 | [censused subplots](../results/census-support-results.md), [coverage gap](../results/coverage-gap-results.md) |

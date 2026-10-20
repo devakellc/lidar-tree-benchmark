@@ -235,8 +235,9 @@ None reports 1 to 8 pulses/m² performance. SegmentAnyTreeV2 is not evaluated
 here: its preprint promises the weights on acceptance, and none were public
 on 2026-10-01. ForestMamba
 ([Nguyen et al. 2026](https://arxiv.org/abs/2606.01549), BMVC 2026), a
-ForestFormer3D fork with public code and weights, was run after the paper's
-tables were fixed and is reported beside them
+ForestFormer3D fork with public code and weights, was not in the scan of
+2026-09-30; it was run in October 2026, after the paper's tables were fixed,
+and is reported beside them
 ([ForestMamba benchmark](../results/forestmamba-results.md)). USGS 3DEP
 quality levels frame the target regime: QL2 requires at least 2 pulses/m² and
 QL1 at least 8
