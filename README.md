@@ -282,7 +282,8 @@ two-rung density-ladder extension.
 The [ForestMamba benchmark](results/forestmamba-results.md) runs a newer
 zero-shot segmenter, which seeds its tree queries at canopy-height peaks, on
 the same population, rungs and QL2 root. It was added after the paper's tables
-were fixed and is not one of its arms. At native density it scores F1
+were fixed and is not one of its arms; the [manuscript](paper/manuscript.md)
+reports it beside them in Section 6.8. At native density it scores F1
 **0.442** [0.421, 0.464], 0.056 below ForestFormer3D, because it places only
 0.78 detections per field stem. Thinning raises its detection count: below
 native density it is level with ForestFormer3D on every rung and with the

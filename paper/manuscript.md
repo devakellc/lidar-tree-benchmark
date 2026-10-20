@@ -185,16 +185,19 @@ training data and a benchmark's test data.
 ### 2.5 Recent models
 
 The current state of the art includes SegmentAnyTreeV2
-[@wielgosz2026segmentanytreev2], SelectAnyTree [@nguyen2026selectanytree], ForPT
-[@yue2026toward] and ITS-Net [@li2026itsnet]. None reports performance at 1 to 8
-pulses/m². SegmentAnyTreeV2 announces its weights on acceptance; ForPT's
-preprint names a repository that was not public on 7 October 2026;
-SelectAnyTree's repository held no code or checkpoint on 6 October 2026; we
-found no release for ITS-Net on 1 October 2026. The statements of absence in
-this section rest on a scan of about ninety primary sources completed on 30
-September 2026. We therefore evaluate the first SegmentAnyTree
-[@wielgosz2024segmentanytree], ForestFormer3D [@xiang2025forestformer3d] and
-TreeisoNet [@xi2025new].
+[@wielgosz2026segmentanytreev2], SelectAnyTree [@nguyen2026selectanytree],
+ForestMamba [@nguyen2026forestmamba], ForPT [@yue2026toward] and ITS-Net
+[@li2026itsnet]. None reports performance at 1 to 8 pulses/m². SegmentAnyTreeV2
+announces its weights on acceptance; ForPT's preprint names a repository that
+was not public on 7 October 2026; SelectAnyTree's repository held no code or
+checkpoint on 6 October 2026; we found no release for ITS-Net on 1 October 2026.
+The statements of absence in this section rest on a scan of about ninety primary
+sources completed on 30 September 2026. We therefore evaluate the first
+SegmentAnyTree [@wielgosz2024segmentanytree], ForestFormer3D
+[@xiang2025forestformer3d] and TreeisoNet [@xi2025new] in the tables.
+ForestMamba, a fork of the ForestFormer3D code with Mamba state-space layers and
+canopy-height query seeding, has public code and weights; it was run on the same
+clips after the tables were fixed and is reported beside them in Section 6.8.
 
 ## 3. Data
 
@@ -615,9 +618,10 @@ draws.
 
 ### 4.8 Sensitivity analyses
 
-The sensitivity analyses of this section re-score persisted detections; the one
-detector run added after the headline runs is CHM-VWF without its smoothing
-(Section 5.2), run once on the same sealed clips in its own job directory. (i)
+The sensitivity analyses of this section re-score persisted detections. Two
+detector runs were added after the headline runs, each on the same sealed clips
+in its own job directory and outside the headline tables: CHM-VWF without its
+smoothing (Section 5.2), run once, and ForestMamba (Section 6.8). (i)
 Matching: Hungarian assignment, a tolerance scaled by field crown width, a soft
 three-dimensional cost, and radii of 2 to 5 m, each with paired leads over
 CHM-VWF. (ii) Stem position: 200 draws in which each stem is moved independently
@@ -1518,14 +1522,61 @@ three-site run at 8 points/m² kept its F1, so the omission is one of scope, not
 of feasibility. SegmentAnyTreeV2 announces its weights on acceptance, ForPT's
 named repository and SelectAnyTree's held no weights in October 2026, and we
 found no release for ITS-Net; the harness accepts new detectors without new
-infrastructure. DeepForest's training annotations include two of the five sites,
-so it is not zero-shot there.
+infrastructure (Section 6.8). DeepForest's training annotations include two of
+the five sites, so it is not zero-shot there.
 
 Mask quality on NEON is not assessed in the main text: the only available
 reference is a proxy built from stems and crown widths, which on FGI-EMIT cost a
 quarter to a third of mask F1 and compressed differences between models. The
 proxy scores are in Section S8 as a ranking, and crown diameters against field
 crown widths, which need no instance labels, are in Section S7.
+
+### 6.8 A detector added after the tables were fixed
+
+ForestMamba [@nguyen2026forestmamba] is a fork of the ForestFormer3D code that
+replaces its encoder context and transformer query decoder with Mamba
+state-space layers and seeds its tree queries at the peaks of a canopy height
+model built from the voxels it labels as tree; its authors report a
+FOR-instanceV2 weighted-mean F1 of 83.4 against ForestFormer3D's 82.3. Its
+released checkpoint, trained on FOR-instanceV2, was run zero-shot on the sealed
+clips of the five sites, the QL2 rung included, after the tables of this paper
+were fixed, and compared with ForestFormer3D, SegmentAnyTree, TreeisoNet and
+CHM-VWF by the same code, population, matching rule and shift null, which
+reproduces those four detectors' numbers exactly. None of the tables changes;
+the run asks whether a fourth learned detector fits their pattern.
+
+At native density ForestMamba scores F1 0.442 [0.421, 0.464], −0.056
+[−0.078, −0.032] against ForestFormer3D and level with TreeisoNet and CHM-VWF,
+because it places 0.78 detections per field stem, the fewest of the learned
+detectors, at the highest precision (0.480) and the lowest recall (0.410) of
+the five detectors compared; it recalls 0.247 of the understory stems, 0.045
+[0.007, 0.085] above the null, weakly, against ForestFormer3D's 0.094. Thinning
+raises its detection count to about one per stem: it is level with
+ForestFormer3D on every decimated rung, 0.454 [0.433, 0.475] against 0.452 at
+the QL2 rung, and loses 0.034 [0.011, 0.059] F1 from native density to 0.6
+pulses/m² (0.022, level, in a repeat run), against ForestFormer3D's 0.078 and
+SegmentAnyTree's 0.367. Its leads over the declared baseline on the decimated
+rungs, 0.06 to 0.07 F1 from 4.7 to 1.3 pulses/m², follow the baseline's
+smoothing rule as the other detectors' do (Section 5.2): against the baseline
+without its smoothing it is −0.011 to +0.010 from native density to 1.3
+pulses/m² and −0.023 [−0.041, −0.006] at 0.6 pulses/m², weakly, and level there
+in the repeat run. Randomly shifted copies of its detections reach 69 to 72% of
+its F1. Corrected for chance it is level with ForestFormer3D on every rung;
+against the declared baseline its corrected lead is +0.040 [+0.016, +0.066] at
+4.7 pulses/m², weak at 2.5 and 1.3 pulses/m² (+0.028 and +0.021),
++0.020 [−0.001, +0.043] at the QL2 rung, like the other learned detectors'
+there (+0.014 to +0.017), and level at native density and 0.6 pulses/m²
+(+0.002 and +0.000). Inside censused subplots its native-density F1,
+0.564 [0.526, 0.601], is the lowest of the five, level with CHM-VWF's. Its
+semantic head labels 19% of the vegetation points as wood at native density and
+86% at 0.6 pulses/m², so the sparse airborne clips lie outside its training
+domain, yet its instance head keeps about one detection per stem on every
+decimated rung, unlike SegmentAnyTree's grouping stage (Section 6.2). Its runs
+are not bit-repeatable: a second run of the native and sparsest rungs changed
+the counts of 79 to 86% of the cells, pooled F1 by at most 0.007 and single
+sites by up to 0.023, a variation the headline runs of ForestFormer3D and
+TreeisoNet did not measure. It takes a median 55 s per plot on the nine plots of
+Table 8, against 92 s for ForestFormer3D re-timed in the same session.
 
 ## 7. Conclusions
 
@@ -1547,7 +1598,11 @@ the baseline is within 0.03 of them. A classical multi-layer detector matches
 all three learned detectors at the floor under the 4 m radius and falls behind
 them at 2 m; and a detector's score at native density does not guarantee its
 score below 2 pulses/m², where two of the eight detectors move by 0.1 to 0.4 F1
-while the other six keep much of their order.
+while the other six keep much of their order. A fourth learned detector,
+ForestMamba, run after the tables were fixed (Section 6.8), fits these
+statements: it is behind ForestFormer3D at native density and level with it on
+every decimated rung, within 0.03 of the baseline without its smoothing, and it
+does not collapse.
 
 Four practices made these statements possible and are, we suggest, necessary for
 benchmarks of this kind: reporting the score that randomly shifted copies of the
