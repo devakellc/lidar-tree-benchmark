@@ -32,8 +32,11 @@ submission:
   does not cover them, as Section 4.10 and the availability statement say, and
   neither `docs/model-provenance.json` nor the models table of
   `docs/data-code-availability.md` records the ForestMamba checkpoint. If the
-  runs go in, drop those two sentences and add the checkpoint to the provenance
-  records.
+  runs go in, drop those two sentences, add the checkpoint to the provenance
+  records, and drop the availability statement's clause that the repository
+  lists ForestMamba's sources and hashes, because `scripts/stage_archive.sh`
+  copies `docs/model-provenance.json` into the archive, which would then list
+  them too.
 - ForestMamba stays outside the result tables, figures, highlights and abstract
   counts by design, and Section 6.8 says so: adding it to Table 4 or Figure 3
   would re-open the rank statistics of Sections 4.5 and 5.2, which are stated
