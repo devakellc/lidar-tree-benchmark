@@ -463,7 +463,7 @@ precision is set by reference coverage (Section 5.3 of the manuscript); ABBY is
 a young, even-aged Douglas-fir stand; WREF old growth holds 404 of the 592
 understory stems.
 
-## S15. Inference settings of the learned detectors
+## S15. Inference settings of the learned detectors and of ForestMamba
 
 The settings below are those fixed by the published code and checkpoints, read
 from the pinned configuration files and the checkpoints' embedded run

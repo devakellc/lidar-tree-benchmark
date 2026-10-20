@@ -192,13 +192,14 @@ announces its weights on acceptance; ForPT's preprint names a repository that
 was not public on 7 October 2026; SelectAnyTree's repository held no code or
 checkpoint on 6 October 2026; we found no release for ITS-Net on 1 October 2026.
 The statements of absence in this section rest on a scan of about ninety primary
-sources completed on 30 September 2026. We therefore evaluate the first
-SegmentAnyTree [@wielgosz2024segmentanytree], ForestFormer3D
-[@xiang2025forestformer3d] and TreeisoNet [@xi2025new] in the tables.
-ForestMamba, a fork of the ForestFormer3D code with Mamba state-space layers and
-canopy-height query seeding, has public code and weights, which that scan did
-not list; it was run on the same clips in October 2026, after the tables were
-fixed, and is reported beside them in Section 6.8.
+sources completed on 30 September 2026, except ForestMamba's, which rests on its
+paper. We therefore evaluate the first SegmentAnyTree
+[@wielgosz2024segmentanytree], ForestFormer3D [@xiang2025forestformer3d] and
+TreeisoNet [@xi2025new] in the tables. ForestMamba, a fork of the ForestFormer3D
+code with Mamba state-space layers and canopy-height query seeding, was not
+among the sources of that scan; it has public code and weights, was run on the
+same clips in October 2026, after the tables were fixed, and is reported beside
+them in Section 6.8.
 
 ## 3. Data
 
@@ -621,7 +622,7 @@ draws.
 
 The sensitivity analyses of this section re-score persisted detections. Two
 detector runs were added after the headline runs, each on the same sealed clips
-in its own job directory and outside the headline tables: CHM-VWF without its
+but outside the headline job directories and tables: CHM-VWF without its
 smoothing (Section 5.2), run once, and ForestMamba (Section 6.8). (i)
 Matching: Hungarian assignment, a tolerance scaled by field crown width, a soft
 three-dimensional cost, and radii of 2 to 5 m, each with paired leads over
@@ -1542,21 +1543,23 @@ replaces its encoder context and transformer query decoder with Mamba
 state-space layers and seeds its tree queries at the peaks of a canopy height
 model built from the voxels it labels as tree; its authors report a
 FOR-instanceV2 weighted-mean F1 of 83.4 against ForestFormer3D's 82.3. Its
-release checkpoint (`v6_epoch_1500_fix.pth` at upstream commit f0c5239, pinned
-by SHA-256 in the repository), trained on FOR-instanceV2, was ported to the
-PyTorch and Mamba kernels of the benchmark's container; the port reproduces the
-authors' published predictions of the same checkpoint on three FOR-instanceV2
-test scenes within the model's run-to-run variation. It was run zero-shot on
-the sealed clips of the five sites, the QL2 rung included, with the settings of
-Table S15, after the tables of this paper were fixed, and compared with
-ForestFormer3D, SegmentAnyTree, TreeisoNet and CHM-VWF by the same code,
-population, matching rule and shift null, which reproduces those four
-detectors' numbers exactly. None of the result tables changes. The detector
-counts of the highlights, the abstract and Section 1, and the term "the learned
-detectors" elsewhere in the paper, refer to the eleven detectors of Table 2 and
-leave it out; it is also left out of the rank correlations of Sections 4.5 and
-5.2, which are stated for the eight ladder detectors of Table 4. The run asks
-whether a fourth learned detector fits their pattern.
+release checkpoint (`v6_epoch_1500_fix.pth` from the authors' release folder,
+pinned by SHA-256 in the repository, with the code at upstream commit f0c5239),
+trained on FOR-instanceV2, was ported to current PyTorch and prebuilt Mamba
+kernels, both newer than the upstream pins, in a container built on the
+benchmark's ForestFormer3D image; the port reproduces the authors' published
+predictions of the same checkpoint on three FOR-instanceV2 test scenes within
+the model's run-to-run variation. It was run zero-shot on the sealed clips of
+the five sites, the QL2 rung included, with the settings of Table S15, after
+the tables of this paper were fixed, and compared with ForestFormer3D,
+SegmentAnyTree, TreeisoNet and CHM-VWF by the same code, population, matching
+rule and shift null, which reproduces those four detectors' numbers exactly.
+None of the result tables or figures changes. The detector counts of the
+highlights, the abstract and Section 1 refer to the eleven detectors of
+Table 2, and "the learned detectors" elsewhere in the paper to the three of
+Section 4.1; both leave it out, as do the rank correlations of Sections 4.5
+and 5.2, which are stated for the eight ladder detectors of Table 4. The run
+asks whether a fourth learned detector fits the pattern of the result tables.
 
 At native density ForestMamba scores F1 0.442 [0.421, 0.464], −0.056
 [−0.078, −0.032] against ForestFormer3D and level with TreeisoNet and CHM-VWF,
@@ -1617,9 +1620,10 @@ while the other six keep much of their order. A fourth learned detector,
 ForestMamba, run after the tables were fixed (Section 6.8), is consistent with
 these statements where they could be checked: it does not lead the baseline at
 native density (corrected lead +0.002), its leads below native density rest on
-the baseline's smoothing rule (within 0.03 of the baseline without it), it does
-not collapse (−0.034 F1 at 0.6 pulses/m²), and it is behind ForestFormer3D at
-native density and level with it on every decimated rung.
+the baseline's smoothing rule (within 0.03 of the baseline without it), and it
+does not collapse (it loses 0.034 F1 from native density to 0.6 pulses/m²,
+0.022 in a repeat run). It is behind ForestFormer3D at native density and level
+with it on every decimated rung.
 
 Four practices made these statements possible and are, we suggest, necessary for
 benchmarks of this kind: reporting the score that randomly shifted copies of the
@@ -1666,8 +1670,9 @@ every table from the archive; the ForestMamba run of Section 6.8 is not in the
 archive. The code is available at
 <https://github.com/devakellc/lidar-tree-benchmark> under the MIT licence.
 Third-party models are used under their own licences and are not redistributed;
-the archive lists their sources, versions and SHA-256 hashes. FGI-EMIT is
-available from its authors under CC BY-NC-SA 4.0 [@ruoppa2026fgiemit].
+the archive lists their sources, versions and SHA-256 hashes, and the repository
+lists ForestMamba's (Section 6.8). FGI-EMIT is available from its authors under
+CC BY-NC-SA 4.0 [@ruoppa2026fgiemit].
 
 ## Acknowledgements
 
