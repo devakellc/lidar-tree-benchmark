@@ -77,16 +77,17 @@ conditions they are tested on are subsampled dense scenes.
 
 Whether the published checkpoints of these segmenters help at national-mapping
 density is therefore an open question, and four obstacles stand in the way of
-answering it. First, no instance labels exist at such densities, so the
-reference has to be field-mapped stems, which are incomplete: plots are censused
-in subplots, and a detection of a real but unmapped tree counts as an error.
-Second, sparse acquisitions are usually simulated by decimating a dense one
-[@jakubowski2013tradeoffs], and the simulation is rarely checked against a
-native sparse flight of the same stand. Third, research code has to be adapted
-to new data, and an adapter defect can be mistaken for domain shift. Fourth, a
-match radius wide enough to absorb stem-mapping error and the offset between
-stem base and crown apex also admits coincidental matches, and stem benchmarks
-do not report how much of a score randomly placed detections would earn.
+answering it. First, we found no per-point instance labels at such densities
+(Section 2.1), so the reference has to be field-mapped stems, which are
+incomplete: plots are censused in subplots, and a detection of a real but
+unmapped tree counts as an error. Second, sparse acquisitions are usually
+simulated by decimating a dense one [@jakubowski2013tradeoffs], and the
+simulation is rarely checked against a native sparse flight of the same stand.
+Third, research code has to be adapted to new data, and an adapter defect can be
+mistaken for domain shift. Fourth, a match radius wide enough to absorb
+stem-mapping error and the offset between stem base and crown apex also admits
+coincidental matches, and stem benchmarks do not report how much of a score
+randomly placed detections would earn.
 
 This paper addresses the question with a benchmark built to control those
 obstacles. We ask (i) how much point density changes detection accuracy, and for
@@ -162,20 +163,21 @@ the same stands, at 8 and 22 pulses/m², but do not test decimation.
 @yu2004effects flew a 100 ha boreal test area at 400, 800 and 1,500 m, about 10,
 5 and 2.5 points/m², thinned the 400 m data across track to the two sparser
 densities to separate density from footprint effects, and scored native and
-thinned data against the same field trees, a tree counting as detected when a
-laser cluster lay within 2 m of it and within 5 m of its height. At 5 points/m²
-the thinned data matched the native flight (1,416 against 1,400 detected trees);
-at 2.5 points/m² the thinned data gave 1,331 trees against 532 from the native
-flight, a loss the authors attribute to missing canopy returns at 1,500 m rather
-than to density alone. They draw no conclusion about thinning; we read the gap
-as showing that thinning was strongly optimistic at the sparsest density. The
-nearest evaluation of a pretrained segmenter on conventional ALS is
+thinned data against the same 1,600 field trees by extracting a laser cluster
+around each known tree position, without a detector, a tree counting as detected
+when its cluster lay within 2 m of it and within 5 m of its height. At 5
+points/m² the thinned data matched the native flight (1,416 against 1,400
+detected trees); at 2.5 points/m² the thinned data gave 1,331 trees against 532
+from the native flight, a loss the authors attribute to missing canopy returns
+at 1,500 m rather than to density alone. They draw no conclusion about thinning;
+we read the gap as showing that thinning was strongly optimistic at the sparsest
+density. The nearest evaluation of a pretrained segmenter on conventional ALS is
 @destouches2026weaklysupervised, who run the published SegmentAnyTree on Swiss
 aircraft ALS at 38 points/m², filter its output with a rating model trained on
 their own site and count instances on four 1 ha tiles labelled by hand and
 completed by visually validated automatic detections. We found no paper that
 evaluates a pretrained 3D segmenter on native ALS at 1 to 2 pulses/m², and none
-that checks decimation against a native sparse acquisition for detection
+that checks decimation against a native sparse acquisition for a detector's
 precision and recall against field stems or with learned detectors.
 
 ### 2.3 Understory trees
@@ -231,16 +233,17 @@ held no code or checkpoint; ForPT's repository, public since 9 October 2026,
 held code and linked eleven Hugging Face checkpoints for pretraining, semantic
 segmentation, species and age but none for instance segmentation; and ITS-Net's
 repository, created in November 2025, held code without a checkpoint. The
-statements of absence in this section rest on a scan of about ninety primary
-sources completed on 30 September 2026 and on those repository checks, except
-ForestMamba's and ForestQuery's, which rest on their papers; ForestQuery was
-posted on 2 October 2026, after the scan. We therefore evaluate the first
-SegmentAnyTree [@wielgosz2024segmentanytree], ForestFormer3D
-[@xiang2025forestformer3d] and TreeisoNet [@xi2025new] in the tables.
-ForestMamba, a fork of the ForestFormer3D code with Mamba state-space layers and
-canopy-height query seeding, was not among the sources of that scan; it has
-public code and weights, was run on the same clips in October 2026, after the
-tables were fixed, and is reported beside them in Section 6.8.
+statements of absence in Sections 2.1 to 2.5 rest on a scan of about ninety
+primary sources completed on 30 September 2026, a literature check completed on
+21 October 2026 and those repository checks, except ForestMamba's and
+ForestQuery's, which rest on their papers; ForestQuery was posted on 2 October
+2026, after the scan. We therefore evaluate the first SegmentAnyTree
+[@wielgosz2024segmentanytree], ForestFormer3D [@xiang2025forestformer3d] and
+TreeisoNet [@xi2025new] in the tables. ForestMamba, a fork of the ForestFormer3D
+code with Mamba state-space layers and canopy-height query seeding, was not
+among the sources of that scan; it has public code and weights, was run on the
+same clips in October 2026, after the tables were fixed, and is reported beside
+them in Section 6.8.
 
 ## 3. Data
 
