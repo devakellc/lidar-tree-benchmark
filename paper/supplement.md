@@ -463,14 +463,16 @@ precision is set by reference coverage (Section 5.3 of the manuscript); ABBY is
 a young, even-aged Douglas-fir stand; WREF old growth holds 404 of the 592
 understory stems.
 
-## S15. Inference settings of the learned detectors
+## S15. Inference settings of the learned detectors and of ForestMamba
 
 The settings below are those fixed by the published code and checkpoints, read
 from the pinned configuration files and the checkpoints' embedded run
 configurations; none was tuned on the benchmark except TreeisoNet's confidence
-threshold (Section 4.1 of the manuscript). Source: [detector
-table](../results/detector-table.md) and [configuration
-provenance](../docs/configuration-provenance.md).
+threshold (Section 4.1 of the manuscript). The ForestMamba row gives the
+settings of the run added after the tables were fixed (Section 6.8 of the
+manuscript). Source: [detector table](../results/detector-table.md),
+[configuration provenance](../docs/configuration-provenance.md) and the
+[ForestMamba runtime](../gpu/forestmamba-sm120/README.md).
 
 **Table S15.** Inference settings.
 
@@ -479,6 +481,7 @@ provenance](../docs/configuration-provenance.md).
 | ForestFormer3D | ForestFormer3D commit 6a75c37, `epoch_3000_fix.pth` (Zenodo record 16742708) | 0.2 m voxels; 16 m-radius input cylinders over the whole clip, up to 640,000 points each; 300 queries; score threshold 0.4; instances kept if the superpoint score is at least 0.15 and they hold at least 10 points; matrix non-maximum suppression with a linear kernel; at most 300 instances per cylinder. The source was patched only to load the checkpoint on current PyTorch and spconv versions; the nearest-neighbour rows are batched 2,048 at a time (20,000 upstream), which changes memory use and not results. |
 | SegmentAnyTree | segment-any-tree commit a3561ed, `model_file/PointGroup-PAPER.pt` | 0.2 m grid subsampling; 8 m-radius cylinder sampling; PointGroup clustering (type 5) with a search radius of 1.5 grid cells (0.3 m) and a mean-shift bandwidth of 0.6; score network on, IoU threshold 0.25; upstream defaults, run through compatibility shims that leave the source unchanged. |
 | TreeisoNet | TreeAIBox commit 5380dde, `als_treeloc.pth` and `als_treeoff.pth` | Localisation network on 0.8 × 0.8 × 2.0 m voxels (TreeAIBox's airborne setting); peaks above confidence 0.22 snapped to the highest canopy point within 2 m; offset network at the checkpoint voxel (0.1 m) for masks, with a 2 m mask height cutoff. |
+| ForestMamba | ForestMamba commit f0c5239, `v6_epoch_1500_fix.pth` from the authors' public release folder, SHA-256 pinned; run after the tables were fixed (Section 6.8 of the manuscript) | Configuration `forestmamba_chm_radius16_qp300_2many_v6.py`: 16 m-radius input cylinders over the whole clip; tree queries seeded at canopy-height peaks of at least 1.5 m on fixed 0.3 m and 0.7 m height grids with a fixed 0.25·h^0.5 m peak window, supplemented by farthest-point samples; heights measured from the lowest ground return, classified noise left out; upstream defaults otherwise, run on current PyTorch with prebuilt Mamba kernels. |
 
 The all-return point densities of the rungs are 17.9, 8.4, 4.4, 3.5, 2.2 and 1.1
 points/m² (five-site medians), mean point spacings of 0.24, 0.35, 0.48, 0.53,
