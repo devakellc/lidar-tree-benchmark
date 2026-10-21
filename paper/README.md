@@ -20,8 +20,16 @@ submission:
 - Complete the author list, affiliations, the corresponding author's address and
   e-mail, the CRediT statement, the declaration of competing interest and the
   funding statement.
-- Confirm the journal's limits: the abstract has 250 words, the highlights at
-  most 84 characters each and the keyword list seven entries.
+- Confirm the journal's limits at submission: the abstract has 250 words (the
+  guide sets no limit), the highlights at most 84 characters each (limit 85)
+  and the keyword list six entries (the guide's maximum; "NEON" was dropped).
+- Re-run the repository checks of Sections 2.5 and 6.7 on submission day and
+  restate their date: SegmentAnyTreeV2, SelectAnyTree, ForestQuery, ForPT's
+  instance checkpoint and ITS-Net's checkpoint were all absent on
+  21 October 2026.
+- The generative-AI declaration follows Elsevier's June 2026 wording and sits
+  immediately before the references; the AI-assisted coding is described in
+  Section 4.10 as the policy asks.
 - Re-stage the archive from this branch, because the chance-agreement null and
   its seed and minimum-shift checks, the leave-out and corrected-F1 rank
   correlations, the unsmoothed-baseline sensitivity, the instance audit and the
@@ -85,6 +93,7 @@ generated tables that report documents. The archive rebuilds those tables with
 | 4.4, 4.8, 5.8 Uncertainty and sensitivity | [matcher robustness](../results/matcher-robustness-results.md), [positional uncertainty](../results/positional-uncertainty-results.md), [temporal sensitivity](../results/temporal-sensitivity-results.md), [calibration/validation](../results/calibration-validation-results.md) |
 | 6, 7 Discussion and conclusions | the reports of the sections they summarise |
 | 2.5, 4.8, 4.10, 6.7, 6.8, 7, S15 and the availability statement: ForestMamba, added after the tables were fixed | [ForestMamba benchmark](../results/forestmamba-results.md), [ForestMamba runtime](../gpu/forestmamba-sm120/README.md) |
+| 2.1, 2.2, 2.4, 2.5, 6.7: the dated repository checks and the precedents added on 21 October 2026 (Yu 2004, Hirata 2004, Hamraz 2016, Hershey 2022, Destouches 2026, Gominski 2025, ForestQuery, and the chance-null, double-observer, leakage and rank-stability lineages) | [paper proposal](../docs/paper-proposal.md) (literature scan and repository checks) and the cited sources |
 | Supplement S1, S3, S13 | [master tables](../results/master-tables-results.md) |
 | Supplement S2 | [model comparison](../results/model-benchmark-results.md) |
 | Supplement S4, S5 | [censused subplots](../results/census-support-results.md), [coverage gap](../results/coverage-gap-results.md) |

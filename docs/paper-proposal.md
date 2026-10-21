@@ -233,7 +233,20 @@ Current state of the art to cite: SegmentAnyTreeV2
 ([Li et al. 2026](https://doi.org/10.1016/j.isprsjprs.2025.11.019)).
 None reports 1 to 8 pulses/m² performance. SegmentAnyTreeV2 is not evaluated
 here: its preprint promises the weights on acceptance, and none were public
-on 2026-10-01. ForestMamba
+on 2026-10-01. Repository check of 2026-10-21: SegmentAnyTreeV2 still has no
+public repository or weights; SelectAnyTree
+([thanhhff/SelectAnyTree](https://github.com/thanhhff/SelectAnyTree)) and
+ForestQuery ([zhan994/ForestQuery](https://github.com/zhan994/ForestQuery),
+[arXiv 2610.03403](https://arxiv.org/abs/2610.03403)) hold a README only;
+ForPT ([prs-eth/ForPT](https://github.com/prs-eth/ForPT), created 2026-10-09)
+holds code and eleven checkpoints for pretraining, semantic segmentation,
+species and age, none for instance segmentation; ITS-Net
+([A8366233/ITS-Net](https://github.com/A8366233/ITS-Net), created 2025-11-17)
+holds code without a checkpoint. The paper's Section 2.2 also cites
+[Yu et al. 2004](https://www.isprs.org/proceedings/XXXVI/8-W2/YU.pdf), who
+thinned a 400 m flight to the densities of native 800 m and 1,500 m flights of
+the same stand and found thinning strongly optimistic at 2.5 points/m², as the
+precedent for checking decimation against native sparse flights. ForestMamba
 ([Nguyen et al. 2026](https://arxiv.org/abs/2606.01549), BMVC 2026), a
 ForestFormer3D fork with public code and weights, was not in the scan of
 2026-09-30; it was run in October 2026, after the paper's tables were fixed,
