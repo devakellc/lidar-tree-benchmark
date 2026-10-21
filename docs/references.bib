@@ -1,10 +1,12 @@
 % Bibliography for the LiDAR tree-detection benchmark and its paper proposal.
 %
-% Every entry was verified on 2026-10-02 against an authoritative metadata
-% record: Crossref (journal and proceedings articles, CRAN package DOIs),
-% the arXiv API (preprints), DataCite (Zenodo and NEON data DOIs), and the
-% GitHub, Hugging Face or agency web page for software and web resources
-% without a DOI. Titles, authors, years, venues, volumes, pages and DOIs are
+% Every entry was verified against an authoritative metadata record when it
+% was added (the original list on 2026-10-02, later additions on the date of
+% their commit, the latest on 2026-10-21): Crossref (journal and proceedings
+% articles, CRAN package DOIs), the arXiv API (preprints), DataCite (Zenodo
+% and NEON data DOIs), the ISPRS proceedings pages and PDFs (the 2004
+% Archives papers) and the GitHub, Hugging Face or agency web page for
+% software and web resources without a DOI. Titles, authors, years, venues, volumes, pages and DOIs are
 % copied from those records. Preprints that have since appeared in a journal
 % or proceedings cite the published version and keep the arXiv identifier in
 % `eprint`.
@@ -593,9 +595,12 @@
   volume  = {52},
   pages   = {532--541},
   doi     = {10.1016/j.jag.2016.07.006},
+  eprint  = {1701.00198},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
 }
 
-@article{hershey2022voxel,
+@article{hershey2022voxelbased,
   author  = {Hershey, Jeff L. and McDill, Marc E. and Miller, Douglas A. and
              Holderman, Brennan and Michael, Judd H.},
   title   = {A voxel-based individual tree stem detection method using airborne
@@ -608,7 +613,7 @@
   doi     = {10.3390/rs14030806},
 }
 
-@article{destouches2026weakly,
+@article{destouches2026weaklysupervised,
   author  = {Destouches, Swann Emilien Céleste and Lahaye, Jesse and
              Jospin, Laurent V. and Skaloud, Jan},
   title   = {Weakly-supervised learning for tree instances segmentation in
@@ -619,6 +624,9 @@
   volume  = {XI-1-2026},
   pages   = {271--278},
   doi     = {10.5194/isprs-annals-xi-1-2026-271-2026},
+  eprint  = {2508.15646},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
 }
 
 @incollection{gominski2025mining,
@@ -631,6 +639,9 @@
   year      = {2025},
   pages     = {178--187},
   doi       = {10.1007/978-3-031-92387-6_13},
+  eprint    = {2408.15816},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
 }
 
 @misc{zhan2026forestquery,
@@ -896,7 +907,7 @@
   doi     = {10.1002/nav.3800020109},
 }
 
-@article{nichols2000double,
+@article{nichols2000doubleobserver,
   author  = {Nichols, James D. and Hines, James E. and Sauer, John R. and
              Fallon, Frederick W. and Fallon, Jane E. and Heglund, Patricia J.},
   title   = {A double-observer approach for estimating detection probability
@@ -945,16 +956,19 @@
   primaryclass  = {cs.LG},
 }
 
-@misc{agarwal2021deep,
+@inproceedings{agarwal2021deep,
   author        = {Agarwal, Rishabh and Schwarzer, Max and Castro, Pablo Samuel
                    and Courville, Aaron and Bellemare, Marc G.},
   title         = {Deep reinforcement learning at the edge of the statistical
                    precipice},
+  booktitle     = {Advances in Neural Information Processing Systems},
+  volume        = {34},
+  publisher     = {Curran Associates, Inc.},
   year          = {2021},
+  pages         = {29304--29320},
   eprint        = {2108.13264},
   archiveprefix = {arXiv},
   primaryclass  = {cs.LG},
-  note          = {Presented at NeurIPS 2021},
 }
 
 @article{wenger2012assessing,
@@ -972,7 +986,22 @@
 @article{yates2018outstanding,
   author  = {Yates, Katherine L. and Bouchet, Phil J. and Caley, M. Julian and
              Mengersen, Kerrie and Randin, Christophe F. and Parnell, Stephen
-             and others},
+             and Fielding, Alan H. and Bamford, Andrew J. and Ban, Stephen and
+             Barbosa, A. Márcia and Dormann, Carsten F. and Elith, Jane and
+             Embling, Clare B. and Ervin, Gary N. and Fisher, Rebecca and
+             Gould, Susan and Graf, Roland F. and Gregr, Edward J. and
+             Halpin, Patrick N. and Heikkinen, Risto K. and Heinänen, Stefan
+             and Jones, Alice R. and Krishnakumar, Periyadan K. and
+             Lauria, Valentina and Lozano-Montes, Hector and Mannocci, Laura
+             and Mellin, Camille and Mesgaran, Mohsen B. and
+             Moreno-Amat, Elena and Mormede, Sophie and Novaczek, Emilie and
+             Oppel, Steffen and Ortuño Crespo, Guillermo and
+             Peterson, A. Townsend and Rapacciuolo, Giovanni and
+             Roberts, Jason J. and Ross, Rebecca E. and Scales, Kylie L. and
+             Schoeman, David and Snelgrove, Paul and Sundblad, Göran and
+             Thuiller, Wilfried and Torres, Leigh G. and Verbruggen, Heroen
+             and Wang, Lifei and Wenger, Seth and Whittingham, Mark J. and
+             Zharikov, Yuri and Zurell, Damaris and Sequeira, Ana M. M.},
   title   = {Outstanding challenges in the transferability of ecological
              models},
   journal = {Trends in Ecology \& Evolution},

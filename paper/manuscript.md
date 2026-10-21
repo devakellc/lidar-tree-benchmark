@@ -147,11 +147,11 @@ national-mapping density.
 Studies of point density follow the same split. Classical work varies density
 from below 1 to about 25 pulses/m² [@hirata2004effects;
 @jakubowski2013tradeoffs; @kaartinen2012international;
-@sparks2022crosscomparison]; @hirata2004effects reduced a 25 points/m²
-helicopter acquisition by up to 64-fold and found that tree-top extraction from
-a canopy model declined suddenly below 3 to 5 points/m². Deep-model studies
-vary it between 10 and 10,000 points/m², with the sparsest levels subsampled
-from dense acquisitions [@wielgosz2024segmentanytree; @xiang2024automated;
+@sparks2022crosscomparison]; @hirata2004effects thinned first-pulse helicopter
+data by up to 64-fold, to 0.4 pulses/m², and found that tree-top extraction from
+a canopy model declined suddenly below 3 to 5 pulses/m². Deep-model studies vary
+it between 10 and 10,000 points/m², with the sparsest levels subsampled from
+dense acquisitions [@wielgosz2024segmentanytree; @xiang2024automated;
 @li2026itsnet]; the FGI-EMIT authors subsample their helicopter ALS to 1,000,
 500, 100, 75, 50, 25 and 10 points/m² and compare ForestFormer3D retrained at
 each density, SegmentAnyTree with its published weights and classical methods
@@ -159,19 +159,24 @@ re-optimised per density; both segmenters trade recall for precision and keep a
 roughly stable F1 down to 10 points/m² [@ruoppa2026benchmarking].
 @sparks2022crosscomparison compare classical detectors on two ALS datasets of
 the same stands, at 8 and 22 pulses/m², but do not test decimation.
-@yu2004effects flew one boreal stand at 400, 800 and 1,500 m, about 10, 5 and
-2.5 points/m², thinned the 400 m data across track to the two sparser densities
-and compared thinned and native data on the same field trees: at 5 points/m² the
-thinned data matched the native flight (1,416 against 1,400 detected trees), but
-at 2.5 points/m² they detected 1,331 trees where the native flight detected 532,
-so thinning was strongly optimistic at the sparsest density. The nearest
-evaluation of a pretrained segmenter on conventional ALS is
-@destouches2026weakly, who run SegmentAnyTree without fine-tuning on Swiss ALS
-at 38 points/m² against manual instance labels on four 1 ha tiles. We found no
-paper that evaluates a pretrained 3D segmenter on native ALS at 1 to 2
-pulses/m², and none that checks decimation against a native sparse acquisition
-for detection precision and recall against field stems, with learned detectors
-or at the QL2 floor.
+@yu2004effects flew a 100 ha boreal test area at 400, 800 and 1,500 m, about 10,
+5 and 2.5 points/m², thinned the 400 m data across track to the two sparser
+densities to separate density from footprint effects, and scored native and
+thinned data against the same field trees, a tree counting as detected when a
+laser cluster lay within 2 m of it and within 5 m of its height. At 5 points/m²
+the thinned data matched the native flight (1,416 against 1,400 detected trees);
+at 2.5 points/m² the thinned data gave 1,331 trees against 532 from the native
+flight, a loss the authors attribute to missing canopy returns at 1,500 m rather
+than to density alone. They draw no conclusion about thinning; we read the gap
+as showing that thinning was strongly optimistic at the sparsest density. The
+nearest evaluation of a pretrained segmenter on conventional ALS is
+@destouches2026weaklysupervised, who run the published SegmentAnyTree on Swiss
+aircraft ALS at 38 points/m², filter its output with a rating model trained on
+their own site and count instances on four 1 ha tiles labelled by hand and
+completed by visually validated automatic detections. We found no paper that
+evaluates a pretrained 3D segmenter on native ALS at 1 to 2 pulses/m², and none
+that checks decimation against a native sparse acquisition for detection
+precision and recall against field stems or with learned detectors.
 
 ### 2.3 Understory trees
 
@@ -188,30 +193,31 @@ The dense-cloud community matches predicted and reference instances one to one
 at an intersection over union (IoU) of 0.5 [@puliti2023forinstance;
 @xiang2025forestformer3d; @ruoppa2026benchmarking]; stem benchmarks match
 detections to stems by restricted nearest neighbours [@eysn2015benchmark], and
-optimal assignment against stem maps has been used since @hamraz2016robust, who
-score candidate pairs and solve the assignment problem of @kuhn1955hungarian, as
-have an integer-programming matcher [@hershey2022voxel] and one-to-one matching
-within 4 m of field-inventory trees [@gominski2025mining]. We found no forestry
-study that scores the same detections under greedy and optimal assignment and
-across radii, or that reports how much of a match score a random placement of
-the same detections would reach. The devices exist elsewhere: the toroidal shift
-is the independence null of spatial point-pattern analysis [@lotwick1982methods;
-@wiegand2004rings], forecast verification corrects its threat scores for hits
-expected by chance [@hogan2010equitability], and F1 itself carries no chance
-level [@powers2011evaluation]. Reference incompleteness is acknowledged but
-seldom measured; NeonTreeEvaluation, for instance, uses stems for recall only
-[@weinstein2021benchmark], and @hershey2022voxel found on revisiting their plots
-that most raw false positives were trees below the recording threshold or trees
-the crew had missed. Double-observer surveys estimate what one observer misses
-from the agreement of two [@nichols2000double]; we found no tree benchmark that
-brackets precision this way. Checkpoint provenance is self-reported: we found no
-audit of overlap between a checkpoint's training data and a benchmark's test
-data, although leakage audits and reproducibility standards that fix the exact
-model, data and environment are established in machine learning
-[@kapoor2023leakage; @heil2021reproducibility]; nor does any forestry detector
-benchmark report the stability of its ranking with intervals, as benchmark
-studies in machine learning recommend [@dehghani2021benchmark;
-@agarwal2021deep].
+optimal assignment against stem maps has been used at least since
+@hamraz2016robust, who score candidate pairs and solve the assignment problem of
+@kuhn1955hungarian, as have an integer-programming matcher
+[@hershey2022voxelbased] and one-to-one matching within 4 m of field-inventory
+trees [@gominski2025mining]. We found no forestry study that scores the same
+detections under greedy and optimal assignment and across radii, or that reports
+how much of a match score a random placement of the same detections would reach.
+The devices exist elsewhere: the toroidal shift is the independence null of
+spatial point-pattern analysis [@lotwick1982methods; @wiegand2004rings],
+forecast verification corrects its threat scores for hits expected by chance
+[@hogan2010equitability], and F1 itself carries no chance level
+[@powers2011evaluation]. Reference incompleteness is acknowledged but seldom
+measured; NeonTreeEvaluation, for instance, uses stems for recall only
+[@weinstein2021benchmark], and @hershey2022voxelbased found on revisiting their
+plots that most raw false positives were trees below the recording threshold or
+trees the crew had missed. Double-observer surveys estimate what one observer
+misses from the agreement of two [@nichols2000doubleobserver]; we found no tree
+benchmark that brackets precision this way. Checkpoint provenance is
+self-reported: we found no audit of overlap between a checkpoint's training data
+and a benchmark's test data, although leakage audits and reproducibility
+standards that fix the exact model, data and environment are established in
+machine learning [@kapoor2023leakage; @heil2021reproducibility]; and we found no
+forestry detector benchmark that reports the stability of its ranking with
+intervals, as benchmark studies in machine learning recommend
+[@dehghani2021benchmark; @agarwal2021deep].
 
 ### 2.5 Recent models
 
@@ -222,18 +228,19 @@ ForestMamba [@nguyen2026forestmamba], ForPT [@yue2026toward], ITS-Net
 at 1 to 8 pulses/m². On 21 October 2026 SegmentAnyTreeV2 still announced its
 weights on acceptance, and the repositories of SelectAnyTree and ForestQuery
 held no code or checkpoint; ForPT's repository, public since 9 October 2026,
-held code and eleven checkpoints for pretraining, semantic segmentation, species
-and age but none for instance segmentation; and ITS-Net's repository, public
-since November 2025, held code without a checkpoint. The statements of absence
-in this section rest on a scan of about ninety primary sources completed on 30
-September 2026 and on those repository checks, except ForestMamba's, which rests
-on its paper. We therefore evaluate the first SegmentAnyTree
-[@wielgosz2024segmentanytree], ForestFormer3D [@xiang2025forestformer3d] and
-TreeisoNet [@xi2025new] in the tables. ForestMamba, a fork of the ForestFormer3D
-code with Mamba state-space layers and canopy-height query seeding, was not
-among the sources of that scan; it has public code and weights, was run on the
-same clips in October 2026, after the tables were fixed, and is reported beside
-them in Section 6.8.
+held code and linked eleven Hugging Face checkpoints for pretraining, semantic
+segmentation, species and age but none for instance segmentation; and ITS-Net's
+repository, created in November 2025, held code without a checkpoint. The
+statements of absence in this section rest on a scan of about ninety primary
+sources completed on 30 September 2026 and on those repository checks, except
+ForestMamba's and ForestQuery's, which rest on their papers; ForestQuery was
+posted on 2 October 2026, after the scan. We therefore evaluate the first
+SegmentAnyTree [@wielgosz2024segmentanytree], ForestFormer3D
+[@xiang2025forestformer3d] and TreeisoNet [@xi2025new] in the tables.
+ForestMamba, a fork of the ForestFormer3D code with Mamba state-space layers and
+canopy-height query seeding, was not among the sources of that scan; it has
+public code and weights, was run on the same clips in October 2026, after the
+tables were fixed, and is reported beside them in Section 6.8.
 
 ## 3. Data
 
@@ -363,7 +370,7 @@ density (their medians are 47, 31 and 5.7 pulses/m²), so that check compares th
 
 FGI-EMIT [@ruoppa2026benchmarking; @ruoppa2026fgiemit] provides manual per-point
 tree labels for 1,561 trees in 19 plots of boreal forest in Espoo, Finland,
-scanned from a helicopter at more than 1,000 pulses/m². The release has six test
+scanned from a helicopter at more than 1,000 points/m². The release has six test
 plots (463 trees) and 13 training plots. We had already scored the six test
 plots in a first transfer experiment and used two training plots in the adapter
 audit of Section 5.7, so none of those eight could serve as an untouched test.
@@ -728,9 +735,10 @@ the timings reported in Section 5.9 depend on the machine.
 
 **AI-assisted code.** The repository's R scripts, container recipes, tests and
 analysis code were written with Claude Code (Anthropic) as an AI coding
-assistant, under the authors' specification and review, and every number in
-this paper is produced by that public code, which is why its tests and the
-archive's one-command rebuild are part of the method.
+assistant, under the authors' specification and review, and every result in this
+paper comes from that public code or from the published detector code it runs,
+which is why its tests and the archive's one-command rebuild are part of the
+method.
 
 ## 5. Results
 
@@ -1725,12 +1733,12 @@ and weights.
 <!-- rumdl-disable-next-line MD013 -->
 ## Declaration of generative AI and AI-assisted technologies in the manuscript preparation process
 
-During the preparation of this work the authors used Claude (Anthropic) in
-order to draft and edit the manuscript text and to check its numbers against
-the study reports. After using this tool, the authors reviewed and edited the
-content as needed and take full responsibility for the content of the published
-article. The use of the same tool as a coding assistant in the research is
-described in Section 4.10.
+During the preparation of this work the authors used Claude Code (Anthropic) in
+order to search the literature and collate references, to draft and edit the
+manuscript text and to check its numbers against the study reports. After using
+this tool, the authors reviewed and edited the content as needed and take full
+responsibility for the content of the published article. The use of the same
+tool as a coding assistant in the research is described in Section 4.10.
 
 ## References
 

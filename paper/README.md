@@ -51,8 +51,6 @@ submission:
   for eight detectors, and adding it to the other result tables would change
   the eleven-detector counts of the highlights and abstract. Only Table S15
   carries its settings.
-- Check once more for released SegmentAnyTreeV2 and SelectAnyTree weights; none
-  were public on 6 October 2026.
 - After re-staging and the clean-container rebuild, replace the 1,221 rebuilt
   files of Section 4.10 (and the counts in docs/reproduction-archive.md) with
   the new rebuild's count, and drop the sentence on the earlier staging.
@@ -64,8 +62,7 @@ submission:
 - Lay out Tables 3, 5, 7 and S12c for the template's column width (landscape or
   full width).
 - The supplement is numbered in topical order, not in order of first citation;
-  renumber if the journal asks. Add ORCIDs and check the generative-AI
-  declaration against the publisher's wording.
+  renumber if the journal asks. Add ORCIDs.
 - Replace the supplement's `Source:` links to repository reports with citations
   of the archived reports in the deposit.
 - Convert to the journal's template and generate the reference list.
@@ -93,7 +90,7 @@ generated tables that report documents. The archive rebuilds those tables with
 | 4.4, 4.8, 5.8 Uncertainty and sensitivity | [matcher robustness](../results/matcher-robustness-results.md), [positional uncertainty](../results/positional-uncertainty-results.md), [temporal sensitivity](../results/temporal-sensitivity-results.md), [calibration/validation](../results/calibration-validation-results.md) |
 | 6, 7 Discussion and conclusions | the reports of the sections they summarise |
 | 2.5, 4.8, 4.10, 6.7, 6.8, 7, S15 and the availability statement: ForestMamba, added after the tables were fixed | [ForestMamba benchmark](../results/forestmamba-results.md), [ForestMamba runtime](../gpu/forestmamba-sm120/README.md) |
-| 2.1, 2.2, 2.4, 2.5, 6.7: the dated repository checks and the precedents added on 21 October 2026 (Yu 2004, Hirata 2004, Hamraz 2016, Hershey 2022, Destouches 2026, Gominski 2025, ForestQuery, and the chance-null, double-observer, leakage and rank-stability lineages) | [paper proposal](../docs/paper-proposal.md) (literature scan and repository checks) and the cited sources |
+| 2.1, 2.2, 2.4, 2.5, 4.2, 6.5, 6.7: the dated repository checks and the precedents added on 21 October 2026 (Yu 2004, Hirata 2004, Hamraz 2016, Hershey 2022, Destouches 2026, Gominski 2025, ForestQuery, and the chance-null, double-observer, leakage, rank-stability and model-transferability lineages) | the cited sources; the [paper proposal](../docs/paper-proposal.md) records the repository checks and Yu 2004 |
 | Supplement S1, S3, S13 | [master tables](../results/master-tables-results.md) |
 | Supplement S2 | [model comparison](../results/model-benchmark-results.md) |
 | Supplement S4, S5 | [censused subplots](../results/census-support-results.md), [coverage gap](../results/coverage-gap-results.md) |
