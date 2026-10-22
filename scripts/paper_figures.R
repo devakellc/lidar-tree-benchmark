@@ -108,10 +108,29 @@ ql_lines <- function() {
   text(QL, par("usr")[4], names(QL), pos = 1, cex = LEG_CEX, col = "grey30")
 }
 # Density axis with a tick at each level's five-site median, labelled as the
-# text labels the levels (9.8, 4.7, 2.5, 2.0, 1.3, 0.6 pulses/m²); 2.5 and 2.0
-# sit close, so labels are not thinned.
-dens_axis <- function() axis(1, at = pulses, labels = formatC(pulses, format = "f", digits = 1),
-                             gap.axis = 0)
+# text labels the levels (9.8, 4.7, 2.5, 2.0, 1.3, 0.6 pulses/m²). No label is
+# thinned. 2.5 and 2.0 sit close: where two neighbouring labels would stand
+# less than an em apart, each is moved away from the other along the axis by
+# half the shortfall, still over its own tick; ticks and data keep their places.
+dens_axis <- function() {
+  lab <- formatC(pulses, format = "f", digits = 1)
+  axis(1, at = pulses, labels = FALSE)
+  xin <- grconvertX(pulses, "user", "inches")
+  w <- strwidth(lab, "inches", cex = par("cex.axis"))
+  em <- strwidth("M", "inches", cex = par("cex.axis"))
+  hadj <- rep(0.5, length(lab))
+  o <- order(xin)
+  for (k in seq_len(length(o) - 1L)) {
+    i <- o[k]; j <- o[k + 1L]
+    short <- em - ((xin[j] - xin[i]) - (w[i] + w[j]) / 2)
+    if (short > 0) {
+      hadj[i] <- min(0.9, hadj[i] + short / 2 / w[i])
+      hadj[j] <- max(0.1, hadj[j] - short / 2 / w[j])
+    }
+  }
+  for (h in unique(hadj))
+    axis(1, at = pulses[hadj == h], labels = lab[hadj == h], tick = FALSE, hadj = h, gap.axis = 0)
+}
 legend_arms <- function(arms, where = "bottomleft", ...)
   legend(where, legend = ARMS[arms], col = COL[arms], pch = PCH[arms], lty = 1, bty = "n",
          cex = LEG_CEX, ...)
@@ -146,20 +165,27 @@ read_null <- function(f) {
 # and QL2 floors, stem heights.
 MAP_DATA <- file.path(.ROOT, "paper", "figures", "data", "ne_10m_admin_0_countries_pacific.geojson")
 MAP_CRS <- "+proj=aea +lat_0=40 +lon_0=-120 +lat_1=34 +lat_2=46 +datum=WGS84 +units=m +no_defs"
-MAP_LONLAT <- c(xmin = -126.4, ymin = 31.6, xmax = -113.6, ymax = 50.0)  # area drawn
+# The area the frame must hold. The frame drawn is larger, about 128.8 to
+# 111.2 W and 28.7 to 52.9 N: the panel is taller than this area at one scale
+# on both axes, and the meridians converge northward.
+MAP_LONLAT <- c(xmin = -126.4, ymin = 31.6, xmax = -113.6, ymax = 50.0)
+# The extract's crop box, wider than the frame on every side: draw_map stops
+# when the frame reaches past the map data, which would end the land in false
+# straight lines.
+MAP_EXTRACT <- c(xmin = -132, ymin = 26, xmax = -106, ymax = 56)
 REGION <- c(SJER = "California", SOAP = "California", TEAK = "California",
             WREF = "Washington", ABBY = "Washington")
 REGION_COL <- c(California = "#D55E00", Washington = "#0072B2")
 
-# Rebuilds the extract: USA, Canada and Mexico cropped to the U.S. Pacific
-# coast, simplified to 0.01 degree (about 1 km, below a printed line width)
-# and written as RFC 7946 GeoJSON with four decimals.
+# Rebuilds the extract: USA, Canada and Mexico cropped to MAP_EXTRACT around
+# the U.S. Pacific coast, simplified to 0.01 degree (about 1 km, below a
+# printed line width) and written as RFC 7946 GeoJSON with four decimals.
 make_map_extract <- function(shp, out = MAP_DATA) {
   s2 <- suppressMessages(sf::sf_use_s2(FALSE))
   on.exit(suppressMessages(sf::sf_use_s2(s2)), add = TRUE)
   ne <- sf::st_read(shp, quiet = TRUE)
   ne <- ne[ne$ISO_A3 %in% c("USA", "CAN", "MEX"), c("NAME", "ISO_A3")]
-  bb <- sf::st_bbox(c(xmin = -128, ymin = 30, xmax = -110, ymax = 51), crs = sf::st_crs(4326))
+  bb <- sf::st_bbox(MAP_EXTRACT, crs = sf::st_crs(4326))
   x <- suppressWarnings(suppressMessages(sf::st_crop(ne, bb)))
   x <- suppressWarnings(sf::st_simplify(x, preserveTopology = TRUE, dTolerance = 0.01))
   x <- sf::st_cast(x, "MULTIPOLYGON")
@@ -186,11 +212,40 @@ site_positions <- function(pop) {
   }))
 }
 
+# The box a map label covers (a polygon in the map's coordinates, which have
+# one scale on both axes), placed as text() places it, as measured on the
+# figure's devices: at pos 1 to 4 beside the point, `offset` character heights
+# away, with the point a third of the cap height above the baseline at pos 2
+# and 4 and the cap line a sixth of the cap height above (point - offset) at
+# pos 1; otherwise centred on the point (one line on its ink, several lines on
+# their block) and turned by srt degrees about it. The box runs from the
+# descenders, when the label has any, to the cap line of its first line and is
+# padded by a tenth of the cap height.
+text_box <- function(x, y, s, cex, font = 1, pos = NULL, offset = 0.5, srt = 0) {
+  w <- strwidth(s, cex = cex, font = font); h <- strheight(s, cex = cex, font = font)
+  m <- strheight("M", cex = cex, font = font)
+  dsc <- if (grepl("[gjpqy(),;]", s)) 0.3 * m else 0
+  off <- offset * par("cin")[2] * par("cex") * diff(par("usr")[1:2]) / par("pin")[1]
+  l <- -w / 2; b <- if (grepl("\n", s)) -h / 2 else -(h - dsc) / 2   # left edge, last baseline
+  if (!is.null(pos)) {
+    if (pos == 1) b <- -off - 5 / 6 * h
+    if (pos == 2) { l <- -off - w; b <- -h / 3 }
+    if (pos == 3) b <- off
+    if (pos == 4) { l <- off; b <- -h / 3 }
+  }
+  pad <- 0.1 * m
+  xy <- cbind(c(l - pad, l + w + pad, l + w + pad, l - pad, l - pad),
+              c(b - dsc - pad, b - dsc - pad, b + h + pad, b + h + pad, b - dsc - pad))
+  a <- srt * pi / 180
+  xy <- xy %*% rbind(c(cos(a), sin(a)), c(-sin(a), cos(a)))
+  sf::st_polygon(list(sweep(xy, 2, c(x, y), "+")))
+}
+
 draw_map <- function(sp) {
   s2 <- suppressMessages(sf::sf_use_s2(FALSE))
   on.exit(suppressMessages(sf::sf_use_s2(s2)), add = TRUE)
-  cn <- sf::st_transform(sf::st_read(MAP_DATA, quiet = TRUE), MAP_CRS)
-  # The drawn area's edges, densified so their projected bounding box holds the
+  ne <- sf::st_read(MAP_DATA, quiet = TRUE)
+  # The area to hold, densified so that its projected bounding box holds the
   # curved parallels.
   lon <- seq(MAP_LONLAT[["xmin"]], MAP_LONLAT[["xmax"]], length.out = 60)
   lat <- seq(MAP_LONLAT[["ymin"]], MAP_LONLAT[["ymax"]], length.out = 60)
@@ -204,13 +259,30 @@ draw_map <- function(sp) {
   box_poly <- sf::st_sfc(sf::st_polygon(list(rbind(u[c(1, 3)], u[c(2, 3)], u[c(2, 4)], u[c(1, 4)],
                                                    u[c(1, 3)]))), crs = MAP_CRS)
   frame <- sf::st_cast(box_poly, "LINESTRING")
+  # The frame (its edges densified, as they curve in longitude and latitude)
+  # must lie inside the map data, or the land would end in straight lines at
+  # the extract's crop box.
+  fr <- sf::st_bbox(sf::st_transform(sf::st_segmentize(box_poly, 5000), 4326))
+  ex <- sf::st_bbox(ne)
+  if (fr[["xmin"]] < ex[["xmin"]] || fr[["xmax"]] > ex[["xmax"]] ||
+      fr[["ymin"]] < ex[["ymin"]] || fr[["ymax"]] > ex[["ymax"]])
+    stop(sprintf(paste("figure 1(a): the frame spans longitude %.2f to %.2f and latitude %.2f to %.2f, past",
+                       "the map data (%.2f to %.2f, %.2f to %.2f); rebuild the extract wider (MAP_EXTRACT)"),
+                 fr[["xmin"]], fr[["xmax"]], fr[["ymin"]], fr[["ymax"]],
+                 ex[["xmin"]], ex[["xmax"]], ex[["ymin"]], ex[["ymax"]]))
+  # Natural Earth's edges are straight in longitude and latitude (the border
+  # along 49°N is a single edge), so they are cut into pieces of at most 0.1°
+  # there before projecting, to follow the parallels. Only the land inside the
+  # frame is drawn, so the PDF holds no hidden paths.
+  g <- sf::st_set_crs(sf::st_segmentize(sf::st_set_crs(sf::st_geometry(ne), NA), 0.1), 4326)
+  land <- suppressWarnings(suppressMessages(sf::st_crop(sf::st_transform(g, MAP_CRS), sf::st_bbox(box_poly))))
   rect(u[1], u[3], u[2], u[4], col = "#F4F8FB", border = NA)
-  plot(sf::st_geometry(cn), col = "grey90", border = "grey45", lwd = 0.5, add = TRUE)
-  # Graticule every 5 degrees over the drawn area, labelled where it leaves
-  # the frame.
+  # Graticule every 5 degrees, drawn under the land so that it shows on the sea
+  # only, and labelled where it leaves the frame.
   gr <- sf::st_graticule(box_poly, lon = seq(-130, -110, 5), lat = seq(30, 50, 5),
                          datum = sf::st_crs(4326), ndiscr = 200)
   plot(sf::st_geometry(gr), col = "grey70", lwd = 0.4, lty = 3, add = TRUE)
+  plot(land, col = "grey90", border = "grey45", lwd = 0.5, add = TRUE)
   for (i in seq_len(nrow(gr))) {
     p <- suppressWarnings(sf::st_cast(sf::st_intersection(sf::st_geometry(gr)[i], frame), "POINT"))
     if (!length(p)) next
@@ -218,42 +290,76 @@ draw_map <- function(sp) {
     lab <- if (gr$type[i] == "E") sprintf("%d°W", abs(gr$degree[i])) else sprintf("%d°N", gr$degree[i])
     if (gr$type[i] == "E") {             # meridian: label at the bottom edge
       k <- which(abs(xy[, 2] - u[3]) < 1)
-      if (length(k)) axis(1, at = xy[k[1], 1], labels = lab, tick = FALSE, line = -0.25,
-                          cex.axis = 0.85)
+      if (length(k)) axis(1, at = xy[k[1], 1], labels = lab, tick = FALSE, line = -0.25)
     } else {                             # parallel: label at the left edge
       k <- which(abs(xy[, 1] - u[1]) < 1)
-      if (length(k)) axis(2, at = xy[k[1], 2], labels = lab, tick = FALSE, line = -0.25,
-                          cex.axis = 0.85)
+      if (length(k)) axis(2, at = xy[k[1], 2], labels = lab, tick = FALSE, line = -0.25)
     }
   }
   lab_at <- function(lon, lat) sf::st_coordinates(sf::st_transform(
-    sf::st_sfc(sf::st_point(c(lon, lat)), crs = 4326), MAP_CRS))
-  o <- lab_at(-124.2, 36.0)
-  text(o[1], o[2], "Pacific\nOcean", font = 3, col = "grey40", cex = LEG_CEX)
-  for (z in list(c("CANADA", -119.6, 49.55), c("MEXICO", -115.6, 32.05))) {
-    o <- lab_at(as.numeric(z[2]), as.numeric(z[3]))
-    text(o[1], o[2], z[1], col = "grey40", cex = 0.8)
+    sf::st_sfc(sf::st_point(c(lon, lat)), crs = 4326), MAP_CRS))[1, 1:2]
+  # Every label is drawn through label(), which keeps its box for the check
+  # below. Text is at least 7.2 pt (LEG_CEX) at print size.
+  boxes <- list(); owner <- character()
+  label <- function(xy, s, cex = LEG_CEX, font = 1, pos = NULL, offset = 0.5, srt = 0, site = "", ...) {
+    text(xy[1], xy[2], s, cex = cex, font = font, pos = pos, offset = offset, srt = srt, ...)
+    boxes[[gsub("\n", " ", s)]] <<- text_box(xy[1], xy[2], s, cex, font, pos, offset, srt)
+    owner[[gsub("\n", " ", s)]] <<- site
   }
+  label(lab_at(-122.6, 33.0), "Pacific\nOcean", font = 3, col = "grey40")
+  label(lab_at(-119.6, 49.55), "CANADA", col = "grey40")
+  # Mexico's land in the frame is the Baja California peninsula and a sliver
+  # of Sonora, too narrow for a level label, so the name runs down the
+  # peninsula.
+  label(lab_at(-115.45, 31.15), "MEXICO", col = "grey40", srt = -75)
   pts <- sf::st_coordinates(sf::st_transform(sf::st_as_sf(sp, coords = c("longitude", "latitude"),
                                                          crs = 4326), MAP_CRS))
   cl <- REGION_COL[REGION[sp$site]]
-  # Site codes beside their points (SJER, SOAP and TEAK lie within 70 km).
-  pos <- c(SJER = 2, SOAP = 3, TEAK = 4, WREF = 4, ABBY = 2)[sp$site]
+  # Site codes beside their points: SJER, SOAP and TEAK lie within 70 km of
+  # each other and WREF and ABBY within 30 km, and a code to the left of SJER
+  # or ABBY would cross the coast.
+  pos <- c(SJER = 1, SOAP = 3, TEAK = 4, WREF = 4, ABBY = 1)[sp$site]
   points(pts[, 1], pts[, 2], pch = 21, bg = cl, col = "black", cex = 1.1, lwd = 0.6)
-  text(pts[, 1], pts[, 2], sp$site, pos = pos, offset = 0.45, cex = LEG_CEX, font = 2, col = cl)
-  # Region labels inland, where no coastline crosses them.
-  for (r in names(REGION_COL)) {
-    o <- if (r == "California") lab_at(-117.4, 35.5) else lab_at(-119.3, 47.4)
-    lab <- if (r == "California") "California\n(development)" else "Washington\n(replication)"
-    text(o[1], o[2], lab, col = REGION_COL[[r]], cex = LEG_CEX)
-  }
-  # 200 km scale bar (Albers equal-area: within about 1% between 34 and 46°N).
-  x0 <- u[1] + 0.07 * diff(u[1:2]); y0 <- u[3] + 0.05 * diff(u[3:4])
-  segments(x0, y0, x0 + 2e5, y0, lwd = 1.5, lend = 1)
-  segments(c(x0, x0 + 2e5), y0, c(x0, x0 + 2e5), y0 + 0.008 * diff(u[3:4]), lwd = 1)
-  text(x0 + 1e5, y0, "200 km", pos = 3, offset = 0.35, cex = 0.85)
+  for (i in seq_len(nrow(sp)))
+    label(pts[i, 1:2], sp$site[i], font = 2, pos = pos[[i]], offset = 0.6, col = cl[[i]], site = sp$site[i])
+  # Region labels inland.
+  label(lab_at(-116.8, 35.3), "California\n(development)", col = REGION_COL[["California"]])
+  label(lab_at(-119.3, 47.4), "Washington\n(replication)", col = REGION_COL[["Washington"]])
+  # 200 km scale bar on the open sea between the graticule lines (Albers
+  # equal-area: the scale is within about 1% between 34 and 46°N).
+  sb <- lab_at(-124.35, 31.2)
+  segments(sb[1], sb[2], sb[1] + 2e5, sb[2], lwd = 1.5, lend = 1)
+  tk <- 0.008 * diff(u[3:4])
+  segments(c(sb[1], sb[1] + 2e5), sb[2], c(sb[1], sb[1] + 2e5), sb[2] + tk, lwd = 1)
+  label(c(sb[1] + 1e5, sb[2]), "200 km", pos = 3, offset = 0.35, site = "scale")
+  boxes[["scale bar"]] <- sf::st_polygon(list(rbind(c(sb[1], sb[2] - tk), c(sb[1] + 2e5, sb[2] - tk),
+                                                     c(sb[1] + 2e5, sb[2] + tk), c(sb[1], sb[2] + tk),
+                                                     c(sb[1], sb[2] - tk))))
+  owner[["scale bar"]] <- "scale"
   box(lwd = 0.6)
   title(main = "(a) Sites")
+  # No label may touch the coastline or a border, the graticule on the sea,
+  # the frame, another site's point or another label.
+  bx <- sf::st_sfc(boxes, crs = MAP_CRS)
+  sea_grid <- suppressWarnings(sf::st_difference(sf::st_union(sf::st_geometry(gr)), sf::st_union(land)))
+  linework <- c(sf::st_cast(sf::st_boundary(land), "MULTILINESTRING"),   # coasts and borders
+                sf::st_cast(sea_grid, "MULTILINESTRING"), sf::st_cast(frame, "MULTILINESTRING"))
+  # A site's point (pch 21 at cex 1.1) prints 0.062 in across, its outline
+  # included.
+  r_pt <- 0.031 * diff(u[1:2]) / par("pin")[1]
+  dots <- sf::st_buffer(sf::st_sfc(lapply(seq_len(nrow(pts)), function(i) sf::st_point(pts[i, 1:2])),
+                                   crs = MAP_CRS), r_pt)
+  bad <- character()
+  for (i in seq_along(bx)) {
+    nm <- names(boxes)[i]
+    if (any(sf::st_intersects(bx[i], linework, sparse = FALSE))) bad <- c(bad, paste(nm, "crosses a line"))
+    if (any(sf::st_intersects(bx[i], dots[sp$site != owner[[nm]]], sparse = FALSE)))
+      bad <- c(bad, paste(nm, "covers another site's point"))
+    same <- nzchar(owner[[nm]]) & owner == owner[[nm]]       # a scale bar and its label
+    j <- which(sf::st_intersects(bx[i], bx, sparse = FALSE)[1, ] & !same & seq_along(bx) != i)
+    if (length(j)) bad <- c(bad, paste(nm, "overlaps", paste(names(boxes)[j], collapse = ", ")))
+  }
+  if (length(bad)) warning("figure 1(a): ", paste(unique(bad), collapse = "; "))
 }
 
 fig1 <- function() {
@@ -553,7 +659,8 @@ fig6 <- function() {
 # is the canopy height model of each panel's normalised clip (a first-return
 # TIN at 0.5 m; one grey scale for all panels, capped at the 99.5th
 # percentile), repeated by nearest neighbour so the embedded image has at
-# least 600 dpi at its printed size.
+# least 600 dpi at its printed size; the key under the panels is one image of
+# the same grey scale at the same resolution.
 EX_ARMS <- c("chm_vwf", "forestformer3d", "segmentanytree")
 EX_LEVELS <- c(native = "native", ql2 = "3.2", sparsest = "1")
 EX_LEVEL_NAME <- c(native = "Native density", ql2 = "QL2 level", sparsest = "Sparsest level")
@@ -561,6 +668,21 @@ EX_TOL <- 4; EX_TZ <- 8; EX_MIN_STEMS <- 10
 EX_CHM_RES <- 0.5
 EX_DPI <- 600
 EX_COL <- c(matched = "#56B4E9", error = "#E69F00")
+
+# Field stems are circles and detections triangles. Matched ones are filled
+# (blue); missed stems and unmatched detections in the core are open (an orange
+# outline cased in black), so the two read apart in greyscale as well as in
+# colour; unmatched detections in the margin outside the core, which are not
+# scored, are small and white.
+ex_points <- function(x, y, kind, status) {
+  pch <- c(stem = 21L, detection = 24L)[[kind]]; cex <- c(stem = 0.95, detection = 0.75)[[kind]]
+  open <- c(stem = 1L, detection = 2L)[[kind]]          # the same circle and triangle, unfilled
+  f <- status == "matched"; o <- status %in% c("missed", "false_positive"); m <- status == "outside_core"
+  points(x[m], y[m], pch = pch, cex = 0.6, lwd = 0.6, col = "black", bg = "white")
+  points(x[o], y[o], pch = open, cex = cex, lwd = 1.9, col = "black")
+  points(x[o], y[o], pch = open, cex = cex, lwd = 1.0, col = EX_COL[["error"]])
+  points(x[f], y[f], pch = pch, cex = cex, lwd = 0.6, col = "black", bg = EX_COL[["matched"]])
+}
 
 # The scoring code of paper_sensitivity.R. io_bridge.R finds its own
 # dependency from the working directory and redefines .find, so the libraries
@@ -726,14 +848,8 @@ fig7 <- function() {
         segments(p$pairs$x0, p$pairs$y0, p$pairs$x1, p$pairs$y1, col = "white", lwd = 2.2)
         segments(p$pairs$x0, p$pairs$y0, p$pairs$x1, p$pairs$y1, col = "black", lwd = 0.8)
       }
-      s <- p$stems
-      points(s$x, s$y, pch = 21, cex = 0.95, lwd = 0.6, col = "black",
-             bg = ifelse(s$status == "matched", EX_COL[["matched"]], EX_COL[["error"]]))
-      t <- p$dets
-      o <- t$status == "outside_core"
-      points(t$x[o], t$y[o], pch = 24, cex = 0.6, lwd = 0.6, col = "black", bg = "white")
-      points(t$x[!o], t$y[!o], pch = 24, cex = 0.75, lwd = 0.6, col = "black",
-             bg = ifelse(t$status[!o] == "matched", EX_COL[["matched"]], EX_COL[["error"]]))
+      ex_points(p$stems$x, p$stems$y, "stem", p$stems$status)
+      ex_points(p$dets$x, p$dets$y, "detection", p$dets$status)
       box(lwd = 0.6)
       mtext(sprintf("Recall %.2f, precision %.2f", p$recall, p$precision), side = 1, line = 0.15,
             cex = LEG_CEX)
@@ -741,39 +857,42 @@ fig7 <- function() {
       if (arm == EX_ARMS[1]) mtext(sprintf("%s, %.1f pulses/m²", EX_LEVEL_NAME[[lv]], p$frdens),
                                    side = 3, line = 0.3, font = 2)
     }
-    # Legend, scale bar and canopy-height key in the bottom margin, in inches.
+    # Legend, scale bar and canopy-height key in the bottom margin, in inches;
+    # the legend symbols are drawn as in the panels.
     par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
     plot.new(); plot.window(c(0, W), c(0, H), xaxs = "i", yaxs = "i")
-    top <- oma[1] * ln - 0.02
-    leg <- function(x, txt, pch, cex, bg, lty = NA)
-      legend(x, top, legend = txt, pch = pch, pt.cex = cex, pt.bg = bg, pt.lwd = 0.6, col = "black",
-             lty = lty, lwd = 0.8, bty = "n", cex = LEG_CEX, x.intersp = 0.7, y.intersp = 1.2)$rect
-    a <- leg(0, c("Field stem, matched", "Field stem, missed", "Match (4 m, height gate)"),
-             c(21, 21, NA), c(0.95, 0.95, NA), c(EX_COL[["matched"]], EX_COL[["error"]], NA), c(NA, NA, 1))
-    b <- leg(a$left + a$w, c("Detection, matched", "Detection in the core, unmatched",
-                             "Detection outside the core, unmatched"),
-             24, c(0.75, 0.75, 0.6), c(EX_COL[["matched"]], EX_COL[["error"]], "white"))
-    row <- a$h / 3
-    xr <- b$left + b$w + 0.02
+    row <- 1.2 * LEG_CEX * ln; top <- oma[1] * ln - 0.02
+    yk <- top - (1:3 - 0.5) * row
+    t1 <- c("Field stem, matched", "Field stem, missed", "Match (4 m, height gate)")
+    t2 <- c("Detection, matched", "Detection in the core, unmatched", "Detection outside the core, unmatched")
+    s1 <- 0.1; s2 <- s1 + 0.13 + max(strwidth(t1, cex = LEG_CEX)) + 0.2
+    xr <- s2 + 0.13 + max(strwidth(t2, cex = LEG_CEX)) + 0.15
+    ex_points(rep(s1, 2), yk[1:2], "stem", c("matched", "missed"))
+    segments(s1 - 0.07, yk[3], s1 + 0.07, yk[3], col = "black", lwd = 0.8)
+    ex_points(rep(s2, 3), yk, "detection", c("matched", "false_positive", "outside_core"))
+    text(s1 + 0.13, yk, t1, adj = c(0, 0.5), cex = LEG_CEX)
+    text(s2 + 0.13, yk, t2, adj = c(0, 0.5), cex = LEG_CEX)
     core_lab <- sprintf("Plot core, %g m × %g m", 2 * P[[1]]$ph, 2 * P[[1]]$ph)
-    if (xr + 0.3 + strwidth(core_lab, cex = LEG_CEX) > W) warning("figure 7 legend wider than the figure")
-    y1 <- top - row / 2
-    rect(xr, y1 - 0.045, xr + 0.2, y1 + 0.045, border = "black", lty = 2, lwd = 0.8)
-    text(xr + 0.25, y1, core_lab, pos = 4, offset = 0, cex = LEG_CEX)
-    y2 <- top - 1.5 * row; bar <- 10 * side / (2 * R)        # 10 m at the panels' scale
-    segments(xr, y2, xr + bar, y2, lwd = 1.5, lend = 1)
-    segments(c(xr, xr + bar), y2 - 0.025, c(xr, xr + bar), y2 + 0.025, lwd = 0.8)
-    text(xr + bar + 0.05, y2, "10 m", pos = 4, offset = 0, cex = LEG_CEX)
-    # Canopy-height key: the bar under the legend rows, its label on the left.
+    if (xr + 0.25 + strwidth(core_lab, cex = LEG_CEX) > W) warning("figure 7 legend wider than the figure")
+    rect(xr, yk[1] - 0.045, xr + 0.2, yk[1] + 0.045, border = "black", lty = 2, lwd = 0.8)
+    text(xr + 0.25, yk[1], core_lab, adj = c(0, 0.5), cex = LEG_CEX)
+    bar <- 10 * side / (2 * R)        # 10 m at the panels' scale
+    segments(xr, yk[2], xr + bar, yk[2], lwd = 1.5, lend = 1)
+    segments(c(xr, xr + bar), yk[2] - 0.025, c(xr, xr + bar), yk[2] + 0.025, lwd = 0.8)
+    text(xr + bar + 0.05, yk[2], "10 m", adj = c(0, 0.5), cex = LEG_CEX)
+    # Canopy-height key under the legend rows, its label on the left: one image
+    # of the grey scale (adjacent rectangles would show seams in PDF viewers),
+    # each value repeated by nearest neighbour to EX_DPI as in the panels.
     yb <- 0.12; yt <- 0.22; x0 <- 1.25; x1 <- W - 0.25
-    text(x0 - 0.08, (yb + yt) / 2, "Canopy height (m)", pos = 2, offset = 0, cex = LEG_CEX)
-    xs <- seq(x0, x1, length.out = length(pal) + 1)
-    rect(xs[-length(xs)], yb, xs[-1], yt, col = pal, border = NA)
+    text(x0 - 0.08, (yb + yt) / 2, "Canopy height (m)", adj = c(1, 0.5), cex = LEG_CEX)
+    kx <- as.integer(ceiling(EX_DPI * (x1 - x0) / length(pal))); ky <- as.integer(ceiling(EX_DPI * (yt - yb)))
+    rasterImage(as.raster(matrix(rep(rep(pal, each = kx), ky), nrow = ky, byrow = TRUE)), x0, yb, x1, yt,
+                interpolate = FALSE)
     rect(x0, yb, x1, yt, border = "black", lwd = 0.5)
     tk <- seq(0, zmax, by = if (zmax > 30) 10 else 5)
     tl <- as.character(tk); if (capped) tl[length(tl)] <- paste("\u2265", tl[length(tl)])
     segments(x0 + tk / zmax * (x1 - x0), yb, x0 + tk / zmax * (x1 - x0), yb - 0.025, lwd = 0.5)
-    text(x0 + tk / zmax * (x1 - x0), yb - 0.025, tl, pos = 1, offset = 0.12, cex = 0.85)
+    text(x0 + tk / zmax * (x1 - x0), yb - 0.025, tl, pos = 1, offset = 0.12, cex = LEG_CEX)
   })
 }
 
@@ -865,17 +984,22 @@ figs2 <- function() {
   ob <- np[np$variant == "baseline" & np$radius == 4, ]
   arms <- ob$detector[order(ob$estimate)]
   render("s2", 0.72 * SUPP_W, 5.9, function() {
-    layout(matrix(c(1, 2, 3, 4, 5, 5), 3, byrow = TRUE), heights = c(1, 1, 0.36))
+    # The right column is wider: (d) needs a wide margin for the detectors'
+    # names and room for its legend at 7.2 pt, and (b) for its labels.
+    layout(matrix(c(1, 2, 3, 4, 5, 5), 3, byrow = TRUE), widths = c(0.92, 1.08), heights = c(1, 1, 0.36))
     fig_par(mar = c(2.8, 2.9, 1.5, 0.4))
     plot(NA, xlim = c(2, 5), ylim = range(grid$estimate), xlab = "Match radius (m)", ylab = "F1",
          main = "(a) Match radius")
     for (a in names(ARMS)) { z <- grid[grid$detector == a, ]; z <- z[order(z$radius), ]
       lines(z$radius, z$estimate, type = "o", col = COL[a], pch = PCH[a], cex = 0.8) }
     abline(v = 4, lty = 2)
-    plot(NA, xlim = c(0.5, 4.5), ylim = range(c(md$lower, md$upper)), xaxt = "n", xlab = "",
+    # The four alternatives sit about 0.6 in apart, so that their 7.2-pt labels
+    # stand clear of each other; the detectors' points spread 0.22 either side
+    # of each.
+    plot(NA, xlim = c(0.7, 4.3), ylim = range(c(md$lower, md$upper)), xaxt = "n", xlab = "",
          ylab = "Change in F1 from greedy 4 m", main = "(b) Matcher")
     axis(1, at = 1:4, labels = c("crown-\nscaled", "Hungarian", "Hungarian,\nscaled", "soft\n3-D"),
-         padj = 0.5, gap.axis = 0, mgp = c(1.8, 0.3, 0), cex.axis = 0.85)
+         padj = 0.5, gap.axis = 0, mgp = c(1.8, 0.3, 0))
     abline(h = 0, lty = 2)
     for (i in seq_along(names(ARMS))) { a <- names(ARMS)[i]; z <- md[md$detector == a, ]
       xx <- match(z$variant, vs) + (i - 6.5) * 0.04
@@ -886,7 +1010,7 @@ figs2 <- function() {
     abline(0, 1, lty = 2)
     par(mar = c(2.8, 6.4, 1.5, 0.4))
     # A free band above the top row holds the legend.
-    plot(NA, xlim = c(0, max(np$upper) * 1.02), ylim = c(0.5, length(arms) + 1.7), yaxt = "n",
+    plot(NA, xlim = c(0, max(np$upper) * 1.02), ylim = c(0.5, length(arms) + 2.0), yaxt = "n",
          xlab = "F1, native density", ylab = "", main = "(d) Observed and null F1")
     axis(2, at = seq_along(arms), labels = ARMS[arms], las = 1, cex.axis = LEG_CEX)
     for (i in seq_along(arms)) for (r in c(4, 2)) {
@@ -898,7 +1022,7 @@ figs2 <- function() {
       points(n$estimate, yy, pch = 1, col = cl, cex = 0.8); points(o$estimate, yy, pch = 16, col = cl, cex = 0.8)
     }
     legend("top", legend = c("Observed, 4 m", "Null, 4 m", "Observed, 2 m", "Null, 2 m"),
-           pch = c(16, 1, 16, 1), col = c("black", "black", "grey45", "grey45"), bty = "n", cex = 0.85,
+           pch = c(16, 1, 16, 1), col = c("black", "black", "grey45", "grey45"), bty = "n", cex = LEG_CEX,
            pt.cex = 0.8, ncol = 2, x.intersp = 0.6)
     # (a) to (c) share the detectors' colours and symbols.
     legend_panel(legend = ARMS, col = COL[names(ARMS)], pch = PCH[names(ARMS)], lty = 1, ncol = 4,

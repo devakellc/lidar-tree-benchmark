@@ -6,10 +6,10 @@ variable); the end-to-end tests convert the repository's paper and check the
 LaTeX for defects that would stop a pdfLaTeX + BibTeX build or silently drop
 content, and convert a small synthetic paper in a temporary copy of the
 repository layout to exercise what the real paper may not use yet (PDF figures,
-supplementary figures, display math, the Overleaf zip). The BibTeX test runs
-IEEEtran.bst on the IEEE copy of the bibliography when bibtex is available (on
-PATH or via BIBTEX), with or without pandoc. A PANDOC or BIBTEX variable that
-does not name an executable is an error, not a reason to skip.
+supplementary figures, display math, code blocks, the Overleaf zip). The BibTeX
+test runs IEEEtran.bst on the IEEE copy of the bibliography when bibtex is
+available (on PATH or via BIBTEX), with or without pandoc. A PANDOC or BIBTEX
+variable that does not name an executable is an error, not a reason to skip.
 
 From the repository root:
 
@@ -37,6 +37,12 @@ spec = importlib.util.spec_from_file_location("paper_to_ieee", ROOT / "scripts/p
 p2i = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(p2i)
 NB = "\u00a0"
+
+
+# The supplement and main.tex silence pdfTeX's page-group warning, in a line of
+# their own (not commented out).
+PAGE_GROUP = "(?m)^" + re.escape("\\ifdefined\\pdfsuppresswarningpagegroup"
+                                 "\\pdfsuppresswarningpagegroup=1\\relax\\fi") + "$"
 
 
 def find_tool(env, name):
@@ -382,6 +388,9 @@ class ReferenceTests(unittest.TestCase):
             "Fig. S1b": f"Fig.{NB}S1(b)",
             "Fig. S2 or S1": f"Fig.{NB}S2 or S1",
             "Fig. S1 and 2 m windows": f"Fig.{NB}S1 and 2 m windows",
+            "Fig S1": f"Fig{NB}S1",  # without the period too
+            "Figs S1 and S2": f"Figs{NB}S1 and S2",
+            "Fig S1b": f"Fig{NB}S1(b)",
         }
         for mode in ("main", "supp"):
             for text, want in cases.items():
@@ -390,8 +399,17 @@ class ReferenceTests(unittest.TestCase):
         self.assertEqual(p2i.convert_refs("Figs. 2 and S1", "main", KNOWN_S), f"Figs.{NB}\\ref{{fig:2}} and S1")
         self.assertEqual(p2i.convert_refs("Figs. 2 and S1", "supp", KNOWN_S), f"Figs.{NB}2 and S1")
 
+    def test_figure_references_without_the_period(self):
+        self.assertEqual(p2i.convert_refs("Fig 2d and Figs 2 and 3", "main", KNOWN_S),
+                         f"Fig{NB}\\ref{{fig:2}}(d) and Figs{NB}\\ref{{fig:2}} and \\ref{{fig:3}}")
+        self.assertEqual(p2i.convert_refs("Fig 2d and Figs 2 and S1", "supp", KNOWN_S),
+                         f"Fig{NB}2(d) and Figs{NB}2 and S1")
+        self.assertEqual(p2i.convert_refs("a Figure 2 b Figures 3", "main", KNOWN_S),
+                         f"a Figure{NB}\\ref{{fig:2}} b Figures{NB}\\ref{{fig:3}}")
+
     def test_unknown_supplementary_figure_stops(self):
-        for text in ("Fig. S3", "Figs. S1 and S3", "Figure S3b", "Figs. 2 and S9"):
+        for text in ("Fig. S3", "Figs. S1 and S3", "Figure S3b", "Figs. 2 and S9", "Fig S3", "Figs S3",
+                     "Figs S1 and S3", "Fig 8", "Figs 2 and 8"):
             for mode in ("main", "supp"):
                 with self.subTest(text=text, mode=mode), self.assertRaises(SystemExit):
                     p2i.convert_refs(text, mode, KNOWN_S)
@@ -466,10 +484,15 @@ class FigureTests(unittest.TestCase):
         write_pdf(figs / "figure_s1.pdf", 280, 200)
         write_png(figs / "figure_s2.png", 20, 40)
         (figs / "fake.png").write_text("not a PNG")
+        # 24 bytes or more, each failing exactly one check of figure_png:
+        png = (figs / "figure_1.png").read_bytes()
+        (figs / "gif.png").write_bytes(b"GIF89a\x00\x00" + png[8:])  # another signature, a PNG's header
+        (figs / "chunk.png").write_bytes(png[:12] + b"IDAT" + png[16:])  # a PNG signature, no header chunk
+        (figs / "empty.png").write_bytes(png[:16] + struct.pack(">II", 0, 20) + png[24:])  # zero width
 
     def test_png_figure_without_pdf(self):
         out = p2i.figure_tex("1", "figures/figure_1.png", "Cap.")
-        self.assertEqual(out, "\\begin{figure*}[!t]\n\\centering\n"
+        self.assertEqual(out, "\\begin{figure*}[!tp]\n\\centering\n"
                               "\\includegraphics[width=\\textwidth]{figures/figure_1.png}\n"
                               "\\caption{Cap.}\n\\label{fig:1}\n\\end{figure*}")
 
@@ -481,7 +504,7 @@ class FigureTests(unittest.TestCase):
 
     def test_supplementary_figure_is_labelled_in_the_text(self):
         out = p2i.figure_tex("S1", "figures/figure_s1.png", "Cap. with \\url{x}.", "supp")
-        self.assertEqual(out, "\\begin{figure}[H]\n"
+        self.assertEqual(out, "\\begin{figure}[!ht]\n"
                               "{\\centering\\includegraphics[width=0.85\\textwidth]{figures/figure_s1.pdf}\\par}\n"
                               "\\medskip\n\\textbf{Figure S1.} Cap. with \\url{x}.\n\\end{figure}")
         out = p2i.figure_tex("S2", "figures/figure_s2.png", "Cap.", "supp")
@@ -491,7 +514,8 @@ class FigureTests(unittest.TestCase):
     def test_bad_figure_files_stop(self):
         (self.root / "figure_1.png").write_bytes((self.root / "paper/figures/figure_1.png").read_bytes())
         for path in ("../figure_1.png", str(self.root / "paper/figures/figure_1.png"), "figures/figure_1.pdf",
-                     "figures/figure 1.png", "figures/missing.png", "figures/fake.png"):
+                     "figures/figure 1.png", "figures/missing.png", "figures/fake.png", "figures/gif.png",
+                     "figures/chunk.png", "figures/empty.png"):
             with self.subTest(path=path), self.assertRaises(SystemExit):
                 p2i.figure_tex("1", path, "Cap.")
 
@@ -507,7 +531,8 @@ class FigureTests(unittest.TestCase):
     def test_graphics_files_skip_comments(self):
         tex = ("% \\includegraphics{photo}\n\\includegraphics[width=1in]{figures/a.pdf} "
                "\\includegraphics{figures/a.pdf}\n\\includegraphics{figures/b.png} % \\includegraphics{c}\n"
-               "50\\% \\includegraphics{figures/d.png}")
+               "50\\% \\includegraphics{figures/d.png}\n"
+               "\\begin{verbatim}\n\\includegraphics{figures/code.png}\n\\end{verbatim}")
         self.assertEqual(p2i.graphics_files(tex), ["figures/a.pdf", "figures/b.png", "figures/d.png"])
 
     def test_zip_carries_the_included_files(self):
@@ -565,6 +590,49 @@ class MathTests(unittest.TestCase):
         for md in ("```python\nx\n```\n", "```mathematica\nx\n```\n", "Some math here.\n"):
             with self.subTest(md=md):
                 p2i.check_math_fence(md)
+        # Both paths check before pandoc runs, so these need no pandoc.
+        with self.assertRaises(SystemExit):
+            p2i.body_to_tex("## 1. Intro\n\n```math\nx = 1\n```\n", "main", {}, KNOWN)
+        with self.assertRaises(SystemExit):
+            p2i.snippet("Abstract.\n\n```math\nx\n```\n", "main", {}, KNOWN)
+
+
+class CodeBlockTests(unittest.TestCase):
+    """Fenced code blocks are copied as they are: no markdown or LaTeX
+    transform of the converter touches them."""
+
+    MD = ("Text with `code` and Table 3.\n\n```sh\n## 4.2 not a heading\ngrep '\\[0-9\\]' x # \\( @kuhn\n```\n\n"
+          "- item\n\n  ~~~ {.r}\n  y <- x[1]\n  ~~~\n\n````\n```\nnested\n```\n````\n\n```a`b``` is inline code.\n")
+
+    def test_hold_and_restore(self):
+        held, code = p2i.hold_code(self.MD)
+        self.assertEqual(held, "Text with `code` and Table 3.\n\nZZCODE0ZZ\n\n- item\n\n  ZZCODE1ZZ\n\nZZCODE2ZZ\n\n"
+                               "```a`b``` is inline code.\n")
+        self.assertEqual(code, ["```sh\n## 4.2 not a heading\ngrep '\\[0-9\\]' x # \\( @kuhn\n```",
+                                "~~~ {.r}\n  y <- x[1]\n  ~~~", "````\n```\nnested\n```\n````"])
+        self.assertEqual(p2i.restore_code(held, code), self.MD)
+        self.assertEqual([p2i.bare_fence(c).split("\n")[0] for c in code], ["```", "~~~", "````"])
+        with self.assertRaises(SystemExit):
+            p2i.hold_code("Text.\n\n```sh\nnever closed\n")
+        with self.assertRaises(SystemExit):
+            p2i.restore_code("A caption without its block.", code[:1])
+        self.assertEqual([h for h, _ in p2i.split_sections("# T\n\n## 1. A\n\n```\n## 9 code\n```\n\n## 2. B\n")],
+                         ["", "## 1. A", "## 2. B"])
+
+    def test_latex_transforms_leave_verbatim_alone(self):
+        code = "\\begin{verbatim}\ngrep '\\[0-9\\]' x # \\( {[}a{]} \\includegraphics{c.png} 50%\n\\end{verbatim}"
+        tex = f"a \\(x\u2212y\\) b {{[}}1{{]}}\n\n{code}\n\nc \\[z\\] d \u2212 e"
+        self.assertEqual([tex[s:e] for s, e, _ in p2i.math_spans(tex)], ["\\(x\u2212y\\)", "\\[z\\]"])
+        self.assertEqual(p2i.unicode_to_latex(tex), tex.replace("x\u2212y", "x-y").replace("d \u2212", "d $-$"))
+        self.assertEqual(p2i.unescape_brackets(tex), tex.replace("b {[}1{]}", "b [1]"))
+        self.assertEqual(p2i.display_math(tex, numbered=True),
+                         tex.replace("c \\[z\\]", "c \\begin{equation}\nz\n\\end{equation}"))
+        self.assertEqual(p2i.graphics_files(tex), [])
+        with self.assertRaises(SystemExit):
+            p2i.unicode_to_latex("\\begin{verbatim}\nx \u2265 1\n\\end{verbatim}")  # code must be ASCII
+        p2i.check_code_blocks(tex, 1)
+        with self.assertRaises(SystemExit):
+            p2i.check_code_blocks(tex, 0)  # a verbatim block that was not fenced
 
 
 class BibliographyTests(unittest.TestCase):
@@ -753,13 +821,39 @@ class PandocTests(unittest.TestCase):
                  ("body", "## 1. Intro\n\nText.\n\n**Table 2.** A $$x$$ caption.\n\n| A |\n| --- |\n| 1 |\n"),
                  ("body", "## 1. Intro\n\nText.\n\n**Table 2.** Caption.\n\n| A |\n| --- |\n| $$x$$ |\n"),
                  ("body", "## 1. The $$x$$ heading\n\nText.\n"),
-                 ("body", "## 1. Intro\n\n```math\nx = 1\n```\n")]
+                 ("body", "## 1. Intro\n\n```math\nx = 1\n```\n"),
+                 ("snippet", "Abstract.\n\n```math\nx\n```\n")]
         for kind, md in cases:
             with self.subTest(md=md), self.assertRaises(SystemExit):
                 if kind == "snippet":
                     p2i.snippet(md, "main", {}, KNOWN)
                 else:
                     p2i.body_to_tex(md, "main", {}, KNOWN)
+
+    def test_code_blocks_are_copied_verbatim(self):
+        authors = {"kuhn1955hungarian": "Kuhn"}
+        code = ("## 4.2 not a heading\ngrep -E '\\[0-9\\]+' log.txt # \\( {[} Table 3 Fig. S9 @kuhn1955hungarian\n"
+                "see [the code](https://example.org/x) and $x$")
+        md = (f"## 1. Intro\n\nSee Table 3 and @kuhn1955hungarian:\n\n```sh\n{code}\n```\n\n"
+              f"- An item:\n\n  ~~~\n  \\(unbalanced\n  ~~~\n\nThe end.\n")
+        out = p2i.body_to_tex(md, "main", authors, KNOWN)
+        self.assertIn(f"\\begin{{verbatim}}\n{code}\n\\end{{verbatim}}", out)
+        self.assertIn("\\begin{verbatim}\n\\(unbalanced\n\\end{verbatim}", out)
+        self.assertIn("See Table~\\ref{tab:3} and Kuhn~\\cite{kuhn1955hungarian}:", out)
+        self.assertNotIn("Shaded", out)  # the language is dropped: no highlighting macros needed
+        self.assertNotIn("equation", out)
+        supp = p2i.body_to_tex(md.replace("1. Intro", "S1. Intro"), "supp", authors, KNOWN)
+        self.assertIn(f"\\begin{{verbatim}}\n{code}\n\\end{{verbatim}}", supp)
+        self.assertEqual(p2i.snippet("Run:\n\n```\nbash x.sh \\(\n```\n", "main", authors, KNOWN),
+                         "Run:\n\n\\begin{verbatim}\nbash x.sh \\(\n\\end{verbatim}")
+
+    def test_code_blocks_that_stop(self):
+        for md in ("## 1. Intro\n\n```\nx \u2265 1\n```\n",  # not ASCII
+                   "## 1. Intro\n\nText.\n\n    indented code\n\nMore.\n",  # not fenced
+                   "## 1. Intro\n\n```\nnever closed\n",
+                   "## 1. Intro\n\nText.\n\n**Table 2.** A caption\n```\nx\n```\n\n| A |\n| --- |\n| 1 |\n"):
+            with self.subTest(md=md), self.assertRaises(SystemExit):
+                p2i.body_to_tex(md, "main", {}, KNOWN)
 
 
 ACCENT_CMD = re.compile(r"\{\\(?:[`'^\"~=.]|[cvukHr](?![A-Za-z])|textcommabelow)\s*\{?([A-Za-z])\}?\}")
@@ -800,6 +894,10 @@ def drop_command(tex, name, nargs):
 
 def tex_words(tex):
     body = tex.split("\\begin{document}", 1)[1].split("\\end{document}", 1)[0]
+    # Code blocks are compared as they are.
+    code = sum((tokens(m.group(0)[len("\\begin{verbatim}"):-len("\\end{verbatim}")])
+                for m in p2i.VERBATIM.finditer(body)), Counter())
+    body = p2i.VERBATIM.sub(" ", body)
     body = re.sub(r"(?<!\\)%.*", " ", body)
     # Math is not compared: equations, \[...\] and \(...\) (not the \\[4pt] of a row).
     body = re.sub(r"(?s)\\begin\{equation\}.*?\\end\{equation\}", " ", body)
@@ -825,7 +923,7 @@ def tex_words(tex):
     body = re.sub(r"\\cite\{[^}]*\}", " ", body)
     body = re.sub(r"\\[A-Za-z]+\*?", " ", body)
     body = re.sub(r"\\.", " ", body)
-    return tokens(body)
+    return tokens(body) + code
 
 
 # Read left to right as pandoc does: a code span that opens first keeps its
@@ -842,6 +940,9 @@ def strip_md_math(md):
 
 
 def md_words(md):
+    md, blocks = p2i.hold_code(md)  # code blocks are compared as they are, without their fences
+    code = sum((tokens("\n".join(b.split("\n")[1:-1])) for b in blocks), Counter())
+    md = re.sub(r"ZZCODE\d+ZZ", " ", md)
     md = re.sub(r"<!--.*?-->", " ", md, flags=re.S)
     md = strip_md_math(md)  # math is not compared
     md = re.sub(r"!\[[^\]]*\]\([^)]*\)", " ", md)
@@ -851,7 +952,7 @@ def md_words(md):
     md = re.sub(r"\[@[^\]]*\]", " ", md)
     md = re.sub(r"(?<![\w@])@[a-z0-9]+", " ", md)  # narrative citations become author names
     md = re.sub(r"(?m)^\s*\d+\.\s", " ", md)  # ordered-list markers
-    return tokens(md.replace("**Keywords:**", " "))
+    return tokens(md.replace("**Keywords:**", " ")) + code
 
 
 def numbers(counter):
@@ -859,6 +960,7 @@ def numbers(counter):
 
 
 def pipe_table_rows(md):
+    md = p2i.hold_code(md)[0]
     return [len(block.strip().split("\n")) - 2 for block in re.findall(r"(?m)(?:^\|.*\n?)+", md)]
 
 
@@ -874,9 +976,8 @@ def tex_table_rows(tex):
 def ieee_main_md(md):
     """The parts of the manuscript's markdown that main.tex prints, as it
     prints them: no highlights, the AI statement in the Acknowledgment."""
-    parts = re.split(r"(?m)^(## .*)$", md)
     keep = []
-    for head, text in zip(parts[1::2], parts[2::2]):
+    for head, text in p2i.split_sections(md)[1:]:
         if head == "## Abstract" or re.match(r"## \d", head) or head == "## Data and code availability":
             keep.append(head.replace("Conclusions", "Conclusion") + "\n" + text)
         elif head == "## Acknowledgements":
@@ -889,11 +990,12 @@ def ieee_main_md(md):
 def ieee_supp_md(supp, known):
     """The supplement's markdown as supplement.tex prints it: the LaTeX title
     replaces the H1, the opening names the paper, and references to the
-    manuscript take IEEE numbers."""
+    manuscript take IEEE numbers; code blocks stay as they are."""
+    supp, code = p2i.hold_code(supp)
     supp = re.sub(r"(?m)^# .*$", "", supp)
     supp = re.sub(r"Supplement to the draft manuscript \[[^\]]*\]\(manuscript\.md\)\.",
                   f"Supplement to the manuscript \u201c{p2i.TITLE_IEEE}.\u201d", supp)
-    return p2i.convert_refs(supp, "supp", known)
+    return p2i.restore_code(p2i.convert_refs(supp, "supp", known), code)
 
 
 def run_converter(argv):
@@ -916,6 +1018,13 @@ class WordHelperTests(unittest.TestCase):
         tex = ("\\begin{document}a \\(x_1\\) b\n\\begin{equation}\ny = 2\n\\end{equation}\n"
                "c \\(20 and `\\)code\\$` d \\(3 x\\) e\n\nf \\$20 and \\(3 x\\) g\n\n"
                "h \\texttt{\\$x\\$} i \\(y\\) j\n\nk \\\\[4pt] l \\[z\\] m\\end{document}")
+        self.assertEqual(tex_words(tex), md_words(md))
+
+    def test_code_is_compared_as_it_is(self):
+        md = "Run `x`:\n\n```sh\ngrep '\\[0-9\\]' f # \\( $2 @key0 [a](b)\n```\n\nDone.\n"
+        tex = ("\\begin{document}Run \\texttt{x}:\n\n\\begin{verbatim}\ngrep '\\[0-9\\]' f # \\( $2 @key0 [a](b)\n"
+               "\\end{verbatim}\n\nDone.\\end{document}")
+        self.assertEqual(md_words(md), Counter("run x grep 0 9 f 2 key0 a b done".split()))
         self.assertEqual(tex_words(tex), md_words(md))
 
     def test_caption_labels_are_ignored(self):
@@ -942,8 +1051,10 @@ class EndToEndTests(unittest.TestCase):
         cls.tmp.cleanup()
 
     def test_figures_use_the_pdf_where_there_is_one(self):
-        for line in ("\\usepackage{graphicx}", "\\usepackage{float}", "\\graphicspath{{./}{../}}"):
+        for line in ("\\usepackage{amsmath}", "\\usepackage{graphicx}", "\\graphicspath{{./}{../}}",
+                     "\\newcommand\\suppFloatBarrier"):
             self.assertIn(line, self.supp_tex)
+        self.assertNotIn("\\usepackage{float}", self.supp_tex)
         for tex in (self.main_tex, self.supp_tex):
             for f in p2i.graphics_files(tex):
                 with self.subTest(file=f):
@@ -953,7 +1064,12 @@ class EndToEndTests(unittest.TestCase):
         supp = (ROOT / "paper/supplement.md").read_text(encoding="utf-8")
         captions = re.findall(r"(?m)^\*\*Figure (S\d+)\.\*\*", supp)
         self.assertEqual(re.findall(r"\\textbf\{Figure (S\d+)\.\}", self.supp_tex), captions)
-        self.assertEqual(len(re.findall(r"\\begin\{figure\}", self.supp_tex)), len(captions))
+        self.assertEqual(len(re.findall(r"\\begin\{figure\}\[!ht\]", self.supp_tex)), len(captions))
+
+    def test_float_placement_and_page_group_warning(self):
+        for tex in (self.main_tex, self.supp_tex):
+            self.assertRegex(tex, PAGE_GROUP)
+        self.assertEqual(set(re.findall(r"\\begin\{(?:figure|table)\*?\}(\[[^\]]*\])", self.main_tex)), {"[!tp]"})
 
     def test_outputs_are_ascii(self):
         for text in (self.main_tex, self.supp_tex, self.bib):
@@ -1022,6 +1138,7 @@ An abstract with inline math $F_1 \\geq 0$ and a citation [@kuhn1955hungarian].
 
 The method of @kuhn1955hungarian assigns detections (Fig. 1). The dense
 control is in Fig. S1, its panel (b) in Fig. S1b and both in Figs. 1 and S1.
+Without the period: Fig S1, Fig 1 and Figs 1 and S1.
 
 ## 2. Methods
 
@@ -1032,6 +1149,12 @@ F_1^{{c}} = \\frac{{F_1 - F_1^{{0}}}}{{1 - F_1^{{0}}}}
 $$
 
 where $F_1^{{0}} \u2264 F_1$ is the F1 of 200 shifted detections (Table 1).
+
+The scores rebuild with one command:
+
+```sh
+grep -E '\\[0-9\\]+' log.txt # \\( Table 9 @kuhn1955hungarian {{x}} $y$
+```
 
 **Table 1.** Scores with $F_1^{{c}}$ in the head.
 
@@ -1075,7 +1198,12 @@ Generated.
 SYNTH_SUPPLEMENT = """# Supplementary material
 
 Supplement to the draft manuscript [Short title](manuscript.md). It refers to
-Fig. 1 and Section 2.
+Fig. 1 and Section 2. Its tables rebuild with:
+
+```sh
+# a comment, not a title
+bash scripts/reproduce_paper_tables.sh
+```
 
 ## S1. Dense control
 
@@ -1084,13 +1212,29 @@ The control is in Fig. S1, panel (b) in Fig. S1b.
 ![Figure S1.](figures/figure_s1.png)
 
 **Figure S1.** Dense control at 2 m; see Section 2 and Fig. 1.
+
+The pooled score:
+
+$$
+\\begin{aligned}
+F &= \\frac{2 P R}{P + R} \\\\
+  &\\text{pooled over plots}
+\\end{aligned}
+$$
+
+where $P$ is precision. It rebuilds with:
+
+~~~
+Rscript scripts/paper_density_routing.R N_BOOT=1000 # Table 2, [x](y)
+~~~
 """
 
 
 @unittest.skipUnless(PANDOC, "pandoc not available (set PANDOC=/path/to/pandoc)")
 class SyntheticPaperTests(unittest.TestCase):
     """A small paper in a temporary copy of the repository layout, with a PDF
-    beside a figure's PNG, a supplementary figure, display and inline math."""
+    beside a figure's PNG, a supplementary figure, display and inline math and
+    code blocks."""
 
     @classmethod
     def setUpClass(cls):
@@ -1125,9 +1269,16 @@ class SyntheticPaperTests(unittest.TestCase):
                                           "references.bib", "supplement.tex"])
 
     def test_supplementary_figure_and_references(self):
-        for line in ("\\usepackage{graphicx}", "\\usepackage{float}", "\\graphicspath{{./}{../}}"):
-            self.assertIn(line, self.supp_tex)
-        self.assertIn("\\begin{figure}[H]", self.supp_tex)
+        for line in ("\\usepackage{amsmath}", "\\usepackage{graphicx}", "\\graphicspath{{./}{../}}",
+                     "\\newcommand\\suppFloatBarrier{\\par\\addpenalty\\z@",
+                     "\\g@addto@macro\\@afterheading{\\supp@afterheading}",
+                     "\\AtBeginDocument{\\let\\supp@section\\section",
+                     "  \\renewcommand\\section{\\suppFloatBarrier"):
+            self.assertRegex(self.supp_tex, "(?m)^" + re.escape(line))  # present and not commented out
+        for tex in (self.main_tex, self.supp_tex):
+            self.assertRegex(tex, PAGE_GROUP)
+        self.assertNotIn("\\usepackage{float}", self.supp_tex)
+        self.assertIn("\\begin{figure}[!ht]", self.supp_tex)
         self.assertIn("\\textbf{Figure S1.} Dense control at 2 m; see Section~II and Fig.~1.\n\\end{figure}",
                       self.supp_tex)
         self.assertIn("The control is in Fig.~S1, panel (b) in Fig.~S1(b).", self.supp_tex)
@@ -1135,6 +1286,7 @@ class SyntheticPaperTests(unittest.TestCase):
         self.assertIn("control is in Fig.~S1, its panel (b) in Fig.~S1(b) and both in Figs.~\\ref{fig:1} and S1.",
                       self.main_tex)
         self.assertIn("\\caption{Density response; panel (b) is in Fig.~S1.}", self.main_tex)
+        self.assertIn("Without the period: Fig~S1, Fig~\\ref{fig:1} and Figs~\\ref{fig:1} and S1.", self.main_tex)
 
     def test_math(self):
         self.assertIn("between the null and a perfect score:\n\\begin{equation}\n"
@@ -1144,6 +1296,19 @@ class SyntheticPaperTests(unittest.TestCase):
         self.assertIn("An abstract with inline math \\(F_1 \\geq 0\\) and a citation~\\cite{kuhn1955hungarian}.",
                       self.main_tex)
         self.assertIn("Detector & \\(F_1^{c}\\) \\\\", self.main_tex)
+        self.assertIn("The pooled score:\n\\[\n\\begin{aligned}\nF &= \\frac{2 P R}{P + R} \\\\\n"
+                      "  &\\text{pooled over plots}\n\\end{aligned}\n\\]\nwhere \\(P\\) is precision.", self.supp_tex)
+        self.assertNotIn("equation", self.supp_tex)
+
+    def test_code_blocks(self):
+        self.assertIn("rebuild with:\n\n\\begin{verbatim}\n# a comment, not a title\n"
+                      "bash scripts/reproduce_paper_tables.sh\n\\end{verbatim}", self.supp_tex)
+        self.assertIn("The scores rebuild with one command:\n\n\\begin{verbatim}\n"
+                      "grep -E '\\[0-9\\]+' log.txt # \\( Table 9 @kuhn1955hungarian {x} $y$\n\\end{verbatim}",
+                      self.main_tex)
+        self.assertIn("It rebuilds with:\n\n\\begin{verbatim}\n"
+                      "Rscript scripts/paper_density_routing.R N_BOOT=1000 # Table 2, [x](y)\n\\end{verbatim}",
+                      self.supp_tex)
 
     def test_no_word_is_lost_and_every_number_matches(self):
         for name, md, tex in (("main", self.main_md, self.main_tex), ("supplement", self.supp_md, self.supp_tex)):

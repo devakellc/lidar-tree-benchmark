@@ -253,7 +253,7 @@ teaser image; neither holds code or a checkpoint. ForPT
 code and links eleven Hugging Face checkpoints for pretraining, semantic
 segmentation, species and age, none for instance segmentation; ITS-Net
 ([A8366233/ITS-Net](https://github.com/A8366233/ITS-Net), created 2025-11-17)
-holds code without a checkpoint. The paper's Section 2.2 also cites
+holds code without a checkpoint. The paper's Section 2.1 also cites
 [Yu et al. 2004](https://www.isprs.org/proceedings/XXXVI/8-W2/YU.pdf), who
 thinned a 400 m flight to the densities of native 800 m and 1,500 m flights of
 the same 100 ha test area; their tables give 1,416 thinned against 1,400 native
@@ -298,39 +298,44 @@ plots, which replicate SegmentAnyTree's collapse against true labels.
    limitations.
 7. Conclusion, data and code availability.
 
-Figures, as drawn by `paper_figures.R` from the master tables and the study
-outputs, each with the numbers it plots in a CSV:
+Figures and tables of the paper as restructured for IEEE JSTARS on 22 October
+2026, drawn by `paper_figures.R` from the master tables, the study outputs and
+the persisted detections, each figure but the schematic with the numbers it
+plots in a CSV:
 
-- Figure 1: sites, stems by crown class, native pulse density and stem
-  heights.
-- Figure 2: F1, recall and precision versus pulse density, five sites by all
-  ladder arms, with the QL1 and QL2 floors marked.
-- Figure 3: rank of each arm down the ladder, with the rank correlations and
-  their intervals.
-- Figure 4: recall by crown class versus density.
-- Figure 5: censused against nominal-box precision per arm, with the credited
-  bracket.
-- Figure 6: native sparse flights against decimated rungs, by arm and crown
-  class.
-- Figure 7: sensitivity panel with the match radius, the matcher variants and
-  the jitter bands against plot sampling.
+- Figure 1: a map of the five sites, stems by crown class, native pulse
+  density and stem heights.
+- Figure 2: the evaluation protocol and the density-routed pipeline.
+- Figure 3: F1, recall, precision and chance-corrected F1 versus pulse
+  density, with the QL1 and QL2 floors marked.
+- Figure 4: rank of each detector across the density series, with the rank
+  correlations and their intervals.
+- Figure 5: recall by crown class versus density.
+- Figure 6: native sparse flights against thinned density levels.
+- Figure 7: detections of three detectors on one plot at three densities.
+- Supplement Figure S1: censused against nominal-plot precision, with the
+  credited bracket; Figure S2: the sensitivity of the evaluation.
 
 Tables:
 
 - Table 1: sites, plots, stems by crown class, measured pulse densities.
-- Table 2: detectors with type, input, training data, hash and licence (the
-  [detector table](../results/detector-table.md)).
-- Table 3: master table, censused and nominal, with plot-level bootstrap
-  intervals; RGB detectors as native-only rows.
-- Table 4: California development region against Washington replication
-  region.
-- Table 5: the same checkpoints on the FGI-EMIT reserve, on FGI-EMIT thinned
-  to the NEON densities, and on NEON.
-- Table 6: compute cost per plot (the
+- Table 2: detectors with type, input, training data, implementation and
+  compute cost (the [detector table](../results/detector-table.md) and the
   [compute-cost table](../results/compute-cost-results.md)).
+- Table 3: accuracy at native density, with the chance-agreement null at 4 m
+  and 2 m.
+- Table 4: F1 by density for the eight detectors run at every density.
+- Table 5: censused subplots beside the nominal plot core.
+- Table 6: the same checkpoints on the FGI-EMIT reserve, on FGI-EMIT thinned
+  to the NEON densities, and on NEON.
+- Table 7: the density-routed pipeline, a decision table by USGS quality level
+  and compute budget with its held-out check (the
+  [density-routing report](../results/density-routing-results.md)).
+- Table 8: threats to validity.
 
-Fusion, routing, calibration, crown diameters, allometry, the temporal check
-and mask scoring with its proxy validation go to the supplement.
+The regional comparison, compute cost per plot, the sensitivity analyses,
+fusion, calibration, crown diameters, mask scoring with its proxy validation,
+ForestMamba and the per-band routing tables go to the supplement.
 
 ## Work before submission
 
@@ -362,7 +367,7 @@ The seven steps added on 2026-10-05, numbered on from the first plan:
 | 13. Regenerate the historical-population reports | Done: every paper-cited report opens with a five-site section for every arm, in pulses/m²; the 3DEP cross-check runs against the adopted stems of the 43 California plots | [density ladder](../results/density-ladder-sweep-results.md), [model benchmark](../results/model-benchmark-results.md) and the sensitivity reports |
 | 14. Extend the master tables | Done: crown-class and height-band strata, regional tables and leads, rank stability with intervals, and the configuration provenance record | [master tables](../results/master-tables-results.md), [configuration provenance](configuration-provenance.md) |
 | 15. Settle mask scoring and bridge the dense control | Done. SegmentAnyTree is on the five-site mask board and the TreeisoNet mask voxel is declared; the proxy costs about a third of mask F1 on FGI-EMIT, so mask scores go to the supplement; thinning matches the NEON lead at 11 pulses/m² and keeps 0.17 to 0.21 below it, so the datasets are a contrast | [proxy validation](../results/fgiemit-proxy-validation-results.md), [FGI-EMIT thinning](../results/fgiemit-thinning-results.md) |
-| 16. Figures, detector table and compute cost | Done: seven figures with their numbers, the detector table with verified training data, and timed runs of every arm | [detector table](../results/detector-table.md), [compute cost](../results/compute-cost-results.md) |
+| 16. Figures, detector table and compute cost | Done: nine figures with their numbers (seven in the manuscript, two in the supplement, redrawn for JSTARS), the detector table with verified training data, and timed runs of every arm | [detector table](../results/detector-table.md), [compute cost](../results/compute-cost-results.md) |
 | 17. Archive and reproduction | Staged (5.5 GB) and rebuilt in a clean container with no differing file; the deposit remains | [archive guide](reproduction-archive.md) |
 
 ### Before submission

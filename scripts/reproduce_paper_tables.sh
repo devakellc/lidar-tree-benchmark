@@ -77,8 +77,11 @@ REBUILT=(
   paper_runs/sensitivity paper_runs/neon/native_ql2_vs_decimated.csv
   paper_runs/neon/native_ql2_paired.csv paper_runs/density_routing
 )
-for n in 1 2 3 4 5 6 7; do
-  REBUILT+=("paper_runs/figures/figure_$n.csv" "paper_runs/figures/figure_$n.png")
+# The nine figures, each as PNG and PDF, and the numbers each plots (the
+# schematic, figure 2, plots none).
+for n in 1 2 3 4 5 6 7 s1 s2; do
+  REBUILT+=("paper_runs/figures/figure_$n.png" "paper_runs/figures/figure_$n.pdf")
+  [ "$n" = 2 ] || REBUILT+=("paper_runs/figures/figure_$n.csv")
 done
 for s in SJER SOAP TEAK; do REBUILT+=("paper_runs/neon/$s/ql2/ql2_detect_results.csv"); done
 for s in "${SITE_LIST[@]}"; do
@@ -101,10 +104,11 @@ done
 # table, because on the dense 3DEP clouds lasR moves apex heights by a few
 # centimetres between runs and can break a canopy-maximum tie differently in
 # another build (the paired table the report cites reads only the decimated
-# rows and is strict); and the figure images (the numbers each figure plots
-# are its strict CSV).
+# rows and is strict); and the figure images, PNG and PDF (cairo writes a
+# creation date into each PDF, so its bytes change from run to run; the
+# numbers each figure plots are its strict CSV).
 printf '%s\n' "${REBUILT[@]}" |
-  sed -E 's#^(.*(best_treetop(_cache|s_geojson)|ql2_detect_results\.csv|native_ql2_vs_decimated\.csv|\.png))$#~\1#' \
+  sed -E 's#^(.*(best_treetop(_cache|s_geojson)|ql2_detect_results\.csv|native_ql2_vs_decimated\.csv|\.png|\.pdf))$#~\1#' \
   > "$LOGS/rebuilt_paths.txt"
 for r in "${REBUILT[@]}"; do rm -rf "${W:?}/$r"; done
 
