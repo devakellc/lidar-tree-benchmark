@@ -4,6 +4,7 @@
 \documentclass[10pt]{article}
 \usepackage[T1]{fontenc}
 \usepackage{mathptmx}
+\renewcommand{\ttdefault}{pcr}
 \usepackage[margin=2cm]{geometry}
 \usepackage{cite}
 \usepackage{array}
@@ -18,21 +19,20 @@
 \setlength{\parskip}{4pt}
 \setlength{\emergencystretch}{3em}
 
-\title{Supplementary Material for ``Zero-Shot Deep Tree Detectors on National-Mapping Airborne
-LiDAR: Small Leads Above Chance at Native Density and No Guarantee Below the QL2 Floor''}
+\title{Supplementary Material for ``Zero-Shot Deep Tree Detectors on National-Mapping Airborne LiDAR:
+Small Leads Above Chance at Native Density and No Guarantee Below the QL2 Floor''}
 \author{Alex Grigoryev}
 \date{}
 
 \begin{document}
 \maketitle
 
-Supplement to the draft manuscript Zero-shot deep tree detectors on
-national-mapping airborne LiDAR. Each section names the study
+Supplement to the manuscript ``Zero-Shot Deep Tree Detectors on National-Mapping Airborne LiDAR: Small Leads Above Chance at Native Density and No Guarantee Below the QL2 Floor.'' Each section names the study
 report its numbers come from. Density is median first-return pulse density over
 the 106 plots: 9.8 pulses/m\textsuperscript{2} at native density and 4.7, 2.5, 2.0, 1.3 and 0.6
 pulses/m\textsuperscript{2} on the decimated rungs.
 
-\section*{S1. Recall by crown class}
+\section*{S1. Recall by Crown Class}
 
 Native density, five sites, nominal plot core, with 95\% plot-bootstrap
 intervals: 1,872 overstory stems (dominant and codominant) and 592 understory
@@ -40,12 +40,15 @@ stems (intermediate and suppressed), 404 of the latter at WREF. Detections carry
 no crown class, so the strata have recall only. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/master-tables-results.md}{master
 tables}.
 
-\noindent\textbf{Table S1.} Recall by crown class at native density.
-
 {\footnotesize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lLL}
+\multicolumn{3}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S1.} Recall by crown class at native density.} \\[4pt]
+\hline
+Detector & Overstory & Understory \\
+\hline
+\endfirsthead
 \hline
 Detector & Overstory & Understory \\
 \hline
@@ -66,18 +69,21 @@ Detectree2 (RGB) & 0.365 [0.325, 0.403] & 0.123 [0.089, 0.162] \\
 \end{xltabular}
 }
 
-\section*{S2. Accuracy by site}
+\section*{S2. Accuracy by Site}
 
 Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/master-tables-results.md}{master tables} and \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/model-benchmark-results.md}{model
 comparison}; 95\% plot-bootstrap intervals
 in brackets. SJER has six plots and wide intervals.
 
-\noindent\textbf{Table S2.} Native-density F1 by site, nominal plot core, with 95\% intervals.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lLLLLL}
+\multicolumn{6}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S2.} Native-density F1 by site, nominal plot core, with 95\% intervals.} \\[4pt]
+\hline
+Detector & SJER & SOAP & TEAK & WREF & ABBY \\
+\hline
+\endfirsthead
 \hline
 Detector & SJER & SOAP & TEAK & WREF & ABBY \\
 \hline
@@ -101,19 +107,22 @@ AMS3D & 0.100 [0.057, 0.156] & 0.190 [0.142, 0.277] & 0.342 [0.234, 0.457] & 0.2
 DeepForest's SJER and TEAK scores are not zero-shot: its training annotations
 include imagery of those two sites.
 
-\section*{S3. Sensitivity populations}
+\section*{S3. Sensitivity Populations}
 
 Every detector was also scored on a population without the 10 cm DBH floor (116
 plots, 2,854 stems) and on one without the six-tree plot rule (149 plots, 2,628
 stems). Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/master-tables-results.md}{master tables}.
 
-\noindent\textbf{Table S3.} Paired F1 difference from CHM-VWF at native density under the
-three populations.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lLLLLL}
+\multicolumn{6}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S3.} Paired F1 difference from CHM-VWF at native density under the
+three populations.} \\[4pt]
+\hline
+Population & ForestFormer3D & SegmentAnyTree & TreeisoNet & \texttt{multichm} & Li 2012 \\
+\hline
+\endfirsthead
 \hline
 Population & ForestFormer3D & SegmentAnyTree & TreeisoNet & \texttt{multichm} & Li 2012 \\
 \hline
@@ -135,17 +144,20 @@ population they are $-$0.008 [$-$0.031, +0.011] for \texttt{multichm} and +0.020
 +0.045] for AMS3D (Table~IV of the manuscript), and the null was not computed for
 the sensitivity populations.
 
-\section*{S4. Censused subplots}
+\section*{S4. Censused Subplots}
 
 Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/census-support-results.md}{censused-subplot study}.
-
-\noindent\textbf{Table S4.} Plots admitted to censused-subplot scoring, tower / distributed in
-brackets.
 
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lrLRRr}
+\multicolumn{6}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S4.} Plots admitted to censused-subplot scoring, tower / distributed in
+brackets.} \\[4pt]
+\hline
+Site & Plots & Nearest census within four years & Stems in those plots & Exact 2021 census & Stems \\
+\hline
+\endfirsthead
 \hline
 Site & Plots & Nearest census within four years & Stems in those plots & Exact 2021 census & Stems \\
 \hline
@@ -168,7 +180,7 @@ against 0.44 for SegmentAnyTree and 0.75 against 0.42 for ForestFormer3D. The
 stricter exclusion rule admits 54 plots and gives native precision about 0.01
 below the headline rule for every detector.
 
-\section*{S5. Co-detection credit}
+\section*{S5. Co-Detection Credit}
 
 An isolated false positive is credited when detectors from at least two other
 families leave an isolated false positive within 2 m. Each detector is scored at
@@ -176,12 +188,15 @@ its best tested density per site, so the raw values differ from the
 native-density table of the manuscript. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/coverage-gap-results.md}{coverage-gap
 study}.
 
-\noindent\textbf{Table S5.} Raw and credited scores, five sites pooled.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{llllLll}
+\multicolumn{7}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S5.} Raw and credited scores, five sites pooled.} \\[4pt]
+\hline
+Detector & Recall & Precision & F1 & Credited precision & Credited F1 & Gain \\
+\hline
+\endfirsthead
 \hline
 Detector & Recall & Precision & F1 & Credited precision & Credited F1 & Gain \\
 \hline
@@ -207,20 +222,23 @@ selected configuration; every other row pools 106 plots and 2,525 stems. Across
 radii of 1.5 to 3 m and one or two witnessing families, the pooled gain is
 +0.106 to +0.135.
 
-\section*{S6. Detector fusion}
+\section*{S6. Detector Fusion}
 
 Detections of eight LiDAR detectors and DeepForest were clustered across
 detectors and kept by union, by majority and by agreement of at least k
 detectors. The value of k is chosen on the same plots, so the gains are in
 sample. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/detector-fusion-results.md}{fusion study}.
 
-\noindent\textbf{Table S6.} F1 of fused modes against the best single detector, 106 plots per
-density.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lLrrLr}
+\multicolumn{6}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S6.} F1 of fused modes against the best single detector, 106 plots per
+density.} \\[4pt]
+\hline
+Pulses/m\textsuperscript{2} & Best single detector & Union & Majority & Best agreement rule & Difference \\
+\hline
+\endfirsthead
 \hline
 Pulses/m\textsuperscript{2} & Best single detector & Union & Majority & Best agreement rule & Difference \\
 \hline
@@ -240,7 +258,7 @@ recall to 0.85 at native density at a precision of 0.20. At 0.6 pulses/m\textsup
 best single detector is the RGB one, whose accuracy does not depend on point
 density.
 
-\section*{S7. Crown delineation}
+\section*{S7. Crown Delineation}
 
 Crown diameters from every segmenter, among them a random walker~\cite{grady2006random} and the methods of Dalponte and Coomes~\cite{dalponte2016treecentric} and
 Silva et al.~\cite{silva2016imputation}, were compared with NEON field crown diameters on the plots
@@ -248,13 +266,16 @@ with at least six such stems. The equivalent-circle diameter is compared with
 the field ninety-degree diameter and the widest axis with the field maximum
 diameter. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/crown-segmentation-results.md}{crown benchmark}.
 
-\noindent\textbf{Table S7.} Crown diameter error at native density on the 790 stems matched by
-every listed segmenter.
-
 {\footnotesize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{LRrRr}
+\multicolumn{5}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S7.} Crown diameter error at native density on the 790 stems matched by
+every listed segmenter.} \\[4pt]
+\hline
+Segmenter & Equivalent diameter RMSE (m) & Bias (m) & Widest axis RMSE (m) & Bias (m) \\
+\hline
+\endfirsthead
 \hline
 Segmenter & Equivalent diameter RMSE (m) & Bias (m) & Widest axis RMSE (m) & Bias (m) \\
 \hline
@@ -277,20 +298,23 @@ For the stop-rule random walker the equivalent-diameter RMSE is 1.76 m at native
 density, 1.65 to 1.76 m down to 1.3 pulses/m\textsuperscript{2} and 1.91 m at 0.6 pulses/m\textsuperscript{2}: crown
 width tolerates sparser data than stem detection does.
 
-\section*{S8. Mask scores on NEON and the proxy reference}
+\section*{S8. Mask Scores on NEON and the Proxy Reference}
 
 NEON has no per-point tree labels. Mask scores use a proxy reference in which
 each canopy point is assigned to the nearest mapped stem within that stem's
 field crown radius. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/instance-iou-pq-results.md}{instance IoU
 study}.
 
-\noindent\textbf{Table S8.} Mask scores against the proxy at native density, five sites, IoU
-threshold 0.5.
-
 {\footnotesize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{llllL}
+\multicolumn{5}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S8.} Mask scores against the proxy at native density, five sites, IoU
+threshold 0.5.} \\[4pt]
+\hline
+Detector & Precision & Recall & F1 & Panoptic quality \\
+\hline
+\endfirsthead
 \hline
 Detector & Precision & Recall & F1 & Panoptic quality \\
 \hline
@@ -324,21 +348,24 @@ proxy keeps the order of the two models and compresses their difference from
 0.10 to 0.02. NEON mask scores are therefore a ranking, not a measure of mask
 quality.
 
-\section*{S9. Calibration and validation of the baseline}
+\section*{S9. Calibration and Validation of the Baseline}
 
 The baseline's canopy-model resolution (0.25, 0.5 or 1.0 m) and window slope
 (0.05, 0.10 or 0.15) were tuned on a stratified half of each site's plots and
 scored on the other half, over ten seeds. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/calibration-validation-results.md}{calibration/validation
 study}.
 
-\noindent\textbf{Table S9.} Held-out F1 after tuning: the median over ten seeds with the range
-in parentheses (a range over seeds, not an interval), and the share of seeds
-that selected 0.5 m.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lLlLlLl}
+\multicolumn{7}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S9.} Held-out F1 after tuning: the median over ten seeds with the range
+in parentheses (a range over seeds, not an interval), and the share of seeds
+that selected 0.5 m.} \\[4pt]
+\hline
+Site & 9.8 pulses/m\textsuperscript{2} & 0.5 m chosen & 4.7 pulses/m\textsuperscript{2} & 0.5 m chosen & 0.6 pulses/m\textsuperscript{2} & 0.5 m chosen \\
+\hline
+\endfirsthead
 \hline
 Site & 9.8 pulses/m\textsuperscript{2} & 0.5 m chosen & 4.7 pulses/m\textsuperscript{2} & 0.5 m chosen & 0.6 pulses/m\textsuperscript{2} & 0.5 m chosen \\
 \hline
@@ -359,7 +386,7 @@ density); the two are not scored on the same plots, so this is a check of
 magnitude rather than a paired comparison. The paper does not tune the baseline;
 the regional split of the manuscript is its held-out test.
 
-\section*{S10. Arm not analysed and historical studies}
+\section*{S10. Arm Not Analysed and Historical Studies}
 
 A promptable refiner, SAM2Point~\cite{guo2024sam2point}, built on SAM 2~\cite{ravi2024sam} and seeded with up to 40 CHM-VWF tops per plot scored F1 0.132 at
 native density, against 0.405 for its own seeds on the same plots. It keeps 81\%
@@ -372,7 +399,7 @@ paired fusion of RGB and LiDAR detections were studied on the earlier three-site
 population only and found small effects. Their reports are marked historical and
 are not part of the paper's evidence.
 
-\section*{S11. Configuration provenance}
+\section*{S11. Configuration Provenance}
 
 The \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/docs/configuration-provenance.md}{configuration provenance record} lists
 every tunable setting of every detector, the data it was chosen on and the
@@ -380,7 +407,7 @@ commit that fixed it, against the time the Washington sites were first scored.
 The \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/detector-table.md}{detector table} gives checkpoint hashes,
 image identifiers and licences.
 
-\section*{S12. Chance agreement}
+\section*{S12. Chance Agreement}
 
 The null shifts each plot's detections within the core and its matching margin
 by each of 200 random offsets, the same for every detector and density, and
@@ -398,13 +425,16 @@ change the two segmenters' native corrected leads by at most 0.001
 +0.020 and +0.034 at 8 m). Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/matcher-robustness-results.md}{matcher-robustness
 study}.
 
-\noindent\textbf{Table S12a.} Native density, five sites: observed and null F1 at radii of 4
-and 2 m, corrected F1, and at 4 m the plain difference above the null.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lllLLllL}
+\multicolumn{8}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S12a.} Native density, five sites: observed and null F1 at radii of 4
+and 2 m, corrected F1, and at 4 m the plain difference above the null.} \\[4pt]
+\hline
+Detector & F1, 4 m & Null F1, 4 m & Corrected F1, 4 m & Excess F1 (F1 $-$ null F1), 4 m & F1, 2 m & Null F1, 2 m & Corrected F1, 2 m \\
+\hline
+\endfirsthead
 \hline
 Detector & F1, 4 m & Null F1, 4 m & Corrected F1, 4 m & Excess F1 (F1 $-$ null F1), 4 m & F1, 2 m & Null F1, 2 m & Corrected F1, 2 m \\
 \hline
@@ -425,13 +455,16 @@ AMS3D & 0.240 & 0.190 & 0.063 [0.051, 0.075] & 0.051 [0.042, 0.060] & 0.191 & 0.
 \end{xltabular}
 }
 
-\noindent\textbf{Table S12b.} Corrected F1 by density at 4 m, five sites. Columns give the
-median first-return density in pulses/m\textsuperscript{2}; 2.0 is the rung at the QL2 floor.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{llllllL}
+\multicolumn{7}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S12b.} Corrected F1 by density at 4 m, five sites. Columns give the
+median first-return density in pulses/m\textsuperscript{2}; 2.0 is the rung at the QL2 floor.} \\[4pt]
+\hline
+Detector & 9.8 & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
+\hline
+\endfirsthead
 \hline
 Detector & 9.8 & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
 \hline
@@ -449,13 +482,16 @@ AMS3D & 0.063 & 0.091 & 0.134 & 0.147 & 0.183 & 0.184 \\
 \end{xltabular}
 }
 
-\noindent\textbf{Table S12c.} Corrected lead over CHM-VWF by density and radius, five sites;
-2.0 is the rung at the QL2 floor.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{llLLLLLL}
+\multicolumn{8}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S12c.} Corrected lead over CHM-VWF by density and radius, five sites;
+2.0 is the rung at the QL2 floor.} \\[4pt]
+\hline
+Detector & Radius & 9.8 & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
+\hline
+\endfirsthead
 \hline
 Detector & Radius & 9.8 & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
 \hline
@@ -487,13 +523,16 @@ ForestFormer3D, 0.061 for SegmentAnyTree, 0.047 for \texttt{ptrees}, 0.040 for
 \texttt{multichm} and 0.016 [$-$0.012, 0.050] for CHM-VWF at 4 m, and 0.153, 0.108,
 0.064, 0.090, 0.042 and 0.042 at 2 m.
 
-\noindent\textbf{Table S12d.} Corrected lead over CHM-VWF by region at 4 m, at native density
-and at 4.7 pulses/m\textsuperscript{2}, with the California minus Washington difference.
-
 {\footnotesize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{llLLL}
+\multicolumn{5}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S12d.} Corrected lead over CHM-VWF by region at 4 m, at native density
+and at 4.7 pulses/m\textsuperscript{2}, with the California minus Washington difference.} \\[4pt]
+\hline
+Detector & Pulses/m\textsuperscript{2} & California & Washington & Difference \\
+\hline
+\endfirsthead
 \hline
 Detector & Pulses/m\textsuperscript{2} & California & Washington & Difference \\
 \hline
@@ -513,14 +552,17 @@ At native density the Washington estimates are carried by ABBY (ForestFormer3D
 $-$0.043 [$-$0.092, +0.004], SegmentAnyTree $-$0.002 [$-$0.054, +0.038]); at WREF they
 are +0.035 [$-$0.000, +0.066] and +0.033 [$-$0.005, +0.067].
 
-\noindent\textbf{Table S12e.} Corrected recall and corrected precision at native density, five
-sites, (score $-$ null) / (1 $-$ null), with the corrected leads over CHM-VWF
-(paired intervals), at 4 m and at 2 m.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lLLLLLLLL}
+\multicolumn{9}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S12e.} Corrected recall and corrected precision at native density, five
+sites, (score $-$ null) / (1 $-$ null), with the corrected leads over CHM-VWF
+(paired intervals), at 4 m and at 2 m.} \\[4pt]
+\hline
+Detector & Corrected recall, 4 m & Corrected precision, 4 m & Recall lead, 4 m & Precision lead, 4 m & Corrected recall, 2 m & Corrected precision, 2 m & Recall lead, 2 m & Precision lead, 2 m \\
+\hline
+\endfirsthead
 \hline
 Detector & Corrected recall, 4 m & Corrected precision, 4 m & Recall lead, 4 m & Precision lead, 4 m & Corrected recall, 2 m & Corrected precision, 2 m & Recall lead, 2 m & Precision lead, 2 m \\
 \hline
@@ -545,14 +587,17 @@ Corrected F1 equals the harmonic mean of corrected recall and corrected
 precision within 0.003 on the five-site and regional scopes and within 0.005 at
 single sites, for every detector and radius.
 
-\noindent\textbf{Table S12f.} Corrected leads over CHM-VWF by site at native density and 4 m,
-with the share of CHM-VWF's F1 that the null reproduces at that site and the
-range of that share over the eleven detectors.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lLLLLL}
+\multicolumn{6}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S12f.} Corrected leads over CHM-VWF by site at native density and 4 m,
+with the share of CHM-VWF's F1 that the null reproduces at that site and the
+range of that share over the eleven detectors.} \\[4pt]
+\hline
+Site & ForestFormer3D & SegmentAnyTree & TreeisoNet & Null share, CHM-VWF & Null share, all detectors \\
+\hline
+\endfirsthead
 \hline
 Site & ForestFormer3D & SegmentAnyTree & TreeisoNet & Null share, CHM-VWF & Null share, all detectors \\
 \hline
@@ -570,15 +615,18 @@ ABBY & $-$0.043 [$-$0.092, +0.004] & $-$0.002 [$-$0.054, +0.038] & $-$0.004 [$-$
 The chance level itself runs from about half of F1 at SJER to four fifths at
 ABBY, which is the mechanism behind the regional difference in corrected leads.
 
-\noindent\textbf{Table S12g.} Rank stability in corrected F1: Spearman correlation between the
-eight ladder detectors' corrected F1 at native density and at each rung, with
-95\% plot-bootstrap intervals, at both radii. The observed-F1 values are in
-Section~V-B of the manuscript.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lLLLLL}
+\multicolumn{6}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S12g.} Rank stability in corrected F1: Spearman correlation between the
+eight ladder detectors' corrected F1 at native density and at each rung, with
+95\% plot-bootstrap intervals, at both radii. The observed-F1 values are in
+Section~V-B of the manuscript.} \\[4pt]
+\hline
+Radius & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
+\hline
+\endfirsthead
 \hline
 Radius & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
 \hline
@@ -590,7 +638,7 @@ Radius & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
 \end{xltabular}
 }
 
-\section*{S13. Rank stability with detectors left out}
+\section*{S13. Rank Stability With Detectors Left Out}
 
 Spearman correlation between the native-density ranking and the ranking at each
 rung, recomputed on every bootstrap draw with the named detectors removed,
@@ -598,13 +646,16 @@ nominal plot core, five sites. The pair SegmentAnyTree and AMS3D was chosen
 after seeing the results. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/master-tables-results.md}{master
 tables}.
 
-\noindent\textbf{Table S13.} Rank correlation with native density, with 95\% intervals. Columns
-give the median first-return density in pulses/m\textsuperscript{2}.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{LLLLLL}
+\multicolumn{6}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S13.} Rank correlation with native density, with 95\% intervals. Columns
+give the median first-return density in pulses/m\textsuperscript{2}.} \\[4pt]
+\hline
+Left out & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
+\hline
+\endfirsthead
 \hline
 Left out & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
 \hline
@@ -633,7 +684,7 @@ in 3\%) and 0.77 in 5\% of orderings of six; the eight-detector values at 4.7, 2
 and 2.0 pulses/m\textsuperscript{2} have chance probabilities 0.008, 0.018 and 0.029, those at 1.3
 and 0.6 pulses/m\textsuperscript{2} 0.56 and 0.69, and the six-detector 0.54 has 0.15.
 
-\section*{S14. Reference stands}
+\section*{S14. Reference Stands}
 
 Descriptors of the reference population per site, computed from the frozen
 population files: mapped stems and basal area per hectare of nominal plot core,
@@ -641,12 +692,15 @@ field heights and diameters of the reference stems, and the three most frequent
 species with their stem counts. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/instance-audit-results.md}{instance
 audit}.
 
-\noindent\textbf{Table S14.} Reference stands by site.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lllllLLLlL}
+\multicolumn{10}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S14.} Reference stands by site.} \\[4pt]
+\hline
+Site & Plots & Core area (ha) & Stems & Stems/ha & Basal area (m\textsuperscript{2}/ha) & Median height (m) (stems with heights) & Maximum height (m) & Median DBH (cm) & Main species (stems) \\
+\hline
+\endfirsthead
 \hline
 Site & Plots & Core area (ha) & Stems & Stems/ha & Basal area (m\textsuperscript{2}/ha) & Median height (m) (stems with heights) & Maximum height (m) & Median DBH (cm) & Main species (stems) \\
 \hline
@@ -666,7 +720,7 @@ precision is set by reference coverage (Section~V-C of the manuscript); ABBY is
 a young, even-aged Douglas-fir stand; WREF old growth holds 404 of the 592
 understory stems.
 
-\section*{S15. Inference settings of the learned detectors and of ForestMamba}
+\section*{S15. Inference Settings of the Learned Detectors and of ForestMamba}
 
 The settings below are those fixed by the published code and checkpoints, read
 from the pinned configuration files and the checkpoints' embedded run
@@ -677,12 +731,15 @@ manuscript). Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blo
 \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/docs/configuration-provenance.md}{configuration provenance} and the
 \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/gpu/forestmamba-sm120/README.md}{ForestMamba runtime}.
 
-\noindent\textbf{Table S15.} Inference settings.
-
 {\footnotesize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lLL}
+\multicolumn{3}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S15.} Inference settings.} \\[4pt]
+\hline
+Detector & Source and checkpoint & Settings \\
+\hline
+\endfirsthead
 \hline
 Detector & Source and checkpoint & Settings \\
 \hline
@@ -701,7 +758,7 @@ points/m\textsuperscript{2} (five-site medians), mean point spacings of 0.24, 0.
 0.67 and 0.95 m, against the 0.2 m voxel of the two segmenters and
 SegmentAnyTree's 0.3 m clustering radius.
 
-\section*{S16. The baseline without its smoothing}
+\section*{S16. The Baseline Without Its Smoothing}
 
 The paper's CHM-VWF smooths its 0.5 m canopy model with a circular 3 m moving
 mean below 8 first returns/m\textsuperscript{2}, a rule fixed before the runs. A post hoc run of
@@ -712,14 +769,17 @@ native density only the 18 plots below 8 pulses/m\textsuperscript{2} differ. The
 in its own root, was not run. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/baseline-smoothing-sensitivity-results.md}{baseline smoothing
 sensitivity}.
 
-\noindent\textbf{Table S16a.} CHM-VWF with and without the smoothing by density, five sites:
-F1 with 95\% intervals, recall, dominant-class recall (347 stems), and the paired
-change in F1 and recall.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lLllLllLL}
+\multicolumn{9}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S16a.} CHM-VWF with and without the smoothing by density, five sites:
+F1 with 95\% intervals, recall, dominant-class recall (347 stems), and the paired
+change in F1 and recall.} \\[4pt]
+\hline
+Pulses/m\textsuperscript{2} & F1, declared & Recall & Dominant recall & F1, no smoothing & Recall & Dominant recall & Change in F1 & Change in recall \\
+\hline
+\endfirsthead
 \hline
 Pulses/m\textsuperscript{2} & F1, declared & Recall & Dominant recall & F1, no smoothing & Recall & Dominant recall & Change in F1 & Change in recall \\
 \hline
@@ -734,13 +794,16 @@ Pulses/m\textsuperscript{2} & F1, declared & Recall & Dominant recall & F1, no s
 \end{xltabular}
 }
 
-\noindent\textbf{Table S16b.} Observed F1 lead over the declared baseline / over the baseline
-without smoothing, by density, with paired intervals.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lLLLLL}
+\multicolumn{6}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S16b.} Observed F1 lead over the declared baseline / over the baseline
+without smoothing, by density, with paired intervals.} \\[4pt]
+\hline
+Detector & 9.8 & 4.7 & 2.5 & 1.3 & 0.6 \\
+\hline
+\endfirsthead
 \hline
 Detector & 9.8 & 4.7 & 2.5 & 1.3 & 0.6 \\
 \hline
@@ -761,7 +824,7 @@ QL2 floor SegmentAnyTree, which collapses, is 0.073 and 0.303 behind the
 unsmoothed baseline. The headline tables keep the declared rule (Section~VI-G of
 the manuscript).
 
-\section*{S17. Recall by height band and dominance class}
+\section*{S17. Recall by Height Band and Dominance Class}
 
 Recall of the reference stems by field height band and by the two overstory
 canopy positions, five sites, nominal plot core, at native density / at the QL2
@@ -770,12 +833,15 @@ only. Height bands: below 8 m (401 stems), 8 to 15 m (1201) and 15 m and above
 (861); dominant 347 and codominant 1525 stems. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/master-tables-results.md}{master
 tables}.
 
-\noindent\textbf{Table S17.} Recall by height band and dominance class, native / QL2 rung.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lllllL}
+\multicolumn{6}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S17.} Recall by height band and dominance class, native / QL2 rung.} \\[4pt]
+\hline
+Detector & \textless{} 8 m & 8--15 m & $\geq$ 15 m & Dominant & Codominant \\
+\hline
+\endfirsthead
 \hline
 Detector & \textless{} 8 m & 8--15 m & $\geq$ 15 m & Dominant & Codominant \\
 \hline
@@ -800,7 +866,7 @@ At the QL2 rung the declared baseline keeps 0.42 of the stems of at least 15 m
 and 0.55 of the dominant stems, against 0.50 and 0.71 at native density; without
 its smoothing it keeps 0.69 of the dominant stems at 2.5 pulses/m\textsuperscript{2} (Table~S16a).
 
-\section*{S18. Instance assignment, apex floor and dead stems}
+\section*{S18. Instance Assignment, Apex Floor and Dead Stems}
 
 An audit of the learned detectors' persisted instance clouds and apexes on the
 nominal plot cores, five sites pooled (\texttt{scripts/instance\_audit.R}). For
@@ -811,12 +877,15 @@ core points of each instance. Apexes below 2 m are core detections the classical
 detectors' height floor would have removed. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/instance-audit-results.md}{instance
 audit}.
 
-\noindent\textbf{Table S18a.} Instance assignment by density.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{llllLlLLl}
+\multicolumn{9}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S18a.} Instance assignment by density.} \\[4pt]
+\hline
+Detector & Pulses/m\textsuperscript{2} & Tree share & Assigned share & Assigned share of tree points & Core instances & Mean points per instance & Median of plot medians & Apexes below 2 m \\
+\hline
+\endfirsthead
 \hline
 Detector & Pulses/m\textsuperscript{2} & Tree share & Assigned share & Assigned share of tree points & Core instances & Mean points per instance & Median of plot medians & Apexes below 2 m \\
 \hline
@@ -851,15 +920,18 @@ unchanged. SegmentAnyTree returned no core detection in 2 of the 106 plots at
 1.3 pulses/m\textsuperscript{2} and in 19 at 0.6; ForestFormer3D, \texttt{ptrees} and AMS3D each in one
 plot at 0.6.
 
-\noindent\textbf{Table S18b.} Native false positives of CHM-VWF and TreeisoNet near mapped
-dead stems: the cores hold 498 mapped dead stems of at least 10 cm DBH measured
-within the four-year window; a detection is near a dead stem when one lies
-within the given distance.
-
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{lLLllLL}
+\multicolumn{7}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S18b.} Native false positives of CHM-VWF and TreeisoNet near mapped
+dead stems: the cores hold 498 mapped dead stems of at least 10 cm DBH measured
+within the four-year window; a detection is near a dead stem when one lies
+within the given distance.} \\[4pt]
+\hline
+Detector & Core false positives & Within 4 m of a dead stem & Within 2 m & True positives & True positives within 4 m & Live reference stems within 4 m of a dead stem \\
+\hline
+\endfirsthead
 \hline
 Detector & Core false positives & Within 4 m of a dead stem & Within 2 m & True positives & True positives within 4 m & Live reference stems within 4 m of a dead stem \\
 \hline

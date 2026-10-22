@@ -428,8 +428,9 @@ Rscript scripts/compare_crowns.R \
 Use a distinct `CLAUDE_JOB_DIR` for each experiment. Downloaded data, model
 resources, and accepted-run artifacts are prerequisites for the larger
 studies; a clone does not include them. Most R drivers use `KEY=VALUE`
-arguments, while Python drivers use flags. Check the selected script's parser
-and linked study instructions before changing its invocation.
+arguments, while most Python drivers use flags; the paper converter
+`scripts/paper_to_ieee.py` takes `KEY=VALUE` arguments. Check the selected
+script's parser and linked study instructions before changing its invocation.
 
 ### Rebuild the paper tables
 
