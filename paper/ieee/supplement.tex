@@ -6,7 +6,7 @@
 \usepackage{mathptmx}
 \renewcommand{\ttdefault}{pcr}
 \usepackage[margin=2cm]{geometry}
-\usepackage{cite}
+\usepackage[nocompress]{cite}
 \usepackage{array}
 \usepackage{xltabular}
 \usepackage{url}
@@ -18,6 +18,11 @@
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{4pt}
 \setlength{\emergencystretch}{3em}
+% IEEEtran.bst's control entry has to be cited first without a reference-list
+% item; this is the IEEEtran class's \bstctlcite, which article lacks.
+\makeatletter
+\newcommand{\bstctlcite}[1]{\@bsphack\if@filesw\immediate\write\@auxout{\string\citation{#1}}\fi\@esphack}
+\makeatother
 
 \title{Supplementary Material for ``Zero-Shot Deep Tree Detectors on National-Mapping Airborne LiDAR:
 Small Leads Above Chance at Native Density and No Guarantee Below the QL2 Floor''}
@@ -25,6 +30,7 @@ Small Leads Above Chance at Native Density and No Guarantee Below the QL2 Floor'
 \date{}
 
 \begin{document}
+\bstctlcite{IEEEexample:BSTcontrol}% IEEEtran.bst control: the first author and "et al." beyond six
 \maketitle
 
 Supplement to the manuscript ``Zero-Shot Deep Tree Detectors on National-Mapping Airborne LiDAR: Small Leads Above Chance at Native Density and No Guarantee Below the QL2 Floor.'' Each section names the study
@@ -49,6 +55,7 @@ tables}.
 Detector & Overstory & Understory \\
 \hline
 \endfirsthead
+\multicolumn{3}{@{}l@{}}{\normalsize\textbf{Table S1} (continued)} \\[4pt]
 \hline
 Detector & Overstory & Understory \\
 \hline
@@ -84,6 +91,7 @@ in brackets. SJER has six plots and wide intervals.
 Detector & SJER & SOAP & TEAK & WREF & ABBY \\
 \hline
 \endfirsthead
+\multicolumn{6}{@{}l@{}}{\normalsize\textbf{Table S2} (continued)} \\[4pt]
 \hline
 Detector & SJER & SOAP & TEAK & WREF & ABBY \\
 \hline
@@ -123,6 +131,7 @@ three populations.} \\[4pt]
 Population & ForestFormer3D & SegmentAnyTree & TreeisoNet & \texttt{multichm} & Li 2012 \\
 \hline
 \endfirsthead
+\multicolumn{6}{@{}l@{}}{\normalsize\textbf{Table S3} (continued)} \\[4pt]
 \hline
 Population & ForestFormer3D & SegmentAnyTree & TreeisoNet & \texttt{multichm} & Li 2012 \\
 \hline
@@ -158,6 +167,7 @@ brackets.} \\[4pt]
 Site & Plots & Nearest census within four years & Stems in those plots & Exact 2021 census & Stems \\
 \hline
 \endfirsthead
+\multicolumn{6}{@{}l@{}}{\normalsize\textbf{Table S4} (continued)} \\[4pt]
 \hline
 Site & Plots & Nearest census within four years & Stems in those plots & Exact 2021 census & Stems \\
 \hline
@@ -197,6 +207,7 @@ study}.
 Detector & Recall & Precision & F1 & Credited precision & Credited F1 & Gain \\
 \hline
 \endfirsthead
+\multicolumn{7}{@{}l@{}}{\normalsize\textbf{Table S5} (continued)} \\[4pt]
 \hline
 Detector & Recall & Precision & F1 & Credited precision & Credited F1 & Gain \\
 \hline
@@ -239,6 +250,7 @@ density.} \\[4pt]
 Pulses/m\textsuperscript{2} & Best single detector & Union & Majority & Best agreement rule & Difference \\
 \hline
 \endfirsthead
+\multicolumn{6}{@{}l@{}}{\normalsize\textbf{Table S6} (continued)} \\[4pt]
 \hline
 Pulses/m\textsuperscript{2} & Best single detector & Union & Majority & Best agreement rule & Difference \\
 \hline
@@ -276,6 +288,7 @@ every listed segmenter.} \\[4pt]
 Segmenter & Equivalent diameter RMSE (m) & Bias (m) & Widest axis RMSE (m) & Bias (m) \\
 \hline
 \endfirsthead
+\multicolumn{5}{@{}l@{}}{\normalsize\textbf{Table S7} (continued)} \\[4pt]
 \hline
 Segmenter & Equivalent diameter RMSE (m) & Bias (m) & Widest axis RMSE (m) & Bias (m) \\
 \hline
@@ -308,13 +321,14 @@ study}.
 {\footnotesize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
-\begin{xltabular}{\textwidth}{llllL}
+\begin{xltabular}{\textwidth}{lLLLL}
 \multicolumn{5}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S8.} Mask scores against the proxy at native density, five sites, IoU
 threshold 0.5.} \\[4pt]
 \hline
 Detector & Precision & Recall & F1 & Panoptic quality \\
 \hline
 \endfirsthead
+\multicolumn{5}{@{}l@{}}{\normalsize\textbf{Table S8} (continued)} \\[4pt]
 \hline
 Detector & Precision & Recall & F1 & Panoptic quality \\
 \hline
@@ -366,6 +380,7 @@ that selected 0.5 m.} \\[4pt]
 Site & 9.8 pulses/m\textsuperscript{2} & 0.5 m chosen & 4.7 pulses/m\textsuperscript{2} & 0.5 m chosen & 0.6 pulses/m\textsuperscript{2} & 0.5 m chosen \\
 \hline
 \endfirsthead
+\multicolumn{7}{@{}l@{}}{\normalsize\textbf{Table S9} (continued)} \\[4pt]
 \hline
 Site & 9.8 pulses/m\textsuperscript{2} & 0.5 m chosen & 4.7 pulses/m\textsuperscript{2} & 0.5 m chosen & 0.6 pulses/m\textsuperscript{2} & 0.5 m chosen \\
 \hline
@@ -435,6 +450,7 @@ and 2 m, corrected F1, and at 4 m the plain difference above the null.} \\[4pt]
 Detector & F1, 4 m & Null F1, 4 m & Corrected F1, 4 m & Excess F1 (F1 $-$ null F1), 4 m & F1, 2 m & Null F1, 2 m & Corrected F1, 2 m \\
 \hline
 \endfirsthead
+\multicolumn{8}{@{}l@{}}{\normalsize\textbf{Table S12a} (continued)} \\[4pt]
 \hline
 Detector & F1, 4 m & Null F1, 4 m & Corrected F1, 4 m & Excess F1 (F1 $-$ null F1), 4 m & F1, 2 m & Null F1, 2 m & Corrected F1, 2 m \\
 \hline
@@ -458,13 +474,14 @@ AMS3D & 0.240 & 0.190 & 0.063 [0.051, 0.075] & 0.051 [0.042, 0.060] & 0.191 & 0.
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
-\begin{xltabular}{\textwidth}{llllllL}
+\begin{xltabular}{\textwidth}{lLLLLLL}
 \multicolumn{7}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S12b.} Corrected F1 by density at 4 m, five sites. Columns give the
 median first-return density in pulses/m\textsuperscript{2}; 2.0 is the rung at the QL2 floor.} \\[4pt]
 \hline
 Detector & 9.8 & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
 \hline
 \endfirsthead
+\multicolumn{7}{@{}l@{}}{\normalsize\textbf{Table S12b} (continued)} \\[4pt]
 \hline
 Detector & 9.8 & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
 \hline
@@ -492,6 +509,7 @@ AMS3D & 0.063 & 0.091 & 0.134 & 0.147 & 0.183 & 0.184 \\
 Detector & Radius & 9.8 & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
 \hline
 \endfirsthead
+\multicolumn{8}{@{}l@{}}{\normalsize\textbf{Table S12c} (continued)} \\[4pt]
 \hline
 Detector & Radius & 9.8 & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
 \hline
@@ -533,6 +551,7 @@ and at 4.7 pulses/m\textsuperscript{2}, with the California minus Washington dif
 Detector & Pulses/m\textsuperscript{2} & California & Washington & Difference \\
 \hline
 \endfirsthead
+\multicolumn{5}{@{}l@{}}{\normalsize\textbf{Table S12d} (continued)} \\[4pt]
 \hline
 Detector & Pulses/m\textsuperscript{2} & California & Washington & Difference \\
 \hline
@@ -563,6 +582,7 @@ sites, (score $-$ null) / (1 $-$ null), with the corrected leads over CHM-VWF
 Detector & Corrected recall, 4 m & Corrected precision, 4 m & Recall lead, 4 m & Precision lead, 4 m & Corrected recall, 2 m & Corrected precision, 2 m & Recall lead, 2 m & Precision lead, 2 m \\
 \hline
 \endfirsthead
+\multicolumn{9}{@{}l@{}}{\normalsize\textbf{Table S12e} (continued)} \\[4pt]
 \hline
 Detector & Corrected recall, 4 m & Corrected precision, 4 m & Recall lead, 4 m & Precision lead, 4 m & Corrected recall, 2 m & Corrected precision, 2 m & Recall lead, 2 m & Precision lead, 2 m \\
 \hline
@@ -598,6 +618,7 @@ range of that share over the eleven detectors.} \\[4pt]
 Site & ForestFormer3D & SegmentAnyTree & TreeisoNet & Null share, CHM-VWF & Null share, all detectors \\
 \hline
 \endfirsthead
+\multicolumn{6}{@{}l@{}}{\normalsize\textbf{Table S12f} (continued)} \\[4pt]
 \hline
 Site & ForestFormer3D & SegmentAnyTree & TreeisoNet & Null share, CHM-VWF & Null share, all detectors \\
 \hline
@@ -627,6 +648,7 @@ Section~V-B of the manuscript.} \\[4pt]
 Radius & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
 \hline
 \endfirsthead
+\multicolumn{6}{@{}l@{}}{\normalsize\textbf{Table S12g} (continued)} \\[4pt]
 \hline
 Radius & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
 \hline
@@ -656,6 +678,7 @@ give the median first-return density in pulses/m\textsuperscript{2}.} \\[4pt]
 Left out & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
 \hline
 \endfirsthead
+\multicolumn{6}{@{}l@{}}{\normalsize\textbf{Table S13} (continued)} \\[4pt]
 \hline
 Left out & 4.7 & 2.5 & 2.0 & 1.3 & 0.6 \\
 \hline
@@ -701,6 +724,7 @@ audit}.
 Site & Plots & Core area (ha) & Stems & Stems/ha & Basal area (m\textsuperscript{2}/ha) & Median height (m) (stems with heights) & Maximum height (m) & Median DBH (cm) & Main species (stems) \\
 \hline
 \endfirsthead
+\multicolumn{10}{@{}l@{}}{\normalsize\textbf{Table S14} (continued)} \\[4pt]
 \hline
 Site & Plots & Core area (ha) & Stems & Stems/ha & Basal area (m\textsuperscript{2}/ha) & Median height (m) (stems with heights) & Maximum height (m) & Median DBH (cm) & Main species (stems) \\
 \hline
@@ -740,6 +764,7 @@ manuscript). Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blo
 Detector & Source and checkpoint & Settings \\
 \hline
 \endfirsthead
+\multicolumn{3}{@{}l@{}}{\normalsize\textbf{Table S15} (continued)} \\[4pt]
 \hline
 Detector & Source and checkpoint & Settings \\
 \hline
@@ -780,6 +805,7 @@ change in F1 and recall.} \\[4pt]
 Pulses/m\textsuperscript{2} & F1, declared & Recall & Dominant recall & F1, no smoothing & Recall & Dominant recall & Change in F1 & Change in recall \\
 \hline
 \endfirsthead
+\multicolumn{9}{@{}l@{}}{\normalsize\textbf{Table S16a} (continued)} \\[4pt]
 \hline
 Pulses/m\textsuperscript{2} & F1, declared & Recall & Dominant recall & F1, no smoothing & Recall & Dominant recall & Change in F1 & Change in recall \\
 \hline
@@ -804,6 +830,7 @@ without smoothing, by density, with paired intervals.} \\[4pt]
 Detector & 9.8 & 4.7 & 2.5 & 1.3 & 0.6 \\
 \hline
 \endfirsthead
+\multicolumn{6}{@{}l@{}}{\normalsize\textbf{Table S16b} (continued)} \\[4pt]
 \hline
 Detector & 9.8 & 4.7 & 2.5 & 1.3 & 0.6 \\
 \hline
@@ -836,12 +863,13 @@ tables}.
 {\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
-\begin{xltabular}{\textwidth}{lllllL}
+\begin{xltabular}{\textwidth}{lLLLLL}
 \multicolumn{6}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S17.} Recall by height band and dominance class, native / QL2 rung.} \\[4pt]
 \hline
 Detector & \textless{} 8 m & 8--15 m & $\geq$ 15 m & Dominant & Codominant \\
 \hline
 \endfirsthead
+\multicolumn{6}{@{}l@{}}{\normalsize\textbf{Table S17} (continued)} \\[4pt]
 \hline
 Detector & \textless{} 8 m & 8--15 m & $\geq$ 15 m & Dominant & Codominant \\
 \hline
@@ -886,6 +914,7 @@ audit}.
 Detector & Pulses/m\textsuperscript{2} & Tree share & Assigned share & Assigned share of tree points & Core instances & Mean points per instance & Median of plot medians & Apexes below 2 m \\
 \hline
 \endfirsthead
+\multicolumn{9}{@{}l@{}}{\normalsize\textbf{Table S18a} (continued)} \\[4pt]
 \hline
 Detector & Pulses/m\textsuperscript{2} & Tree share & Assigned share & Assigned share of tree points & Core instances & Mean points per instance & Median of plot medians & Apexes below 2 m \\
 \hline
@@ -932,6 +961,7 @@ within the given distance.} \\[4pt]
 Detector & Core false positives & Within 4 m of a dead stem & Within 2 m & True positives & True positives within 4 m & Live reference stems within 4 m of a dead stem \\
 \hline
 \endfirsthead
+\multicolumn{7}{@{}l@{}}{\normalsize\textbf{Table S18b} (continued)} \\[4pt]
 \hline
 Detector & Core false positives & Within 4 m of a dead stem & Within 2 m & True positives & True positives within 4 m & Live reference stems within 4 m of a dead stem \\
 \hline

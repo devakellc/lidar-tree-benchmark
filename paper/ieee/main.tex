@@ -3,7 +3,8 @@
 % Compile with pdfLaTeX and BibTeX (Overleaf's default). Search for TODO.
 \documentclass[journal]{IEEEtran}
 \usepackage[T1]{fontenc}
-\usepackage{cite}
+% IEEE writes citation ranges out: [1], [2], [3], not [1]--[3].
+\usepackage[nocompress]{cite}
 \usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage{array}
@@ -17,6 +18,8 @@
 \graphicspath{{./}{../}}
 
 \begin{document}
+% IEEEtran.bst control: the first author and "et al." beyond six authors.
+\bstctlcite{IEEEexample:BSTcontrol}
 
 \title{Zero-Shot Deep Tree Detectors on National-Mapping Airborne LiDAR: Small Leads Above Chance at Native Density and No Guarantee Below the QL2 Floor}
 
@@ -847,7 +850,7 @@ at 0.6 pulses/m\textsuperscript{2}. The loss is one of recall, which falls from 
 density to 0.467 at the floor, 0.308 at 1.3 and 0.074 at 0.6 pulses/m\textsuperscript{2}, while
 precision rises slightly. The collapse is not a loss of chance agreement:
 SegmentAnyTree's corrected F1 falls from 0.229 at native density to 0.150 at 1.3
-and 0.047 at 0.6 pulses/m\textsuperscript{2} (Fig.~\ref{fig:2}d; Table~S12b).
+and 0.047 at 0.6 pulses/m\textsuperscript{2} (Fig.~\ref{fig:2}(d); Table~S12b).
 
 \begin{table*}[!t]
 \caption{F1 by density for the eight detectors with a full ladder, five
@@ -914,7 +917,7 @@ Chance agreement changes how the observed leads below native density read. At
 detections per 50 m\textsuperscript{2} on the rungs, against 1.19 at native density, and so earns
 fewer chance matches. Corrected for chance, those four leads are $-$0.008 to
 +0.021 and none excludes zero (Table~\ref{tab:4}), and the baseline's corrected F1 falls
-only from 0.195 at native density to 0.161 to 0.172 on the rungs (Fig.~\ref{fig:2}d). At
+only from 0.195 at native density to 0.161 to 0.172 on the rungs (Fig.~\ref{fig:2}(d)). At
 the QL2 rung the observed leads of ForestFormer3D, SegmentAnyTree, TreeisoNet
 and \texttt{multichm}, 0.057 to 0.060, become +0.001 to +0.017 in corrected F1 at 4 m,
 none excluding zero. Positive corrected leads over CHM-VWF that exclude zero at
@@ -1337,7 +1340,7 @@ detector's F1 at 4 m and 49 to 60\% at 2 m (67 to 79\% and 44 to 66\% below nati
 density; 69 to 77\% and 44 to 64\% at the QL2 rung). Every match within 2 m is
 also a match within 4 m, so a detector's share of stems found by skill cannot be
 larger at 2 m than at 4 m. The excess F1 above the null grows from 4 to 2 m for
-ten of the eleven detectors (CHM-VWF 0.133 to 0.176; Fig.~\ref{fig:7}d), but under the
+ten of the eleven detectors (CHM-VWF 0.133 to 0.176; Fig.~\ref{fig:7}(d)), but under the
 correction of Section~\ref{sec:4.2} the excess is the skill share times the headroom, so
 most of that growth is expected as the null falls: with constant skill CHM-VWF's
 0.133 would become 0.162, and for the two segmenters the growth equals the
@@ -1738,7 +1741,7 @@ ForestFormer3D and TreeisoNet did not measure. It takes a median 55 s per plot
 on the nine plots of Table~\ref{tab:8}, against 92 s for ForestFormer3D re-timed in the
 same session.
 
-\section{Conclusions}\label{sec:7}
+\section{Conclusion}\label{sec:7}
 
 At five NEON sites in California and Washington, flown at about 10 pulses/m\textsuperscript{2},
 two of three published 3D segmenters used zero-shot score 0.04 to 0.05 F1 above
@@ -1827,9 +1830,10 @@ tool as a coding assistant in the research is described in Section~\ref{sec:4.10
 \bibliographystyle{IEEEtran}
 \bibliography{references}
 
-% TODO (final version): author biographies, e.g.
-% \begin{IEEEbiographynophoto}{Alex Grigoryev}
+% TODO: JSTARS asks for a brief biography and a photograph of each author,
+% e.g. with the photograph saved as photo.jpg next to this file:
+% \begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{photo}}]{Alex Grigoryev}
 % Biography text here.
-% \end{IEEEbiographynophoto}
+% \end{IEEEbiography}
 
 \end{document}

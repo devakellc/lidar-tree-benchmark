@@ -24,9 +24,13 @@ the numbered reference list and moves the AI-use statement into the
 Acknowledgment. Before submission:
 
 - Complete the IEEE author block: affiliations, e-mail and the funding
-  footnote, then the author biographies for the final version. IEEE takes the
-  declaration of competing interest in the submission form and prints no
-  CRediT statement; the markdown keeps both for other journals.
+  footnote. JSTARS also asks for a brief biography and a photograph of each
+  author. IEEE takes the declaration of competing interest in the submission
+  form and prints no CRediT statement; the markdown keeps both for other
+  journals.
+- Supply the figures in a format JSTARS accepts at its resolution: EPS, PS,
+  TIFF or PDF, at least 600 dpi or 400 dpi for colour. The seven figures are
+  200-dpi PNG files; vector PDF from `scripts/paper_figures.R` meets the rule.
 - Confirm JSTARS's limits at submission, including the abstract length (250
   words) and the six Index Terms.
 - Re-run the repository checks of Sections 2.5 and 6.7 on submission day and

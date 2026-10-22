@@ -4,25 +4,36 @@ Reads paper/manuscript.md, paper/supplement.md, paper/figures/ and
 docs/references.bib, and writes main.tex (IEEEtran journal class),
 supplement.tex (article class) and an IEEE copy of the bibliography to OUT.
 Every markdown citation becomes \\cite, every manuscript cross-reference
-becomes \\ref in IEEE numbering (Section IV-B, Table III), tables become
-table or table* floats (xltabular in the supplement), and the remaining
+becomes \\ref in IEEE numbering (Section IV-B, Table III, Fig. 2(d)), tables
+become table or table* floats (xltabular in the supplement), and the remaining
 Unicode is mapped to LaTeX so both documents compile with pdfLaTeX + BibTeX,
 Overleaf's default. The highlights are dropped, the keywords become IEEE Index
 Terms, headings take IEEE headline style, and the AI-use statement moves into
 the Acknowledgment as IEEE asks.
 
-The IEEE copy of the bibliography is written so that IEEEtran.bst prints every
-field the source carries: software entries become misc, version, access date
-(urldate), DOI and arXiv identifiers move into note or howpublished, a misc
-entry's publisher becomes its howpublished or organization, capitalised words
-are brace-protected from the style's case changes, and accented letters are
-written as LaTeX accents.
+The IEEE copy of the bibliography is written for IEEEtran.bst, which ignores
+several fields. Software and dataset entries become misc entries. The version,
+the access date (urldate), the DOI (last, as in IEEE's reference forms) and,
+for an entry without a DOI, the arXiv identifier move into the note; IEEE
+cites the version of record, so a paper with a DOI is cited without its arXiv
+identifier, and the arXiv primary class is not printed. A misc entry's
+publisher becomes its howpublished or organization unless it repeats the
+author, and the maintainer's "Undated page" note gives way to the access date.
+In titles only acronyms, single capitals and words with inner capitals are
+brace-protected; other words follow the style's sentence case, so proper nouns
+are braced in docs/references.bib. A note's leading acronym and its "Accessed"
+label are braced, accented letters are written as LaTeX accents, and a control
+entry makes IEEEtran.bst print the first author and "et al." when there are
+more than six, as IEEE asks.
 
 The converter stops with an error instead of guessing when it meets markdown it
-does not handle: a citation with a prefix or locator, a reference to a section,
-table or figure that does not exist, a caption not followed by its table, an
-image without a "Figure N." caption, or a table cell that pandoc would read as
-a block.
+does not handle: a bracketed citation with a prefix or locator, a narrative
+citation followed by a bracket, a reference to a section, table or figure that
+neither the manuscript nor the supplement has, a caption not followed by its
+table, a table without a caption, an image without a "Figure N." caption, a
+table cell, caption or heading that pandoc would read as a block, or a BibTeX
+form it does not parse (@string, @preamble, @comment, "#" concatenation or a
+macro value).
 
 Arguments are KEY=VALUE pairs:
   OUT=paper/ieee        output directory (relative to the repository root)
@@ -70,22 +81,26 @@ def pandoc(md):
     return r.stdout
 
 
-BLOCK_MARK = re.compile(r"[-+*#>:~=|]")
+BLOCK_MARK = re.compile(r"[>:~=|]|[-+*#](?=\s|$)")
 BLOCK_TEX = re.compile(r"\\(begin\{(itemize|enumerate|description|quote|quotation|center|longtable)\}"
                        r"|(sub)*section\*?\{|rule\{)")
 
 
-def pandoc_snippets(snips):
-    """Convert many inline markdown snippets in one pandoc call."""
+def pandoc_snippets(snips, inline=True):
+    """Convert many markdown snippets in one pandoc call. Inline snippets
+    (table cells, captions, headings) are guarded so that pandoc cannot read
+    them as a block, and the build stops if one still becomes a block; whole
+    back-matter sections are converted as they are (inline=False)."""
     guarded = []
     for s in snips:
         s = s.strip()
-        # A snippet must stay inline text: escape anything pandoc would read
-        # as the start of a list, heading, quote, definition, rule or table.
-        if re.match(r"\d+[.)](\s|$)", s):
-            s = re.sub(r"^(\d+)([.)])", r"\1\\\2", s)
-        elif BLOCK_MARK.match(s):
-            s = "\\" + s
+        if inline:
+            # Escape a leading marker that would start a list, heading, quote,
+            # definition, rule or table; emphasis such as *Pinus* stays.
+            if re.match(r"\d+[.)](\s|$)", s):
+                s = re.sub(r"^(\d+)([.)])", r"\1\\\2", s)
+            elif BLOCK_MARK.match(s):
+                s = "\\" + s
         guarded.append(s)
     # Two blank lines: pandoc allows at most one between a definition term
     # and its definition, so the separator can never join a definition list.
@@ -93,9 +108,10 @@ def pandoc_snippets(snips):
     parts = [p.strip() for p in out.split(SEP)]
     if len(parts) != len(snips):
         raise SystemExit(f"snippet split mismatch: {len(parts)} vs {len(snips)}")
-    for src, part in zip(snips, parts):
-        if BLOCK_TEX.search(part):
-            raise SystemExit(f"inline snippet became a block: {src!r} -> {part!r}")
+    if inline:
+        for src, part in zip(snips, parts):
+            if BLOCK_TEX.search(part):
+                raise SystemExit(f"inline snippet became a block: {src!r} -> {part!r}")
     return parts
 
 
@@ -119,74 +135,94 @@ def ieee_section_number(num):
 
 SMALL_WORDS = {"a", "an", "the", "and", "but", "or", "nor", "for", "so", "yet", "as", "at", "by", "in", "of",
                "on", "to", "up", "via", "per", "vs", "vs."}
+UNIT_WORDS = {"m", "cm", "mm", "km", "ha", "h", "s"}
 
 
 def headline(title):
     """IEEE headline style: capitalise every word except short articles,
-    conjunctions and prepositions; leave words that already hold a capital."""
+    conjunctions and prepositions, which stay lower case unless they open the
+    title, end it or follow a colon. Words that already hold a capital, a
+    digit or an underscore, and a unit after a number (2 m, 10 pulses/m²),
+    are left as they are."""
     words = title.split()
 
     def cap(part):
-        if not part or not part[0].isalpha() or any(c.isupper() for c in part):
+        if not part or not part[0].isalpha() or any(c.isupper() or c.isdigit() or c == "_" for c in part):
             return part
         return part[0].upper() + part[1:]
     out = []
     for i, w in enumerate(words):
-        if 0 < i < len(words) - 1 and w.lower() in SMALL_WORDS:
+        prev = words[i - 1] if i else ""
+        if re.search(r"\d$", prev) and (w.lower().strip(".,;:") in UNIT_WORDS or "/" in w):
+            out.append(w)
+        elif 0 < i < len(words) - 1 and not prev.endswith(":") and w.lower() in SMALL_WORDS:
             out.append(w)
         else:
-            out.append("-".join(cap(p) for p in w.split("-")))
+            out.append("-".join(cap(x) for x in w.split("-")))
     return " ".join(out)
 
 
 # ------------------------------------------------------------ bibliography
 
-ENTRY_START = re.compile(r"@(\w+)\s*\{\s*([^,\s]+)\s*,")
+ENTRY_AT = re.compile(r"@(\w+)\s*([({])")
 FIELD_NAME = re.compile(r"([A-Za-z][\w-]*)\s*=\s*")
 
 
 def parse_bib(text):
-    """[(type, key, [(field, value), ...], offset)] with brace-balanced
-    values, as BibTeX reads them (a value may span lines and hold nested
-    braces); offset is where the entry starts in text."""
+    """[(type, key, [(field, value), ...], offset)] for the BibTeX forms the
+    repository bibliography uses: braced or quoted values, which may span
+    lines and nest braces, and bare numbers. @string, @preamble, @comment,
+    parenthesised entries, '#' concatenation and macro values stop the build
+    rather than being misread. offset is where the entry starts in text."""
     entries = []
     i = 0
     while True:
-        m = ENTRY_START.search(text, i)
+        m = ENTRY_AT.search(text, i)
         if not m:
             return entries
-        j, fields = m.end(), []
+        etype = m.group(1)
+        if etype.lower() in ("string", "preamble", "comment") or m.group(2) == "(":
+            raise SystemExit(f"unsupported BibTeX form at {text[m.start():m.start() + 40]!r}")
+        km = re.compile(r"\s*([^,\s]+)\s*,").match(text, m.end())
+        if not km:
+            raise SystemExit(f"cannot read the key at {text[m.start():m.start() + 40]!r}")
+        key, j, fields = km.group(1), km.end(), []
         while True:
             while j < len(text) and text[j] in " \t\r\n,":
                 j += 1
             if j >= len(text):
-                raise SystemExit(f"unterminated entry {m.group(2)}")
+                raise SystemExit(f"unterminated entry {key}")
             if text[j] == "}":
                 j += 1
                 break
             fm = FIELD_NAME.match(text, j)
             if not fm:
-                raise SystemExit(f"cannot parse a field of {m.group(2)} at {text[j:j + 40]!r}")
+                raise SystemExit(f"cannot parse a field of {key} at {text[j:j + 40]!r}")
             name, j = fm.group(1).lower(), fm.end()
-            if text[j] == "{":
-                depth, k = 0, j
-                while True:
-                    if text[k] == "{":
+            if j < len(text) and text[j] in '{"':
+                close = "}" if text[j] == "{" else '"'
+                depth, k = 0, j + 1
+                while k < len(text):
+                    c = text[k]
+                    if c == "{":
                         depth += 1
-                    elif text[k] == "}":
+                    elif c == "}" and depth > 0:
                         depth -= 1
-                        if depth == 0:
-                            break
+                    elif c == close and depth == 0:
+                        break
                     k += 1
-                value, j = text[j + 1:k], k + 1
-            elif text[j] == '"':
-                k = text.index('"', j + 1)
+                else:
+                    raise SystemExit(f"unterminated value of {key}.{name}")
                 value, j = text[j + 1:k], k + 1
             else:
-                vm = re.compile(r"[^,}\s]+").match(text, j)
+                vm = re.compile(r"\d+(?=[\s,}#])").match(text, j)
+                if not vm:
+                    raise SystemExit(f"{key}.{name}: macro values are not supported ({text[j:j + 30]!r})")
                 value, j = vm.group(0), vm.end()
+            if re.compile(r"\s*#").match(text, j):
+                raise SystemExit(f"{key}.{name}: '#' concatenation is not supported")
             fields.append((name, " ".join(value.split())))
-        entries.append((m.group(1), m.group(2), fields, m.start()))
+        entries.append((etype, key, fields, m.start()))
         i = j
 
 
@@ -211,16 +247,30 @@ def split_top(s, sep):
 DECODE_ACCENT = {"'": "\u0301", "`": "\u0300", "^": "\u0302", '"': "\u0308", "~": "\u0303", "r": "\u030a",
                  "c": "\u0327", "v": "\u030c", "u": "\u0306", "k": "\u0328", "H": "\u030b", "=": "\u0304",
                  ".": "\u0307", "textcommabelow": "\u0326"}
-DECODE_SPECIAL = {"ae": "æ", "AE": "Æ", "o": "ø", "O": "Ø", "ss": "ß", "l": "ł", "L": "Ł", "oe": "œ", "OE": "Œ"}
+DECODE_SPECIAL = {"ae": "æ", "AE": "Æ", "o": "ø", "O": "Ø", "ss": "ß", "l": "ł", "L": "Ł", "oe": "œ", "OE": "Œ",
+                  "aa": "å", "AA": "Å"}
 
 
 def decode_latex(s):
     """LaTeX accent macros back to Unicode, then drop protective braces."""
     def accent(m):
         return unicodedata.normalize("NFC", m.group(2) + DECODE_ACCENT[m.group(1)])
-    s = re.sub(r"\\(textcommabelow|[`'^\"~=.]|[rcvukH](?=[\s{]))\s*\{?([A-Za-z])\}?", accent, s)
-    s = re.sub(r"\\(ae|AE|oe|OE|ss|o|O|l|L)(?![A-Za-z])\s?", lambda m: DECODE_SPECIAL[m.group(1)], s)
+    s = re.sub(r"\\([ij])(?![A-Za-z])\s*", r"\1", s)  # dotless i and j, as accent bases
+    s = re.sub(r"\\(textcommabelow|[`'^\"~=.]|[rcvukH](?=[\s{]))\s*\{?\s*([A-Za-z])\s*\}?", accent, s)
+    s = re.sub(r"\\(ae|AE|oe|OE|aa|AA|ss|o|O|l|L)(?![A-Za-z])\s?", lambda m: DECODE_SPECIAL[m.group(1)], s)
     return s.replace("{", "").replace("}", "")
+
+
+def braced_whole(a):
+    """True when the brace that opens a closes at its last character."""
+    if not a.startswith("{"):
+        return False
+    depth = 0
+    for i, c in enumerate(a):
+        depth += (c == "{") - (c == "}")
+        if depth == 0:
+            return i == len(a) - 1
+    return False
 
 
 def bib_authors(bib_text):
@@ -235,16 +285,20 @@ def bib_authors(bib_text):
         for a in split_top(raw, " and "):
             if a == "others":
                 fam.append("others")
-            elif a.startswith("{") and a.endswith("}") and split_top(a[1:-1], ",") == [a[1:-1]]:
-                fam.append(decode_latex(a[1:-1]))  # corporate author
+                continue
+            if braced_whole(a):
+                name = decode_latex(a[1:-1])  # corporate author
             elif len(split_top(a, ",")) > 1:
-                fam.append(decode_latex(split_top(a, ",")[0]))
+                name = decode_latex(split_top(a, ",")[0])
             else:
                 # 'First von Last': the family name starts at the first
                 # lower-case word after the first, as BibTeX reads it.
                 words = split_top(a, " ")
                 start = next((i for i in range(1, len(words) - 1) if words[i][:1].islower()), len(words) - 1)
-                fam.append(decode_latex(" ".join(words[start:])))
+                name = decode_latex(" ".join(words[start:]))
+            if "\\" in name:
+                raise SystemExit(f"{key}: cannot decode the author name {a!r}")
+            fam.append(name)
         if len(fam) == 1:
             out[key] = fam[0]
         elif len(fam) == 2 and fam[1] != "others":
@@ -315,63 +369,113 @@ def protect_title(title):
     """Protect what IEEEtran.bst's sentence casing of titles would damage.
     Ordinary capitalised words are left for the style to lower-case, as IEEE
     reference lists set titles in sentence case; proper nouns that no rule
-    can recognise are braced in the source bibliography. A quotation inside
-    a title takes single quotes, since IEEEtran adds the outer double ones."""
+    can recognise are braced in the source bibliography. Brace groups, math
+    and control words are kept as they are, and the text around them is
+    protected word by word. A quotation inside a title takes single quotes,
+    since IEEEtran adds the outer double ones."""
     title = re.sub(r"``(.*?)''", r"`\1'", title)
-    out, depth, lead = [], 0, True
-    for tok in re.findall(r"\s+|\S+", title):
-        if tok.isspace():
-            out.append(tok)
+    segs, i = [], 0
+    while i < len(title):
+        c = title[i]
+        if c == "{":
+            depth, k = 0, i
+            while k < len(title):
+                depth += (title[k] == "{") - (title[k] == "}")
+                if depth == 0:
+                    break
+                k += 1
+            segs.append((False, title[i:k + 1]))
+            i = k + 1
+        elif c == "$":
+            k = title.find("$", i + 1)
+            if k < 0:
+                raise SystemExit(f"unbalanced $ in title {title!r}")
+            segs.append((False, title[i:k + 1]))
+            i = k + 1
+        elif c == "\\":
+            m = re.match(r"\\[A-Za-z]+\*?|\\.", title[i:])
+            segs.append((False, m.group(0)))
+            i += len(m.group(0))
+        else:
+            m = re.match(r"[^{}$\\]+", title[i:])
+            segs.append((True, m.group(0)))
+            i += len(m.group(0))
+    out = ""
+    for is_text, seg in segs:
+        if not is_text:
+            out += seg
             continue
-        if depth == 0 and not re.search(r"[{}\\]", tok):
-            parts = re.split(r"(-)", tok)
-            tok = "".join(protect_part(x, lead and i == 0) for i, x in enumerate(parts))
-        depth += tok.count("{") - tok.count("}")
-        lead = tok.endswith(":")
-        out.append(tok)
-    return "".join(out)
+        for tok in re.findall(r"\s+|\S+", seg):
+            if not tok.isspace():
+                # The style keeps the first letter of the title and the one
+                # after ': ', so a single capital there needs no braces.
+                lead = not re.search(r"[A-Za-z0-9]", out) or bool(re.search(r":\s+$", out))
+                parts = re.split(r"(-)", tok)
+                tok = "".join(protect_part(x, lead and k == 0) for k, x in enumerate(parts))
+            out += tok
+    return out
 
 
 def protect_note(note):
-    """Brace a leading acronym or single capital ('R package', 'MIT licence')
-    that IEEEtran.bst would lower-case mid-sentence."""
+    """Brace what IEEEtran.bst's format.note would lower-case: the first letter
+    of a note that opens with an acronym or a single capital ('R package',
+    'MIT licence') or with the access-date label ('Accessed: ...')."""
+    note = re.sub(r"^Accessed\b", "{A}ccessed", note)
     return re.sub(r"^([A-Z][A-Z0-9]*)\b", r"{\1}", note)
+
+
+def join_notes(parts, doi):
+    """Join note parts into sentences without doubling end punctuation, and put
+    the DOI last after a comma, as IEEE's reference forms do."""
+    text = ""
+    for part in parts:
+        part = part.strip()
+        if text:
+            text += " " if re.search(r"[.?!]\}?$", text) else ". "
+        text += part
+    if doi:
+        doi_part = "doi: \\url{" + doi + "}"
+        text = (re.sub(r"\.$", "", text) + ", " + doi_part) if text else doi_part
+    return text
 
 
 def ieee_entry(etype, key, fields):
     f = dict(fields)
     is_misc = etype.lower() in ("misc", "software", "online", "dataset")
-    out = [(n, v) for n, v in fields if n not in IEEE_DROPS | {"note"}]
+    out = [(n, v) for n, v in fields if n not in IEEE_DROPS | {"note"} and v.strip()]
     have = {n for n, _ in out}
     author = decode_latex(f.get("author", ""))
-    if is_misc and "publisher" in f:
-        out = [(n, v) for n, v in out if n != "publisher"]
-        if decode_latex(f["publisher"]) != author:
-            out.append(("organization" if "howpublished" in have else "howpublished", f["publisher"]))
-            have.add("howpublished")
-    eprint_shown = False
-    if is_misc and "eprint" in f and "howpublished" not in have:
-        out.append(("howpublished", f"arXiv:{f['eprint']}"))
-        eprint_shown = True
     notes = []
+    # IEEE's preprint form is 'year, arXiv:ID', so the identifier opens the
+    # note; a paper with a DOI is cited by its version of record.
+    if "eprint" in f and "doi" not in f:
+        notes.append(f"arXiv:{f['eprint']}")
     if "version" in f:
         # Skip the version only when the note already states it.
         v = f["version"]
         commit = v.lower().startswith("commit ")
         shown = v[len("commit "):] if commit else v
-        stated = re.escape(shown) if commit else rf"\bversion\s+{re.escape(shown)}(?![\w.])"
+        stated = re.escape(shown) if commit else rf"\bversion\s+{re.escape(shown)}(?!\.?\w)"
         if not re.search(stated, f.get("note", ""), flags=re.I):
             notes.append(f"Commit {shown}" if commit else f"Version {shown}")
-    if "doi" in f:
-        notes.append("doi: \\url{" + f["doi"] + "}")
-    if "note" in f and not f["note"].startswith("Undated page"):
+    if f.get("note", "").strip() and not f["note"].startswith("Undated page"):
         notes.append(f["note"])  # the access date below replaces the undated-page note
-    if "eprint" in f and not eprint_shown and "doi" not in f:
-        notes.append(f"arXiv:{f['eprint']}")
+    if is_misc and f.get("publisher", "").strip():
+        out = [(n, v) for n, v in out if n != "publisher"]
+        if decode_latex(f["publisher"]) != author:
+            if "howpublished" not in have:
+                out.append(("howpublished", f["publisher"]))
+                have.add("howpublished")
+            elif "organization" not in have:
+                out.append(("organization", f["publisher"]))
+                have.add("organization")
+            else:
+                notes.append(f["publisher"])
     if "urldate" in f:
         notes.append(accessed(f["urldate"]))
-    if notes:
-        out.append(("note", protect_note(". ".join(n.rstrip(".") for n in notes))))
+    note = join_notes(notes, f.get("doi", "").strip())
+    if note:
+        out.append(("note", protect_note(note)))
     out = [(n, protect_title(v) if n == "title" else v) for n, v in out]
     width = max(len(n) for n, _ in out)
 
@@ -383,9 +487,20 @@ def ieee_entry(etype, key, fields):
     return f"@{'misc' if is_misc else etype}{{{key},\n{body},\n}}"
 
 
+# IEEE lists all authors up to six and the first author and "et al." beyond;
+# IEEEtran.bst does so only when this control entry is cited first. Repeated
+# author lists are written out, so two "et al." lists are never shown as one.
+BSTCTL = """@IEEEtranBSTCTL{IEEEexample:BSTcontrol,
+  CTLuse_forced_etal       = "yes",
+  CTLmax_names_forced_etal = "6",
+  CTLnames_show_etal       = "1",
+  CTLdash_repeated_names   = "no",
+}"""
+
+
 def ieee_bib(bib_text):
-    """IEEE copy of the bibliography in which IEEEtran.bst prints every field
-    of the source (see the module docstring)."""
+    """IEEE copy of the bibliography for IEEEtran.bst (see the module
+    docstring for what moves where and what is not printed)."""
     # The source's section headings ('% ---' rulers around a title line) are
     # kept, so the copy stays navigable when it is edited by hand.
     heads = [(m.start(), m.group(1).replace("@", "(at)"))
@@ -393,14 +508,17 @@ def ieee_bib(bib_text):
     rule = "% " + "-" * 75
     items = [(off, ieee_entry(t, k, f)) for t, k, f, off in parse_bib(bib_text)]
     items += [(off, f"{rule}\n% {h}\n{rule}") for off, h in heads]
-    entries = [text for _, text in sorted(items)]
+    entries = [BSTCTL] + [text for _, text in sorted(items)]
     # BibTeX reads an at-sign anywhere as an entry start, even after %, so the
     # header must not contain one.
-    head = ("% IEEE copy of docs/references.bib, generated by scripts/paper_to_ieee.py\n"
-            "% for IEEEtran.bst: software entries become misc; version, access date,\n"
-            "% DOI and arXiv identifiers move into note or howpublished; a misc\n"
-            "% entry's publisher becomes howpublished or organization; capitals are\n"
-            "% brace-protected; accented letters are written as LaTeX accents.\n\n")
+    head = ("% IEEE copy of docs/references.bib, generated by scripts/paper_to_ieee.py for\n"
+            "% IEEEtran.bst. Software and dataset entries become misc; the version, the\n"
+            "% access date, the DOI and, without a DOI, the arXiv identifier move into\n"
+            "% the note; a misc entry's publisher becomes howpublished or organization\n"
+            "% unless it repeats the author. Acronyms and inner capitals in titles and a\n"
+            "% note's first word are braced; other title words follow IEEE's sentence\n"
+            "% case. Accented letters are written as LaTeX accents. The control entry\n"
+            "% makes IEEEtran.bst list the first author and et al. beyond six authors.\n\n")
     return head + latex_accents("\n\n".join(entries)) + "\n"
 
 
@@ -416,6 +534,9 @@ def convert_citations(md, authors):
     left = re.search(r"\[[^\[\]]*@[a-z0-9]+[^\[\]]*\]", md)
     if left:
         raise SystemExit(f"unsupported citation form (prefix, locator or comma list): {left.group(0)!r}")
+    left = re.search(r"(?<![\w@\\{])@[a-z0-9]+\s*\[", md)
+    if left:
+        raise SystemExit(f"unsupported citation form (narrative citation with a locator): {left.group(0)!r}")
 
     def narrative(m):
         key = m.group(1)
@@ -435,21 +556,35 @@ FIG_ITEM = r"\d+[a-z]?"
 
 def convert_refs(md, mode, known=None):
     """Section/Table/Figure references. mode 'main' uses \\ref; 'supp' writes
-    IEEE numbers for the manuscript's items and keeps S-items as text. known,
-    when given, holds the manuscript's section, table and figure numbers;
-    a reference to anything else stops the build."""
+    IEEE numbers for the manuscript's items. Supplement items (S-numbers) stay
+    as text. known, when given, holds the section, table and figure numbers of
+    the manuscript and the supplement (see paper_numbers); a reference to
+    anything else stops the build. A plural word (Sections, Tables, Figures,
+    Figs.) starts a list; after a singular one only 'or' continues it, so a
+    number in the prose after 'Table 2 and' is never read as a reference."""
     def check(kind, item):
         if known is not None and item not in known[kind]:
             raise SystemExit(f"reference to {kind} {item}, which the manuscript does not have")
 
+    def s_check(kind, item):
+        if known is None:
+            return
+        pool = known[kind]
+        # 'Table S16' may name the group of Tables S16a, S16b and so on.
+        if item in pool or (kind == "stab" and any(re.fullmatch(re.escape(item) + "[a-z]", t) for t in pool)):
+            return
+        raise SystemExit(f"reference to supplement item {item}, which the supplement does not have")
+
     def sec_one(it):
         if it.startswith("S"):
+            s_check("ssec", it)
             return it
         check("sec", it)
         return f"\\ref{{sec:{it}}}" if mode == "main" else ieee_section_number(it)
 
     def tab_one(it):
         if it.startswith("S"):
+            s_check("stab", it)
             return it
         if not it.isdigit():
             raise SystemExit(f"Table {it}: the manuscript's tables have no lettered parts")
@@ -459,18 +594,24 @@ def convert_refs(md, mode, known=None):
     def fig_one(it):
         mm = re.fullmatch(r"(\d+)([a-z]?)", it)
         check("fig", mm.group(1))
-        return (f"\\ref{{fig:{mm.group(1)}}}" if mode == "main" else mm.group(1)) + mm.group(2)
+        base = f"\\ref{{fig:{mm.group(1)}}}" if mode == "main" else mm.group(1)
+        return base + (f"({mm.group(2)})" if mm.group(2) else "")  # IEEE writes Fig. 2(d)
 
-    def rewrite(word_re, item_re, one, text):
-        pattern = rf"\b({word_re})\s+({item_re}(?:{SEPS}{item_re}{CONT_END})*)\b"
+    def rewrite(plural, single, item_re, one, text):
+        pattern = (rf"\b(?:({plural})\s+({item_re}(?:{SEPS}{item_re}{CONT_END})*)"
+                   rf"|({single})\s+({item_re}(?:\s+or\s+{item_re}{CONT_END})?))\b")
 
         def repl(m):
-            parts = re.split(f"({SEPS})", m.group(2))
-            return m.group(1) + NBSP + "".join(one(p) if re.fullmatch(item_re, p) else p for p in parts)
+            word, items = (m.group(1), m.group(2)) if m.group(1) else (m.group(3), m.group(4))
+            parts = re.split(f"({SEPS})", items)
+            return word + NBSP + "".join(one(x) if re.fullmatch(item_re, x) else x for x in parts)
         return re.sub(pattern, repl, text)
-    md = rewrite(r"Sections?", SEC_ITEM, sec_one, md)
-    md = rewrite(r"Tables?", TAB_ITEM, tab_one, md)
-    return rewrite(r"Figs?\.|Figures?", FIG_ITEM, fig_one, md)
+    supp_fig = re.search(r"\bFig(?:ure)?s?\.?\s+S\d", md)
+    if supp_fig:
+        raise SystemExit(f"{supp_fig.group(0)}: the supplement has no figures")
+    md = rewrite(r"Sections", r"Section", SEC_ITEM, sec_one, md)
+    md = rewrite(r"Tables", r"Table", TAB_ITEM, tab_one, md)
+    return rewrite(r"Figs\.|Figures", r"Fig\.|Figure", FIG_ITEM, fig_one, md)
 
 
 def unicode_to_latex(tex):
@@ -497,16 +638,27 @@ def unescape_brackets(tex):
     return tex.replace("{]}", "]")
 
 
+LINK = re.compile(r'(?<!!)\[([^\]]+)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)')
+
+
 def links(md, mode):
     """Repository-relative links point to GitHub in the supplement and keep
     their text elsewhere; web links become \\href in the supplement (which
-    loads hyperref) and 'text (url)' in the manuscript (which does not)."""
-    if mode == "supp":
-        md = re.sub(r"(?<!!)\]\(\.\./([^)]+)\)", lambda m: "](" + REPO_URL + m.group(1) + ")", md)
-    md = re.sub(r"(?<!!)\[([^\]]+)\]\((?!https?://)[^)]+\)", r"\1", md)
-    if mode == "main":
-        md = re.sub(r"(?<!!)\[([^\]]+)\]\((https?://[^)\s]+)\)", r"\1 (<\2>)", md)
-    return md
+    loads hyperref) and 'text (url)' in the manuscript (which does not).
+    Images are left alone."""
+    def repl(m):
+        text, url = m.group(1), m.group(2)
+        if url.startswith(("http://", "https://")):
+            return f"{text} (<{url}>)" if mode == "main" else f"[{text}]({url})"
+        if mode == "supp" and url.startswith("../"):
+            return f"[{text}]({REPO_URL}{url[3:]})"
+        return text
+    return LINK.sub(repl, md)
+
+
+def protect_urls(tex):
+    """url.sty's \\url is fragile in a moving argument (caption, heading)."""
+    return tex.replace("\\url{", "\\protect\\url{")
 
 
 # ------------------------------------------------------------- tables/figures
@@ -571,15 +723,19 @@ def table_tex(num, caption_tex, header, aligns, body, mode):
         lines += ["\\hline", f"\\end{{{env}}}", f"\\end{{{float_env}}}"]
     else:
         if not any(s in "LRC" for s in spec):
-            spec[-1] = {"l": "L", "r": "R", "c": "C"}[spec[-1]]
+            # A narrow table still spans the text width: share the slack among
+            # every column after the label column instead of the last one.
+            spec = [spec[0]] + [{"l": "L", "r": "R", "c": "C"}[a] for a in spec[1:]]
         # The caption is the first head row, so a page break cannot separate
-        # it from its table.
+        # it from its table; a continuation page repeats the head with a label.
         caption_row = (f"\\multicolumn{{{ncol}}}{{@{{}}p{{\\textwidth}}@{{}}}}"
                        f"{{\\normalsize\\textbf{{Table {num}.}} {caption_tex}}} \\\\[4pt]")
+        continued_row = (f"\\multicolumn{{{ncol}}}{{@{{}}l@{{}}}}"
+                         f"{{\\normalsize\\textbf{{Table {num}}} (continued)}} \\\\[4pt]")
         lines += ["{" + size, "\\setlength{\\tabcolsep}{3pt}", "\\renewcommand{\\arraystretch}{1.15}",
                   f"\\begin{{xltabular}}{{\\textwidth}}{{{''.join(spec)}}}",
                   caption_row, "\\hline", head_row, "\\hline", "\\endfirsthead",
-                  "\\hline", head_row, "\\hline", "\\endhead",
+                  continued_row, "\\hline", head_row, "\\hline", "\\endhead",
                   "\\hline", "\\endfoot"]
         lines += [" & ".join(r) + " \\\\" for r in rows_tex]
         lines += ["\\end{xltabular}", "}"]
@@ -612,11 +768,19 @@ def split_sections(md):
     return out
 
 
-def manuscript_numbers(md):
-    """The manuscript's section, table and figure numbers."""
+def manuscript_numbers(md, supp_md=""):
+    """The section, table and figure numbers of the manuscript, and the section
+    and table numbers of the supplement (S1, S12c)."""
     return {"sec": set(re.findall(r"(?m)^#{2,3} (\d+(?:\.\d+)?)\.?\s", md)),
             "tab": set(re.findall(r"(?m)^\*\*Table (\d+)\.\*\*", md)),
-            "fig": set(re.findall(r"(?m)^\*\*Figure (\d+)\.\*\*", md))}
+            "fig": set(re.findall(r"(?m)^\*\*Figure (\d+)\.\*\*", md)),
+            "ssec": set(re.findall(r"(?m)^#{2,3} (S\d+)\.?\s", supp_md)),
+            "stab": set(re.findall(r"(?m)^\*\*Table (S\d+[a-z]?)\.\*\*", supp_md))}
+
+
+def paper_numbers():
+    return manuscript_numbers((REPO / "paper/manuscript.md").read_text(encoding="utf-8"),
+                              (REPO / "paper/supplement.md").read_text(encoding="utf-8"))
 
 
 TABLE_BLOCK = re.compile(r"\*\*Table (S?\d+[a-z]?)\.\*\*[ \t]*((?:(?!\n[ \t]*\n).)*?)\n[ \t]*\n"
@@ -627,7 +791,8 @@ FIGURE_BLOCK = re.compile(r"!\[Figure (\d+)\.\]\(([^)]+)\)[ \t]*\n[ \t]*\n\*\*Fi
 
 def body_to_tex(md, mode, authors, known):
     """Convert a body of markdown (headings, paragraphs, tables, figures)."""
-    md = convert_citations(md, authors)
+    # Links first, so headings, captions and table cells get them too.
+    md = links(convert_citations(md, authors), mode)
     blocks = {}
 
     def take_figure(m):
@@ -648,6 +813,9 @@ def body_to_tex(md, mode, authors, known):
     stray = re.search(r"\*\*Table S?\d+[a-z]?\.\*\*", md)
     if stray:
         raise SystemExit(f"{stray.group(0)} is not a one-paragraph caption directly followed by its pipe table")
+    stray = re.search(r"(?m)^[ \t]*\|.*$", md)
+    if stray:
+        raise SystemExit(f"a pipe table without a '**Table N.**' caption: {stray.group(0)[:60]!r}")
 
     md = convert_refs(md, mode, known)
 
@@ -657,13 +825,15 @@ def body_to_tex(md, mode, authors, known):
             mm = re.match(r"(\d+(?:\.\d+)?)\.?\s+(.*)", text)
             if not mm:
                 raise SystemExit(f"unnumbered heading in body: {text}")
-            num, title = mm.group(1), pandoc_snippets([headline(mm.group(2))])[0]
+            num, title = mm.group(1), mm.group(2)
+            if title == "Conclusions":
+                title = "Conclusion"  # IEEE's head is singular
+            title = protect_urls(pandoc_snippets([headline(title)])[0])
             cmd = "section" if level == 2 else "subsection"
             return f"\n\\{cmd}{{{title}}}\\label{{sec:{num}}}\n"
         cmd = "section*" if level == 2 else "subsection*"
         return f"\n\\{cmd}{{{pandoc_snippets([headline(text)])[0]}}}\n"
     md = re.sub(r"(?m)^(#{2,3}) (.*)$", heading, md)
-    md = links(md, mode)
 
     tex = pandoc(md)
 
@@ -672,11 +842,13 @@ def body_to_tex(md, mode, authors, known):
     for tok, spec in blocks.items():
         if spec[0] == "figure":
             _, num, path, cap = spec
-            cap_tex = pandoc_snippets([convert_refs(cap, mode, known)])[0]
+            cap_tex = protect_urls(pandoc_snippets([convert_refs(cap, mode, known)])[0])
             repl = figure_tex(num, path, cap_tex)
         else:
             _, num, cap, table = spec
             cap_tex = pandoc_snippets([convert_refs(cap, mode, known)])[0]
+            if mode == "main":
+                cap_tex = protect_urls(cap_tex)
             header, aligns, body = parse_pipe_table(table)
             header = [convert_refs(c, mode, known) for c in header]
             body = [[convert_refs(c, mode, known) for c in r] for r in body]
@@ -688,8 +860,12 @@ def body_to_tex(md, mode, authors, known):
 
 
 def snippet(md, mode, authors, known):
+    """Convert a whole section that is not part of the body (the abstract and
+    the back matter)."""
     md = links(convert_refs(convert_citations(md, authors), mode, known), mode)
-    return unescape_brackets(unicode_to_latex(pandoc_snippets([md])[0]))
+    if "![" in md:
+        raise SystemExit("an image outside the body is not supported")
+    return unescape_brackets(unicode_to_latex(pandoc_snippets([md], inline=False)[0]))
 
 
 def front_matter(md):
@@ -706,7 +882,7 @@ def front_matter(md):
 
 def build_main(authors):
     md = (REPO / "paper/manuscript.md").read_text(encoding="utf-8")
-    known = manuscript_numbers(md)
+    known = paper_numbers()
     sections, author = front_matter(md)
     surname = author.split()[-1]
     initials = "~".join(f"{p[0]}." for p in author.split()[:-1])
@@ -723,7 +899,7 @@ def build_main(authors):
     body_md = "\n".join(h + "\n" + t for h, t in sections[start:end])
     # The IEEE version has no highlights, so the text must not point to them.
     body_md = re.sub(r"the\s+highlights,\s+", "", body_md)
-    if re.search(r"highlight", body_md, flags=re.I):
+    if re.search(r"\bthe\s+highlights\b", body_md, flags=re.I):
         raise SystemExit("the manuscript body mentions the highlights, which the IEEE version drops")
     body_tex = body_to_tex(body_md, "main", authors, known)
     # IEEE journal drop cap on the first word of the Introduction.
@@ -746,7 +922,8 @@ def build_main(authors):
 % Compile with pdfLaTeX and BibTeX (Overleaf's default). Search for TODO.
 \\documentclass[journal]{{IEEEtran}}
 \\usepackage[T1]{{fontenc}}
-\\usepackage{{cite}}
+% IEEE writes citation ranges out: [1], [2], [3], not [1]--[3].
+\\usepackage[nocompress]{{cite}}
 \\usepackage{{amsmath}}
 \\usepackage{{graphicx}}
 \\usepackage{{array}}
@@ -760,6 +937,8 @@ def build_main(authors):
 \\graphicspath{{{{./}}{{../}}}}
 
 \\begin{{document}}
+% IEEEtran.bst control: the first author and "et al." beyond six authors.
+\\bstctlcite{{IEEEexample:BSTcontrol}}
 
 \\title{{{TITLE_IEEE}}}
 
@@ -810,10 +989,11 @@ This work was supported by TODO. % TODO: funding statement, or remove this sente
 \\bibliographystyle{{IEEEtran}}
 \\bibliography{{references}}
 
-% TODO (final version): author biographies, e.g.
-% \\begin{{IEEEbiographynophoto}}{{{author}}}
+% TODO: JSTARS asks for a brief biography and a photograph of each author,
+% e.g. with the photograph saved as photo.jpg next to this file:
+% \\begin{{IEEEbiography}}[{{\\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{{photo}}}}]{{{author}}}
 % Biography text here.
-% \\end{{IEEEbiographynophoto}}
+% \\end{{IEEEbiography}}
 
 \\end{{document}}
 """
@@ -821,7 +1001,7 @@ This work was supported by TODO. % TODO: funding statement, or remove this sente
 
 def build_supplement(authors):
     manuscript = (REPO / "paper/manuscript.md").read_text(encoding="utf-8")
-    known = manuscript_numbers(manuscript)
+    known = paper_numbers()
     _, author = front_matter(manuscript)
     md = (REPO / "paper/supplement.md").read_text(encoding="utf-8")
     sections = split_sections(md)
@@ -843,7 +1023,7 @@ def build_supplement(authors):
 \\usepackage{{mathptmx}}
 \\renewcommand{{\\ttdefault}}{{pcr}}
 \\usepackage[margin=2cm]{{geometry}}
-\\usepackage{{cite}}
+\\usepackage[nocompress]{{cite}}
 \\usepackage{{array}}
 \\usepackage{{xltabular}}
 \\usepackage{{url}}
@@ -855,12 +1035,18 @@ def build_supplement(authors):
 \\setlength{{\\parindent}}{{0pt}}
 \\setlength{{\\parskip}}{{4pt}}
 \\setlength{{\\emergencystretch}}{{3em}}
+% IEEEtran.bst's control entry has to be cited first without a reference-list
+% item; this is the IEEEtran class's \\bstctlcite, which article lacks.
+\\makeatletter
+\\newcommand{{\\bstctlcite}}[1]{{\\@bsphack\\if@filesw\\immediate\\write\\@auxout{{\\string\\citation{{#1}}}}\\fi\\@esphack}}
+\\makeatother
 
 \\title{{Supplementary Material for ``{title}''}}
 \\author{{{author}}}
 \\date{{}}
 
 \\begin{{document}}
+\\bstctlcite{{IEEEexample:BSTcontrol}}% IEEEtran.bst control: the first author and "et al." beyond six
 \\maketitle
 
 {intro_tex}
