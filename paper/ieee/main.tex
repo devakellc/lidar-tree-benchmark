@@ -423,17 +423,16 @@ clamped to 3 to 5 m.
 and window, without smoothing (Table~\ref{tab:2}). The other classical detectors use
 package defaults or published parameters not adapted to density, such as AMS3D's
 crown-shape ratios~\cite{ferraz2016lidar}, and Li 2012 runs at native density only.
-The learned detectors run without fine-tuning, with the inference settings of
-the published code and checkpoints (Table~S15), and ForestFormer3D on whole
-scenes (Section~\ref{sec:5.7}). Their apexes have no 2 m height floor, unlike the
-classical detectors'; applying it would raise ForestFormer3D's F1 by at most
-0.013 (Section~S18). TreeisoNet's confidence threshold of 0.22 was chosen on
-five SOAP plots at the checkpoint's own voxel and not recalibrated for the
-coarser airborne voxel used here; at a fixed threshold the two voxels give
-detection counts that differ by up to half. RGB crowns become detections at
-their centroids, with the native canopy height there. SAM2Point~\cite{guo2024sam2point}, prompted with CHM-VWF tops, is reported in Section~S10 and,
-for completeness, in the matching sensitivity of Section~S21; it is not
-analysed.
+The learned detectors run with the inference settings of the published code and
+checkpoints (Table~S15), ForestFormer3D on whole scenes (Section~\ref{sec:5.7}). Their
+apexes have no 2 m height floor, unlike the classical detectors'; applying it
+would raise ForestFormer3D's F1 by at most 0.013 (Section~S18). TreeisoNet's
+confidence threshold of 0.22 was chosen on five SOAP plots at the checkpoint's
+own voxel and not recalibrated for the coarser airborne voxel used here; at a
+fixed threshold the two voxels give detection counts that differ by up to half.
+RGB crowns become detections at their centroids, with the native canopy height
+there. SAM2Point~\cite{guo2024sam2point}, prompted with CHM-VWF tops, is reported in
+Sections~S10 and S21 but not analysed.
 
 \subsection{Scoring and Chance Agreement}\label{sec:4.2}
 
@@ -520,9 +519,8 @@ being the width of the stem-jitter bands (Section~S21).
 
 Rank stability is the Spearman correlation between the eight detectors' F1 at
 native density and at each thinned level, recomputed on every draw. Section~S13
-recomputes it with each detector left out and with the pair whose rank changes
-most below the QL2 floor, a check chosen after seeing the results, and gives the
-correlations that random orderings reach.
+recomputes it with detectors left out and gives the correlations that random
+orderings reach.
 
 \subsection{Development and Replication Regions}\label{sec:4.5}
 
@@ -539,8 +537,8 @@ settings in sample, and Washington the replication region, held out and scored
 once under settings fixed in advance within one study, not as an independent
 repetition. The censused subplot-exclusion rule was narrowed after censused
 scores that included Washington existed, so the stricter rule is reported beside
-it. Credited F1 and the fusion experiments select configurations per site in
-sample and are not part of the replication.
+it (Section~S4). Credited F1 and the fusion experiments select configurations
+per site in sample and are not part of the replication.
 
 \subsection{Decimation Checks, Dense-Domain Control and Sensitivity Analyses}\label{sec:4.6}
 
@@ -560,10 +558,9 @@ ten development plots are also thinned to the NEON densities under a protocol
 declared beforehand, keeping heights from the dense cloud, which gives a better
 terrain model than a sparse acquisition would.
 
-The sensitivity analyses of Section~S21 re-score persisted detections with
-alternative matchers and radii of 2 to 5 m, with stem positions jittered by
-their recorded uncertainty and against flight-year stems on 44 plots; Section~S9
-tunes the baseline on a calibration split.
+Section~S21 re-scores persisted detections under alternative matchers and radii
+of 2 to 5 m, jittered stem positions and flight-year stems, and Section~S9 tunes
+the baseline on a calibration split.
 
 \subsection{Density-Routed Pipeline}\label{sec:4.7}
 
@@ -614,39 +611,34 @@ method.
 \subsection{Accuracy at Native Density}\label{sec:5.1}
 
 Two segmenters lead the baseline in F1 at native density, but above chance their
-lead is small. At a median of 9.8 pulses/m\textsuperscript{2}, ForestFormer3D and SegmentAnyTree
-have the highest F1, 0.498 and 0.495, against 0.450 for CHM-VWF (Table~\ref{tab:3}). Their
-leads, +0.048 [+0.028, +0.069] and +0.044 [+0.021, +0.067], exclude zero, and
-the two are indistinguishable from each other. \texttt{multichm}, Li 2012, TreeisoNet
-and DeepForest are level with CHM-VWF. The detectors differ far more in how they
-reach their F1 than in F1 itself. Among the LiDAR detectors recall ranges from
-0.46 to 0.71 and precision from 0.15 to 0.44, the point-clustering AMS3D and
-\texttt{ptrees} taking the high-recall, low-precision end. Both observed leads hold
-without the DBH floor, and ForestFormer3D's without the six-tree rule (Table~S3).
+lead is small. ForestFormer3D and SegmentAnyTree have the highest F1, 0.498 and
+0.495, against 0.450 for CHM-VWF (Table~\ref{tab:3}). Their leads, +0.048 [+0.028, +0.069]
+and +0.044 [+0.021, +0.067], exclude zero, and the two are indistinguishable
+from each other. \texttt{multichm}, Li 2012, TreeisoNet and DeepForest are level with
+CHM-VWF. The detectors differ far more in how they reach their F1 than in F1
+itself, the point-clustering AMS3D and \texttt{ptrees} taking the high-recall,
+low-precision end. Both observed leads hold without the DBH floor, and
+ForestFormer3D's without the six-tree rule (Table~S3).
 
 Randomly shifted copies of each detector's detections reach 70 to 79\% of its F1
 at 4 m: 52 to 66\% in California and 75 to 84\% in Washington. The segmenters'
-null F1, 0.361 and 0.345 against 0.318 for CHM-VWF, is higher partly because
-they place more detections, 1.36 and 1.33 per reference stem against 0.98. Li
-2012 places as many and has a null F1 of 0.325, so the number is not the whole
-explanation. Corrected for chance, ForestFormer3D's lead is +0.020 [$-$0.002,
-+0.041] and SegmentAnyTree's +0.034 [+0.008, +0.057], a marginal contrast. No
-other detector leads the baseline, and corrected F1 lies between 0.06 and 0.23
-for all eleven detectors. In corrected recall the two segmenters lead the
-baseline by 0.108 and 0.112. In corrected precision CHM-VWF is the highest LiDAR
-detector, ForestFormer3D trailing it marginally and SegmentAnyTree level with it
-(Table~S12e). The segmenters' advantage above chance is thus in finding stems,
-not in avoiding commission.
+null F1 is higher than CHM-VWF's partly because they place more detections per
+stem (Table~\ref{tab:3}); Li 2012 places as many with a null F1 below theirs, so the
+number is not the whole explanation. Corrected for chance, ForestFormer3D's lead
+is +0.020 [$-$0.002, +0.041] and SegmentAnyTree's +0.034 [+0.008, +0.057], a
+marginal contrast, and no other detector leads the baseline. In corrected recall
+the two segmenters lead the baseline by 0.108 and 0.112. In corrected precision
+CHM-VWF is the highest LiDAR detector, ForestFormer3D trailing it marginally and
+SegmentAnyTree level with it (Table~S12e). The segmenters' advantage above
+chance is thus in finding stems, not in avoiding commission.
 
 A tighter radius of 2 m lowers the chance share to 49 to 60\% of each detector's
-F1, but it does not enlarge the segmenters' corrected leads. Corrected F1 is
-higher at 2 m for seven of the eleven detectors, CHM-VWF's rising from 0.195 to
-0.211, and unchanged for the two segmenters. Their corrected leads therefore
-shrink to +0.003 and +0.017, both with intervals that include zero (Table~\ref{tab:3}). Of
-the segmenters' corrected leads at the two radii, only SegmentAnyTree's at 4 m
-excludes zero, and only marginally. In observed F1 at 2 m SegmentAnyTree keeps a
-marginal lead, and ForestFormer3D's falls to 0.012, with an interval that
-includes zero.
+F1, but it does not enlarge the segmenters' corrected leads. Corrected F1 rises
+at 2 m for CHM-VWF, from 0.195 to 0.211, and is unchanged for the two
+segmenters, so their corrected leads shrink to +0.003 and +0.017, both with
+intervals that include zero (Table~\ref{tab:3}). In observed F1 at 2 m SegmentAnyTree
+keeps a marginal lead, and ForestFormer3D's falls to 0.012, with an interval
+that includes zero.
 
 The other checks leave these statements in place, except scoring against
 flight-year stems only (Section~S21). The segmenters lead CHM-VWF by 0.03 to
@@ -738,31 +730,29 @@ plots cross to the smoothed 0.5 m canopy model. Its detections fall by 39\% and
 its dominant-class recall from 0.71 to 0.56, while \texttt{multichm}, which switches to
 the same resolution without smoothing, keeps 0.76 to 0.74. A post hoc run of
 CHM-VWF without the smoothing on the same clips is flat across the series, with
-F1 of 0.431 to 0.463 (dashed line in Fig.~\ref{fig:3}; Table~S16; the QL2 level was not
-re-run). Against it, the leads of ForestFormer3D, TreeisoNet and \texttt{multichm}
-below native density, and SegmentAnyTree's at 4.7 and 2.5 pulses/m\textsuperscript{2}, are $-$0.013
-to +0.024. Only the two segmenters' leads at 4.7 pulses/m\textsuperscript{2} exclude zero, both
-marginally, and below the floor SegmentAnyTree is 0.073 and 0.303 behind. Every
-lead over CHM-VWF below native density in Table~\ref{tab:4} is therefore a lead over a
-configuration that under-detects by about 0.06 F1. The main tables keep the
-pre-declared smoothing rule, because a baseline re-declared after seeing the
-results would be tuned on the test set.
+F1 of 0.431 to 0.463 (dashed line in Fig.~\ref{fig:3}; Table~S16). Against it, the leads
+of ForestFormer3D, TreeisoNet and \texttt{multichm} below native density, and
+SegmentAnyTree's at 4.7 and 2.5 pulses/m\textsuperscript{2}, are $-$0.013 to +0.024. Only the two
+segmenters' leads at 4.7 pulses/m\textsuperscript{2} exclude zero, both marginally, and below the
+floor SegmentAnyTree is 0.073 and 0.303 behind. Every lead over CHM-VWF below
+native density in Table~\ref{tab:4} is therefore a lead over a configuration that
+under-detects by about 0.06 F1. The main tables keep the pre-declared smoothing
+rule, because a baseline re-declared after seeing the results would be tuned on
+the test set.
 
 Above chance, the leads over the smoothed baseline below native density mostly
 vanish. The coarse, smoothed canopy model places 0.64 to 0.72 detections per 50
 m\textsuperscript{2}, against 1.19 at native density, and so earns fewer chance matches; the
 baseline's corrected F1 falls only from 0.195 to 0.161--0.172 (Fig.~\ref{fig:3}(d)). At 0.6
-pulses/m\textsuperscript{2} the observed leads of ForestFormer3D, TreeisoNet, \texttt{multichm} and
-AMS3D, 0.05 to 0.07, are $-$0.008 to +0.021 corrected, none excluding zero (Table~\ref{tab:4}). At the QL2 level the observed leads of ForestFormer3D, SegmentAnyTree,
-TreeisoNet and \texttt{multichm}, 0.057 to 0.060, are +0.001 to +0.017 corrected at 4
-m, none excluding zero, and $-$0.023 to +0.024 at 2 m. Positive corrected leads
-that exclude zero at 4 m appear only at the denser levels: SegmentAnyTree's at
-4.7 and 2.5 pulses/m\textsuperscript{2} and ForestFormer3D's at 4.7 (Table~S12c). At 2 m
-TreeisoNet's corrected lead of +0.024 to +0.035 excludes zero on every thinned
-level, all but once marginally. \texttt{multichm}'s place among the leaders depends on
-the radius: at the QL2 level its observed lead falls from +0.058 at 4 m to
-+0.011 [$-$0.010, +0.033] at 2 m, while the learned detectors keep +0.030 to
-+0.065.
+pulses/m\textsuperscript{2} the positive observed leads, 0.05 to 0.07, are $-$0.008 to +0.021
+corrected (Table~\ref{tab:4}), and at the QL2 level those of the four leading detectors,
+0.057 to 0.060, are +0.001 to +0.017 corrected at 4 m; none excludes zero.
+Positive corrected leads that exclude zero at 4 m appear only at the denser
+levels: SegmentAnyTree's at 4.7 and 2.5 pulses/m\textsuperscript{2} and ForestFormer3D's at 4.7
+(Table~S12c). At 2 m TreeisoNet's corrected lead of +0.024 to +0.035 excludes
+zero on every thinned level, all but once marginally, and at the QL2 level
+\texttt{multichm}'s observed lead falls from +0.058 at 4 m to +0.011 [$-$0.010, +0.033]
+at 2 m, while the learned detectors keep +0.030 to +0.065.
 
 \begin{figure*}[!tp]
 \centering
@@ -780,19 +770,18 @@ it is absent from (d).}
 
 The native ranking carries over to the QL2 floor and breaks below it (Fig.~\ref{fig:4}).
 The Spearman correlation with the native ranking is 0.83, 0.76 and 0.71 [0.38,
-0.81] at 4.7, 2.5 and 2.0 pulses/m\textsuperscript{2}. Random orderings of eight detectors reach
-these values with probability 0.008, 0.018 and 0.029. At 1.3 and 0.6 pulses/m\textsuperscript{2}
-the correlation is $-$0.05 [$-$0.17, 0.26] and $-$0.19 (Section~S13). The break
-appears inside censused subplots and survives the chance correction at 4 m
-(Table~S12g). At 2 m, however, the corrected correlation at the QL2 level falls
-to 0.36 [$-$0.02, 0.67], so the carry-over to the floor holds in observed and 4 m
-corrected F1 only. Two detectors, singled out after seeing the results, carry
-the break. One is SegmentAnyTree; the other is AMS3D, which runs with fixed
-literature settings and rises from last at native density to a nominal first at
-1.3 pulses/m\textsuperscript{2}. Without both, the other six correlate with their native ranking
-at 0.54 at the two sparsest levels. Six detectors reach that value by chance in
-15\% of orderings, so the statement that they keep their order is weak. The
-ranking fails because single detectors move by 0.1 to 0.4 F1.
+0.81] at 4.7, 2.5 and 2.0 pulses/m\textsuperscript{2}, and $-$0.05 [$-$0.17, 0.26] and $-$0.19 at 1.3
+and 0.6 pulses/m\textsuperscript{2} (Section~S13). The break appears inside censused subplots and
+survives the chance correction at 4 m (Table~S12g). At 2 m, however, the
+corrected correlation at the QL2 level falls to 0.36 [$-$0.02, 0.67], so the
+carry-over to the floor holds in observed and 4 m corrected F1 only. Two
+detectors, singled out after seeing the results, carry the break. One is
+SegmentAnyTree; the other is AMS3D, which runs with fixed literature settings
+and rises from last at native density to a nominal first at 1.3 pulses/m\textsuperscript{2}.
+Without both, the other six correlate with their native ranking at 0.54 at the
+two sparsest levels. Six detectors reach that value by chance in 15\% of
+orderings, so the statement that they keep their order is weak. The ranking
+fails because single detectors move by 0.1 to 0.4 F1.
 
 \begin{figure*}[!tp]
 \centering
@@ -812,9 +801,9 @@ Site sets the level of accuracy more than the choice among the leading detectors
 does. Native F1 runs from 0.33 at SJER to 0.54 at ABBY for ForestFormer3D and
 from 0.31 to 0.56 for CHM-VWF (Table~S2). SJER, the open woodland, has the
 lowest F1 for every detector although recall there is 0.53 to 0.98 among the
-LiDAR detectors. Its cores hold 59 mapped stems per hectare, and 92 of CHM-VWF's
+LiDAR detectors; its cores hold 59 mapped stems per hectare, and 92 of CHM-VWF's
 98 isolated false positives there are co-detected by two other families, so its
-F1 is set by reference coverage rather than by detection.
+F1 is set by reference coverage rather than by detection (Section~S19).
 
 The regions differ in how much of the segmenters' lead lies above chance, a
 regional heterogeneity that the split declared in advance exposes (Section~S19,
@@ -837,24 +826,22 @@ model. Washington thus reproduces the direction of the observed leads under
 settings fixed in advance, marginally and with smaller leads than California,
 but not their margin above chance.
 
-Other detectors show regional differences of their own. \texttt{multichm} and
-DeepForest lead the baseline in California and not in Washington. DeepForest's
-California lead does not follow its two training sites: it leads by as much at
-SOAP, not a training site, as at TEAK, and trails the baseline at SJER (Table~S2). Li 2012 is marginally behind the baseline in California and marginally
-ahead of it in Washington.
+\texttt{multichm} and DeepForest lead the baseline in California and not in Washington,
+and Li 2012 is marginally behind it in California and marginally ahead in
+Washington. DeepForest's California lead does not follow its two training sites:
+it leads by as much at SOAP, not a training site, as at TEAK, and trails the
+baseline at SJER (Table~S2).
 
 \subsection{Understory Trees}\label{sec:5.4}
 
 The point-clustering detectors and ForestFormer3D recall the most understory
 stems, and most understory recall at 4 m is reproduced by chance. At native
 density the nine LiDAR detectors recall 0.55 to 0.79 of the 1,872 overstory
-stems and 0.17 to 0.63 of the 592 understory stems (Fig.~\ref{fig:5}; Table~S1). AMS3D,
-\texttt{ptrees} and ForestFormer3D recall 0.63, 0.46 and 0.45 of the understory stems,
-SegmentAnyTree 0.29 and CHM-VWF 0.17. The two point-clustering detectors pay
-with the lowest precision (0.15 and 0.22). Understory recall falls with density
-for most detectors; at 0.6 pulses/m\textsuperscript{2} ForestFormer3D keeps 0.23 and
-SegmentAnyTree 0.03. At the QL2 level the baseline recalls 0.42 of the 861 stems
-of at least 15 m, against 0.54 to 0.67 for the leading detectors (Table~S17).
+stems and 0.17 to 0.63 of the 592 understory stems (Fig.~\ref{fig:5}; Table~S1; height
+bands in Table~S17): AMS3D, \texttt{ptrees} and ForestFormer3D 0.63, 0.46 and 0.45 of
+the understory stems, SegmentAnyTree 0.29 and CHM-VWF 0.17. Understory recall
+falls with density for most detectors; at 0.6 pulses/m\textsuperscript{2} ForestFormer3D keeps
+0.23 and SegmentAnyTree 0.03.
 
 Shifted detections reach 79 to 97\% of each detector's understory recall at 4 m,
 against 68 to 80\% of its overstory recall, since an understory stem of 10 m
@@ -866,9 +853,7 @@ ForestFormer3D 0.11 and most other detectors 0.04 to 0.06, CHM-VWF included.
 Every match within 2 m is also a match within 4 m, so the 4 m subtraction also
 removes real understory matches of the canopy-surface detectors.
 ForestFormer3D's understory advantage over the baseline survives subtraction of
-the null, +0.078 [+0.037, +0.119] at 4 m against +0.284 observed. It comes at an
-overall precision of 0.42, against 0.15 and 0.22 for the point-clustering
-detectors.
+the null, +0.078 [+0.037, +0.119] at 4 m against +0.284 observed.
 
 \begin{figure*}[!tp]
 \centering
@@ -885,27 +870,22 @@ Scoring inside censused subplots raises every detector's precision and widens,
 rather than narrows, the segmenters' leads. On the 57 admitted plots it raises
 precision by 0.08 to 0.34 for every detector and density, while recall moves by
 at most 0.03; CHM-VWF's native precision rises from 0.48 to 0.78 (Table~\ref{tab:5};
-Section~S20, Fig.~S1). The exact 2021 census on 16 tower plots moves precision
-the same way, and the stricter exclusion rule lowers it by about 0.01. Detectors
-with dense apexes keep a low censused precision, 0.24 for AMS3D, so much of
-their commission is likely real.
+Section~S20, Fig.~S1). Detectors with dense apexes keep a low censused
+precision, 0.24 for AMS3D, so much of their commission is likely real.
 
 Inside censused subplots SegmentAnyTree and ForestFormer3D lead CHM-VWF by
-+0.068 [+0.036, +0.100] and +0.059 [+0.020, +0.099] at native density, against
-+0.041 and +0.026 in the nominal cores of the same plots. CHM-VWF gains the most
-precision, but its F1 stays held by its recall. ForestFormer3D's lead over Li
-2012, a region-growing method published in 2012, is no longer distinguishable
-from zero, while SegmentAnyTree's remains, marginally, and Li 2012's own
-censused lead over the baseline excludes zero. The nine LiDAR detectors keep the
-same F1 order in both scorings. The censused table rests mostly on the
-Washington sites, which hold 1,055 of its 1,190 references, and the chance null
-was computed on the nominal plot core only.
++0.068 and +0.059 at native density, against +0.041 and +0.026 in the nominal
+cores of the same plots (Table~\ref{tab:5}). CHM-VWF gains the most precision, but its F1
+stays held by its recall. ForestFormer3D's lead over Li 2012 is no longer
+distinguishable from zero, while SegmentAnyTree's remains, marginally, and Li
+2012's own censused lead over the baseline excludes zero. The censused table
+rests mostly on the Washington sites, which hold 1,055 of its 1,190 references,
+and the chance null was computed on the nominal plot core only.
 
 The co-detection credit raises F1 by 0.07 to 0.14 per detector at its best
 density per site and leaves the two segmenters in the lead (Table~S5). Both
-brackets point the same way: nominal-plot precision understates every detector.
-Inside censused subplots it understates the baseline most, whose precision rises
-by 0.29 to 0.34 across densities, against 0.08 to 0.33 for the other detectors.
+brackets point the same way: nominal-plot precision understates every detector,
+and inside censused subplots the baseline most (Section~S20).
 
 \begin{table*}[!tp]
 \caption{Censused subplots at native density (57 plots, 1,190 censused
@@ -937,22 +917,22 @@ AMS3D & 0.263 [0.238, 0.291] & $-$0.225 [$-$0.254, $-$0.191] & 0.243 & 0.364 [0.
 \subsection{Decimation Against Native Sparse Flights}\label{sec:5.6}
 
 Thinning is optimistic against natively sparse flights, mildly for most
-detectors and strongly for SegmentAnyTree's recall. On the 586 stems common to
-both epochs, the 2017 and 2018 flights give lower recall than the thinned 2021
-levels that bracket their density, for every detector (Fig.~\ref{fig:6}). For CHM-VWF,
-\texttt{multichm}, ForestFormer3D and TreeisoNet the gap is 0.03 to 0.05, with most
-intervals excluding zero, and ForestFormer3D's F1 on the sparse flights is level
-with both levels. SegmentAnyTree's recall on the sparse flights, 0.42, is 0.193
-[0.156, 0.231] below the level at about 5.4 pulses/m\textsuperscript{2} and 0.063 [0.012, 0.119]
-below the level at about 2.9 pulses/m\textsuperscript{2}. In F1 its gap is like the others', and
-on the sparse flights its F1 (0.40) equals \texttt{multichm}'s and exceeds the
-baseline's (0.33). Its recall on thinned clouds is therefore likely optimistic,
-and the density at which it falls behind on a native acquisition may be higher
-than Table~\ref{tab:4} suggests. The comparison cannot separate thinning from the other
-differences between the epochs (Section~\ref{sec:4.6}). The cross-sensor check agrees for
-CHM-VWF, which differs by $-$0.014 [$-$0.047, +0.016] F1 between 3DEP and NEON
-clouds both thinned to 2 points/m\textsuperscript{2} (about 1.5 pulses/m\textsuperscript{2}). It nearly agrees for
-\texttt{multichm}, which scores 0.030 lower on the 3DEP clouds, a marginal contrast.
+detectors and strongly for SegmentAnyTree's recall. The 2017 and 2018 flights
+give lower recall than the thinned 2021 levels that bracket their density, for
+every detector (Fig.~\ref{fig:6}). For CHM-VWF, \texttt{multichm}, ForestFormer3D and TreeisoNet
+the gap is 0.03 to 0.05, with most intervals excluding zero, and
+ForestFormer3D's F1 on the sparse flights is level with both levels.
+SegmentAnyTree's recall on the sparse flights, 0.42, is 0.193 [0.156, 0.231]
+below the level at about 5.4 pulses/m\textsuperscript{2} and 0.063 [0.012, 0.119] below the level
+at about 2.9 pulses/m\textsuperscript{2}. In F1 its gap is like the others', and on the sparse
+flights its F1 (0.40) equals \texttt{multichm}'s and exceeds the baseline's (0.33). Its
+recall on thinned clouds is therefore likely optimistic, and the density at
+which it falls behind on a native acquisition may be higher than Table~\ref{tab:4}
+suggests. The comparison cannot separate thinning from the other differences
+between the epochs (Section~\ref{sec:4.6}). The cross-sensor check agrees for CHM-VWF,
+which differs by $-$0.014 [$-$0.047, +0.016] F1 between 3DEP and NEON clouds both
+thinned to 2 points/m\textsuperscript{2} (about 1.5 pulses/m\textsuperscript{2}). It nearly agrees for \texttt{multichm},
+which scores 0.030 lower on the 3DEP clouds, a marginal contrast.
 
 \begin{figure*}[!tp]
 \centering
@@ -975,24 +955,21 @@ for CHM-VWF (Table~\ref{tab:6}), and mask F1 of 0.65 and 0.58 against the manual
 These mask scores are close to, though below, the 0.73 and 0.65 that the dataset
 authors report for the same architectures trained on FGI-EMIT and scored on
 other plots~\cite{ruoppa2026benchmarking}, which is context and not a like-for-like
-comparison. The leads of 0.26 to 0.29 are point estimates on three plots,
-against an observed lead of about 0.05 on NEON; the chance null was not computed
-on FGI-EMIT.
+comparison. The leads of 0.26 to 0.29 are point estimates on three plots.
 
-Density does not account for that contrast. Thinned to 11.3 pulses/m\textsuperscript{2}, the
-density that corresponds to native NEON, ForestFormer3D's lead on the
-development plots falls from 0.30 to 0.08 [0.03, 0.13], level with its NEON lead
-of 0.05. From 5.4 pulses/m\textsuperscript{2} down, however, it leads by 0.17 to 0.21 on FGI-EMIT
-against 0.05 to 0.09 on NEON, partly because the baseline loses 0.14 on FGI-EMIT
-at its switch to the smoothed canopy model and 0.06 on NEON. SegmentAnyTree's
-lead stays above the NEON level at every density above its collapse. That
-collapse replicates against true labels: on thinned FGI-EMIT SegmentAnyTree's
-lead holds to 2.9 pulses/m\textsuperscript{2}, vanishes at 1.5 and reverses at 0.7. It is
-therefore a property of the model at these densities, not of NEON's references.
-Under the 40-point instance filter of the policy fixed on the development plots,
-the two segmenters keep 4 and 1 detections at 0.7 pulses/m\textsuperscript{2} over the ten plots,
-against 378 and 56 under the apex rule. Their scores on sparse clouds thus
-depend on post-processing fitted to dense clouds.
+Density does not account for the contrast with NEON. Thinned to 11.3 pulses/m\textsuperscript{2},
+the density that corresponds to native NEON, ForestFormer3D's lead on the
+development plots falls from 0.30 to 0.08, level with its NEON lead of 0.05.
+From 5.4 pulses/m\textsuperscript{2} down, however, it leads by 0.17 to 0.21 on FGI-EMIT against
+0.05 to 0.09 on NEON, partly because the baseline loses 0.14 on FGI-EMIT at its
+switch to the smoothed canopy model and 0.06 on NEON. SegmentAnyTree's lead
+stays above the NEON level at every density above its collapse. That collapse
+replicates against true labels: on thinned FGI-EMIT SegmentAnyTree's lead holds
+to 2.9 pulses/m\textsuperscript{2}, vanishes at 1.5 and reverses at 0.7. Under the 40-point
+instance filter of the policy fixed on the development plots, the two segmenters
+keep 4 and 1 detections at 0.7 pulses/m\textsuperscript{2} over the ten plots, against 378 and 56
+under the apex rule. Their scores on sparse clouds thus depend on
+post-processing fitted to dense clouds.
 
 The control also exposed one of two integration defects that had looked like
 domain shift and raised no error. The first NEON runs had ForestFormer3D at F1
@@ -1263,27 +1240,19 @@ bias the results, and where it is tested.}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
-\begin{tabularx}{\textwidth}{>{\hsize=0.98\hsize\linewidth=\hsize}L>{\hsize=1.48999\hsize\linewidth=\hsize}L>{\hsize=0.53\hsize\linewidth=\hsize}L}
+\begin{tabularx}{\textwidth}{>{\hsize=1.06\hsize\linewidth=\hsize}L>{\hsize=1.43999\hsize\linewidth=\hsize}L>{\hsize=0.50\hsize\linewidth=\hsize}L}
 \hline
 Issue & Direction of bias & Where tested \\
 \hline
-Incomplete reference: unmapped or uncensused trees count as commission & Lowers precision for every detector, the baseline's most; inside censused subplots the segmenters' leads widen & Sections~\ref{sec:4.3} and \ref{sec:5.5}, Table~\ref{tab:5}, Tables~S4 and S5, Fig.~S1 \\
-Stems paired with measurements up to four years from the flight & Scoring only flight-year stems raises recall slightly and lowers precision for all detectors; ForestFormer3D's lead vanishes, SegmentAnyTree's remains, marginally & Section~\ref{sec:5.1}, Section~S21 \\
-A 4 m match radius admits chance matches & Raises every F1; at native density shifted detections reach 70 to 79\% of it & Sections~\ref{sec:4.2} and \ref{sec:5.1}, Table~\ref{tab:3}, Section~S12 \\
-The shift null overstates the chance part of a score & Corrected scores are conservative; corrected leads can err either way and shrink at 2 m for the segmenters & Sections~\ref{sec:4.2} and \ref{sec:5.1}, Table~\ref{tab:3}, Section~S21 \\
-Thinning instead of native sparse acquisitions & Optimistic, mildly for four detectors and strongly for SegmentAnyTree's recall; untested at or below QL2 density & Sections~\ref{sec:3.4} and \ref{sec:5.6}, Fig.~\ref{fig:6} \\
-One thinning seed per density level & At the California sites the baseline's per-site F1 varies across seeds (standard deviation 0.005 to 0.028); other detectors not measured & Section~\ref{sec:3.3} \\
-The baseline's pre-declared smoothing below 8 pulses/m\textsuperscript{2} & Costs the baseline about 0.06 F1 on the thinned levels, inflating the observed leads over it & Section~\ref{sec:5.2}, Table~S16 \\
-Settings developed on the California sites & Favours California scores; Washington held out & Sections~\ref{sec:4.5} and \ref{sec:5.3}, Sections~S11 and S19 \\
-Analyses designed after the five-site results: chance null, unsmoothed baseline, density routing & Choices not blind to Washington; routing picks selected on California only & Sections~\ref{sec:4.7}, \ref{sec:4.8} and \ref{sec:5.8} \\
-Pooling weights sites by stems; Washington holds 74\% & Five-site estimates are mostly Washington estimates & Sections~\ref{sec:4.4} and \ref{sec:5.3}, Section~S19 \\
-Intervals not adjusted for multiple contrasts & About five of 90 corrected-lead contrasts would exclude zero by chance alone & Section~\ref{sec:4.4} \\
-Learned detectors inferred once & Run-to-run variation of ForestFormer3D and TreeisoNet unknown & Not tested (Section~\ref{sec:4.4}) \\
-TreeisoNet's threshold untuned for its voxel; no dense-domain control & Its precision-recall balance, and hence its flat density response, is that of an arbitrary operating point & Not tested (Section~\ref{sec:4.1}) \\
-Li 2012 run at native density only & Its density response is unknown & Not tested (Section~\ref{sec:4.1}) \\
-DeepForest trained on annotations from SJER and TEAK & Could favour it at those sites; its California lead does not follow them & Section~\ref{sec:5.3}, Table~S2 \\
-Checkpoints' training histories incomplete & Overlap with the test data not excluded; the FGI-EMIT reserve is a within-dataset check & Section~\ref{sec:3.5} \\
-Oak woodland and conifer forest in two western regions only; SJER's 31 March flight may precede the full leaf-out of its blue oaks & Results may not transfer to closed-canopy broadleaf or deciduous forest & Not tested \\
+Incomplete reference: unmapped or uncensused trees; stems measured up to four years from the flight & Lowers every detector's precision, the baseline's most, but inside censused subplots the segmenters' leads widen; ForestFormer3D's lead vanishes on flight-year stems & Sections~\ref{sec:4.3}, \ref{sec:5.1}, \ref{sec:5.5}, S4, S5, S20 and S21 \\
+A 4 m match radius admits chance matches; the shift null overstates the chance part of a score & Raises every F1, shifted copies reaching 70 to 79\% of native F1; corrected scores are conservative, corrected leads can err either way & Sections~\ref{sec:4.2}, \ref{sec:5.1}, S12 and S21 \\
+Thinning instead of native sparse acquisitions; one seed per density level & Optimistic, mildly for four detectors and strongly for SegmentAnyTree's recall, untested at or below QL2; seed spread measured for the baseline only & Sections~\ref{sec:3.3}, \ref{sec:3.4} and \ref{sec:5.6} \\
+The baseline's pre-declared smoothing rule & Costs it about 0.06 F1 on the thinned levels, inflating the observed leads over it & Sections~\ref{sec:5.2} and S16 \\
+Settings developed in California; chance null, unsmoothed baseline and routing designed post hoc & Favour California scores, Washington held out; choices not blind to Washington, routing picks selected on California only & Sections~\ref{sec:4.5}, \ref{sec:4.7}, \ref{sec:4.8}, \ref{sec:5.3}, \ref{sec:5.8}, S11 and S19 \\
+Pooling weights sites by stems, Washington holding 74\%; intervals not adjusted for multiple contrasts & Five-site estimates are mostly Washington estimates; about five of 90 corrected-lead contrasts would exclude zero by chance alone & Sections~\ref{sec:4.4} and S19 \\
+Learned detectors inferred once; TreeisoNet's threshold untuned for its voxel, no dense-domain control; Li 2012 run at native density only & Run-to-run variation of ForestFormer3D and TreeisoNet unknown; TreeisoNet's precision-recall balance, hence its flat response, is that of an arbitrary operating point; Li 2012's density response unknown & Not tested (Sections~\ref{sec:4.1} and \ref{sec:4.4}) \\
+DeepForest trained on annotations from SJER and TEAK; checkpoints' training histories incomplete & Could favour DeepForest there, though its California lead does not follow them; overlap with the test data not excluded & Sections~\ref{sec:3.5} and \ref{sec:5.3} \\
+Oak woodland and conifer forest in two western regions only; SJER's 31 March flight may precede its blue oaks' full leaf-out & Results may not transfer to closed-canopy broadleaf or deciduous forest & Not tested \\
 Mask quality not assessed on NEON & Rankings of masks rest on a proxy reference & Sections~S7 and S8 \\
 \hline
 \end{tabularx}
@@ -1300,11 +1269,10 @@ or 2 m, the leads are 0.00 to 0.03, clear in the California development region
 and not in the Washington replication region, and lie in recall rather than in
 precision.
 
-Density response is a property of the individual model, not of its family (RQ2).
+Density response is a property of the individual model, not of its family (RQ2):
 SegmentAnyTree collapses below the QL2 floor, at its instance-grouping stage,
-while ForestFormer3D and TreeisoNet degrade gracefully, and the classical
-detectors differ as much among themselves. Below native density the leads of the
-detectors that do not collapse over the baseline rest on the baseline's
+while ForestFormer3D and TreeisoNet degrade gracefully. Below native density the
+leads over the baseline of the detectors that do not collapse rest on its
 smoothing rule; without it the baseline is within 0.03 of them. Native-density
 rank predicts rank down to the QL2 floor and not below it, where two of the
 eight detectors move by 0.1 to 0.4 F1 (RQ3).
@@ -1322,12 +1290,11 @@ and its sparsest band rests on thinned clouds, so a detector for sparse data is
 still best chosen from an evaluation at that density.
 
 Four practices made these statements possible and are, we suggest, necessary for
-benchmarks of this kind: reporting the score that randomly shifted copies of the
-same detections reach, scoring precision also inside censused subplots, checking
-thinning against a native sparse acquisition, and running a positive control on
-data where the models are known to work. The clips, detections, scoring code and
-tables are public and rebuild with one command, so new detectors can join the
-same tables and the same routing.
+such benchmarks: reporting the score of randomly shifted copies of the
+detections, scoring precision also inside censused subplots, checking thinning
+against a native sparse acquisition, and running a positive control where the
+models are known to work. The clips, detections, code and tables are public and
+rebuild with one command, so new detectors can join the same tables and routing.
 
 
 \section*{Data and Code Availability}
