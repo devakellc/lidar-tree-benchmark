@@ -409,8 +409,11 @@ fig1 <- function() {
 ## ---- 2: the evaluation protocol and the density-routed pipeline -----------------------
 # A schematic (no data file): the protocol every detector is scored by, and the
 # pipeline that routes a new tile to a detector by its measured density. The
-# detector boxes stay generic; the choices are Table 7's.
+# detector boxes stay generic; the caption cites the decision table.
 fig2 <- function() {
+  # The schematic plots no numbers: remove the old Figure 2's data file (now
+  # Figure 3's), so that a figures folder never pairs it with the schematic.
+  unlink(file.path(OUT, "figure_2.csv"))
   W <- TEXT_W; H <- 3.2
   bw <- 1.25; gap <- (W - 0.08 - 5 * bw) / 4
   cx <- 0.04 + bw / 2 + (0:4) * (bw + gap)
@@ -424,7 +427,7 @@ fig2 <- function() {
   b_txt <- c("New airborne\nLiDAR tile",
              "Measure\nfirst-return\ndensity",
              NA,
-             "Detector chosen\nfor the band and\nthe compute budget\n(GPU or CPU only;\nTable 7)",
+             "Detector chosen\nfor the band and\nthe compute budget\n(GPU or CPU only)",
              "Detections\n(tree tops)")
   bands <- c("≥ 8: QL1 or denser", "2–8: QL2 to QL1", "< 2: below QL2")
   library(grid, warn.conflicts = FALSE)
@@ -570,9 +573,12 @@ fig4 <- function() {
       z <- x[x$detector == a, ]
       lines(z$pulses, z$rank, col = COL[a], type = "o", pch = PCH[a], lwd = 1.5)
     }
+    # The density axis of (a), labelled at the levels; the native level lies
+    # outside this panel, which plots no point there.
     plot(rs$pulses, rs$estimate, log = "x", xlim = rev(range(rs$pulses)) * c(1.1, 0.85), ylim = c(-1, 1),
-         pch = 16, xlab = "First-return pulses/m²", ylab = "Spearman ρ with native rank",
+         xaxt = "n", pch = 16, xlab = "First-return pulses/m²", ylab = "Spearman ρ with native rank",
          main = "(b) Rank stability")
+    dens_axis()
     segments(rs$pulses, rs$lower, rs$pulses, rs$upper); abline(h = 0, lty = 2)
     points(lo$pulses, lo$estimate, pch = 1, col = "grey35")
     segments(lo$pulses, lo$lower, lo$pulses, lo$upper, col = "grey35", lty = 1)

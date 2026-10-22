@@ -280,22 +280,23 @@ plots, which replicate SegmentAnyTree's collapse against true labels.
 ## Proposed structure
 
 1. Introduction: national-mapping ALS as the deployment regime, the density
-   gap between the classical and deep literatures, and the three practical
-   questions the README asks.
-2. Related work: benchmarks, density studies, understory detection, evaluation
-   conventions, and detector fusion.
-3. Data: five sites, plots and stems by crown class with measured pulse
-   densities; the decimation ladder and the QL2 rung; the native sparse
-   flights; the native 3DEP cross-check clouds; the FGI-EMIT control plots.
-4. Methods: the detector table with type, input, training data and checkpoint
-   hash; the density-first CHM pipeline; sealed clips; matching, pooling and
-   the equal-set guard; censused-subplot scoring; development and replication
-   regions; the thinning protocol; uncertainty.
-5. Results, one subsection per contribution.
-6. Discussion: implications for USGS 3DEP users, what separates the segmenter
-   that collapses from the two that do not, why the NEON lead is small when
-   the FGI-EMIT lead is not, the understory floor, what fusion buys,
-   limitations.
+   gap between the classical and deep literatures, four research questions
+   and four contributions.
+2. Related work: benchmarks and point density, evaluation conventions, recent
+   models.
+3. Data: five sites with a site map; the field reference; fixed evaluation
+   clips at native density and five thinned levels, one at the QL2 floor; the
+   native sparse flights and 3DEP clouds; the FGI-EMIT control plots.
+4. Methods: detectors with compute cost; scoring and chance agreement;
+   reference completeness; uncertainty and rank stability; development and
+   replication regions; decimation checks, dense-domain control and
+   sensitivity analyses; the density-routed pipeline; implementation.
+5. Results: accuracy at native density, density response and rank stability,
+   regions, understory trees, reference completeness, decimation against
+   native sparse flights, dense-domain control, the density-routed pipeline.
+6. Discussion: choosing a detector by USGS quality level, why one learned
+   detector collapses, the dense benchmark and integration defects, threats to
+   validity.
 7. Conclusion, data and code availability.
 
 Figures and tables of the paper as restructured for IEEE JSTARS on 22 October

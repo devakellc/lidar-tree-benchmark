@@ -53,6 +53,14 @@ here: a figure's PDF where there is one beside its PNG, otherwise the PNG.
   floats alone. The supplement's tables break across pages; each caption stays
   on its table's first page and a continuation page repeats the head under
   "Table Sn (continued)".
+- The columns of a table that wrap their text share its width in proportion
+  to that text, measured as the printed width of their cells in the documents'
+  fonts, rather than equally; none is narrower than half an equal share or
+  than its longest word. Each takes a tabularx `\hsize` factor. A table's
+  factors sum to its number of wrapping columns, as tabularx requires, less a
+  few hundred-thousandths where TeX's rounding would otherwise leave the table
+  short of its width. A table keeps equal widths unless unequal ones are
+  estimated to shorten it.
 - A figure is included as the vector PDF beside its PNG (figure_3.pdf beside
   figure_3.png) when there is one, and as the PNG otherwise. Its printed width,
   the full text width or 0.85 or 0.72 of it, still follows the PNG's aspect
@@ -85,9 +93,9 @@ here: a figure's PDF where there is one beside its PNG, otherwise the PNG.
 - The AI-use statement moves into the Acknowledgment, as IEEE requires. The
   CRediT, competing-interest and funding sections stay as comments.
 
-Search main.tex for TODO to find the author block, the funding sentence, the
-biography and photograph, and the detail IEEE asks for in the AI-use
-statement.
+Search main.tex for TODO to find the author block, the funding sentence and the
+biography and photograph. The AI-use statement already names the system, the
+sections and the level of use; check it against the final text.
 
 The converter stops with an error rather than guess when it meets markdown it
 does not handle. Examples are a citation with a locator, a reference to a

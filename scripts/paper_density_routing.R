@@ -281,16 +281,30 @@ write.csv(band_rows, file.path(OUT, "routing_bands.csv"), row.names = FALSE)
 
 ## ---- outputs: scores of every detector and policy ----------------------------------------
 keys_of <- function(s) unique(sub("^[^|]*\\|", "", s$groups))
+# Plots with a cell in a slice of a scope: all the scope's plots over every
+# cell ("all") and at each level, fewer in a band. The pooled rows zero-fill
+# a band's other plots, which mt_boot_scores()'s own n_plots counts too.
+slice_plots <- function(sc, slice) {
+  x <- dens[dens$site %in% SCOPES[[sc]], , drop = FALSE]
+  keep <- if (slice %in% DR_BANDS$band) x$band == slice else
+    if (startsWith(slice, "level ")) x$level == sub("^level ", "", slice) else
+      if (identical(slice, "all")) rep(TRUE, nrow(x)) else stop("Unknown slice: ", slice)
+  length(unique(paste(x$site, x$plot)[keep]))
+}
+# Pooled counts of each row: the observed (baseline) counts, except on the
+# null F1 rows, which carry the null variant's own (each cell's mean counts
+# over the random shifts).
 scores <- do.call(rbind, lapply(names(SCOPES), function(sc) {
   s <- S[[sc]]
-  est <- s$estimate[s$estimate$variant == "baseline", , drop = FALSE]
-  do.call(rbind, lapply(keys_of(s), function(k) {
-    e <- est[paste(est$policy, est$slice, sep = "|") == k, , drop = FALSE]
-    do.call(rbind, lapply(DR_METRICS, function(m) cbind(
-      data.frame(scope = sc, role = ROLE[[sc]], policy = e$policy, slice = e$slice,
-                 n_plots = e$n_plots, n_ref = e$n_ref, n_det = e$n_det, TP = e$TP,
-                 stringsAsFactors = FALSE), dr_estimate(s, k, m))))
-  }))
+  est <- split(s$estimate, s$estimate$variant)
+  do.call(rbind, lapply(keys_of(s), function(k) do.call(rbind, lapply(DR_METRICS, function(m) {
+    v <- est[[if (m == "F1_null") "null" else "baseline"]]
+    e <- v[paste(v$policy, v$slice, sep = "|") == k, , drop = FALSE]
+    if (nrow(e) != 1) stop("Expected one pooled row for ", k)
+    cbind(data.frame(scope = sc, role = ROLE[[sc]], policy = e$policy, slice = e$slice,
+                     n_plots = slice_plots(sc, e$slice), n_ref = e$n_ref, n_det = e$n_det,
+                     TP = e$TP, stringsAsFactors = FALSE), dr_estimate(s, k, m))
+  }))))
 }))
 scores$kind <- ifelse(scores$policy %in% GPU, "detector", "policy")
 scores <- scores[c("scope", "role", "kind", "policy", "slice", "n_plots", "n_ref", "n_det", "TP",

@@ -19,6 +19,7 @@ import contextlib
 import importlib.util
 import io
 import os
+import random
 import re
 import shutil
 import struct
@@ -29,6 +30,7 @@ import unittest
 import zipfile
 import zlib
 from collections import Counter
+from fractions import Fraction
 from pathlib import Path
 from unittest import mock
 
@@ -257,6 +259,49 @@ def write_pdf(path, width, height):
 def entry(bib, key):
     m = re.search(r"(?s)@\w+\{" + key + r",.*?\n\}", bib)
     return flat(m.group(0)) if m else ""
+
+
+X_COLUMN = re.compile(r">\{\\hsize=([\d.]+)\\hsize\\linewidth=\\hsize\}([LRC])|([lrcLRC])")
+
+
+def preamble_columns(preamble):
+    """[(column letter, width factor or None)] of a table's column preamble;
+    a stray character makes the parse fail."""
+    cols, pos = [], 0
+    for m in X_COLUMN.finditer(preamble):
+        if m.start() != pos:
+            raise AssertionError(f"unexpected preamble text {preamble[pos:m.start()]!r} in {preamble!r}")
+        cols.append((m.group(2) or m.group(3), m.group(1)))
+        pos = m.end()
+    if pos != len(preamble):
+        raise AssertionError(f"unexpected preamble text {preamble[pos:]!r} in {preamble!r}")
+    return cols
+
+
+def x_share(spec, rows, width, space=0.25):
+    """The width in em of each X column at equal widths, as x_factors reckons
+    it: the table's width less the widest cell of each other column."""
+    def one_line(cell):
+        words = p2i.word_widths(cell, space)
+        return sum(words) + space * max(len(words) - 1, 0)
+    fixed = sum(max(one_line(r[j]) for r in rows) for j, s in enumerate(spec) if s not in "LRC")
+    return (width - fixed) / sum(s in "LRC" for s in spec)
+
+
+def check_x_factors(test, factors):
+    """The width factors of one table, X columns only, as written: their sum
+    as TeX reads them is below the number of X columns, by at least 1/65536
+    and at most n/65536, the decimals sum to it within the adjustment, and
+    none is below MIN_X_FACTOR. Equal widths (all "1") pass as they are."""
+    n = len(factors)
+    if all(f in (None, "1") for f in factors):
+        return
+    factors = [f or "1" for f in factors]
+    tex_sum = sum(p2i.tex_units(f) for f in factors)
+    test.assertLessEqual(tex_sum, 65536 * n - 1, factors)
+    test.assertGreaterEqual(tex_sum, 65536 * n - n, factors)
+    test.assertAlmostEqual(float(sum(Fraction(f) for f in factors)), n, delta=(n / 2 + 1) / 65536 + 1e-5)
+    test.assertGreaterEqual(min(float(f) for f in factors), p2i.MIN_X_FACTOR - 1e-4, factors)
 
 
 class NumberingTests(unittest.TestCase):
@@ -745,6 +790,102 @@ class BibliographyTests(unittest.TestCase):
         self.assertEqual(body, [["x", "1", "y"]])
 
 
+class TableWidthTests(unittest.TestCase):
+    """Unequal widths of a table's X columns (tabularx's \\hsize factors)."""
+
+    LONG = "Adaptive mean shift in three dimensions over the normalised cloud with a crown model"
+    ROWS = [["Detector", "Description", "Device"],
+            ["CHM-VWF", "Local maxima on a canopy height model, with a window that grows with the height of "
+                        "the canopy", "CPU only"],
+            ["AMS3D", LONG, "CPU only"],
+            ["TreeisoNet", "Tree localisation and offset networks on voxels of the normalised cloud", "One GPU"]]
+
+    def test_widths_follow_the_text(self):
+        factors = p2i.x_factors(["l", "L", "L"], self.ROWS, 40.0, 0.25)
+        self.assertIsNone(factors[0])
+        self.assertEqual(factors[2], "0.50")  # little text: down to half the equal width
+        self.assertAlmostEqual(float(factors[1]), 1.5, delta=1e-4)
+        check_x_factors(self, factors[1:])
+        share = x_share(["l", "L", "L"], self.ROWS, 40.0)
+        widths = [None] + [float(f) * share for f in factors[1:]]
+        self.assertLess(p2i.table_lines(self.ROWS, widths), p2i.table_lines(self.ROWS, [None, share, share]))
+
+    def test_no_column_narrower_than_its_longest_word(self):
+        rows = [["Model file", "Description", "Notes"], ["`model_file/PointGroup-PAPER.pt`", self.LONG, self.LONG],
+                ["`x`", self.LONG + " " + self.LONG, "short"], ["`y`", self.LONG, self.LONG]]
+        self.assertEqual(p2i.word_widths("`model_file/PointGroup-PAPER.pt`"), [18.0])  # Courier: 0.6 em each
+        factors = p2i.x_factors(["L", "L", "L"], rows, 80.0)
+        floor = (18.0 + p2i.WORD_MARGIN_EM) / (80.0 / 3)  # 0.694, above the half-width floor
+        self.assertEqual(factors[0], "0.70")
+        self.assertGreater(float(factors[0]), floor)
+        self.assertLess(float(factors[0]), 1)
+        check_x_factors(self, factors)
+        # When the words leave no room to share, the widths stay equal.
+        wide = [[f"`{c * 30}`" for c in "abc"], ["x " * 40, "y", "z"]]
+        self.assertEqual(p2i.x_factors(["L", "L", "L"], wide, 40.0), ["1", "1", "1"])
+
+    def test_words_and_their_widths(self):
+        self.assertEqual(len(p2i.word_widths(f"Table{NB}\\ref{{tab:2}} and Fig.{NB}S1")), 3)  # no-break spaces
+        self.assertAlmostEqual(sum(p2i.word_widths("Wm")), 0.944 + 0.778)  # Times metrics
+        self.assertAlmostEqual(sum(p2i.word_widths("`Wm`")), 1.2)  # code in Courier
+        self.assertEqual(p2i.word_widths("[text](https://example.org/a/long/path)"), p2i.word_widths("text"))
+        self.assertAlmostEqual(sum(p2i.word_widths(f"a{NB}b", space=0.35)), 0.444 + 0.35 + 0.5)
+
+    def test_alignment_is_kept(self):
+        rows = [["Name", "Description", "Range", "Mode", "n"]] + [
+            ["CHM-VWF", "Local maxima on a canopy height model, with a window that grows with the height " * 2,
+             "0.462 [0.404, 0.521]", "GPU or CPU, either", "12"]] * 4
+        pre = p2i.column_preamble(["l", "L", "R", "C", "r"], rows, "main", "\\textwidth", "\\scriptsize")
+        cols = preamble_columns(pre)
+        self.assertEqual([c for c, _ in cols], ["l", "L", "R", "C", "r"])
+        self.assertTrue(all(f is None for c, f in cols if c in "lrc"))
+        self.assertTrue(any(f is not None for _, f in cols))
+        check_x_factors(self, [f for c, f in cols if c in "LRC"])
+
+    def test_equal_widths_where_unequal_ones_do_not_help(self):
+        short = [["Name", "Short text", "1.0"], ["a", "b", "2.0"]]
+        self.assertEqual(p2i.x_factors(["l", "L", "R"], short, 40.0), [None, "1", "1"])  # all on one line
+        self.assertEqual(p2i.x_factors(["l", "L"], self.ROWS, 40.0), [None, "1"])  # a single X column
+        self.assertEqual(p2i.x_factors(["l", "c"], self.ROWS, 40.0), [None, None])  # none
+        self.assertEqual(p2i.column_preamble(["l", "L", "R"], short, "supp", "\\textwidth", "\\footnotesize"), "lLR")
+
+    def test_tex_reads_decimal_factors_to_the_nearest_65536th(self):
+        self.assertEqual([p2i.tex_units(f) for f in ("1", "0.5", "1.25", "0.63", "1.84998")],
+                         [65536, 32768, 81920, 41288, 121240])
+        # Two decimals summing to 6 can sum to more in TeX, which would leave the
+        # table short of its width; the converter lowers the largest factor.
+        self.assertEqual(sum(p2i.tex_units(f) for f in ("1.85", "1.25", "0.63", "0.80", "0.84", "0.63")),
+                         6 * 65536 + 1)
+
+    def test_random_tables_keep_the_rules(self):
+        rng = random.Random(183)
+        vocab = ["a", "of", "detector", "ForestFormer3D", "0.462", "[0.404,", "0.521]", "canopy", "height",
+                 "None", "`multichm`", f"Table{NB}\\ref{{tab:2}}", "\\cite{x}", "$F_1$", "pulses/m²", "−"]
+        changed = 0
+        for _ in range(400):
+            ncol = rng.randint(2, 9)
+            spec = [rng.choice("lLLRC") for _ in range(ncol)]
+            rows = [[" ".join(rng.choice(vocab) for _ in range(rng.choice([1, 2, 4, 12, 30])))
+                     for _ in range(ncol)] for _ in range(rng.randint(2, 12))]
+            width, space = rng.uniform(30, 160), rng.choice([0.25, 0.35])
+            factors = p2i.x_factors(spec, rows, width, space)
+            with self.subTest(spec=spec, width=width):
+                self.assertEqual([f is None for f in factors], [s not in "LRC" for s in spec])
+                xs = [f for f in factors if f is not None]
+                check_x_factors(self, xs)
+                if any(f != "1" for f in xs):
+                    changed += 1
+                    share = x_share(spec, rows, width, space)
+                    for j, f in enumerate(factors):
+                        if f is not None:
+                            word = max((w for r in rows for w in p2i.word_widths(r[j], space)), default=0)
+                            self.assertGreaterEqual(float(f) * share, word + p2i.WORD_MARGIN_EM - 1e-4 * share)
+                    lines = p2i.table_lines(rows, [float(f) * share if f else None for f in factors], space)
+                    equal = p2i.table_lines(rows, [share if f else None for f in factors], space)
+                    self.assertLess(lines, equal)
+        self.assertGreater(changed, 50)
+
+
 class ArgumentTests(unittest.TestCase):
     def test_arguments_without_equals_stop_before_writing(self):
         for argv in (["--out", "x"], ["OUT"], ["NOPE=1"]):
@@ -909,6 +1050,7 @@ def tex_words(tex):
     body = re.sub(r"(?s)\\endfirsthead.*?\\endhead", " ", body)  # a supplement table's repeated head
     body = re.sub(r"\\multicolumn\{\d+\}", " ", body)
     body = re.sub(r"\\setlength\{\\tabcolsep\}\{[^}]*\}|\\renewcommand\{\\arraystretch\}\{[^}]*\}", " ", body)
+    body = re.sub(r"\\hsize=[\d.]+\\hsize", " ", body)  # an X column's width factor
     body = re.sub(r"\\\\\[\d+pt\]", " ", body)
     body = re.sub(r"\[[^\]]*\\(?:textwidth|columnwidth)\]", " ", body)
     # The supplement's caption labels, of its tables and of its figures.
@@ -1032,6 +1174,11 @@ class WordHelperTests(unittest.TestCase):
         tex = "\\begin{document}\\textbf{Figure S1.} Cap. \\textbf{Table S2a.} Tab.\\end{document}"
         self.assertEqual(tex_words(tex), Counter(["cap", "tab"]))
 
+    def test_column_width_factors_are_ignored(self):
+        tex = ("\\begin{document}\\begin{tabularx}{\\textwidth}{>{\\hsize=0.67\\hsize\\linewidth=\\hsize}L"
+               ">{\\hsize=1.32999\\hsize\\linewidth=\\hsize}L}\nA & 2 \\\\\n\\end{tabularx}\\end{document}")
+        self.assertEqual(numbers(tex_words(tex)), Counter(["2"]))
+
 
 @unittest.skipUnless(PANDOC, "pandoc not available (set PANDOC=/path/to/pandoc)")
 class EndToEndTests(unittest.TestCase):
@@ -1116,6 +1263,16 @@ class EndToEndTests(unittest.TestCase):
         self.assertEqual(tex_table_rows(self.main_tex), pipe_table_rows(self.main_md))
         self.assertEqual(tex_table_rows(self.supp_tex), pipe_table_rows(self.supp_md))
 
+    def test_table_column_widths(self):
+        for name, tex in (("main", self.main_tex), ("supplement", self.supp_tex)):
+            preambles = re.findall(r"(?m)^\\begin\{(?:tabularx|xltabular)\}\{\\(?:text|column)width\}\{(.*)\}$", tex)
+            self.assertEqual(len(preambles), len(re.findall(r"\\begin\{(?:tabularx|xltabular)\}", tex)))
+            for pre in preambles:
+                with self.subTest(document=name, preamble=pre):
+                    cols = preamble_columns(pre)
+                    self.assertTrue(any(c in "LRC" for c, _ in cols))
+                    check_x_factors(self, [f for c, f in cols if c in "LRC"])
+
 
 SYNTH_MANUSCRIPT = """# Short title
 
@@ -1161,6 +1318,13 @@ grep -E '\\[0-9\\]+' log.txt # \\( Table 9 @kuhn1955hungarian {{x}} $y$
 | Detector | $F_1^{{c}}$ |
 | --- | ---: |
 | A | 0.12 |
+
+**Table 2.** Detectors, with a description that needs more of the width.
+
+| Detector | Description | Notes |
+| --- | --- | --- |
+| A | A long description of the first detector, which wraps over three lines of its column when the columns share the width of the page equally, and over two when it takes more of it | Runs on one GPU |
+| B | Another description, shorter than the first | Runs on the CPU |
 
 ![Figure 1.](figures/figure_1.png)
 
@@ -1299,6 +1463,14 @@ class SyntheticPaperTests(unittest.TestCase):
         self.assertIn("The pooled score:\n\\[\n\\begin{aligned}\nF &= \\frac{2 P R}{P + R} \\\\\n"
                       "  &\\text{pooled over plots}\n\\end{aligned}\n\\]\nwhere \\(P\\) is precision.", self.supp_tex)
         self.assertNotIn("equation", self.supp_tex)
+
+    def test_wide_table_takes_unequal_widths(self):
+        pre = re.search(r"(?m)^\\begin\{tabularx\}\{\\textwidth\}\{(.*)\}$", self.main_tex).group(1)
+        cols = preamble_columns(pre)
+        self.assertEqual([c for c, _ in cols], ["l", "L", "L"])
+        self.assertEqual(cols[2][1], "0.50")  # the notes: down to half the equal width
+        self.assertGreater(float(cols[1][1]), 1.4)  # the description takes the rest
+        check_x_factors(self, [f for c, f in cols if c in "LRC"])
 
     def test_code_blocks(self):
         self.assertIn("rebuild with:\n\n\\begin{verbatim}\n# a comment, not a title\n"

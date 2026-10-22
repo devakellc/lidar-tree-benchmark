@@ -401,7 +401,7 @@ range of that share over the eleven detectors.
 | ABBY | −0.043 [−0.092, +0.004] | −0.002 [−0.054, +0.038] | −0.004 [−0.040, +0.029] | 81% | 80–87% |
 
 The chance level itself runs from about half of F1 at SJER to four fifths at
-ABBY, which is the mechanism behind the regional difference in corrected leads.
+ABBY.
 
 **Table S12g.** Rank stability in corrected F1 of the eight detectors run at
 every density: Spearman correlation between their corrected F1 at native density
@@ -533,7 +533,7 @@ native density the leads of the detectors that do not collapse are within 0.03
 of zero; only the two segmenters' leads at 4.7 pulses/m² exclude zero, both
 marginally, and below the QL2 floor SegmentAnyTree, which collapses, is 0.073
 and 0.303 behind the unsmoothed baseline. The main tables keep the baseline's
-pre-declared smoothing rule (Section 6.4 of the manuscript).
+pre-declared smoothing rule (Section 5.2 of the manuscript).
 
 ## S17. Recall by height band and dominance class
 
@@ -996,13 +996,15 @@ detectors run at every density, with the highest pooled F1 on the band's
 California cells, and the CPU route the best of the five classical ones
 (CHM-VWF, `multichm`, `lmfauto`, `ptrees` and AMS3D); the Washington cells are
 the held-out check. The native-only choice is each route's California best at
-the native level, used at every density. The design was fixed after the
-five-site results were known, so the analysis is post hoc, and the Washington
-best, chosen on the data it is compared on, is descriptive. Table 7 of the
-manuscript gives the decision table and its held-out check; the tables below
-give the bands, every candidate in every band and region, each Washington pick
-against the other candidates of its band and the native-only choice against the
-route.
+the native level and the single choice its California best over every cell,
+each used at every density. The design was fixed after the five-site results
+were known, so the analysis is post hoc, and the Washington best, chosen on the
+data it is compared on, is descriptive. Table 7 of the manuscript gives the
+decision table and its held-out check; the tables below give the bands, every
+candidate in every band and region, each Washington pick against the other
+candidates of its band and the native-only choice against the route. The last
+two tables pool every cell: each route, choice and fixed detector, and the GPU
+route against each fixed detector and the other choices.
 
 Corrected F1 is at the 4 m radius, and intervals are 95% plot-bootstrap
 intervals over the master tables' resamples, paired for differences. California
@@ -1010,9 +1012,11 @@ scores are in sample, for the selection and for the detector settings. Band C
 holds decimated cells only, and the comparison with native sparse flights
 suggests that decimation is optimistic (Section 5.6 of the manuscript); CHM-VWF
 keeps its pre-declared smoothing rule below 8 pulses/m²; precision is that of
-the nominal plot core, a lower bound. Source: [density-routing
-study](../results/density-routing-results.md), which also compares the routes
-with every fixed detector over all cells.
+the nominal plot core, a lower bound. Pooled over every cell, the six levels
+weigh equally, each stem counting once per level, whereas a national archive
+has another mix of densities. Source: [density-routing
+study](../results/density-routing-results.md), which also compares the CPU route
+and the GPU native-only choice with every fixed detector over all cells.
 
 **Table S25a.** Bands of measured first-return density by scope, with the cells
 of each density level, headed by the level's five-site median in pulses/m².
@@ -1139,3 +1143,50 @@ intervals. Band A runs the same detector in both, and with only a CPU both are
 | C | CPU | `multichm` | `multichm` | five sites | +0.000 [+0.000, +0.000] | +0.000 [+0.000, +0.000] |
 | C | CPU | `multichm` | `multichm` | California | +0.000 [+0.000, +0.000] | +0.000 [+0.000, +0.000] |
 | C | CPU | `multichm` | `multichm` | Washington | +0.000 [+0.000, +0.000] | +0.000 [+0.000, +0.000] |
+
+**Table S25g.** Every cell pooled: F1 and corrected F1 of each route, choice and
+fixed detector over the whole density series, by scope, with 95% intervals. The
+six levels weigh equally; the Washington best is descriptive.
+
+| Policy or detector | Five sites, F1 | Five sites, corrected F1 | California, F1 | California, corrected F1 | Washington, F1 | Washington, corrected F1 |
+| --- | --- | --- | --- | --- | --- | --- |
+| GPU route | 0.461 [0.444, 0.480] | 0.185 [0.167, 0.205] | 0.431 [0.394, 0.467] | 0.244 [0.210, 0.285] | 0.473 [0.453, 0.494] | 0.157 [0.138, 0.179] |
+| CPU route | 0.445 [0.428, 0.464] | 0.166 [0.150, 0.184] | 0.424 [0.389, 0.461] | 0.228 [0.195, 0.264] | 0.454 [0.434, 0.475] | 0.137 [0.119, 0.158] |
+| Native-only choice, GPU | 0.428 [0.407, 0.447] | 0.180 [0.162, 0.199] | 0.388 [0.355, 0.424] | 0.224 [0.185, 0.267] | 0.444 [0.420, 0.465] | 0.159 [0.140, 0.182] |
+| Native-only choice, CPU | 0.445 [0.428, 0.464] | 0.166 [0.150, 0.184] | 0.424 [0.389, 0.461] | 0.228 [0.195, 0.264] | 0.454 [0.434, 0.475] | 0.137 [0.119, 0.158] |
+| Single choice, GPU | 0.445 [0.428, 0.464] | 0.166 [0.150, 0.184] | 0.424 [0.389, 0.461] | 0.228 [0.195, 0.264] | 0.454 [0.434, 0.475] | 0.137 [0.119, 0.158] |
+| Single choice, CPU | 0.445 [0.428, 0.464] | 0.166 [0.150, 0.184] | 0.424 [0.389, 0.461] | 0.228 [0.195, 0.264] | 0.454 [0.434, 0.475] | 0.137 [0.119, 0.158] |
+| Washington best per band, GPU (descriptive) | 0.466 [0.442, 0.488] | 0.204 [0.181, 0.225] | 0.409 [0.372, 0.448] | 0.235 [0.194, 0.281] | 0.490 [0.463, 0.514] | 0.187 [0.163, 0.213] |
+| Washington best per band, CPU (descriptive) | 0.447 [0.429, 0.465] | 0.176 [0.157, 0.196] | 0.408 [0.374, 0.445] | 0.220 [0.185, 0.259] | 0.461 [0.441, 0.481] | 0.156 [0.135, 0.180] |
+| ForestFormer3D | 0.460 [0.442, 0.477] | 0.189 [0.169, 0.209] | 0.415 [0.379, 0.453] | 0.237 [0.203, 0.278] | 0.478 [0.457, 0.498] | 0.166 [0.143, 0.189] |
+| SegmentAnyTree | 0.428 [0.407, 0.447] | 0.180 [0.162, 0.199] | 0.388 [0.355, 0.424] | 0.224 [0.185, 0.267] | 0.444 [0.420, 0.465] | 0.159 [0.140, 0.182] |
+| TreeisoNet | 0.447 [0.422, 0.472] | 0.185 [0.162, 0.206] | 0.366 [0.326, 0.405] | 0.199 [0.163, 0.241] | 0.483 [0.455, 0.510] | 0.177 [0.152, 0.204] |
+| `multichm` | 0.445 [0.428, 0.464] | 0.166 [0.150, 0.184] | 0.424 [0.389, 0.461] | 0.228 [0.195, 0.264] | 0.454 [0.434, 0.475] | 0.137 [0.119, 0.158] |
+| CHM-VWF | 0.401 [0.379, 0.423] | 0.172 [0.149, 0.195] | 0.361 [0.321, 0.402] | 0.218 [0.177, 0.263] | 0.415 [0.391, 0.442] | 0.152 [0.128, 0.181] |
+| AMS3D | 0.346 [0.321, 0.369] | 0.113 [0.098, 0.129] | 0.308 [0.267, 0.354] | 0.143 [0.110, 0.178] | 0.362 [0.334, 0.389] | 0.099 [0.084, 0.117] |
+| `ptrees` | 0.370 [0.348, 0.391] | 0.138 [0.122, 0.157] | 0.299 [0.268, 0.336] | 0.151 [0.122, 0.187] | 0.398 [0.375, 0.422] | 0.133 [0.114, 0.154] |
+| `lmfauto` | 0.292 [0.265, 0.327] | 0.087 [0.071, 0.109] | 0.347 [0.304, 0.394] | 0.172 [0.130, 0.219] | 0.280 [0.249, 0.321] | 0.068 [0.052, 0.089] |
+
+**Table S25h.** The GPU route minus each fixed detector and the other choices,
+every cell, by scope, as paired differences in F1 and corrected F1 with 95%
+intervals.
+
+| Versus | Five sites, F1 | Five sites, corrected F1 | California, F1 | California, corrected F1 | Washington, F1 | Washington, corrected F1 |
+| --- | --- | --- | --- | --- | --- | --- |
+| ForestFormer3D | +0.001 [−0.004, +0.007] | −0.004 [−0.010, +0.003] | +0.016 [+0.007, +0.025] | +0.007 [−0.003, +0.017] | −0.005 [−0.012, +0.002] | −0.008 [−0.017, −0.000] |
+| SegmentAnyTree | +0.033 [+0.020, +0.048] | +0.005 [−0.005, +0.016] | +0.043 [+0.024, +0.062] | +0.020 [+0.001, +0.037] | +0.029 [+0.013, +0.047] | −0.002 [−0.014, +0.011] |
+| TreeisoNet | +0.014 [−0.005, +0.034] | +0.001 [−0.014, +0.017] | +0.065 [+0.039, +0.095] | +0.045 [+0.022, +0.067] | −0.010 [−0.033, +0.015] | −0.020 [−0.039, −0.002] |
+| `multichm` | +0.016 [+0.009, +0.023] | +0.020 [+0.012, +0.028] | +0.007 [−0.005, +0.019] | +0.016 [+0.001, +0.032] | +0.020 [+0.012, +0.027] | +0.021 [+0.012, +0.029] |
+| CHM-VWF | +0.061 [+0.039, +0.080] | +0.013 [−0.005, +0.032] | +0.070 [+0.030, +0.108] | +0.026 [−0.013, +0.063] | +0.058 [+0.033, +0.083] | +0.005 [−0.014, +0.025] |
+| AMS3D | +0.115 [+0.096, +0.134] | +0.072 [+0.059, +0.085] | +0.123 [+0.092, +0.151] | +0.102 [+0.076, +0.125] | +0.111 [+0.090, +0.134] | +0.058 [+0.043, +0.072] |
+| `ptrees` | +0.091 [+0.078, +0.105] | +0.047 [+0.036, +0.059] | +0.132 [+0.112, +0.150] | +0.093 [+0.075, +0.111] | +0.075 [+0.058, +0.092] | +0.025 [+0.011, +0.039] |
+| `lmfauto` | +0.169 [+0.135, +0.197] | +0.098 [+0.081, +0.112] | +0.084 [+0.058, +0.107] | +0.072 [+0.049, +0.094] | +0.193 [+0.156, +0.224] | +0.090 [+0.073, +0.104] |
+| Native-only choice, GPU | +0.033 [+0.020, +0.048] | +0.005 [−0.005, +0.016] | +0.043 [+0.024, +0.062] | +0.020 [+0.001, +0.037] | +0.029 [+0.013, +0.047] | −0.002 [−0.014, +0.011] |
+| CPU route | +0.016 [+0.009, +0.023] | +0.020 [+0.012, +0.028] | +0.007 [−0.005, +0.019] | +0.016 [+0.001, +0.032] | +0.020 [+0.012, +0.027] | +0.021 [+0.012, +0.029] |
+| Single choice, GPU | +0.016 [+0.009, +0.023] | +0.020 [+0.012, +0.028] | +0.007 [−0.005, +0.019] | +0.016 [+0.001, +0.032] | +0.020 [+0.012, +0.027] | +0.021 [+0.012, +0.029] |
+| Washington best per band, GPU (descriptive) | −0.005 [−0.020, +0.011] | −0.018 [−0.029, −0.006] | +0.021 [+0.005, +0.039] | +0.009 [−0.010, +0.026] | −0.016 [−0.036, +0.004] | −0.029 [−0.045, −0.014] |
+
+The CPU route, the CPU native-only choice and both single choices are
+`multichm` in every band, and the GPU native-only choice is SegmentAnyTree at
+every level, so in Tables S25g and S25h their rows repeat those detectors'
+rows.

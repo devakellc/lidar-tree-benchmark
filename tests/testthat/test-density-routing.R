@@ -85,9 +85,24 @@ test_that("corrected F1 scales the excess over the null, per draw, and contrasts
   W <- mt_plot_weights(x$site, x$plot, n_boot = 100, seed = 5)
   s <- mt_boot_scores(dr_plot_rows(x, c("variant", "policy", "slice"), rownames(W)), W,
                       c("variant", "policy", "slice"))
+  # By hand: x holds TP = tp_core = 1 + ... + 6 = 21 observed and 21 / 4 under
+  # the null, of n_ref = 60 stems and n_det = 93 detections in both, so F1 =
+  # 2 TP / (n_ref + n_det) is 42 / 153 = 14 / 51 observed and 10.5 / 153 =
+  # 7 / 102 under the null, and corrected F1 (14 / 51 - 7 / 102) /
+  # (1 - 7 / 102) = 21 / 95.
   obs <- dr_metric(s, "x|all", "F1"); nul <- dr_metric(s, "x|all", "F1_null")
   cor <- dr_metric(s, "x|all", "F1_corrected")
-  expect_equal(cor$e, (obs$e - nul$e) / (1 - nul$e))
+  expect_equal(obs$e, 14 / 51)
+  expect_equal(nul$e, 7 / 102)                            # the null variant's counts
+  expect_equal(cor$e, 21 / 95)
+  # Draw 1 by hand: each cell's counts weighted by its plot's multiplicity.
+  w <- W[paste(x$site, x$plot, sep = "::"), 1]
+  f1_draw <- function(v) {
+    z <- x$variant == v & x$detector == "x"
+    2 * sum(w[z] * x$TP[z]) / sum(w[z] * (x$n_ref[z] + x$n_det[z]))
+  }
+  expect_equal(unname(cor$d[1]),
+               (f1_draw("baseline") - f1_draw("null")) / (1 - f1_draw("null")))
   expect_equal(cor$d, (obs$d - nul$d) / (1 - nul$d))
   rec <- sum(x$TP[x$variant == "null" & x$detector == "x"]) / sum(x$n_ref[x$variant == "null" & x$detector == "x"])
   expect_equal(dr_metric(s, "x|all", "recall")$e,

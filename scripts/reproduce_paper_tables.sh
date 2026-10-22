@@ -111,6 +111,10 @@ printf '%s\n' "${REBUILT[@]}" |
   sed -E 's#^(.*(best_treetop(_cache|s_geojson)|ql2_detect_results\.csv|native_ql2_vs_decimated\.csv|\.png|\.pdf))$#~\1#' \
   > "$LOGS/rebuilt_paths.txt"
 for r in "${REBUILT[@]}"; do rm -rf "${W:?}/$r"; done
+# Figure 2 is a schematic with no data file. An archive staged before it
+# became one holds the old Figure 2's numbers (now Figure 3's), which no step
+# rebuilds or compares.
+rm -f "$W/paper_runs/figures/figure_2.csv"
 
 ## 1. Learned arms on the sensitivity populations, from persisted detections.
 # SegmentAnyTree never completed one relaxed cell (SJER_004 at 1 point/m²);

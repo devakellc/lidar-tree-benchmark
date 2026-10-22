@@ -41,7 +41,7 @@ use, in the Acknowledgment. Before submission:
   was drafted with Claude Code and revised by the author.
 - If the journal or a reviewer asks for 18 pages or fewer, cut Section 4 first;
   it is the section most over its budget.
-- Confirm JSTARS's limits at submission, including the abstract length (226
+- Confirm JSTARS's limits at submission, including the abstract length (247
   words) and the six Index Terms.
 - Re-run the repository checks of Section 2.3 and Section S24 on submission
   day and restate their date: SegmentAnyTreeV2, SelectAnyTree, ForestQuery,
@@ -54,15 +54,16 @@ use, in the Acknowledgment. Before submission:
   clean-container rebuild; then deposit it and replace "DOI to be assigned at
   deposit" in the availability statement.
 - Decide whether the re-staged archive carries the ForestMamba runs of Section
-  S23. They are not in the staged archive and the one-command rebuild does not
-  cover them, as Section S23 and the availability statement say, and neither
+  S23. They are not in the staged archive, as the availability statement says,
+  and the one-command rebuild does not cover them; neither
   `docs/model-provenance.json` nor the models table of
   `docs/data-code-availability.md` records the ForestMamba checkpoint. If the
-  runs go in, drop those sentences, add the checkpoint to the provenance
-  records, and drop the availability statement's clause that the repository
-  lists ForestMamba's sources and hashes, because `scripts/stage_archive.sh`
-  copies `docs/model-provenance.json` into the archive, which would then list
-  them too.
+  runs go in, drop the availability statement's clause that the run is not in
+  the archive, add the checkpoint to the provenance records, and drop the
+  statement's clause that the repository lists ForestMamba's sources and
+  hashes, because `scripts/stage_archive.sh` copies
+  `docs/model-provenance.json` into the archive, which would then list them
+  too.
 - ForestMamba stays outside the result tables, figures, abstract counts and
   density routing by design, and Section S23 says so: adding it to Table 4 or
   Figure 4 would re-open the rank statistics of Sections 4.4 and 5.2, which are
@@ -96,7 +97,7 @@ generated tables that report documents. The archive rebuilds those tables with
 | 4.1 Detectors, with the compute column of Table 2 | [detector table](../results/detector-table.md), [compute cost](../results/compute-cost-results.md) |
 | 4.2, 5.1–5.4 Chance agreement | [matcher robustness](../results/matcher-robustness-results.md#chance-agreement) |
 | 4.1, 5.2, 6.1, 6.4 Baseline smoothing sensitivity | [baseline smoothing sensitivity](../results/baseline-smoothing-sensitivity-results.md) |
-| 3.1, 4.1, 6.2 Stands, apex floor, dead stems, instance assignment | [instance audit](../results/instance-audit-results.md) |
+| 3.1, 4.1, 6.2 Stands, apex floor, instance assignment | [instance audit](../results/instance-audit-results.md) |
 | 4.3, 5.5 Reference completeness | [censused subplots](../results/census-support-results.md), [coverage gap](../results/coverage-gap-results.md) |
 | 4.5, 5.3 Regions | [configuration provenance](../docs/configuration-provenance.md), [master tables](../results/master-tables-results.md), [density ladder](../results/density-ladder-sweep-results.md) |
 | 4.4, 5.1, 5.2, 5.4 Accuracy, density, rank stability, crown classes | [master tables](../results/master-tables-results.md), [model comparison](../results/model-benchmark-results.md) |
@@ -107,17 +108,17 @@ generated tables that report documents. The archive rebuilds those tables with
 | 2.3, 6.4 and the availability statement: ForestMamba, added after the tables were fixed | [ForestMamba benchmark](../results/forestmamba-results.md), [ForestMamba runtime](../gpu/forestmamba-sm120/README.md) |
 | 2.1–2.3, 4.2, 6.3: the dated repository checks and the precedents added on 21 October 2026 (Yu 2004, Hirata 2004, Hamraz 2016, Hershey 2022, Destouches 2026, Gominski 2025, ForestQuery, and the chance-null, double-observer, leakage, rank-stability and model-transferability lineages) | the cited sources; the [paper proposal](../docs/paper-proposal.md) records the repository checks and Yu 2004 |
 | Supplement S1, S3, S13, S17 | [master tables](../results/master-tables-results.md) |
-| Supplement S2, S19 | [model comparison](../results/model-benchmark-results.md), [master tables](../results/master-tables-results.md), [configuration provenance](../docs/configuration-provenance.md) |
-| Supplement S4, S5, S20 | [censused subplots](../results/census-support-results.md), [coverage gap](../results/coverage-gap-results.md) |
+| Supplement S2, S19 | [model comparison](../results/model-benchmark-results.md), [master tables](../results/master-tables-results.md), [matcher robustness](../results/matcher-robustness-results.md), [coverage gap](../results/coverage-gap-results.md) |
+| Supplement S4, S5, S20 | [censused subplots](../results/census-support-results.md), [coverage gap](../results/coverage-gap-results.md), [master tables](../results/master-tables-results.md) |
 | Supplement S6–S8 | [fusion](../results/detector-fusion-results.md), [crown benchmark](../results/crown-segmentation-results.md), [instance IoU](../results/instance-iou-pq-results.md), [proxy validation](../results/fgiemit-proxy-validation-results.md) |
 | Supplement S9–S11 | [calibration/validation](../results/calibration-validation-results.md), [master tables](../results/master-tables-results.md), [configuration provenance](../docs/configuration-provenance.md), [detector table](../results/detector-table.md) |
 | Supplement S12 | [matcher robustness](../results/matcher-robustness-results.md#chance-agreement) |
 | Supplement S14, S18 | [instance audit](../results/instance-audit-results.md) |
-| Supplement S15 | [detector table](../results/detector-table.md), [configuration provenance](../docs/configuration-provenance.md) |
+| Supplement S15 | [detector table](../results/detector-table.md), [configuration provenance](../docs/configuration-provenance.md), [ForestMamba runtime](../gpu/forestmamba-sm120/README.md) |
 | Supplement S16 | [baseline smoothing sensitivity](../results/baseline-smoothing-sensitivity-results.md) |
 | Supplement S21 | [matcher robustness](../results/matcher-robustness-results.md), [positional uncertainty](../results/positional-uncertainty-results.md), [temporal sensitivity](../results/temporal-sensitivity-results.md), [calibration/validation](../results/calibration-validation-results.md) |
 | Supplement S22 | [compute cost](../results/compute-cost-results.md) |
-| Supplement S23 | [ForestMamba benchmark](../results/forestmamba-results.md) |
+| Supplement S23 | [ForestMamba benchmark](../results/forestmamba-results.md), [ForestMamba runtime](../gpu/forestmamba-sm120/README.md) |
 | Supplement S24 | [paper proposal](../docs/paper-proposal.md) |
 | Supplement S25 | [density routing](../results/density-routing-results.md) |
 

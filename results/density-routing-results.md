@@ -76,7 +76,9 @@ of the job directory and of the QL2 level's job directory beside it
 and the master tables. `RUNG_JOBS=<job dir>:<root>` locates the QL2 level
 elsewhere, as for `master_tables.R`. `scripts/reproduce_paper_tables.sh` runs
 it after the chance-agreement steps and compares its outputs with the archived
-copies. The selection, routing and pooling helpers are in
+copies. The archive staged on 5 October 2026 predates this analysis and holds
+none of its outputs, so it must be staged again before a rebuild can compare
+them. The selection, routing and pooling helpers are in
 `scripts/density_routing_lib.R`, tested by
 `tests/testthat/test-density-routing.R`.
 
@@ -413,7 +415,11 @@ Under `work/paper_runs/density_routing/`:
   best and the pick's paired difference to it.
 - `routing_scores.csv`: per scope, every detector and policy in every band,
   over every cell and at every level: recall, precision, F1, null F1 and
-  corrected F1 with intervals and counts.
+  corrected F1 with intervals and pooled counts. `n_plots` counts the plots
+  with a cell in the slice. `n_ref` (reference stems), `n_det` (detections in
+  the plot core) and `TP` (matched stems) sum the observed counts of the
+  slice's cells, except on the null F1 rows, which sum each cell's mean counts
+  over the 200 shifts.
 - `routing_contrasts.csv`: per scope and band, and over every cell, each
   policy minus each fixed detector and the other policies, in F1 and corrected
   F1 with paired intervals; rows against a Washington best are flagged

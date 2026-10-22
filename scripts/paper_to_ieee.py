@@ -28,6 +28,12 @@ as it is, as verbatim: no citation, reference, link, math or Unicode in it is
 converted, and its language (```sh) is dropped, as the LaTeX has no
 highlighting macros.
 
+The columns of a table that wrap (tabularx's X columns, which xltabular shares)
+take widths in proportion to their text, the printed width of their cells
+estimated from the fonts' metrics, but none is narrower than half an equal
+share or than its longest word; a table keeps equal widths unless the
+estimate finds it shorter with unequal ones.
+
 The IEEE copy of the bibliography is written for IEEEtran.bst, which ignores
 several fields. Software and dataset entries become misc entries. The version,
 the access date (urldate), the DOI (last, as in IEEE's reference forms) and,
@@ -65,6 +71,7 @@ Arguments are KEY=VALUE pairs:
   python3 scripts/paper_to_ieee.py PANDOC=/path/to/pandoc \\
     ZIP=work/paper-ieee/jstars-overleaf.zip
 """
+import math
 import re
 import shutil
 import subprocess
@@ -892,6 +899,162 @@ def column_spec(header, body, aligns, x_threshold):
     return spec
 
 
+# Printed widths for laying out the X columns of a table, in em of the table's
+# font. Times Roman, the text font of both documents, after Adobe's metrics in
+# thousandths of an em; code (\texttt) is Courier, 600 for every character; the
+# math symbols that text maps to $...$ (minus, times, <=, >=) are about 778.
+TIMES_WIDTHS = {"|": 200, " ,.": 250, "/:;ijlt\\": 278, "!'()-I[]`fr\u2019": 333, "Js": 389, '"': 408,
+                "?acez\u201c\u201d": 444, "^": 469, "{}": 480, "#$*0123456789_bdghknopquvxy\u2013": 500,
+                "~": 541, "FPS": 556, "+<=>": 564, "ELTZ": 611, "BCR": 667, "ADGHKNOQUVXYw": 722,
+                "&m\u2212\u00d7\u2264\u2265": 778, "%": 833, "M": 889, "@": 921, "W": 944, "\u2014": 1000}
+CHAR_EM = {c: w / 1000 for chars, w in TIMES_WIDTHS.items() for c in chars}
+# The width a table is set to (IEEEtran's text and column widths; the
+# supplement's text width on letter paper with 2 cm margins) and its font size,
+# in pt; the space between two columns (twice \tabcolsep); and the interword
+# space, which IEEEtran widens from Times' 0.25 em to 0.35 em.
+TABLE_PT = {("main", "\\textwidth"): 516.0, ("main", "\\columnwidth"): 252.0, ("supp", "\\textwidth"): 500.5}
+FONT_PT = {"\\scriptsize": 7.0, "\\footnotesize": 8.0}
+COLSEP_PT = 6.0
+SPACE_EM = {"main": 0.35, "supp": 0.25}
+# No X column is narrower than half the width the X columns would share
+# equally, or than its longest word plus this margin, in em.
+MIN_X_FACTOR = 0.5
+WORD_MARGIN_EM = 0.5
+
+
+def word_widths(cell, space=0.25):
+    """The printed width, in em, of each word of a markdown table cell: the
+    text between breakable spaces, so a no-break space joins two words. A
+    citation prints as [12], a reference as IV-B, a link as its text, a code
+    span in Courier and math as its letters."""
+    s = re.sub(r"\\cite\{[^}]*\}", "[12]", cell)
+    s = re.sub(r"\\ref\{[^}]*\}", "IV-B", s)
+    s = re.sub(r"(?<!!)\[([^\]]*)\]\([^)]*\)", r"\1", s)
+    s = re.sub(r"\$([^$]*)\$", lambda m: re.sub(r"\\[A-Za-z]+|[{}^_\\]", "", m.group(1)), s)
+    widths, code = [], False
+    for word in re.findall(r"[^ \t\n]+", s):
+        w = 0.0
+        for ch in word:
+            if ch == "`":
+                code = not code
+            elif ch == NBSP:
+                w += space
+            elif ch != "*":
+                w += 0.6 if code else CHAR_EM.get(unicodedata.normalize("NFD", ch)[0], 0.5)
+        widths.append(w)
+    return widths
+
+
+def table_lines(rows, widths, space=0.25):
+    """The estimated height of a table in lines: for each row, the most lines
+    that one of its cells takes when its words are wrapped into its column's
+    width in em (None for a column that does not wrap)."""
+    total = 0
+    for row in rows:
+        most = 1
+        for cell, width in zip(row, widths):
+            if width is None:
+                continue
+            lines, used = 1, None
+            for w in word_widths(cell, space):
+                if used is not None and used + space + w > width:
+                    lines, used = lines + 1, None
+                used = w if used is None else used + space + w
+            most = max(most, lines)
+        total += most
+    return total
+
+
+def x_factors(spec, rows, width_em, space=0.25):
+    """The width factors of a table's X columns (L, R or C in spec), as the
+    decimals written into the LaTeX, and None for its other columns. tabularx
+    gives every X column the same width; a factor f scales one
+    (>{\\hsize=f\\hsize}), and the factors of a table must sum to its number of
+    X columns, so that the table keeps its width. They follow the columns'
+    text, the summed printed width of their cells, so a column of long cells
+    widens and one of short cells narrows, but no X column is narrower than
+    half the equal width or than its longest word with a margin. The factors
+    have two decimals and sum to the number of X columns, except that the
+    largest may give up a few hundred-thousandths so that TeX's sum of them
+    stays below it (see tex_units). The table keeps equal widths (every factor
+    "1") unless the factors shorten it, by the estimate of table_lines, or
+    when the floors leave no room. rows holds the header and the body in
+    markdown; width_em is the width that the columns share after the space
+    between them, in em."""
+    xcols = [j for j, s in enumerate(spec) if s in "LRC"]
+    equal = ["1" if j in xcols else None for j in range(len(spec))]
+    n = len(xcols)
+    one_line = [[sum(w) + space * max(len(w) - 1, 0) for w in (word_widths(c, space) for c in r)] for r in rows]
+    fixed = sum(max(r[j] for r in one_line) for j in range(len(spec)) if j not in xcols)
+    share = (width_em - fixed) / n if n else 0
+    if n < 2 or share <= 0:
+        return equal
+    text = [sum(r[j] for r in one_line) for j in xcols]
+    longest = [max((w for r in rows for w in word_widths(r[j], space)), default=0.0) for j in xcols]
+    floors = [math.ceil(max(MIN_X_FACTOR, (w + WORD_MARGIN_EM) / share) * 100 - 1e-9) / 100 for w in longest]
+    if sum(floors) > n + 1e-9:
+        return equal
+    # In proportion to the text, raising a column below its floor to the floor
+    # and sharing the rest among the others in proportion to theirs.
+    f, pinned = list(floors), set()
+    while True:
+        free = [k for k in range(n) if k not in pinned]
+        rest, weight = n - sum(floors[k] for k in pinned), sum(text[k] for k in free)
+        for k in free:
+            f[k] = rest * text[k] / weight if weight else rest / len(free)
+        low = [k for k in free if f[k] < floors[k]]
+        if not low:
+            break
+        pinned.update(low)
+        for k in low:
+            f[k] = floors[k]
+    # Hundredths that sum exactly to n: round down, then add the units left to
+    # the largest remainders. A floor is a whole number of hundredths, so no
+    # factor falls below its floor.
+    units = [math.floor(x * 100 + 1e-9) for x in f]
+    for k in sorted(range(n), key=lambda k: units[k] - f[k] * 100)[:100 * n - sum(units)]:
+        units[k] += 1
+    texts = [f"{u / 100:.2f}" for u in units]
+    # TeX reads a factor to the nearest 1/65536 (0.63 as 41288/65536), so
+    # factors that sum to n can sum to a little more in TeX, and tabularx then
+    # sets the table a few thousandths of a point short of its width, which
+    # TeX reports as an underfull row. The largest factor then gives up just
+    # enough (a few hundred-thousandths) for TeX's sum to fall 1/65536 below
+    # n, so the table ends at most a few hundredths of a point too wide,
+    # within \hfuzz.
+    over = sum(tex_units(t) for t in texts) - 65536 * n
+    if over >= 0:
+        k = max(range(n), key=lambda i: units[i])
+        texts[k] = f"{(tex_units(texts[k]) - over - 1) / 65536:.5f}"
+    factors = list(equal)
+    for k, j in enumerate(xcols):
+        factors[j] = texts[k]
+    shorter = (table_lines(rows, [float(x) * share if x else None for x in factors], space)
+               < table_lines(rows, [float(x) * share if x else None for x in equal], space))
+    return factors if shorter else equal
+
+
+def tex_units(factor):
+    """The value TeX reads from a decimal factor such as 0.63 in 0.63\\hsize,
+    in units of 1/65536: TeX rounds the decimal fraction to the nearest unit,
+    digit by digit from the last (TeX: The Program, section 102)."""
+    whole, _, frac = factor.partition(".")
+    a = 0
+    for d in reversed(frac[:17]):
+        a = (a + int(d) * 131072) // 10
+    return int(whole or 0) * 65536 + (a + 1) // 2
+
+
+def column_preamble(spec, rows, mode, line_width, size):
+    """A table's column preamble: an X column whose factor is not 1 takes
+    >{\\hsize=f\\hsize\\linewidth=\\hsize} before its L, R or C, tabularx's
+    form for X columns of unequal widths, which xltabular shares."""
+    width_em = (TABLE_PT[(mode, line_width)] - COLSEP_PT * len(spec)) / FONT_PT[size]
+    factors = x_factors(spec, rows, width_em, SPACE_EM[mode])
+    return "".join(s if f in (None, "1", "1.00") else f">{{\\hsize={f}\\hsize\\linewidth=\\hsize}}{s}"
+                   for s, f in zip(spec, factors))
+
+
 def table_tex(num, caption_tex, header, aligns, body, mode):
     flat = pandoc_snippets(header + [c for r in body for c in r])
     ncol = len(header)
@@ -918,7 +1081,7 @@ def table_tex(num, caption_tex, header, aligns, body, mode):
                   "\\renewcommand{\\arraystretch}{1.15}"]
         env = "tabularx" if has_x else "tabular"
         width = f"{{{line_width}}}" if has_x else ""
-        lines.append(f"\\begin{{{env}}}{width}{{{''.join(spec)}}}")
+        lines.append(f"\\begin{{{env}}}{width}{{{column_preamble(spec, [header] + body, mode, line_width, size)}}}")
         lines += ["\\hline", head_row, "\\hline"]
         lines += [" & ".join(r) + " \\\\" for r in rows_tex]
         lines += ["\\hline", f"\\end{{{env}}}", f"\\end{{{float_env}}}"]
@@ -933,8 +1096,9 @@ def table_tex(num, caption_tex, header, aligns, body, mode):
                        f"{{\\normalsize\\textbf{{Table {num}.}} {caption_tex}}} \\\\[4pt]")
         continued_row = (f"\\multicolumn{{{ncol}}}{{@{{}}l@{{}}}}"
                          f"{{\\normalsize\\textbf{{Table {num}}} (continued)}} \\\\[4pt]")
+        preamble = column_preamble(spec, [header] + body, mode, "\\textwidth", size)
         lines += ["{" + size, "\\setlength{\\tabcolsep}{3pt}", "\\renewcommand{\\arraystretch}{1.15}",
-                  f"\\begin{{xltabular}}{{\\textwidth}}{{{''.join(spec)}}}",
+                  f"\\begin{{xltabular}}{{\\textwidth}}{{{preamble}}}",
                   caption_row, "\\hline", head_row, "\\hline", "\\endfirsthead",
                   continued_row, "\\hline", head_row, "\\hline", "\\endhead",
                   "\\hline", "\\endfoot"]
@@ -1230,7 +1394,7 @@ This work was supported by TODO. % TODO: funding statement, or remove this sente
 
 % IEEE policy: disclose AI-generated content here, name the AI system, identify
 % the sections that contain AI-generated text and say at what level it was used.
-% TODO: adjust the sentence below to name those sections.
+% The statement below does all three; check it against the final text.
 {ai_tex}
 
 % Elsevier-only sections of the markdown draft, kept for reference. IEEE asks
