@@ -25,8 +25,8 @@ questions). It answers four research questions and contributes a
 density-routed detection pipeline, a decision table of which detector to run at
 each USGS quality level with or without a GPU. The pipeline was designed after
 the five-site results were known and is labelled post hoc throughout. The main
-text has about 9,800 words of prose and the IEEE version 19 pages, the body
-ending on page 17. The [IEEE version](ieee/README.md) uses JSTARS's template,
+text has about 9,100 words of prose and the IEEE version 18 pages, the body
+ending on page 16. The [IEEE version](ieee/README.md) uses JSTARS's template,
 replaces the highlights and keywords with Index Terms, lays out every table for
 the column width, generates the numbered reference list in IEEE style and puts
 the AI-use statement, which names the system, the sections and the level of
@@ -39,8 +39,11 @@ use, in the Acknowledgment. Before submission:
   keeps both for other journals.
 - Read and revise the whole text: the AI-use statement says that every section
   was drafted with Claude Code and revised by the author.
-- If the journal or a reviewer asks for 18 pages or fewer, cut Section 4 first;
-  it is the section most over its budget.
+- Keep the biography short: a test with a 90-word biography and a 1 in × 1.25
+  in photograph still fits on page 18 of the IEEE version, which then has
+  about a twentieth of a column left. If the journal holds the paper to 18
+  pages with a longer biography, cut Section 4 first; it is the section most
+  over its budget.
 - Confirm JSTARS's limits at submission, including the abstract length (247
   words) and the six Index Terms.
 - Re-run the repository checks of Section 2.3 and Section S24 on submission

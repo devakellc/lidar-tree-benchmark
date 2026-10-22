@@ -13,10 +13,10 @@ source(.find("model_bench_lib.R"))
 # written twice by one drawing function: a 200-dpi PNG for the markdown and a
 # vector PDF (cairo_pdf) for LaTeX. Both are drawn at the width the figure
 # prints at in the IEEE version, so 8-point text prints at 8 points:
-# paper_to_ieee.py sets a figure at the full text width (7.16 in) when its
-# aspect ratio is at least 1.6 and at 0.72 of it below 1.3; the supplement's
-# figures are drawn for its 6.9 in text width. Every figure but the schematic
-# also writes the numbers it plots (figure_<id>.csv), which the reproduction
+# paper_to_ieee.py sets a figure at the width of its PDF, as a share of the
+# text width (7.16 in; the supplement's is 6.925 in, and its figures are drawn
+# for 6.9 in), rounded up to hundredths. Every figure but the schematic also
+# writes the numbers it plots (figure_<id>.csv), which the reproduction
 # compares like any table.
 #   1   sites: (a) map of the five sites, (b) stems by crown class, (c) native
 #       pulse density with the QL1 and QL2 floors, (d) stem heights
@@ -85,7 +85,7 @@ pulses <- setNames(dens$pulses_median[dens$scope == "five sites"], dens$rung[den
 
 ## ---- devices -------------------------------------------------------------------------
 PT <- 8                    # device point size: text at cex 1 prints at 8 pt
-TEXT_W <- 7.16             # IEEE text width (in); the supplement's is about 6.9 in
+TEXT_W <- 7.16             # IEEE text width (in); the supplement's is 6.925 in
 SUPP_W <- 6.9
 # Draws one figure into a 200-dpi PNG and a cairo PDF of the same size.
 render <- function(id, w, h, draw) {
@@ -414,10 +414,15 @@ fig2 <- function() {
   # The schematic plots no numbers: remove the old Figure 2's data file (now
   # Figure 3's), so that a figures folder never pairs it with the schematic.
   unlink(file.path(OUT, "figure_2.csv"))
-  W <- TEXT_W; H <- 3.2
+  W <- TEXT_W
   bw <- 1.25; gap <- (W - 0.08 - 5 * bw) / 4
   cx <- 0.04 + bw / 2 + (0:4) * (bw + gap)
-  ya <- 2.36; yb <- 0.72; bh <- 1.02
+  # Bottom up: a margin, row (b), the space between the rows (the title of (b)
+  # and the dashed connector with its label), row (a) and the title of (a).
+  # Each title stands about 0.1 in above its row.
+  bh <- 0.97; mb <- 0.05; between <- 0.54; mt <- 0.27
+  H <- mb + 2 * bh + between + mt               # 2.8 in
+  yb <- mb + bh / 2; ya <- yb + bh + between
   pa <- list(fill = "#E8F1FA", col = "#0072B2"); pb <- list(fill = "#FDEFE3", col = "#D55E00")
   a_txt <- c("NEON 2021 tiles\nat five sites,\nfield-mapped stems",
              "Fixed evaluation clips:\nnative density and\nfive thinned levels\n(hashed)",
@@ -430,6 +435,16 @@ fig2 <- function() {
              "Detector chosen\nfor the band and\nthe compute budget\n(GPU or CPU only)",
              "Detections\n(tree tops)")
   bands <- c("≥ 8: QL1 or denser", "2–8: QL2 to QL1", "< 2: below QL2")
+  # The band box: its heading, then three bands 0.19 in high, 0.245 in apart.
+  band_head <- yb + bh / 2 - 0.125
+  band_y <- yb + bh / 2 - 0.31 - (0:2) * 0.245; band_h <- 0.19; band_w <- bw - 0.14
+  title_a <- c(x = 0.04, y = H - 0.1); title_b <- c(x = 0.04, y = yb + bh / 2 + 0.17)
+  # The protocol's scores select the decision table (development region) and
+  # check it (replication region): a dashed connector from the last box of (a)
+  # to the detector box of (b), its label above its level part.
+  yl <- yb + bh / 2 + 0.2
+  conn_lab <- "Selected on the development region,\nchecked on the replication region"
+  lab_at <- c(x = cx[5] - 0.1, y = yl + 0.05)
   library(grid, warn.conflicts = FALSE)
   render("2", W, H, function() {
     grid.newpage()
@@ -444,47 +459,75 @@ fig2 <- function() {
     arrow_h <- function(x0, x1, y, col = "grey25", lty = 1)
       grid.lines(nat(c(x0, x1)), nat(c(y, y)), arrow = arrow(length = unit(0.065, "in"), type = "closed"),
                  gp = gpar(col = col, fill = col, lwd = 1, lty = lty))
-    # Every line must fit its box with a margin.
-    wide <- function(s, w, size = PT) {
-      pushViewport(viewport(gp = gpar(fontsize = size)))
+    # Layout check, in inches: every text inside its box with a margin, across
+    # and down, and the titles, the boxes, the connector and its label clear of
+    # each other. A text's ink box (x0, y0, x1, y1) follows grid's placement:
+    # the box from the last baseline to the first line's ascent is justified,
+    # and descenders hang below it.
+    ink <- function(s, x, y, size = PT, face = 1, just = "centre") {
+      pushViewport(viewport(gp = gpar(fontsize = size, fontface = face, lineheight = 1.0)))
       on.exit(popViewport())
-      l <- strsplit(s, "\n")[[1]]
-      l[vapply(l, function(z) convertWidth(stringWidth(z), "in", valueOnly = TRUE), 0) > w - 0.1]
+      g <- textGrob(s)
+      w <- convertWidth(grobWidth(g), "in", valueOnly = TRUE)
+      h <- convertHeight(grobHeight(g), "in", valueOnly = TRUE)
+      d <- convertHeight(grobDescent(g), "in", valueOnly = TRUE)
+      hj <- c(left = 0, centre = 0.5, right = 1)[[if (just[1] %in% c("bottom", "top")) "centre" else just[1]]]
+      v <- if (length(just) > 1) just[2] else if (just[1] %in% c("bottom", "top")) just[1] else "centre"
+      vj <- c(bottom = 0, centre = 0.5, top = 1)[[v]]
+      c(x - hj * w, y - vj * h - d, x + (1 - hj) * w, y + (1 - vj) * h)
     }
-    over <- c(unlist(lapply(c(a_txt, b_txt[!is.na(b_txt)]), wide, w = bw)),
-              unlist(lapply(bands, wide, w = bw - 0.14, size = PT - 0.5)))
-    if (length(over)) warning("schematic text wider than its box: ", paste(over, collapse = " | "))
-    label("(a) Evaluation protocol", 0.04, H - 0.11, size = PT + 1, face = 2, just = "left")
-    label("(b) Density-routed pipeline", 0.04, yb + bh / 2 + 0.2, size = PT + 1, face = 2, just = "left")
+    rect_at <- function(x, y, w, h) c(x - w / 2, y - h / 2, x + w / 2, y + h / 2)
+    inside <- function(r, b, m) all(r[1:2] >= b[1:2] + m, r[3:4] <= b[3:4] - m)
+    apart <- function(r, s, m = 0.02) r[3] + m <= s[1] || s[3] + m <= r[1] || r[4] + m <= s[2] || s[4] + m <= r[2]
+    issues <- character()
+    boxes <- c(lapply(cx, rect_at, y = ya, w = bw, h = bh), lapply(cx, rect_at, y = yb, w = bw, h = bh))
+    texts <- c(a_txt, b_txt)
+    for (i in seq_along(boxes)) if (!is.na(texts[i]) && !inside(ink(texts[i], mean(boxes[[i]][c(1, 3)]),
+                                                                    mean(boxes[[i]][c(2, 4)])), boxes[[i]], 0.05))
+      issues <- c(issues, paste("text outside its box:", gsub("\n", " ", texts[i])))
+    head_ink <- ink("Band (pulses/m²)", cx[3], band_head, face = 2)
+    band_r <- lapply(band_y, rect_at, x = cx[3], w = band_w, h = band_h)
+    if (!inside(head_ink, boxes[[8]], 0.04) || !apart(head_ink, band_r[[1]]))
+      issues <- c(issues, "band heading outside its box or on the first band")
+    for (k in 1:3) if (!inside(band_r[[k]], boxes[[8]], 0.04) ||
+                       !inside(ink(bands[k], cx[3], band_y[k], size = PT - 0.5), band_r[[k]], 0.03))
+      issues <- c(issues, paste("band outside the box, or its text outside the band:", bands[k]))
+    conn <- list(c(cx[5], yl, cx[5], ya - bh / 2), c(cx[4], yl, cx[5], yl), c(cx[4], yb + bh / 2, cx[4], yl))
+    lab_ink <- ink(conn_lab, lab_at[["x"]], lab_at[["y"]], size = PT - 0.5, just = c("right", "bottom"))
+    ta <- ink("(a) Evaluation protocol", title_a[["x"]], title_a[["y"]], size = PT + 1, face = 2, just = "left")
+    tb <- ink("(b) Density-routed pipeline", title_b[["x"]], title_b[["y"]], size = PT + 1, face = 2, just = "left")
+    for (r in list(ta, tb, lab_ink)) {
+      if (!all(vapply(boxes, apart, TRUE, r = r))) issues <- c(issues, "a title or the connector's label touches a box")
+      if (!all(vapply(conn, apart, TRUE, r = r))) issues <- c(issues, "the connector crosses a title or its label")
+    }
+    if (!apart(tb, lab_ink)) issues <- c(issues, "the connector's label touches the title of (b)")
+    if (ta[4] > H || min(vapply(boxes, `[`, 0, 2)) < 0) issues <- c(issues, "the schematic leaves the figure")
+    if (length(issues)) warning("schematic layout: ", paste(unique(issues), collapse = " | "))
+    label("(a) Evaluation protocol", title_a[["x"]], title_a[["y"]], size = PT + 1, face = 2, just = "left")
+    label("(b) Density-routed pipeline", title_b[["x"]], title_b[["y"]], size = PT + 1, face = 2, just = "left")
     for (i in 1:5) {
       box(cx[i], ya, bw, bh, pa)
       label(a_txt[i], cx[i], ya)
       if (i < 5) arrow_h(cx[i] + bw / 2, cx[i + 1] - bw / 2, ya)
     }
     for (i in 1:5) {
+      box(cx[i], yb, bw, bh, pb)
       if (i == 3) {
-        box(cx[i], yb, bw, bh, pb)
-        label("Band (pulses/m²)", cx[i], yb + bh / 2 - 0.13, face = 2)
+        label("Band (pulses/m²)", cx[i], band_head, face = 2)
         for (k in 1:3) {
-          yk <- yb + 0.2 - (k - 1) * 0.26
-          grid.rect(nat(cx[i]), nat(yk), unit(bw - 0.14, "native"), unit(0.2, "native"),
+          grid.rect(nat(cx[i]), nat(band_y[k]), unit(band_w, "native"), unit(band_h, "native"),
                     gp = gpar(fill = "white", col = pb$col, lwd = 0.6))
-          label(bands[k], cx[i], yk, size = PT - 0.5)
+          label(bands[k], cx[i], band_y[k], size = PT - 0.5)
         }
       } else {
-        box(cx[i], yb, bw, bh, pb)
         label(b_txt[i], cx[i], yb)
       }
       if (i < 5) arrow_h(cx[i] + bw / 2, cx[i + 1] - bw / 2, yb)
     }
-    # The protocol's scores select the decision table (development region) and
-    # check it (replication region).
-    yl <- (ya - bh / 2 + yb + bh / 2) / 2 + 0.02
     grid.lines(nat(c(cx[5], cx[5], cx[4], cx[4])), nat(c(ya - bh / 2, yl, yl, yb + bh / 2)),
                arrow = arrow(length = unit(0.065, "in"), type = "closed"),
                gp = gpar(col = "grey25", fill = "grey25", lwd = 1, lty = 2))
-    label("Selected on the development region,\nchecked on the replication region",
-          cx[5] - 0.1, yl + 0.04, size = PT - 0.5, just = c("right", "bottom"), col = "grey15")
+    label(conn_lab, lab_at[["x"]], lab_at[["y"]], size = PT - 0.5, just = c("right", "bottom"), col = "grey15")
     popViewport()
   })
 }
@@ -665,8 +708,9 @@ fig6 <- function() {
 # is the canopy height model of each panel's normalised clip (a first-return
 # TIN at 0.5 m; one grey scale for all panels, capped at the 99.5th
 # percentile), repeated by nearest neighbour so the embedded image has at
-# least 600 dpi at its printed size; the key under the panels is one image of
-# the same grey scale at the same resolution.
+# least 600 dpi at its printed size; the key, in a column at the right of the
+# panels with the legend, is one image of the same grey scale at the same
+# resolution.
 EX_ARMS <- c("chm_vwf", "forestformer3d", "segmentanytree")
 EX_LEVELS <- c(native = "native", ql2 = "3.2", sparsest = "1")
 EX_LEVEL_NAME <- c(native = "Native density", ql2 = "QL2 level", sparsest = "Sparsest level")
@@ -823,10 +867,15 @@ fig7 <- function() {
   capped <- max(zall, na.rm = TRUE) > zmax
   pal <- grey(seq(0.18, 0.97, length.out = 256))
   R <- P[[1]]$ph + EX_TOL
-  # Panels are square: the plot region's width sets the height.
-  W <- 0.72 * TEXT_W; oma <- c(5.7, 1.5, 1.5, 0.2); mar <- c(1.25, 0.25, 0.25, 0.25)
+  # The panels are square, 1.576 in, the size they had when the legend ran
+  # under them at 0.72 of the text width. The legend, the scale bar and the
+  # canopy-height key stand in a column at the right of the panels, so the
+  # figure takes the full text width and is 0.76 in less tall.
   ln <- PT * 1.2 / 72
-  side <- (W - (oma[2] + oma[4]) * ln) / 3 - (mar[2] + mar[4]) * ln
+  mar <- c(1.25, 0.25, 0.25, 0.25)
+  side <- (0.72 * TEXT_W - 1.7 * ln) / 3 - (mar[2] + mar[4]) * ln
+  W <- TEXT_W; oma <- c(0, 1.5, 1.5, 0)
+  oma[4] <- (W - 3 * (side + (mar[2] + mar[4]) * ln)) / ln - oma[2]
   H <- 3 * (side + (mar[1] + mar[3]) * ln) + (oma[1] + oma[3]) * ln
   draw_chm <- function(r) {
     v <- terra::as.matrix(r, wide = TRUE)
@@ -863,42 +912,48 @@ fig7 <- function() {
       if (arm == EX_ARMS[1]) mtext(sprintf("%s, %.1f pulses/m²", EX_LEVEL_NAME[[lv]], p$frdens),
                                    side = 3, line = 0.3, font = 2)
     }
-    # Legend, scale bar and canopy-height key in the bottom margin, in inches;
-    # the legend symbols are drawn as in the panels.
+    # The column at the right, in inches: the legend beside the first row of
+    # panels, its symbols drawn as in the panels, and the canopy-height key
+    # beside the other two.
     par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
     plot.new(); plot.window(c(0, W), c(0, H), xaxs = "i", yaxs = "i")
-    row <- 1.2 * LEG_CEX * ln; top <- oma[1] * ln - 0.02
-    yk <- top - (1:3 - 0.5) * row
+    xl <- W - oma[4] * ln                         # the column's left edge
+    xs <- xl + 0.12; xt <- xs + 0.15              # symbols, texts
+    top <- H - (oma[3] + mar[3]) * ln             # the top of the first row of panels
+    row <- 1.2 * LEG_CEX * ln; grp <- 0.06        # rows, and the space between groups
+    yk <- top - row / 2 - c(0:2 * row, 3:5 * row + grp, 6:7 * row + 2 * grp)
     t1 <- c("Field stem, matched", "Field stem, missed", "Match (4 m, height gate)")
     t2 <- c("Detection, matched", "Detection in the core, unmatched", "Detection outside the core, unmatched")
-    s1 <- 0.1; s2 <- s1 + 0.13 + max(strwidth(t1, cex = LEG_CEX)) + 0.2
-    xr <- s2 + 0.13 + max(strwidth(t2, cex = LEG_CEX)) + 0.15
-    ex_points(rep(s1, 2), yk[1:2], "stem", c("matched", "missed"))
-    segments(s1 - 0.07, yk[3], s1 + 0.07, yk[3], col = "black", lwd = 0.8)
-    ex_points(rep(s2, 3), yk, "detection", c("matched", "false_positive", "outside_core"))
-    text(s1 + 0.13, yk, t1, adj = c(0, 0.5), cex = LEG_CEX)
-    text(s2 + 0.13, yk, t2, adj = c(0, 0.5), cex = LEG_CEX)
     core_lab <- sprintf("Plot core, %g m × %g m", 2 * P[[1]]$ph, 2 * P[[1]]$ph)
-    if (xr + 0.25 + strwidth(core_lab, cex = LEG_CEX) > W) warning("figure 7 legend wider than the figure")
-    rect(xr, yk[1] - 0.045, xr + 0.2, yk[1] + 0.045, border = "black", lty = 2, lwd = 0.8)
-    text(xr + 0.25, yk[1], core_lab, adj = c(0, 0.5), cex = LEG_CEX)
+    if (xt + max(strwidth(c(t1, t2, core_lab), cex = LEG_CEX)) > W - 0.02)
+      warning("figure 7 legend wider than its column")
+    ex_points(rep(xs, 2), yk[1:2], "stem", c("matched", "missed"))
+    segments(xs - 0.07, yk[3], xs + 0.07, yk[3], col = "black", lwd = 0.8)
+    ex_points(rep(xs, 3), yk[4:6], "detection", c("matched", "false_positive", "outside_core"))
+    rect(xs - 0.1, yk[7] - 0.045, xs + 0.1, yk[7] + 0.045, border = "black", lty = 2, lwd = 0.8)
+    text(xt, yk[1:7], c(t1, t2, core_lab), adj = c(0, 0.5), cex = LEG_CEX)
     bar <- 10 * side / (2 * R)        # 10 m at the panels' scale
-    segments(xr, yk[2], xr + bar, yk[2], lwd = 1.5, lend = 1)
-    segments(c(xr, xr + bar), yk[2] - 0.025, c(xr, xr + bar), yk[2] + 0.025, lwd = 0.8)
-    text(xr + bar + 0.05, yk[2], "10 m", adj = c(0, 0.5), cex = LEG_CEX)
-    # Canopy-height key under the legend rows, its label on the left: one image
-    # of the grey scale (adjacent rectangles would show seams in PDF viewers),
-    # each value repeated by nearest neighbour to EX_DPI as in the panels.
-    yb <- 0.12; yt <- 0.22; x0 <- 1.25; x1 <- W - 0.25
-    text(x0 - 0.08, (yb + yt) / 2, "Canopy height (m)", adj = c(1, 0.5), cex = LEG_CEX)
-    kx <- as.integer(ceiling(EX_DPI * (x1 - x0) / length(pal))); ky <- as.integer(ceiling(EX_DPI * (yt - yb)))
-    rasterImage(as.raster(matrix(rep(rep(pal, each = kx), ky), nrow = ky, byrow = TRUE)), x0, yb, x1, yt,
+    segments(xs - 0.1, yk[8], xs - 0.1 + bar, yk[8], lwd = 1.5, lend = 1)
+    segments(c(xs - 0.1, xs - 0.1 + bar), yk[8] - 0.025, c(xs - 0.1, xs - 0.1 + bar), yk[8] + 0.025, lwd = 0.8)
+    text(xs - 0.1 + bar + 0.05, yk[8], "10 m", adj = c(0, 0.5), cex = LEG_CEX)
+    # Canopy-height key: its title at the top of the second row of panels,
+    # then one image of the grey scale, highest at the top (adjacent
+    # rectangles would show seams in PDF viewers), each value repeated by
+    # nearest neighbour to EX_DPI as in the panels, down to the bottom of the
+    # third row; its ticks and labels on the right.
+    kb <- (oma[1] + mar[1]) * ln
+    kt <- top - side - (mar[1] + mar[3]) * ln - 0.2
+    x0 <- xs - 0.07; x1 <- xs + 0.07
+    text(x0, kt + 0.14, "Canopy height (m)", adj = c(0, 0.5), cex = LEG_CEX)
+    kx <- as.integer(ceiling(EX_DPI * (x1 - x0))); ky <- as.integer(ceiling(EX_DPI * (kt - kb) / length(pal)))
+    rasterImage(as.raster(matrix(rep(rev(pal), each = ky), nrow = ky * length(pal), ncol = kx)), x0, kb, x1, kt,
                 interpolate = FALSE)
-    rect(x0, yb, x1, yt, border = "black", lwd = 0.5)
+    rect(x0, kb, x1, kt, border = "black", lwd = 0.5)
     tk <- seq(0, zmax, by = if (zmax > 30) 10 else 5)
     tl <- as.character(tk); if (capped) tl[length(tl)] <- paste("\u2265", tl[length(tl)])
-    segments(x0 + tk / zmax * (x1 - x0), yb, x0 + tk / zmax * (x1 - x0), yb - 0.025, lwd = 0.5)
-    text(x0 + tk / zmax * (x1 - x0), yb - 0.025, tl, pos = 1, offset = 0.12, cex = LEG_CEX)
+    ty <- kb + tk / zmax * (kt - kb)
+    segments(x1, ty, x1 + 0.035, ty, lwd = 0.5)
+    text(x1 + 0.07, ty, tl, adj = c(0, 0.5), cex = LEG_CEX)
   })
 }
 

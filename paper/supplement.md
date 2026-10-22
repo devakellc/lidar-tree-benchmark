@@ -1014,9 +1014,12 @@ suggests that decimation is optimistic (Section 5.6 of the manuscript); CHM-VWF
 keeps its pre-declared smoothing rule below 8 pulses/m²; precision is that of
 the nominal plot core, a lower bound. Pooled over every cell, the six levels
 weigh equally, each stem counting once per level, whereas a national archive
-has another mix of densities. Source: [density-routing
-study](../results/density-routing-results.md), which also compares the CPU route
-and the GPU native-only choice with every fixed detector over all cells.
+has another mix of densities. Every candidate's F1 and corrected F1 at every
+density level, at the five sites and in each region, equal those of the master
+tables and of the chance-agreement scoring exactly, intervals included. Source:
+[density-routing study](../results/density-routing-results.md), which also
+compares the CPU route and the GPU native-only choice with every fixed detector
+over all cells.
 
 **Table S25a.** Bands of measured first-return density by scope, with the cells
 of each density level, headed by the level's five-site median in pulses/m².

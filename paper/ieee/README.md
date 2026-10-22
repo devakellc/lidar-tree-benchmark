@@ -62,9 +62,12 @@ here: a figure's PDF where there is one beside its PNG, otherwise the PNG.
   short of its width. A table keeps equal widths unless unequal ones are
   estimated to shorten it.
 - A figure is included as the vector PDF beside its PNG (figure_3.pdf beside
-  figure_3.png) when there is one, and as the PNG otherwise. Its printed width,
-  the full text width or 0.85 or 0.72 of it, still follows the PNG's aspect
-  ratio, so the two files of a figure must be kept in step.
+  figure_3.png) when there is one, and as the PNG otherwise. A PDF figure
+  prints at the width it was drawn, so its text prints at the size it was
+  drawn: its page width as a share of the text width (the manuscript's 7.16 in
+  or the supplement's 6.925 in, 2 cm margins on US letter), at most the whole
+  width and rounded up to hundredths. A figure with only a PNG takes the full
+  text width or 0.85 or 0.72 of it from the PNG's aspect ratio.
 - The supplement's figures, written as an image `![Figure S1.](...)` followed
   by a `**Figure S1.**` caption paragraph, are labelled "Figure S1." in the
   text like its tables instead of being numbered by LaTeX. They float, where

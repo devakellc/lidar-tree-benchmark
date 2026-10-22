@@ -90,7 +90,9 @@ California and reverses in Washington while SegmentAnyTree's holds in both,
 and DeepForest is not zero-shot at SJER and TEAK, whose imagery is in its
 training annotations.
 
-**Contributions**, in the order of the results section:
+**Contributions** as proposed on 6 October 2026, before the paper was
+restructured for IEEE JSTARS around four research questions and four
+contributions (see the proposed structure below):
 
 1. Equal-support benchmark of three zero-shot 3D instance segmenters, six
    classical detectors and two RGB detectors at five sites in two regions, on

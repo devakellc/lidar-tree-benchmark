@@ -240,18 +240,40 @@ def write_png(path, width, height):
                      + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
 
 
-def write_pdf(path, width, height):
-    """A valid one-page PDF of width x height points."""
-    objs = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %d %d] /Resources << >> >>" % (width, height)]
-    out, offsets = b"%PDF-1.4\n", []
+def write_pdf(path, width, height, extra=b"", compressed=False):
+    """A valid one-page PDF of width x height points, with extra entries in the
+    page dictionary. Compressed, the page dictionary is in a FlateDecode object
+    stream and the cross-reference table is a stream, as cairo writes them."""
+    page = b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %s %s] %s/Resources << >> >>" % (
+        b"%a" % width, b"%a" % height, extra + b" " if extra else b"")
+    objs = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>"]
+    if not compressed:
+        objs.append(page)
+    else:
+        head = b"3 0 "
+        data = zlib.compress(head + page)
+        objs += [None, b"<< /Type /ObjStm /N 1 /First %d /Filter /FlateDecode /Length %d >>\nstream\n%s\nendstream"
+                 % (len(head), len(data), data)]
+    out, offsets = b"%PDF-1.5\n" if compressed else b"%PDF-1.4\n", {}
     for i, obj in enumerate(objs, 1):
-        offsets.append(len(out))
-        out += b"%d 0 obj\n%s\nendobj\n" % (i, obj)
+        if obj is not None:
+            offsets[i] = len(out)
+            out += b"%d 0 obj\n%s\nendobj\n" % (i, obj)
     xref = len(out)
-    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)
-    out += b"".join(b"%010d 00000 n \n" % off for off in offsets)
-    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)
+    if not compressed:
+        out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)
+        out += b"".join(b"%010d 00000 n \n" % offsets[i] for i in sorted(offsets))
+        out += b"trailer\n<< /Size %d /Root 1 0 R >>\n" % (len(objs) + 1)
+    else:
+        # Entries of 1 + 4 + 2 bytes: free, in the file at an offset, or the
+        # first object of object stream 4; the last is this stream (object 5).
+        offsets[5] = xref
+        rows = [struct.pack(">BIH", 0, 0, 65535)] + [
+            struct.pack(">BIH", 2, 4, 0) if i == 3 else struct.pack(">BIH", 1, offsets[i], 0) for i in range(1, 6)]
+        body = b"".join(rows)
+        out += (b"5 0 obj\n<< /Type /XRef /Size 6 /W [1 4 2] /Root 1 0 R /Length %d >>\nstream\n%s\nendstream\nendobj\n"
+                % (len(body), body))
+    out += b"startxref\n%d\n%%%%EOF\n" % xref
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(out)
 
@@ -522,12 +544,16 @@ class FigureTests(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
         figs = self.root / "paper/figures"
-        write_png(figs / "figure_1.png", 50, 20)      # aspect 2.5: full text width
-        write_png(figs / "figure_2.png", 40, 40)      # aspect 1.0: 0.72 of it
-        write_pdf(figs / "figure_2.pdf", 720, 144)    # the width follows the PNG, not the PDF
-        write_png(figs / "figure_s1.png", 28, 20)     # aspect 1.4: 0.85 of it
-        write_pdf(figs / "figure_s1.pdf", 280, 200)
-        write_png(figs / "figure_s2.png", 20, 40)
+        # With a PDF the width follows the PDF's page, as R's cairo_pdf writes
+        # it (in whole points); with a PNG alone, the PNG's aspect ratio.
+        write_png(figs / "figure_1.png", 50, 20)      # aspect 2.5, no PDF: full text width
+        write_png(figs / "figure_2.png", 40, 40)      # aspect 1.0 alone would give 0.72
+        write_pdf(figs / "figure_2.pdf", 515, 230, compressed=True)  # drawn 7.16 in wide: full width
+        write_png(figs / "figure_3.png", 50, 20)      # aspect 2.5 alone would give the full width
+        write_pdf(figs / "figure_3.pdf", 371, 452)    # drawn 5.16 in wide: 0.7197 of 7.16 in
+        write_png(figs / "figure_s1.png", 28, 20)     # aspect 1.4 alone would give 0.85
+        write_pdf(figs / "figure_s1.pdf", 496, 302)   # drawn 6.9 in wide: 0.9948 of 6.925 in
+        write_png(figs / "figure_s2.png", 20, 40)     # aspect 0.5, no PDF: 0.72
         (figs / "fake.png").write_text("not a PNG")
         # 24 bytes or more, each failing exactly one check of figure_png:
         png = (figs / "figure_1.png").read_bytes()
@@ -543,14 +569,61 @@ class FigureTests(unittest.TestCase):
 
     def test_pdf_beside_the_png_is_included(self):
         out = p2i.figure_tex("2", "figures/figure_2.png", "Cap.")
-        self.assertIn("\\includegraphics[width=0.72\\textwidth]{figures/figure_2.pdf}", out)
+        self.assertIn("\\includegraphics[width=\\textwidth]{figures/figure_2.pdf}", out)
         self.assertNotIn("figure_2.png", out)
-        self.assertEqual((p2i.FIG_WIDTH["2"], p2i.FIG_FILE["2"]), ("0.72\\textwidth", "figures/figure_2.pdf"))
+        self.assertEqual((p2i.FIG_WIDTH["2"], p2i.FIG_FILE["2"]), ("\\textwidth", "figures/figure_2.pdf"))
+
+    def test_pdf_figure_prints_at_the_width_it_was_drawn(self):
+        out = p2i.figure_tex("3", "figures/figure_3.png", "Cap.")
+        self.assertIn("\\includegraphics[width=0.72\\textwidth]{figures/figure_3.pdf}", out)
+        figs = self.root / "paper/figures"
+        # The share of the text width, at most 1, rounded up to hundredths: a
+        # share that is a whole number of hundredths stays as it is.
+        for pts, mode, width in ((720, "main", "\\textwidth"),           # wider than the text: the text width
+                                 (515.52, "main", "\\textwidth"),        # exactly 7.16 in
+                                 (257.76, "main", "0.50\\textwidth"),    # exactly half
+                                 (159.8112, "main", "0.31\\textwidth"),  # 0.31, a hair above in floating point
+                                 (258, "main", "0.51\\textwidth"),
+                                 (36, "main", "0.07\\textwidth"),
+                                 (357, "supp", "0.72\\textwidth"),       # drawn 0.72 x 6.9 in, of 6.925 in
+                                 (498.6, "supp", "\\textwidth")):
+            with self.subTest(points=pts, mode=mode):
+                write_pdf(figs / "figure_4.pdf", pts, 100)
+                self.assertEqual(p2i.figure_width(figs / "figure_4.png", 1.0, mode), width)
+        self.assertAlmostEqual(p2i.TEXT_WIDTH_IN["supp"] * 72.27, 500.484, places=2)  # its \\textwidth in TeX pt
+
+    def test_pdf_page_width(self):
+        figs = self.root / "paper/figures"
+        cases = {"plain": (dict(), 515 / 72), "objstm": (dict(compressed=True), 515 / 72),
+                 "crop": (dict(extra=b"/CropBox [10 10 370 200]"), 5.0),  # the CropBox is what pdfTeX includes
+                 "crop_objstm": (dict(extra=b"/CropBox [10 10 370 200]", compressed=True), 5.0),
+                 "rotated": (dict(extra=b"/Rotate 90"), 230 / 72), "upright": (dict(extra=b"/Rotate 180"), 515 / 72)}
+        for name, (kw, inches) in cases.items():
+            with self.subTest(pdf=name):
+                write_pdf(figs / f"{name}.pdf", 515, 230, **kw)
+                self.assertAlmostEqual(p2i.pdf_page_width(figs / f"{name}.pdf"), inches)
+        # Not a PDF, no page size, two page sizes, two rotations or no width: the build stops.
+        (figs / "text.pdf").write_text("not a PDF")
+        (figs / "nobox.pdf").write_bytes(b"%PDF-1.4\n1 0 obj\n<< /Type /Page >>\nendobj\n%%EOF\n")
+        (figs / "two.pdf").write_bytes(b"%PDF-1.4\n1 0 obj\n<< /MediaBox [0 0 515 230] >>\nendobj\n"
+                                       b"2 0 obj\n<< /MediaBox [0 0 371 452] >>\nendobj\n%%EOF\n")
+        (figs / "turns.pdf").write_bytes(b"%PDF-1.4\n1 0 obj\n<< /MediaBox [0 0 515 230] /Rotate 90 >>\nendobj\n"
+                                         b"2 0 obj\n<< /MediaBox [0 0 515 230] /Rotate 0 >>\nendobj\n%%EOF\n")
+        (figs / "flat.pdf").write_bytes(b"%PDF-1.4\n1 0 obj\n<< /MediaBox [0 0 0 230] >>\nendobj\n%%EOF\n")
+        for name in ("text", "nobox", "two", "turns", "flat"):
+            with self.subTest(pdf=name), self.assertRaises(SystemExit):
+                p2i.pdf_page_width(figs / f"{name}.pdf")
+        # A FlateDecode stream that is not an object stream is not read.
+        hidden = zlib.compress(b"<< /MediaBox [0 0 100 100] >>")
+        (figs / "content.pdf").write_bytes(b"%%PDF-1.5\n1 0 obj\n<< /MediaBox [0 0 515 230] >>\nendobj\n"
+                                           b"2 0 obj\n<< /Filter /FlateDecode /Length %d >>\nstream\n%s\nendstream\n"
+                                           b"endobj\n%%%%EOF\n" % (len(hidden), hidden))
+        self.assertAlmostEqual(p2i.pdf_page_width(figs / "content.pdf"), 515 / 72)
 
     def test_supplementary_figure_is_labelled_in_the_text(self):
         out = p2i.figure_tex("S1", "figures/figure_s1.png", "Cap. with \\url{x}.", "supp")
         self.assertEqual(out, "\\begin{figure}[!ht]\n"
-                              "{\\centering\\includegraphics[width=0.85\\textwidth]{figures/figure_s1.pdf}\\par}\n"
+                              "{\\centering\\includegraphics[width=\\textwidth]{figures/figure_s1.pdf}\\par}\n"
                               "\\medskip\n\\textbf{Figure S1.} Cap. with \\url{x}.\n\\end{figure}")
         out = p2i.figure_tex("S2", "figures/figure_s2.png", "Cap.", "supp")
         self.assertIn("{\\centering\\includegraphics[width=0.72\\textwidth]{figures/figure_s2.png}\\par}", out)
@@ -1213,6 +1286,21 @@ class EndToEndTests(unittest.TestCase):
         self.assertEqual(re.findall(r"\\textbf\{Figure (S\d+)\.\}", self.supp_tex), captions)
         self.assertEqual(len(re.findall(r"\\begin\{figure\}\[!ht\]", self.supp_tex)), len(captions))
 
+    def test_pdf_figures_print_at_the_width_they_were_drawn(self):
+        # The paper's figures are cairo PDFs: their page sizes are in object
+        # streams. Each prints at the width it was drawn, or at the text width
+        # when drawn wider, never narrower and less than a hundredth wider.
+        for mode, tex in (("main", self.main_tex), ("supp", self.supp_tex)):
+            found = re.findall(r"\\includegraphics\[width=([\d.]*)\\textwidth\]\{(figures/[^}]*\.pdf)\}", tex)
+            self.assertEqual(len(found), len([f for f in p2i.graphics_files(tex) if f.endswith(".pdf")]))
+            for share, f in found:
+                with self.subTest(figure=f):
+                    text = p2i.TEXT_WIDTH_IN[mode]
+                    drawn = min(p2i.pdf_page_width(ROOT / "paper" / f), text)
+                    printed = float(share or 1) * text
+                    self.assertGreaterEqual(printed, drawn - 1e-9)
+                    self.assertLess(printed - drawn, 0.01 * text)
+
     def test_float_placement_and_page_group_warning(self):
         for tex in (self.main_tex, self.supp_tex):
             self.assertRegex(tex, PAGE_GROUP)
@@ -1414,8 +1502,8 @@ class SyntheticPaperTests(unittest.TestCase):
         (root / "paper/figures").mkdir(parents=True)
         (root / "paper/manuscript.md").write_text(md, encoding="utf-8")
         (root / "paper/supplement.md").write_text(SYNTH_SUPPLEMENT, encoding="utf-8")
-        write_png(root / "paper/figures/figure_1.png", 50, 20)
-        write_pdf(root / "paper/figures/figure_1.pdf", 360, 144)
+        write_png(root / "paper/figures/figure_1.png", 50, 20)  # aspect 2.5 alone would give the full width
+        write_pdf(root / "paper/figures/figure_1.pdf", 360, 144)  # 5 in of 7.16 in: 0.70 of the text width
         write_png(root / "paper/figures/figure_s1.png", 40, 40)
         write_png(root / "paper/figures/figure_9.png", 40, 40)  # not included anywhere
         run_converter([f"OUT={root / 'out'}", f"PANDOC={PANDOC}", f"ZIP={root / 'up/jstars.zip'}"])
@@ -1426,7 +1514,7 @@ class SyntheticPaperTests(unittest.TestCase):
         cls.supp_md = ieee_supp_md(SYNTH_SUPPLEMENT, p2i.manuscript_numbers(md, SYNTH_SUPPLEMENT))
 
     def test_pdf_figure_and_zip(self):
-        self.assertIn("\\includegraphics[width=\\textwidth]{figures/figure_1.pdf}", self.main_tex)
+        self.assertIn("\\includegraphics[width=0.70\\textwidth]{figures/figure_1.pdf}", self.main_tex)
         self.assertIn("{\\centering\\includegraphics[width=0.72\\textwidth]{figures/figure_s1.png}\\par}",
                       self.supp_tex)
         self.assertEqual(self.zip_names, ["figures/figure_1.pdf", "figures/figure_s1.png", "main.tex",

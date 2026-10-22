@@ -201,7 +201,8 @@ reference stems.*
 every density, at each density level. (b) Spearman correlation between the
 ranking at native density and the ranking at each density level, with 95%
 plot-bootstrap intervals, for all eight detectors and for the six left when
-SegmentAnyTree and AMS3D are removed.*
+SegmentAnyTree and AMS3D are removed; the open circles are drawn slightly to
+the right of their level.*
 
 ![Overstory and understory recall against pulse density](paper/figures/figure_5.png)
 

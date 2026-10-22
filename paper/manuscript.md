@@ -340,7 +340,7 @@ scores are pooled over plots, corrected for chance and given plot-bootstrap
 intervals (Sections 4.2 and 4.4). (b) The density-routed pipeline. A new tile's
 measured first-return density places it in one of three bands, and the detector
 chosen for that band and compute budget on the development region, and checked
-on the replication region, is run on it (Section 4.7, Table 7).
+on the replication region, is run on it (Sections 4.7 and 5.8).
 
 ### 4.1 Detectors
 
@@ -547,8 +547,8 @@ every density, with only a CPU the five classical ones (CHM-VWF, `multichm`,
 `lmfauto`, `ptrees` and AMS3D). The native-only choice is the California best at
 native density and the single choice the California best over every cell, each
 used at every density. The held-out Washington cells check each pick against the
-other candidates of its band (Table 7). Scores and paired intervals reuse the
-counts and bootstrap draws of the main tables, whose per-level scores the
+other candidates of its band (Section 5.8). Scores and paired intervals reuse
+the counts and bootstrap draws of the main tables, whose per-level scores the
 analysis reproduces exactly (Section S25).
 
 ### 4.8 Implementation and reproducibility
@@ -681,7 +681,8 @@ plots cross to the smoothed 0.5 m canopy model. Its detections fall by 39% and
 its dominant-class recall from 0.71 to 0.56, while `multichm`, which switches to
 the same resolution without smoothing, keeps 0.76 to 0.74. A post hoc run of
 CHM-VWF without the smoothing on the same clips is flat across the series, with
-F1 of 0.431 to 0.463 (dashed line in Fig. 3; Table S16). Against it, the leads
+F1 of 0.431 to 0.463 (dashed line in Fig. 3; Table S16; not run at the QL2
+level). Against it, the leads
 of ForestFormer3D, TreeisoNet and `multichm` below native density, and
 SegmentAnyTree's at 4.7 and 2.5 pulses/m², are −0.013 to +0.024. Only the two
 segmenters' leads at 4.7 pulses/m² exclude zero, both marginally, and below the
@@ -1126,20 +1127,6 @@ instance, should be checked not to remove the detections on sparse ones.
 
 ### 6.4 Threats to validity
 
-Table 8 lists the threats to the validity of these results, the direction in
-which each would bias them and where it is tested. Three bear on every
-conclusion: the reference is incomplete, so nominal-plot precision is a lower
-bound; every density below native is simulated by thinning, which the one native
-comparison, at 4 to 5 pulses/m², suggests is optimistic; and the chance null,
-the unsmoothed baseline and the routing were added after the five-site results
-were known. The learned detectors are evaluated zero-shot, as a practitioner
-would use published checkpoints; NEON provides stems and not instance labels, so
-the benchmark says nothing about what training at these densities could achieve.
-A fourth learned detector, ForestMamba [@nguyen2026forestmamba], run after the
-tables were fixed, fits the pattern of the result tables: it does not lead the
-baseline at native density, does not collapse, and its leads below native
-density rest on the baseline's smoothing rule (Section S23).
-
 **Table 8.** Threats to validity: each issue, the direction in which it would
 bias the results, and where it is tested.
 
@@ -1155,6 +1142,20 @@ bias the results, and where it is tested.
 | DeepForest trained on annotations from SJER and TEAK; checkpoints' training histories incomplete | Could favour DeepForest there, though its California lead does not follow them; overlap with the test data not excluded | Sections 3.5 and 5.3 |
 | Oak woodland and conifer forest in two western regions only; SJER's 31 March flight may precede its blue oaks' full leaf-out | Results may not transfer to closed-canopy broadleaf or deciduous forest | Not tested |
 | Mask quality not assessed on NEON | Rankings of masks rest on a proxy reference | Sections S7 and S8 |
+
+Table 8 lists the threats to the validity of these results, the direction in
+which each would bias them and where it is tested. Three bear on every
+conclusion: the reference is incomplete, so nominal-plot precision is a lower
+bound; every density below native is simulated by thinning, which the one native
+comparison, at 4 to 5 pulses/m², suggests is optimistic; and the chance null,
+the unsmoothed baseline and the routing were added after the five-site results
+were known. The learned detectors are evaluated zero-shot, as a practitioner
+would use published checkpoints; NEON provides stems and not instance labels, so
+the benchmark says nothing about what training at these densities could achieve.
+A fourth learned detector, ForestMamba [@nguyen2026forestmamba], run after the
+tables were fixed, fits the pattern of the result tables: it does not lead the
+baseline at native density, does not collapse, and its leads below native
+density rest on the baseline's smoothing rule (Section S23).
 
 ## 7. Conclusion
 

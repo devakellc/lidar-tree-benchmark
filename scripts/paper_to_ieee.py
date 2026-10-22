@@ -12,20 +12,23 @@ Terms, headings take IEEE headline style, and the AI-use statement moves into
 the Acknowledgment as IEEE asks.
 
 A figure is included as the PDF beside its PNG (figure_3.pdf beside
-figure_3.png) when there is one and as the PNG otherwise; its width follows the
-PNG's aspect ratio. The manuscript's floats go at the top of a page or, when
-the floats waiting fill most of a page, on a page of their own ([!tp]), so no
-text page is left with floats alone. The supplement's figures (Figure S1) are
-labelled in the text like its tables, without LaTeX's numbering; they float
-([!ht]) so that the text of their section fills the page before them, and a
-barrier before each section keeps them in their own section. References to
-them (Fig. S1, Fig S1) stay as text in both documents. Display math ($$...$$)
-becomes a numbered equation in main.tex and stays unnumbered in the
-supplement; it joins the paragraph before it, and the text after it when that
-text continues the sentence in lower case. Inline math ($...$) is kept, and the
-Unicode symbols in math become math commands. A fenced code block is copied
-as it is, as verbatim: no citation, reference, link, math or Unicode in it is
-converted, and its language (```sh) is dropped, as the LaTeX has no
+figure_3.png) when there is one and as the PNG otherwise. A PDF figure prints
+at the width it was drawn: its page width as a fraction of the text width
+(IEEE's 7.16 in, or the supplement's 2 cm margins on US letter), at most the
+whole width and rounded up to hundredths; a figure with only a PNG takes its
+width from the PNG's aspect ratio. The manuscript's floats go at the top of a
+page or, when the floats waiting fill most of a page, on a page of their own
+([!tp]), so no text page is left with floats alone. The supplement's figures
+(Figure S1) are labelled in the text like its tables, without LaTeX's
+numbering; they float ([!ht]) so that the text of their section fills the page
+before them, and a barrier before each section keeps them in their own section.
+References to them (Fig. S1, Fig S1) stay as text in both documents. Display
+math ($$...$$) becomes a numbered equation in main.tex and stays unnumbered in
+the supplement; it joins the paragraph before it, and the text after it when
+that text continues the sentence in lower case. Inline math ($...$) is kept,
+and the Unicode symbols in math become math commands. A fenced code block is
+copied as it is, as verbatim: no citation, reference, link, math or Unicode in
+it is converted, and its language (```sh) is dropped, as the LaTeX has no
 highlighting macros.
 
 The columns of a table that wrap (tabularx's X columns, which xltabular shares)
@@ -79,6 +82,7 @@ import sys
 import textwrap
 import unicodedata
 import zipfile
+import zlib
 from pathlib import Path, PurePosixPath
 from struct import unpack
 
@@ -1110,13 +1114,21 @@ def table_tex(num, caption_tex, header, aligns, body, mode):
 FIG_WIDTH = {}
 FIG_FILE = {}
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+# The text widths, in inches, that a PDF figure's width is a fraction of:
+# IEEE's two-column width, and the supplement's geometry (2 cm margins on US
+# letter, 6.925 in).
+TEXT_WIDTH_IN = {"main": 7.16, "supp": 8.5 - 4 / 2.54}
+PDF_NUMBER = rb"([-+]?(?:\d+\.?\d*|\.\d+))"
+PDF_BOX = re.compile(rb"/(MediaBox|CropBox)\s*\[\s*" + rb"\s+".join([PDF_NUMBER] * 4) + rb"\s*\]")
+PDF_ROTATE = re.compile(rb"/Rotate\s+(-?\d+)")
+PDF_STREAM = re.compile(rb"(?<!end)stream\r?\n")
 
 
 def figure_png(path):
     """(file, aspect ratio) of the PNG that a figure's markdown names, relative
-    to paper/. The aspect ratio sets the printed width, and the Overleaf zip
-    keeps the path, so it must be a PNG file under paper/ with a name that
-    LaTeX reads as it is."""
+    to paper/. The aspect ratio sets the printed width when there is no PDF
+    beside the PNG, and the Overleaf zip keeps the path, so it must be a PNG
+    file under paper/ with a name that LaTeX reads as it is."""
     p = PurePosixPath(path)
     if p.is_absolute() or ".." in p.parts or not re.fullmatch(r"[A-Za-z0-9_./-]+\.png", path):
         raise SystemExit(f"figure {path!r}: expected the path of a PNG under paper/, such as figures/figure_1.png")
@@ -1131,6 +1143,55 @@ def figure_png(path):
     return src, w / h
 
 
+def pdf_page_width(path):
+    """The width in inches of a figure PDF's page as pdfTeX includes it: the
+    CropBox, or the MediaBox when there is none, turned by the page's /Rotate.
+    The page dictionary is read from the file or from a compressed object
+    stream (/ObjStm, FlateDecode), where cairo writes it. The PDF must have one
+    page size and one rotation, or the build stops."""
+    data = path.read_bytes()
+    if not data.startswith(b"%PDF-"):
+        raise SystemExit(f"{path} is not a PDF file")
+    parts = [data]
+    for m in PDF_STREAM.finditer(data):
+        start = data.rfind(b"obj", 0, m.start())
+        head = data[start:m.start()] if start >= 0 else b""
+        if b"/ObjStm" in head and b"/FlateDecode" in head and head.rstrip().endswith(b">>"):
+            try:
+                parts.append(zlib.decompressobj().decompress(data[m.end():]))
+            except zlib.error:
+                continue
+    boxes = {}
+    for part in parts:
+        for kind, *box in PDF_BOX.findall(part):
+            boxes.setdefault(kind, set()).add(tuple(float(v) for v in box))
+    found = boxes.get(b"CropBox") or boxes.get(b"MediaBox") or set()
+    turns = {int(r) % 360 for part in parts for r in PDF_ROTATE.findall(part)}
+    if len(found) != 1 or len(turns) > 1:
+        raise SystemExit(f"{path}: expected one page size and rotation, found boxes {sorted(found)} "
+                         f"and rotations {sorted(turns)}")
+    x0, y0, x1, y1 = found.pop()
+    width = abs(y1 - y0) if turns & {90, 270} else abs(x1 - x0)
+    if width <= 0:
+        raise SystemExit(f"{path}: the page has no width")
+    return width / 72
+
+
+def figure_width(src, aspect, mode):
+    """The width a figure prints at. With a PDF beside the PNG, the PDF's page
+    width as a fraction of the text width (TEXT_WIDTH_IN), at most the whole
+    width and rounded up to hundredths, so that the figure prints at the size
+    it was drawn and the rounding never sets it smaller; R's PDF device writes
+    the page size in whole points, up to a point short of the size drawn. With
+    the PNG alone, the full text width when the PNG's aspect ratio is at least
+    1.6, 0.85 of it from 1.3 and 0.72 of it below."""
+    pdf = src.with_suffix(".pdf")
+    if pdf.is_file():
+        share = math.ceil(round(min(1.0, pdf_page_width(pdf) / TEXT_WIDTH_IN[mode]) * 100, 6)) / 100
+        return "\\textwidth" if share >= 1 else f"{share:.2f}\\textwidth"
+    return "\\textwidth" if aspect >= 1.6 else ("0.85\\textwidth" if aspect >= 1.3 else "0.72\\textwidth")
+
+
 def figure_tex(num, path, caption_tex, mode="main"):
     """A figure's LaTeX: a figure* float with \\caption and \\label in the
     manuscript. In the supplement a figure is labelled 'Figure Sn.' in the text,
@@ -1138,9 +1199,9 @@ def figure_tex(num, path, caption_tex, mode="main"):
     to the top of a page ([!ht]), so the text of its section fills the page
     before it, and the supplement's barrier before each section keeps it in its
     own section (see build_supplement). The PDF beside the PNG is included when
-    there is one."""
+    there is one, at the width it was drawn (figure_width)."""
     src, aspect = figure_png(path)
-    width = "\\textwidth" if aspect >= 1.6 else ("0.85\\textwidth" if aspect >= 1.3 else "0.72\\textwidth")
+    width = figure_width(src, aspect, mode)
     graphic = str(PurePosixPath(path).with_suffix(".pdf")) if src.with_suffix(".pdf").is_file() else path
     FIG_WIDTH[num], FIG_FILE[num] = width, graphic
     if mode == "main":
