@@ -11,25 +11,36 @@ run of Section 6.8.
   text only summarises.
 - [figures](figures/): copies of the seven figures drawn by
   `scripts/paper_figures.R`.
+- [ieee](ieee/README.md): the LaTeX version for IEEE JSTARS, generated from
+  these files by `scripts/paper_to_ieee.py` for editing on Overleaf.
 
 ## Status
 
-The draft is complete in content and is not yet formatted for a journal. Before
-submission:
+The draft is complete in content. The target journal is IEEE JSTARS, and the
+[IEEE version](ieee/README.md) already uses its double-column template and the
+"Full title" line, replaces the highlights and keywords with Index Terms, lays
+out every table for the column width, keeps one caption per figure, generates
+the numbered reference list and moves the AI-use statement into the
+Acknowledgment. Before submission:
 
-- Complete the author list, affiliations, the corresponding author's address and
-  e-mail, the CRediT statement, the declaration of competing interest and the
-  funding statement.
-- Confirm the journal's limits at submission: the abstract has 250 words (the
-  guide sets no limit), the highlights at most 84 characters each (limit 85)
-  and the keyword list six entries (the guide's maximum; "NEON" was dropped).
+- Complete the IEEE author block: affiliations, e-mail and the funding
+  footnote. JSTARS also asks for a brief biography and a photograph of each
+  author. IEEE takes the declaration of competing interest in the submission
+  form and prints no CRediT statement; the markdown keeps both for other
+  journals.
+- Supply the figures in a format JSTARS accepts at its resolution: EPS, PS,
+  TIFF or PDF, at least 600 dpi or 400 dpi for colour. The seven figures are
+  200-dpi PNG files; vector PDF from `scripts/paper_figures.R` meets the rule.
+- Confirm JSTARS's limits at submission, including the abstract length (250
+  words) and the six Index Terms.
 - Re-run the repository checks of Sections 2.5 and 6.7 on submission day and
   restate their date: SegmentAnyTreeV2, SelectAnyTree, ForestQuery, ForPT's
   instance checkpoint and ITS-Net's checkpoint were all absent on
   21 October 2026.
-- The generative-AI declaration follows Elsevier's June 2026 wording and sits
-  immediately before the references; the AI-assisted coding is described in
-  Section 4.10 as the policy asks.
+- Name the sections that contain AI-generated text in the IEEE version's
+  AI-use statement, as IEEE asks (a TODO in its main.tex). The markdown's
+  declaration follows Elsevier's June 2026 wording and sits immediately before
+  the references; the AI-assisted coding is described in Section 4.10.
 - Re-stage the archive from this branch, because the chance-agreement null and
   its seed and minimum-shift checks, the leave-out and corrected-F1 rank
   correlations, the unsmoothed-baseline sensitivity, the instance audit and the
@@ -54,18 +65,12 @@ submission:
 - After re-staging and the clean-container rebuild, replace the 1,221 rebuilt
   files of Section 4.10 (and the counts in docs/reproduction-archive.md) with
   the new rebuild's count, and drop the sentence on the earlier staging.
-- Remove the draft preamble under the title (the author placeholder and the note
-  on draft notes) and the note under References; the "Full title" line is the
-  submission title and the H1 its short form.
-- The figure images carry a short alt text ("Figure N.") and a separate bold
-  caption paragraph; at conversion keep one caption per figure.
-- Lay out Tables 3, 5, 7 and S12c for the template's column width (landscape or
-  full width).
 - The supplement is numbered in topical order, not in order of first citation;
   renumber if the journal asks. Add ORCIDs.
 - Replace the supplement's `Source:` links to repository reports with citations
   of the archived reports in the deposit.
-- Convert to the journal's template and generate the reference list.
+- Once editing moves to Overleaf, carry any content change back to the markdown
+  or record that the Overleaf project has become the source.
 
 ## Where the numbers come from
 

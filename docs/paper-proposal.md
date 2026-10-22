@@ -53,9 +53,12 @@ performance: benchmarking classical and zero-shot deep tree detectors on
 national-mapping airborne LiDAR with field-mapped stems. The claim holds
 below the USGS QL2 floor, and the title can say so.
 
-**Venue.** ISPRS Journal of Photogrammetry and Remote Sensing first, where
-FGI-EMIT and ITS-Net appeared in 2026. Remote Sensing of Environment is the
-alternative. IJAEOG or Remote Sensing are fallbacks.
+**Venue.** IEEE Journal of Selected Topics in Applied Earth Observations and
+Remote Sensing (JSTARS) first, for its shorter time to publication; the
+draft's [IEEE version](../paper/ieee/README.md) is in its template. ISPRS
+Journal of Photogrammetry and Remote Sensing, where FGI-EMIT and ITS-Net
+appeared in 2026, and Remote Sensing of Environment are the alternatives.
+IJAEOG or Remote Sensing are fallbacks.
 
 **Thesis.** On the NEON benchmark the two best zero-shot deep segmenters lead
 the CHM variable-window baseline (CHM-VWF) by about 0.05 F1 at native density

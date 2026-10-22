@@ -6,10 +6,11 @@ small leads above chance at native density and no guarantee below the QL2 floor.
 Alex Grigoryev. Co-authors, affiliations and the corresponding address are to be
 completed.
 
-Draft manuscript for the ISPRS Journal of Photogrammetry and Remote Sensing.
-Citations use the keys of the repository bibliography (`docs/references.bib`);
-every number is taken from a committed study report, listed in the [draft
-notes](README.md).
+Draft manuscript for IEEE JSTARS (IEEE Journal of Selected Topics in Applied
+Earth Observations and Remote Sensing); its [LaTeX version](ieee/README.md) is
+generated from this file. Citations use the keys of the repository bibliography
+(`docs/references.bib`); every number is taken from a committed study report,
+listed in the [draft notes](README.md).
 
 ## Highlights
 
