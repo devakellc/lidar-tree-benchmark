@@ -39,7 +39,7 @@ supports.
 | --- | --- | --- | --- |
 | Density-ladder cross-model benchmark | 106 plots, 2,525 stems, five sites in two regions; eight full-ladder arms on six rungs, including one at the USGS QL2 floor, plus Li 2012 and two RGB detectors; paired plot-level bootstrap intervals | Closest prior work is FGI-EMIT: one boreal site subsampled from above 1,000 pts/m². Nothing at 1 to 8 pulses/m² with field stems | Primary paper |
 | Reference-completeness scoring | precision inside censused subplots on 57 plots, the nominal plot box as a lower bound, co-detection crediting as a second bracket | No published critique of NEON stems as ground truth | Core section of the primary paper |
-| Evaluation sensitivity kit | matcher and tolerance grid, stem-jitter bands and exact-2021 cut for every arm on five sites; checkpoint and configuration provenance | No forestry greedy-versus-Hungarian comparison, no checkpoint leakage audit | Section of the primary paper, plus a methods spin-off |
+| Evaluation sensitivity kit | matcher and tolerance grid, stem-jitter bands and exact-2021 cut for every arm on five sites; checkpoint and configuration provenance | No forestry comparison of greedy and Hungarian assignment on the same detections, no checkpoint leakage audit | Section of the primary paper, plus a methods spin-off |
 | Dense-domain control and thinning | FGI-EMIT frozen policy, development/reserve split, and the development plots thinned to the NEON densities against true labels | The dataset authors published trained-from-scratch comparisons; no zero-shot thinning of a dense ALS benchmark | Positive control and dataset contrast inside the primary paper |
 | Apex versus mask scoring | NEON mask scores against a stem-derived proxy; the proxy validated on FGI-EMIT costs about a third of mask F1 and compresses gaps | Moderate; the proxy ranks arms and does not measure them | Supplement |
 | Crown delineation | five-site re-run: SegmentAnyTree matches the best CHM arm on equivalent width and leads on the widest axis; stop rule matters more than algorithm; crown width holds to 1.3 pulses/m² | Moderate | Supplement, and a second short paper |
@@ -197,9 +197,10 @@ Open 3D instance benchmarks are all dense. FOR-instance collections range from
 about 500 to 9,500 pts/m²
 ([Puliti et al. 2023](https://arxiv.org/abs/2309.01279)), FGI-EMIT exceeds
 1,000 pts/m² ([Ruoppa et al. 2026](https://doi.org/10.1016/j.isprsjprs.2026.04.021)),
-and FOR-instance v3, introduced with SegmentAnyTreeV2, states a floor of
-10 pts/m² from subsampled scenes
-([Wielgosz et al. 2026](https://arxiv.org/abs/2606.08206)). NeonTreeEvaluation
+and FOR-instance v3, introduced with SegmentAnyTreeV2, spans 10 to 50,000
+pts/m² and includes airborne sources, without stating how its sparsest clouds
+were obtained ([Wielgosz et al. 2026](https://arxiv.org/abs/2606.08206)).
+NeonTreeEvaluation
 is the only sparse-ALS benchmark and uses field stems for recall only
 ([Weinstein et al. 2021](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1009180)).
 
@@ -211,8 +212,11 @@ live at 10 to 10,000 pts/m², with the sparsest levels subsampled from dense
 acquisitions ([Wielgosz et al. 2024](https://arxiv.org/abs/2401.15739),
 [Xiang et al. 2025](https://arxiv.org/abs/2506.16991),
 ITS-Net, [Li et al. 2026](https://doi.org/10.1016/j.isprsjprs.2025.11.019)). No paper
-found evaluates a pretrained 3D segmenter on native 1 to 2 pulses/m² ALS or
-validates decimation against a native sparse acquisition of the same stand.
+found evaluates a pretrained 3D segmenter on native 1 to 2 pulses/m² ALS, and
+none checks decimation against a native sparse acquisition for a detector's
+precision and recall against field stems or with learned detectors; Yu et al.
+2004 (below) compared thinned and native flights by detected-tree counts and
+height error.
 
 Understory recall by crown class is reported mainly for classical methods on
 dense ALS ([Hamraz et al. 2017](https://www.nature.com/articles/s41598-017-07200-0),
@@ -220,9 +224,11 @@ dense ALS ([Hamraz et al. 2017](https://www.nature.com/articles/s41598-017-07200
 model below 50 pts/m². Matching rules are rarely compared: the dense-cloud
 community uses IoU 0.5 one-to-one matching, stem benchmarks use restricted
 nearest neighbours ([Eysn et al. 2015](https://www.mdpi.com/1999-4907/6/5/1721)),
-and no forestry paper contrasts greedy with optimal assignment. No checkpoint
-leakage audit exists; overlap handling is self-reported. The nearest prior art
-for combining detectors is RGB plus LiDAR voting
+and no forestry paper found scores the same detections under greedy and
+optimal assignment and across radii; optimal assignment itself has been used
+at least since [Hamraz et al. 2016](https://doi.org/10.1016/j.jag.2016.07.006).
+No checkpoint leakage audit exists; overlap handling is self-reported. The
+nearest prior art for combining detectors is RGB plus LiDAR voting
 ([Pleşoianu et al. 2020](https://www.mdpi.com/2072-4292/12/15/2426)); no
 density-gated routing or calibration study of tree detectors was found.
 
@@ -233,7 +239,26 @@ Current state of the art to cite: SegmentAnyTreeV2
 ([Li et al. 2026](https://doi.org/10.1016/j.isprsjprs.2025.11.019)).
 None reports 1 to 8 pulses/m² performance. SegmentAnyTreeV2 is not evaluated
 here: its preprint promises the weights on acceptance, and none were public
-on 2026-10-01. ForestMamba
+on 2026-10-01. Repository check of 2026-10-21: SegmentAnyTreeV2 still has no
+public repository or weights; SelectAnyTree
+([thanhhff/SelectAnyTree](https://github.com/thanhhff/SelectAnyTree)) holds a
+README only, and ForestQuery
+([zhan994/ForestQuery](https://github.com/zhan994/ForestQuery),
+[arXiv 2610.03403](https://arxiv.org/abs/2610.03403)) a README, licence and
+teaser image; neither holds code or a checkpoint. ForPT
+([prs-eth/ForPT](https://github.com/prs-eth/ForPT), created 2026-10-09) holds
+code and links eleven Hugging Face checkpoints for pretraining, semantic
+segmentation, species and age, none for instance segmentation; ITS-Net
+([A8366233/ITS-Net](https://github.com/A8366233/ITS-Net), created 2025-11-17)
+holds code without a checkpoint. The paper's Section 2.2 also cites
+[Yu et al. 2004](https://www.isprs.org/proceedings/XXXVI/8-W2/YU.pdf), who
+thinned a 400 m flight to the densities of native 800 m and 1,500 m flights of
+the same 100 ha test area; their tables give 1,416 thinned against 1,400 native
+trees at 5 points/m² but 1,331 thinned against 532 native at 2.5 points/m², a
+loss they attribute to missing canopy returns at 1,500 m, not to density alone.
+The paper cites this as the precedent for checking decimation against native
+sparse flights and states, as its own reading rather than theirs, that thinning
+was strongly optimistic at the sparsest density. ForestMamba
 ([Nguyen et al. 2026](https://arxiv.org/abs/2606.01549), BMVC 2026), a
 ForestFormer3D fork with public code and weights, was not in the scan of
 2026-09-30; it was run in October 2026, after the paper's tables were fixed,

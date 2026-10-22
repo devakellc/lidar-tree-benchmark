@@ -50,7 +50,7 @@ the checkpoints lead the baseline by 0.26–0.29 uncorrected F1 on the held-out
 reserve. All tables rebuild with one command.
 
 **Keywords:** individual tree detection; airborne laser scanning; point density;
-deep learning; instance segmentation; chance agreement; NEON
+deep learning; instance segmentation; chance agreement
 
 ## 1. Introduction
 
@@ -77,16 +77,17 @@ conditions they are tested on are subsampled dense scenes.
 
 Whether the published checkpoints of these segmenters help at national-mapping
 density is therefore an open question, and four obstacles stand in the way of
-answering it. First, no instance labels exist at such densities, so the
-reference has to be field-mapped stems, which are incomplete: plots are censused
-in subplots, and a detection of a real but unmapped tree counts as an error.
-Second, sparse acquisitions are usually simulated by decimating a dense one
-[@jakubowski2013tradeoffs], and the simulation is rarely checked against a
-native sparse flight of the same stand. Third, research code has to be adapted
-to new data, and an adapter defect can be mistaken for domain shift. Fourth, a
-match radius wide enough to absorb stem-mapping error and the offset between
-stem base and crown apex also admits coincidental matches, and stem benchmarks
-do not report how much of a score randomly placed detections would earn.
+answering it. First, we found no per-point instance labels at such densities
+(Section 2.1), so the reference has to be field-mapped stems, which are
+incomplete: plots are censused in subplots, and a detection of a real but
+unmapped tree counts as an error. Second, sparse acquisitions are usually
+simulated by decimating a dense one [@jakubowski2013tradeoffs], and the
+simulation is rarely checked against a native sparse flight of the same stand.
+Third, research code has to be adapted to new data, and an adapter defect can be
+mistaken for domain shift. Fourth, a match radius wide enough to absorb
+stem-mapping error and the offset between stem base and crown apex also admits
+coincidental matches, and stem benchmarks do not report how much of a score
+randomly placed detections would earn.
 
 This paper addresses the question with a benchmark built to control those
 obstacles. We ask (i) how much point density changes detection accuracy, and for
@@ -128,10 +129,11 @@ density the leads over the baseline follow its own smoothing rule.
 
 Open benchmarks with per-point tree labels are dense. The FOR-instance
 collections range from about 500 to 9,500 points/m² [@puliti2023forinstance],
-and FGI-EMIT, a multispectral helicopter ALS benchmark, exceeds 1,000 pulses/m²
+and FGI-EMIT, a multispectral helicopter ALS benchmark, exceeds 1,000 points/m²
 [@ruoppa2026benchmarking]. FOR-instance v3, introduced with SegmentAnyTreeV2,
-states a floor of 10 points/m² obtained by subsampling
-[@wielgosz2026segmentanytreev2]. NeonTreeEvaluation [@weinstein2021benchmark]
+spans 10 to 50,000 points/m² and includes airborne sources, without stating how
+its sparsest clouds were obtained [@wielgosz2026segmentanytreev2].
+NeonTreeEvaluation [@weinstein2021benchmark]
 and the IDTReeS competitions [@marconi2019data; @graves2023data] are built on
 NEON's sparse ALS; they annotate crowns in imagery or delineate them in the
 field and use field stems for recall or crown correspondence, not for precision.
@@ -144,20 +146,39 @@ national-mapping density.
 ### 2.2 Point density
 
 Studies of point density follow the same split. Classical work varies density
-from below 1 to about 25 pulses/m² [@jakubowski2013tradeoffs;
-@kaartinen2012international; @sparks2022crosscomparison]. Deep-model studies
-vary it between 10 and 10,000 points/m², with the sparsest levels subsampled
-from dense acquisitions [@wielgosz2024segmentanytree; @xiang2024automated;
+from below 1 to about 25 pulses/m² [@hirata2004effects;
+@jakubowski2013tradeoffs; @kaartinen2012international;
+@sparks2022crosscomparison]; @hirata2004effects thinned first-pulse helicopter
+data by up to 64-fold, to 0.4 pulses/m², and found that tree-top extraction from
+a canopy model declined suddenly below 3 to 5 pulses/m². Deep-model studies vary
+it between 10 and 10,000 points/m², with the sparsest levels subsampled from
+dense acquisitions [@wielgosz2024segmentanytree; @xiang2024automated;
 @li2026itsnet]; the FGI-EMIT authors subsample their helicopter ALS to 1,000,
 500, 100, 75, 50, 25 and 10 points/m² and compare ForestFormer3D retrained at
 each density, SegmentAnyTree with its published weights and classical methods
 re-optimised per density; both segmenters trade recall for precision and keep a
 roughly stable F1 down to 10 points/m² [@ruoppa2026benchmarking].
 @sparks2022crosscomparison compare classical detectors on two ALS datasets of
-the same stands, at 8 and 22 pulses/m², but do not test decimation. We found no
-paper that evaluates a pretrained 3D segmenter on native ALS at 1 to 2
-pulses/m², and none that validates decimation against a native sparse
-acquisition of the same stand.
+the same stands, at 8 and 22 pulses/m², but do not test decimation.
+@yu2004effects flew a 100 ha boreal test area at 400, 800 and 1,500 m, about 10,
+5 and 2.5 points/m², thinned the 400 m data across track to the two sparser
+densities to separate density from footprint effects, and scored native and
+thinned data against the same 1,600 field trees by extracting a laser cluster
+around each known tree position, without a detector, a tree counting as detected
+when its cluster lay within 2 m of it and within 5 m of its height. At 5
+points/m² the thinned data matched the native flight (1,416 against 1,400
+detected trees); at 2.5 points/m² the thinned data gave 1,331 trees against 532
+from the native flight, a loss the authors attribute to missing canopy returns
+at 1,500 m rather than to density alone. They draw no conclusion about thinning;
+we read the gap as showing that thinning was strongly optimistic at the sparsest
+density. The nearest evaluation of a pretrained segmenter on conventional ALS is
+@destouches2026weaklysupervised, who run the published SegmentAnyTree on Swiss
+aircraft ALS at 38 points/m², filter its output with a rating model trained on
+their own site and count instances on four 1 ha tiles labelled by hand and
+completed by visually validated automatic detections. We found no paper that
+evaluates a pretrained 3D segmenter on native ALS at 1 to 2 pulses/m², and none
+that checks decimation against a native sparse acquisition for a detector's
+precision and recall against field stems or with learned detectors.
 
 ### 2.3 Understory trees
 
@@ -173,27 +194,50 @@ found no report of understory recall for a deep model below 50 points/m².
 The dense-cloud community matches predicted and reference instances one to one
 at an intersection over union (IoU) of 0.5 [@puliti2023forinstance;
 @xiang2025forestformer3d; @ruoppa2026benchmarking]; stem benchmarks match
-detections to stems by restricted nearest neighbours [@eysn2015benchmark].
-Matching rules are rarely compared, and we found no forestry study that
-contrasts greedy with optimal assignment, or that reports how much of a match
-score a random placement of the same detections would reach. Reference
-incompleteness is acknowledged but seldom measured; NeonTreeEvaluation, for
-instance, uses stems for recall only [@weinstein2021benchmark]. Checkpoint
-provenance is self-reported: we found no audit of overlap between a checkpoint's
-training data and a benchmark's test data.
+detections to stems by restricted nearest neighbours [@eysn2015benchmark], and
+optimal assignment against stem maps has been used at least since
+@hamraz2016robust, who score candidate pairs and solve the assignment problem of
+@kuhn1955hungarian, as have an integer-programming matcher
+[@hershey2022voxelbased] and one-to-one matching within 4 m of field-inventory
+trees [@gominski2025mining]. We found no forestry study that scores the same
+detections under greedy and optimal assignment and across radii, or that reports
+how much of a match score a random placement of the same detections would reach.
+The devices exist elsewhere: the toroidal shift is the independence null of
+spatial point-pattern analysis [@lotwick1982methods; @wiegand2004rings],
+forecast verification corrects its threat scores for hits expected by chance
+[@hogan2010equitability], and F1 itself carries no chance level
+[@powers2011evaluation]. Reference incompleteness is acknowledged but seldom
+measured; NeonTreeEvaluation, for instance, uses stems for recall only
+[@weinstein2021benchmark], and @hershey2022voxelbased found on revisiting their
+plots that most raw false positives were trees below the recording threshold or
+trees the crew had missed. Double-observer surveys estimate what one observer
+misses from the agreement of two [@nichols2000doubleobserver]; we found no tree
+benchmark that brackets precision this way. Checkpoint provenance is
+self-reported: we found no audit of overlap between a checkpoint's training data
+and a benchmark's test data, although leakage audits and reproducibility
+standards that fix the exact model, data and environment are established in
+machine learning [@kapoor2023leakage; @heil2021reproducibility]; and we found no
+forestry detector benchmark that reports the stability of its ranking with
+intervals, as benchmark studies in machine learning recommend
+[@dehghani2021benchmark; @agarwal2021deep].
 
 ### 2.5 Recent models
 
 The current state of the art includes SegmentAnyTreeV2
 [@wielgosz2026segmentanytreev2], SelectAnyTree [@nguyen2026selectanytree],
-ForestMamba [@nguyen2026forestmamba], ForPT [@yue2026toward] and ITS-Net
-[@li2026itsnet]. None reports performance at 1 to 8 pulses/m². SegmentAnyTreeV2
-announces its weights on acceptance; ForPT's preprint names a repository that
-was not public on 7 October 2026; SelectAnyTree's repository held no code or
-checkpoint on 6 October 2026; we found no release for ITS-Net on 1 October 2026.
-The statements of absence in this section rest on a scan of about ninety primary
-sources completed on 30 September 2026, except ForestMamba's, which rests on its
-paper. We therefore evaluate the first SegmentAnyTree
+ForestMamba [@nguyen2026forestmamba], ForPT [@yue2026toward], ITS-Net
+[@li2026itsnet] and ForestQuery [@zhan2026forestquery]. None reports performance
+at 1 to 8 pulses/m². On 21 October 2026 SegmentAnyTreeV2 still announced its
+weights on acceptance, and the repositories of SelectAnyTree and ForestQuery
+held no code or checkpoint; ForPT's repository, public since 9 October 2026,
+held code and linked eleven Hugging Face checkpoints for pretraining, semantic
+segmentation, species and age but none for instance segmentation; and ITS-Net's
+repository, created in November 2025, held code without a checkpoint. The
+statements of absence in Sections 2.1 to 2.5 rest on a scan of about ninety
+primary sources completed on 30 September 2026, a literature check completed on
+21 October 2026 and those repository checks, except ForestMamba's and
+ForestQuery's, which rest on their papers; ForestQuery was posted on 2 October
+2026, after the scan. We therefore evaluate the first SegmentAnyTree
 [@wielgosz2024segmentanytree], ForestFormer3D [@xiang2025forestformer3d] and
 TreeisoNet [@xi2025new] in the tables. ForestMamba, a fork of the ForestFormer3D
 code with Mamba state-space layers and canopy-height query seeding, was not
@@ -329,7 +373,7 @@ density (their medians are 47, 31 and 5.7 pulses/m²), so that check compares th
 
 FGI-EMIT [@ruoppa2026benchmarking; @ruoppa2026fgiemit] provides manual per-point
 tree labels for 1,561 trees in 19 plots of boreal forest in Espoo, Finland,
-scanned from a helicopter at more than 1,000 pulses/m². The release has six test
+scanned from a helicopter at more than 1,000 points/m². The release has six test
 plots (463 trees) and 13 training plots. We had already scored the six test
 plots in a first transfer experiment and used two training plots in the adapter
 audit of Section 5.7, so none of those eight could serve as an untouched test.
@@ -377,7 +421,7 @@ of the benchmark sites, SJER and TEAK, so it is not zero-shot there.
 | AMS3D | Adaptive mean shift in 3D [@ferraz2016lidar] | Normalised cloud | None | crownsegmentr [@steinmeier2025crownsegmentr] |
 | Li 2012 | Point-cloud region growing [@li2012new] | Normalised cloud | None | lidR [@roussel2020lidr] |
 | ForestFormer3D | Transformer instance segmentation [@xiang2025forestformer3d] | Raw cloud, whole scene | FOR-instanceV2: unmanned, mobile and terrestrial laser scanning [@xiang2025forinstancev2]; training density not stated | Published code and weights (Table S15) |
-| SegmentAnyTree | Sparse convolutional instance segmentation [@wielgosz2024segmentanytree] | Raw cloud | FOR-instance unmanned scans and Norwegian mobile scans, with copies sparsified to 1,000, 500, 100 and 10 points/m² | Published code and weights (Table S15) |
+| SegmentAnyTree | Sparse convolutional instance segmentation [@wielgosz2024segmentanytree] | Raw cloud | FOR-instance unmanned scans and Norwegian mobile scans, with copies sparsified to 1,000, 500, 100, 75, 50, 25 and 10 points/m² | Published code and weights (Table S15) |
 | TreeisoNet | Tree localisation and offset networks [@xi2025new]; the airborne checkpoints distributed with TreeAIBox | Normalised cloud, 0.8 × 0.8 × 2.0 m voxels for tree tops | Unmanned laser scanning at about 1,160 points/m², as described for the TreeAIBox models; the match to the files we ran is inferred from their names | TreeAIBox [@nrcan2025treeaibox] |
 | DeepForest | Crown boxes in RGB imagery [@weinstein2020deepforest] | 10 cm camera mosaic [@neon2026camera] | Crowns from 22 NEON sites, then hand annotations from six, including SJER and TEAK | `deepforest-tree` [@weecology2024deepforesttree] |
 | Detectree2 | Crown polygons in RGB imagery [@ball2023accurate] | 10 cm camera mosaic | Tropical forests and an urban site | Published weights [@ball2025detectree2] |
@@ -455,8 +499,9 @@ scored; with complete arms it drops nothing.
 (50.3 m²), and the detectors place 0.6 to 4.7 core detections per reference stem
 at native density, so a share of every match is co-location. We measure it with
 a null model that keeps each detector's detections and breaks their relation to
-the stems, a random toroidal shift [@lotwick1982methods]. In each plot the
-detections within the core and its matching margin are shifted together by a
+the stems, a random toroidal shift, the independence null of spatial
+point-pattern analysis [@lotwick1982methods; @wiegand2004rings]. In each plot
+the detections within the core and its matching margin are shifted together by a
 random offset of at least 8 m and wrapped at the edges of the core-plus-margin
 square, so that their number within that square, their heights and their
 relative positions, except across the wrapped edge, are unchanged; the number
@@ -474,7 +519,9 @@ native-density corrected leads by at most 0.001 (Section S12).
 If a share s of stems is found by skill and the rest can match only by chance,
 recall = s + (1 − s) × null, so s = (recall − null) / (1 − null). By the same
 reasoning, and as Cohen's kappa corrects agreement for chance
-[@cohen1960coefficient], we report corrected F1, (F1 − null F1) / (1 − null F1),
+[@cohen1960coefficient] and forecast verification corrects threat scores for
+hits expected by chance [@hogan2010equitability], we report corrected F1,
+(F1 − null F1) / (1 − null F1),
 the excess over the null scaled by the headroom to a perfect score; applied to
 F1 the formula is an analogy, and in these data it equals the harmonic mean of
 corrected recall and corrected precision within 0.003 on the five-site and
@@ -688,6 +735,13 @@ replication claim covers the detector settings, the population, the matching
 rule and the observed scores. The FGI-EMIT tables are
 rebuilt from the dataset, which its licence does not let us redistribute, and
 the timings reported in Section 5.9 depend on the machine.
+
+**AI-assisted code.** The repository's R scripts, container recipes, tests and
+analysis code were written with Claude Code (Anthropic) as an AI coding
+assistant, under the authors' specification and review, and every result in this
+paper comes from that public code or from the published detector code it runs,
+which is why its tests and the archive's one-command rebuild are part of the
+method.
 
 ## 5. Results
 
@@ -1454,9 +1508,11 @@ Two of the three learned detectors were at first misjudged by a wide margin
 because of an adapter and a configuration value, neither of which produced an
 error. A zero-shot benchmark that reports a published model failing on new data
 should show the same code path succeeding on data where the model is known to
-work; we could do so for two of the three. We also found that a detector's score
-on sparse clouds can depend on post-processing fitted to dense clouds: a filter
-requiring 40 points per instance removed nearly all detections at 0.7 pulses/m².
+work, the within-domain check that studies of model transferability pair with
+every transfer [@wenger2012assessing; @yates2018outstanding]; we could do so for
+two of the three. We also found that a detector's score on sparse clouds can
+depend on post-processing fitted to dense clouds: a filter requiring 40 points
+per instance removed nearly all detections at 0.7 pulses/m².
 
 ### 6.6 Combining detectors
 
@@ -1523,9 +1579,10 @@ and hence its flatness down the ladder, is that of an arbitrary operating point.
 Li 2012, the classical detector closest to the segmenters in Washington and on
 censused subplots, has no density ladder in this benchmark; an earlier
 three-site run at 8 points/m² kept its F1, so the omission is one of scope, not
-of feasibility. SegmentAnyTreeV2 announces its weights on acceptance, ForPT's
-named repository and SelectAnyTree's held no weights in October 2026, and we
-found no release for ITS-Net; the harness took a fourth learned detector with
+of feasibility. On 21 October 2026 SegmentAnyTreeV2 still announced its weights
+on acceptance, the repositories of SelectAnyTree and ForestQuery held no code,
+ForPT's held no instance-segmentation checkpoint and ITS-Net's no checkpoint;
+the harness took a fourth learned detector with
 its own container and driver but no change to the clips, population, matching
 rule or null (Section 6.8). DeepForest's training annotations include two of
 the five sites, so it is not zero-shot there.
@@ -1648,13 +1705,6 @@ To be completed by the authors.
 
 To be completed by the authors.
 
-## Declaration of generative AI and AI-assisted technologies in the writing process
-
-During the preparation of this work the authors used Claude (Anthropic) to
-assist with software development, analysis scripts, checks of the results and
-drafting of the manuscript text. The authors reviewed and edited the content and
-take full responsibility for the content of the publication.
-
 ## Data and code availability
 
 All field, airborne LiDAR and camera data of the benchmark are public data
@@ -1682,6 +1732,16 @@ Battelle. This material is based in part upon work supported by the National
 Science Foundation through the NEON Program. We thank the authors of FGI-EMIT
 and of the open-source detectors evaluated here for releasing their data, code
 and weights.
+
+<!-- rumdl-disable-next-line MD013 -->
+## Declaration of generative AI and AI-assisted technologies in the manuscript preparation process
+
+During the preparation of this work the authors used Claude Code (Anthropic) in
+order to search the literature and collate references, to draft and edit the
+manuscript text and to check its numbers against the study reports. After using
+this tool, the authors reviewed and edited the content as needed and take full
+responsibility for the content of the published article. The use of the same
+tool as a coding assistant in the research is described in Section 4.10.
 
 ## References
 
