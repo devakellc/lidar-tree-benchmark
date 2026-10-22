@@ -11,6 +11,8 @@ run of Section 6.8.
   text only summarises.
 - [figures](figures/): copies of the seven figures drawn by
   `scripts/paper_figures.R`.
+- [ieee](ieee/README.md): the LaTeX version for IEEE JSTARS, generated from
+  these files by `scripts/paper_to_ieee.py` for editing on Overleaf.
 
 ## Status
 

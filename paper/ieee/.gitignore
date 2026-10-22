@@ -1,0 +1,10 @@
+# LaTeX build output; main.tex, supplement.tex and references.bib are the sources.
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.pdf
+*.synctex.gz
+*.toc

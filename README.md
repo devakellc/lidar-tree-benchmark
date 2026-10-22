@@ -520,6 +520,7 @@ scripts and configuration.
 | NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
 | NEON master tables and intervals | [master_tables.R](scripts/master_tables.R), [master_tables_lib.R](scripts/master_tables_lib.R) |
 | Paper sensitivities, figures and compute cost | [paper_sensitivity.R](scripts/paper_sensitivity.R), [corrected_rank_stability.R](scripts/corrected_rank_stability.R), [baseline_smoothing_sensitivity.R](scripts/baseline_smoothing_sensitivity.R), [instance_audit.R](scripts/instance_audit.R), [paper_figures.R](scripts/paper_figures.R), [compute_cost.sh](scripts/compute_cost.sh), [compute_cost_cell.R](scripts/compute_cost_cell.R) |
+| Paper LaTeX version for IEEE JSTARS | [paper_to_ieee.py](scripts/paper_to_ieee.py), [paper/ieee](paper/ieee/README.md) |
 | Native 3DEP cross-check | [native_ql2_crosscheck.R](scripts/native_ql2_crosscheck.R), [native_ql2_paired.R](scripts/native_ql2_paired.R), [ept_discovery.R](scripts/ept_discovery.R) |
 | Reproduction archive and table rebuild | [stage_archive.sh](scripts/stage_archive.sh), [reproduce_paper_tables.sh](scripts/reproduce_paper_tables.sh), [compare_reproduction.R](scripts/compare_reproduction.R), [reproduce/Dockerfile](reproduce/Dockerfile) |
 | NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
@@ -544,7 +545,8 @@ scripts and configuration.
 - [docs](docs/) — methodology, study protocols, execution guides, and the
   [paper proposal](docs/paper-proposal.md).
 - [paper](paper/) — the draft manuscript of the benchmark paper, its
-  supplement and figures.
+  supplement and figures, and their [LaTeX version for IEEE
+  JSTARS](paper/ieee/README.md).
 - [Data and code availability](docs/data-code-availability.md) — data
   sources, model licences and what the archive holds; the
   [bibliography](docs/references.bib) holds the verified references.
