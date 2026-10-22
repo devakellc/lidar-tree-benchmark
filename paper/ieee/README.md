@@ -13,7 +13,7 @@ editing on Overleaf.
   [bibliography](../../docs/references.bib).
 
 The figures are read from [../figures](../figures/), so they are not copied
-here.
+here: a figure's PDF where there is one beside its PNG, otherwise the PNG.
 
 ## What the conversion changes
 
@@ -49,6 +49,23 @@ here.
 - Wide tables span both columns and small ones sit in one. The supplement's
   tables break across pages; each caption stays on its table's first page and
   a continuation page repeats the head under "Table Sn (continued)".
+- A figure is included as the vector PDF beside its PNG (figure_3.pdf beside
+  figure_3.png) when there is one, and as the PNG otherwise. Its printed width,
+  the full text width or 0.85 or 0.72 of it, still follows the PNG's aspect
+  ratio, so the two files of a figure must be kept in step.
+- The supplement's figures, written as an image `![Figure S1.](...)` followed
+  by a `**Figure S1.**` caption paragraph, are labelled "Figure S1." in the
+  text like its tables instead of being numbered by LaTeX, and are set where
+  they stand. References to them ("Fig. S1", "Figs. S1 and S2") stay as text
+  in both documents and must name a figure that the supplement has.
+- Display math (`$$ ... $$`) becomes a numbered equation in the manuscript, as
+  IEEE numbers displayed equations, and stays unnumbered in the supplement. An
+  equation joins the paragraph before it, and the text after it when that
+  text continues the sentence in lower case ("where ..."). Display math in a
+  caption, table cell, heading, the abstract or the back matter stops the
+  build, as does a code block fenced as `math`, which GitHub shows as an
+  equation. Inline math (`$...$`) is kept, and Unicode symbols in math (≤, ×,
+  −) become math commands.
 - The supplement opens by naming the manuscript's title instead of linking the
   markdown draft.
 - The AI-use statement moves into the Acknowledgment, as IEEE requires. The
@@ -75,9 +92,9 @@ python3 scripts/paper_to_ieee.py PANDOC=/path/to/pandoc \
   ZIP=work/paper-ieee/jstars-overleaf.zip
 ```
 
-The zip holds the three sources and a figures folder. Upload it to Overleaf
-with New Project, Upload Project. Both documents compile with pdfLaTeX and
-BibTeX, Overleaf's defaults:
+The zip holds the three sources and, in a figures folder, the figure files
+that the two documents include. Upload it to Overleaf with New Project, Upload
+Project. Both documents compile with pdfLaTeX and BibTeX, Overleaf's defaults:
 
 ```sh
 cd paper/ieee
@@ -88,8 +105,11 @@ pdflatex supplement && bibtex supplement && pdflatex supplement && pdflatex supp
 From the repository root, the converter's tests run the end-to-end checks
 when pandoc is on the path or named in the `PANDOC` environment variable. They
 compare every word and table row of the markdown with the LaTeX, and the
-numbers in both directions. A BibTeX check of the whole reference list runs
-when bibtex is on the path or named in `BIBTEX`, with or without pandoc:
+numbers in both directions, leaving math aside. A small synthetic paper in a
+temporary folder covers what the paper may not use yet: PDF figures,
+supplementary figures, display math and the zip. A BibTeX check of the whole
+reference list runs when bibtex is on the path or named in `BIBTEX`, with or
+without pandoc:
 
 ```sh
 PANDOC=/path/to/pandoc BIBTEX=/path/to/bibtex \

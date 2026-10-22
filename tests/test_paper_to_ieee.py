@@ -4,10 +4,12 @@ The unit tests need no external tools. The pandoc tests and the end-to-end
 tests run when pandoc is available (on PATH or via the PANDOC environment
 variable); the end-to-end tests convert the repository's paper and check the
 LaTeX for defects that would stop a pdfLaTeX + BibTeX build or silently drop
-content. The BibTeX test runs IEEEtran.bst on the IEEE copy of the
-bibliography when bibtex is available (on PATH or via BIBTEX), with or without
-pandoc. A PANDOC or BIBTEX variable that does not name an executable is an
-error, not a reason to skip.
+content, and convert a small synthetic paper in a temporary copy of the
+repository layout to exercise what the real paper may not use yet (PDF figures,
+supplementary figures, display math, the Overleaf zip). The BibTeX test runs
+IEEEtran.bst on the IEEE copy of the bibliography when bibtex is available (on
+PATH or via BIBTEX), with or without pandoc. A PANDOC or BIBTEX variable that
+does not name an executable is an error, not a reason to skip.
 
 From the repository root:
 
@@ -19,12 +21,16 @@ import io
 import os
 import re
 import shutil
+import struct
 import subprocess
 import tempfile
 import unicodedata
 import unittest
+import zipfile
+import zlib
 from collections import Counter
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("paper_to_ieee", ROOT / "scripts/paper_to_ieee.py")
@@ -216,6 +222,32 @@ def flat(text):
     return " ".join(text.split())
 
 
+def write_png(path, width, height):
+    """A valid greyscale PNG of width x height white pixels."""
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+    rows = b"".join(b"\x00" + b"\xff" * width for _ in range(height))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0))
+                     + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
+
+
+def write_pdf(path, width, height):
+    """A valid one-page PDF of width x height points."""
+    objs = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %d %d] /Resources << >> >>" % (width, height)]
+    out, offsets = b"%PDF-1.4\n", []
+    for i, obj in enumerate(objs, 1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n%s\nendobj\n" % (i, obj)
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)
+    out += b"".join(b"%010d 00000 n \n" % off for off in offsets)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(out)
+
+
 def entry(bib, key):
     m = re.search(r"(?s)@\w+\{" + key + r",.*?\n\}", bib)
     return flat(m.group(0)) if m else ""
@@ -240,6 +272,8 @@ class NumberingTests(unittest.TestCase):
             "Results: the density response": "Results: The Density Response",
             "Recall at 2 m and 10 pulses/m²": "Recall at 2 m and 10 pulses/m²",
             "the detect_lasr runs": "The detect_lasr Runs",
+            "scoring of $x + y$ and $f_1$ by density": "Scoring of $x + y$ and $f_1$ by Density",
+            "the $a$ test": "The $a$ Test",
         }
         for title, want in cases.items():
             with self.subTest(title=title):
@@ -288,6 +322,7 @@ class CitationTests(unittest.TestCase):
 KNOWN = {"sec": {"1", "2", "2.1", "2.5", "4", "4.2", "4.3", "4.5", "4.10", "5.2"},
          "tab": {"2", "3", "4", "5"}, "fig": {"2", "3"},
          "ssec": {"S12", "S15"}, "stab": {"S12c", "S15", "S16a", "S16b"}}
+KNOWN_S = dict(KNOWN, sfig={"S1", "S2"})  # a supplement with two figures
 
 
 class ReferenceTests(unittest.TestCase):
@@ -338,6 +373,38 @@ class ReferenceTests(unittest.TestCase):
         self.assertIn(f"Table{NB}S15", out)
         self.assertIn(f"Fig.{NB}2(d)", out)
 
+    def test_supplementary_figures_stay_text_in_both_documents(self):
+        cases = {
+            "Fig. S1": f"Fig.{NB}S1",
+            "Figure S2 shows": f"Figure{NB}S2 shows",
+            "Figs. S1 and S2": f"Figs.{NB}S1 and S2",
+            "Figures S1–S2": f"Figures{NB}S1–S2",
+            "Fig. S1b": f"Fig.{NB}S1(b)",
+            "Fig. S2 or S1": f"Fig.{NB}S2 or S1",
+            "Fig. S1 and 2 m windows": f"Fig.{NB}S1 and 2 m windows",
+        }
+        for mode in ("main", "supp"):
+            for text, want in cases.items():
+                with self.subTest(text=text, mode=mode):
+                    self.assertEqual(p2i.convert_refs(text, mode, KNOWN_S), want)
+        self.assertEqual(p2i.convert_refs("Figs. 2 and S1", "main", KNOWN_S), f"Figs.{NB}\\ref{{fig:2}} and S1")
+        self.assertEqual(p2i.convert_refs("Figs. 2 and S1", "supp", KNOWN_S), f"Figs.{NB}2 and S1")
+
+    def test_unknown_supplementary_figure_stops(self):
+        for text in ("Fig. S3", "Figs. S1 and S3", "Figure S3b", "Figs. 2 and S9"):
+            for mode in ("main", "supp"):
+                with self.subTest(text=text, mode=mode), self.assertRaises(SystemExit):
+                    p2i.convert_refs(text, mode, KNOWN_S)
+
+    def test_numbers_include_supplementary_figures(self):
+        md = "## 1. Intro\n\n**Figure 1.** A.\n"
+        supp = ("## S1. One\n\n**Figure S1.** A.\n\n**Figure S2.** B.\n\n**Table S1.** C.\n\n"
+                "Not a caption: **Figure S9.**\n")
+        known = p2i.manuscript_numbers(md, supp)
+        self.assertEqual(known["fig"], {"1"})
+        self.assertEqual(known["sfig"], {"S1", "S2"})
+        self.assertEqual(known["stab"], {"S1"})
+
 
 class LatexTextTests(unittest.TestCase):
     def test_unicode_mapping(self):
@@ -379,6 +446,125 @@ class LatexTextTests(unittest.TestCase):
             p2i.body_to_tex("Text.\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n", "main", {}, KNOWN)
         with self.assertRaises(SystemExit):
             p2i.snippet("An ![image](x.png) in the abstract.", "main", {}, KNOWN)
+
+
+class FigureTests(unittest.TestCase):
+    """Figures read from a temporary paper/figures folder."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        patcher = mock.patch.object(p2i, "REPO", self.root)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        figs = self.root / "paper/figures"
+        write_png(figs / "figure_1.png", 50, 20)      # aspect 2.5: full text width
+        write_png(figs / "figure_2.png", 40, 40)      # aspect 1.0: 0.72 of it
+        write_pdf(figs / "figure_2.pdf", 720, 144)    # the width follows the PNG, not the PDF
+        write_png(figs / "figure_s1.png", 28, 20)     # aspect 1.4: 0.85 of it
+        write_pdf(figs / "figure_s1.pdf", 280, 200)
+        write_png(figs / "figure_s2.png", 20, 40)
+        (figs / "fake.png").write_text("not a PNG")
+
+    def test_png_figure_without_pdf(self):
+        out = p2i.figure_tex("1", "figures/figure_1.png", "Cap.")
+        self.assertEqual(out, "\\begin{figure*}[!t]\n\\centering\n"
+                              "\\includegraphics[width=\\textwidth]{figures/figure_1.png}\n"
+                              "\\caption{Cap.}\n\\label{fig:1}\n\\end{figure*}")
+
+    def test_pdf_beside_the_png_is_included(self):
+        out = p2i.figure_tex("2", "figures/figure_2.png", "Cap.")
+        self.assertIn("\\includegraphics[width=0.72\\textwidth]{figures/figure_2.pdf}", out)
+        self.assertNotIn("figure_2.png", out)
+        self.assertEqual((p2i.FIG_WIDTH["2"], p2i.FIG_FILE["2"]), ("0.72\\textwidth", "figures/figure_2.pdf"))
+
+    def test_supplementary_figure_is_labelled_in_the_text(self):
+        out = p2i.figure_tex("S1", "figures/figure_s1.png", "Cap. with \\url{x}.", "supp")
+        self.assertEqual(out, "\\begin{figure}[H]\n"
+                              "{\\centering\\includegraphics[width=0.85\\textwidth]{figures/figure_s1.pdf}\\par}\n"
+                              "\\medskip\n\\textbf{Figure S1.} Cap. with \\url{x}.\n\\end{figure}")
+        out = p2i.figure_tex("S2", "figures/figure_s2.png", "Cap.", "supp")
+        self.assertIn("{\\centering\\includegraphics[width=0.72\\textwidth]{figures/figure_s2.png}\\par}", out)
+        self.assertNotRegex(out, r"\\caption|\\label")  # no automatic numbering
+
+    def test_bad_figure_files_stop(self):
+        (self.root / "figure_1.png").write_bytes((self.root / "paper/figures/figure_1.png").read_bytes())
+        for path in ("../figure_1.png", str(self.root / "paper/figures/figure_1.png"), "figures/figure_1.pdf",
+                     "figures/figure 1.png", "figures/missing.png", "figures/fake.png"):
+            with self.subTest(path=path), self.assertRaises(SystemExit):
+                p2i.figure_tex("1", path, "Cap.")
+
+    def test_figures_must_be_numbered_for_their_document(self):
+        # The numbering is checked before pandoc runs, so these need no pandoc.
+        for md, mode in (("![Figure S1.](figures/figure_s1.png)\n\n**Figure S1.** Cap.\n", "main"),
+                         ("![Figure 1.](figures/figure_1.png)\n\n**Figure 1.** Cap.\n", "supp"),
+                         ("Text.\n\n**Figure S1.** A caption without its image.\n", "supp"),
+                         ("![Figure S1.](figures/figure_s1.png)\n\nA paragraph instead of the caption.\n", "supp")):
+            with self.subTest(md=md, mode=mode), self.assertRaises(SystemExit):
+                p2i.body_to_tex(md, mode, {}, KNOWN_S)
+
+    def test_graphics_files_skip_comments(self):
+        tex = ("% \\includegraphics{photo}\n\\includegraphics[width=1in]{figures/a.pdf} "
+               "\\includegraphics{figures/a.pdf}\n\\includegraphics{figures/b.png} % \\includegraphics{c}\n"
+               "50\\% \\includegraphics{figures/d.png}")
+        self.assertEqual(p2i.graphics_files(tex), ["figures/a.pdf", "figures/b.png", "figures/d.png"])
+
+    def test_zip_carries_the_included_files(self):
+        out = self.root / "out"
+        out.mkdir()
+        (out / "main.tex").write_text("\\includegraphics[width=\\textwidth]{figures/figure_2.pdf}\n"
+                                      "\\includegraphics{figures/figure_1.png}\n% \\includegraphics{photo}\n")
+        (out / "supplement.tex").write_text("{\\centering\\includegraphics[width=1in]{figures/figure_s1.pdf}\\par}\n")
+        (out / "references.bib").write_text("% bib\n")
+        z = p2i.write_zip(out, self.root / "up/jstars.zip")
+        self.assertEqual(sorted(zipfile.ZipFile(z).namelist()),
+                         ["figures/figure_1.png", "figures/figure_2.pdf", "figures/figure_s1.pdf",
+                          "main.tex", "references.bib", "supplement.tex"])
+        (out / "supplement.tex").write_text("\\includegraphics{figures/figure_9.pdf}\n")
+        with self.assertRaises(SystemExit):
+            p2i.write_zip(out, self.root / "up/other.zip")
+        self.assertFalse((self.root / "up/other.zip").exists())
+
+
+class MathTests(unittest.TestCase):
+    def test_math_spans(self):
+        tex = ("a \\(x\\) b \\[y\\] c \\\\[4pt] d \\begin{equation}z \\\\ w\\end{equation} "
+               "e \\textbackslash{}( f \\(\\alpha \\\\\\) g")
+        spans = [(tex[s:e], d) for s, e, d in p2i.math_spans(tex)]
+        self.assertEqual(spans, [("\\(x\\)", False), ("\\[y\\]", True),
+                                 ("\\begin{equation}z \\\\ w\\end{equation}", True), ("\\(\\alpha \\\\\\)", False)])
+        self.assertEqual(p2i.math_spans("Row \\\\[4pt] and {[}0, 1{]} and \\$5"), [])
+        with self.assertRaises(SystemExit):
+            p2i.math_spans("a \\(x")
+
+    def test_unicode_inside_math_becomes_math_commands(self):
+        out = p2i.unicode_to_latex("a \u2212 b \\(x \u2212 y \u2264 z\u00b2 \u00d7 \u03c4\\) c \u2265 d")
+        self.assertEqual(out, "a $-$ b \\(x - y \\leq{} z^{2} \\times{} \\tau{}\\) c $\\geq$ d")
+        self.assertEqual(p2i.unicode_to_latex("\\[a\u00b7b\\]"), "\\[a\\cdot{}b\\]")
+        with self.assertRaises(SystemExit):
+            p2i.unicode_to_latex("\\(\u03c1\\)")  # rho: write \rho
+
+    def test_display_math_is_numbered_and_joins_its_sentence(self):
+        tex = ("Corrected F1 is\n\n\\[\nF = 1\n\\]\n\nwhere F is.\n\nNext.\n\n\\[ G \\]\n\nThe end. "
+               "In text \\[H\\] here, \\(x\\) inline.")
+        self.assertEqual(p2i.display_math(tex, numbered=True),
+                         "Corrected F1 is\n\\begin{equation}\nF = 1\n\\end{equation}\nwhere F is.\n\nNext.\n"
+                         "\\begin{equation}\nG\n\\end{equation}\n\nThe end. "
+                         "In text \\begin{equation}\nH\n\\end{equation} here, \\(x\\) inline.")
+        self.assertEqual(p2i.display_math(tex, numbered=False),
+                         "Corrected F1 is\n\\[\nF = 1\n\\]\nwhere F is.\n\nNext.\n\\[\nG\n\\]\n\nThe end. "
+                         "In text \\[\nH\n\\] here, \\(x\\) inline.")
+        raw = "Raw:\n\n\\begin{equation}\nx\n\\end{equation}\n\nwhere"
+        self.assertEqual(p2i.display_math(raw, numbered=True), raw)
+
+    def test_math_fence_stops(self):
+        for md in ("Text.\n\n```math\nx = 1\n```\n", "~~~ {.math}\nx\n~~~\n", "  ```  math\nx\n```\n"):
+            with self.subTest(md=md), self.assertRaises(SystemExit):
+                p2i.check_math_fence(md)
+        for md in ("```python\nx\n```\n", "```mathematica\nx\n```\n", "Some math here.\n"):
+            with self.subTest(md=md):
+                p2i.check_math_fence(md)
 
 
 class BibliographyTests(unittest.TestCase):
@@ -541,6 +727,40 @@ class PandocTests(unittest.TestCase):
                                "supp", {}, KNOWN)
         self.assertIn(f"\\href{{{p2i.REPO_URL}docs/b.md}}", supp)
 
+    def test_display_math_becomes_a_numbered_equation(self):
+        md = ("## 4. Methods\n\nCorrected F1 is\n\n$$\nF_c = \\frac{F - F_0}{1 - F_0}\n$$\n\n"
+              "where $F_0 \u2264 F$ is the null F1 and $20 is not math.\n\nThe next paragraph.\n")
+        out = p2i.body_to_tex(md, "main", {}, KNOWN)
+        self.assertIn("Corrected F1 is\n\\begin{equation}\nF_c = \\frac{F - F_0}{1 - F_0}\n\\end{equation}\n"
+                      "where \\(F_0 \\leq{} F\\) is the null F1 and \\$20 is not math.", out)
+        self.assertNotIn("\\[", out)
+        supp = p2i.body_to_tex(md.replace("4. Methods", "S1. Methods"), "supp", {}, KNOWN)
+        self.assertIn("Corrected F1 is\n\\[\nF_c = \\frac{F - F_0}{1 - F_0}\n\\]\nwhere \\(F_0", supp)
+        self.assertNotIn("equation", supp)
+
+    def test_inline_math_in_captions_cells_and_back_matter(self):
+        md = ("## 1. Intro\n\nText.\n\n**Table 2.** Scores of $F_1$ against $\\tau$.\n\n"
+              "| A | $F_c$ |\n| --- | --- |\n| $x \u2212 1$ | 1 |\n")
+        out = p2i.body_to_tex(md, "main", {}, KNOWN)
+        self.assertIn("\\caption{Scores of \\(F_1\\) against \\(\\tau\\).}", out)
+        self.assertIn("A & \\(F_c\\) \\\\", out)
+        self.assertIn("\\(x - 1\\) & 1 \\\\", out)
+        self.assertEqual(p2i.snippet("An abstract with $F_1 \u2265 0$.", "main", {}, KNOWN),
+                         "An abstract with \\(F_1 \\geq{} 0\\).")
+
+    def test_display_math_outside_the_body_text_stops(self):
+        cases = [("snippet", "An abstract with $$x = 1$$ in it."),
+                 ("body", "## 1. Intro\n\nText.\n\n**Table 2.** A $$x$$ caption.\n\n| A |\n| --- |\n| 1 |\n"),
+                 ("body", "## 1. Intro\n\nText.\n\n**Table 2.** Caption.\n\n| A |\n| --- |\n| $$x$$ |\n"),
+                 ("body", "## 1. The $$x$$ heading\n\nText.\n"),
+                 ("body", "## 1. Intro\n\n```math\nx = 1\n```\n")]
+        for kind, md in cases:
+            with self.subTest(md=md), self.assertRaises(SystemExit):
+                if kind == "snippet":
+                    p2i.snippet(md, "main", {}, KNOWN)
+                else:
+                    p2i.body_to_tex(md, "main", {}, KNOWN)
+
 
 ACCENT_CMD = re.compile(r"\{\\(?:[`'^\"~=.]|[cvukHr](?![A-Za-z])|textcommabelow)\s*\{?([A-Za-z])\}?\}")
 LETTER_CMD = {"ae": "ae", "AE": "AE", "oe": "oe", "OE": "OE", "o": "o", "O": "O", "ss": "ss", "l": "l", "L": "L"}
@@ -581,6 +801,9 @@ def drop_command(tex, name, nargs):
 def tex_words(tex):
     body = tex.split("\\begin{document}", 1)[1].split("\\end{document}", 1)[0]
     body = re.sub(r"(?<!\\)%.*", " ", body)
+    # Math is not compared: equations, \[...\] and \(...\) (not the \\[4pt] of a row).
+    body = re.sub(r"(?s)\\begin\{equation\}.*?\\end\{equation\}", " ", body)
+    body = re.sub(r"(?s)(?<!\\)\\\[.*?\\\]|(?<!\\)\\\(.*?\\\)", " ", body)
     for name, nargs in (("title", 1), ("author", 1), ("markboth", 2), ("bstctlcite", 1), ("nocite", 1),
                         ("url", 1), ("includegraphics", 1)):
         body = drop_command(body, name, nargs)
@@ -590,7 +813,8 @@ def tex_words(tex):
     body = re.sub(r"\\setlength\{\\tabcolsep\}\{[^}]*\}|\\renewcommand\{\\arraystretch\}\{[^}]*\}", " ", body)
     body = re.sub(r"\\\\\[\d+pt\]", " ", body)
     body = re.sub(r"\[[^\]]*\\(?:textwidth|columnwidth)\]", " ", body)
-    body = re.sub(r"\\textbf\{Table S?\d+[a-z]?\.\}", " ", body)  # the supplement's caption labels
+    # The supplement's caption labels, of its tables and of its figures.
+    body = re.sub(r"\\textbf\{(?:Table|Figure) S?\d+[a-z]?\.\}", " ", body)
     body = re.sub(r"\\label\{(?:tab|fig):[^}]*\}", " ", body)  # LaTeX numbers floats itself
     body = body.replace("\\textsuperscript{2}", "\u00b2")
     body = ACCENT_CMD.sub(r"\1", body)
@@ -604,8 +828,22 @@ def tex_words(tex):
     return tokens(body)
 
 
+# Read left to right as pandoc does: a code span that opens first keeps its
+# dollar signs; $$...$$ is display math; inline math opens with a $ before a
+# non-space and closes with a $ after a non-space and not before a digit, so
+# $20,000 stays text.
+MD_MATH = re.compile(r"(`[^`\n]*`)"
+                     r"|(?<!\\)\$\$(?:(?!\n[ \t]*\n).)+?\$\$"
+                     r"|(?<![\\$])\$(?![\s$])(?:\\.|[^$\\])*?(?<![\s\\])\$(?!\d)", re.S)
+
+
+def strip_md_math(md):
+    return MD_MATH.sub(lambda m: m.group(1) or " ", md)
+
+
 def md_words(md):
     md = re.sub(r"<!--.*?-->", " ", md, flags=re.S)
+    md = strip_md_math(md)  # math is not compared
     md = re.sub(r"!\[[^\]]*\]\([^)]*\)", " ", md)
     md = re.sub(r"\*\*(?:Figure|Table)\s+S?\d+[a-z]?\.\*\*", " ", md)  # LaTeX numbers floats itself
     md = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", md)
@@ -633,40 +871,89 @@ def tex_table_rows(tex):
     return rows
 
 
+def ieee_main_md(md):
+    """The parts of the manuscript's markdown that main.tex prints, as it
+    prints them: no highlights, the AI statement in the Acknowledgment."""
+    parts = re.split(r"(?m)^(## .*)$", md)
+    keep = []
+    for head, text in zip(parts[1::2], parts[2::2]):
+        if head == "## Abstract" or re.match(r"## \d", head) or head == "## Data and code availability":
+            keep.append(head.replace("Conclusions", "Conclusion") + "\n" + text)
+        elif head == "## Acknowledgements":
+            keep.append("## Acknowledgment\n" + text)
+        elif head.startswith("## Declaration of generative AI"):
+            keep.append(text)
+    return re.sub(r"the\s+highlights,\s+", "", "\n".join(keep))  # the IEEE version has none
+
+
+def ieee_supp_md(supp, known):
+    """The supplement's markdown as supplement.tex prints it: the LaTeX title
+    replaces the H1, the opening names the paper, and references to the
+    manuscript take IEEE numbers."""
+    supp = re.sub(r"(?m)^# .*$", "", supp)
+    supp = re.sub(r"Supplement to the draft manuscript \[[^\]]*\]\(manuscript\.md\)\.",
+                  f"Supplement to the manuscript \u201c{p2i.TITLE_IEEE}.\u201d", supp)
+    return p2i.convert_refs(supp, "supp", known)
+
+
+def run_converter(argv):
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            p2i.main(argv)
+    except SystemExit as e:
+        raise RuntimeError(f"the converter stopped: {e}") from e
+
+
+class WordHelperTests(unittest.TestCase):
+    """The end-to-end word comparison ignores math on both sides alike."""
+
+    def test_math_is_ignored_on_both_sides(self):
+        md = ("a $x_1$ b\n$$\ny = 2\n$$\nc $20 and `$code$` d $3 x$ e\n\nf $20 and $3 x$ g\n\n"
+              "h `$x$` i $y$ j\n\nk l m\n")
+        self.assertEqual(md_words(md), Counter("a b c code d e f 20 and g h x i j k l m".split()))
+        # pandoc 3.9's LaTeX for md, its display math numbered, plus a table row
+        # break and an unnumbered display.
+        tex = ("\\begin{document}a \\(x_1\\) b\n\\begin{equation}\ny = 2\n\\end{equation}\n"
+               "c \\(20 and `\\)code\\$` d \\(3 x\\) e\n\nf \\$20 and \\(3 x\\) g\n\n"
+               "h \\texttt{\\$x\\$} i \\(y\\) j\n\nk \\\\[4pt] l \\[z\\] m\\end{document}")
+        self.assertEqual(tex_words(tex), md_words(md))
+
+    def test_caption_labels_are_ignored(self):
+        self.assertEqual(md_words("**Figure S1.** Cap. **Table S2a.** Tab."), Counter(["cap", "tab"]))
+        tex = "\\begin{document}\\textbf{Figure S1.} Cap. \\textbf{Table S2a.} Tab.\\end{document}"
+        self.assertEqual(tex_words(tex), Counter(["cap", "tab"]))
+
+
 @unittest.skipUnless(PANDOC, "pandoc not available (set PANDOC=/path/to/pandoc)")
 class EndToEndTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.out = Path(cls.tmp.name) / "ieee"
-        try:
-            with contextlib.redirect_stdout(io.StringIO()):
-                p2i.main([f"OUT={cls.out}", f"PANDOC={PANDOC}"])
-        except SystemExit as e:
-            raise RuntimeError(f"the converter stopped: {e}") from e
+        run_converter([f"OUT={cls.out}", f"PANDOC={PANDOC}"])
         cls.main_tex = (cls.out / "main.tex").read_text(encoding="utf-8")
         cls.supp_tex = (cls.out / "supplement.tex").read_text(encoding="utf-8")
         cls.bib = (cls.out / "references.bib").read_text(encoding="utf-8")
-        md = (ROOT / "paper/manuscript.md").read_text(encoding="utf-8")
-        parts = re.split(r"(?m)^(## .*)$", md)
-        keep = []
-        for head, text in zip(parts[1::2], parts[2::2]):
-            if head == "## Abstract" or re.match(r"## \d", head) or head == "## Data and code availability":
-                keep.append(head.replace("Conclusions", "Conclusion") + "\n" + text)
-            elif head == "## Acknowledgements":
-                keep.append("## Acknowledgment\n" + text)
-            elif head.startswith("## Declaration of generative AI"):
-                keep.append(text)
-        cls.main_md = re.sub(r"the\s+highlights,\s+", "", "\n".join(keep))  # the IEEE version has none
-        supp = (ROOT / "paper/supplement.md").read_text(encoding="utf-8")
-        supp = re.sub(r"(?m)^# .*$", "", supp)  # the LaTeX title replaces the H1
-        supp = re.sub(r"Supplement to the draft manuscript \[[^\]]*\]\(manuscript\.md\)\.",
-                      f"Supplement to the manuscript \u201c{p2i.TITLE_IEEE}.\u201d", supp)
-        cls.supp_md = p2i.convert_refs(supp, "supp", p2i.paper_numbers())
+        cls.main_md = ieee_main_md((ROOT / "paper/manuscript.md").read_text(encoding="utf-8"))
+        cls.supp_md = ieee_supp_md((ROOT / "paper/supplement.md").read_text(encoding="utf-8"), p2i.paper_numbers())
 
     @classmethod
     def tearDownClass(cls):
         cls.tmp.cleanup()
+
+    def test_figures_use_the_pdf_where_there_is_one(self):
+        for line in ("\\usepackage{graphicx}", "\\usepackage{float}", "\\graphicspath{{./}{../}}"):
+            self.assertIn(line, self.supp_tex)
+        for tex in (self.main_tex, self.supp_tex):
+            for f in p2i.graphics_files(tex):
+                with self.subTest(file=f):
+                    self.assertTrue((ROOT / "paper" / f).is_file())
+                    if f.endswith(".png"):
+                        self.assertFalse((ROOT / "paper" / f).with_suffix(".pdf").exists())
+        supp = (ROOT / "paper/supplement.md").read_text(encoding="utf-8")
+        captions = re.findall(r"(?m)^\*\*Figure (S\d+)\.\*\*", supp)
+        self.assertEqual(re.findall(r"\\textbf\{Figure (S\d+)\.\}", self.supp_tex), captions)
+        self.assertEqual(len(re.findall(r"\\begin\{figure\}", self.supp_tex)), len(captions))
 
     def test_outputs_are_ascii(self):
         for text in (self.main_tex, self.supp_tex, self.bib):
@@ -712,6 +999,160 @@ class EndToEndTests(unittest.TestCase):
     def test_every_table_row_is_kept(self):
         self.assertEqual(tex_table_rows(self.main_tex), pipe_table_rows(self.main_md))
         self.assertEqual(tex_table_rows(self.supp_tex), pipe_table_rows(self.supp_md))
+
+
+SYNTH_MANUSCRIPT = """# Short title
+
+Full title: {title}.
+
+Jane Doe. Co-authors, affiliations and the corresponding address are to be
+completed.
+
+## Highlights
+
+- A highlight.
+
+## Abstract
+
+An abstract with inline math $F_1 \\geq 0$ and a citation [@kuhn1955hungarian].
+
+**Keywords:** beta; alpha.
+
+## 1. Introduction
+
+The method of @kuhn1955hungarian assigns detections (Fig. 1). The dense
+control is in Fig. S1, its panel (b) in Fig. S1b and both in Figs. 1 and S1.
+
+## 2. Methods
+
+Corrected F1 rescales F1 between the null and a perfect score:
+
+$$
+F_1^{{c}} = \\frac{{F_1 - F_1^{{0}}}}{{1 - F_1^{{0}}}}
+$$
+
+where $F_1^{{0}} \u2264 F_1$ is the F1 of 200 shifted detections (Table 1).
+
+**Table 1.** Scores with $F_1^{{c}}$ in the head.
+
+| Detector | $F_1^{{c}}$ |
+| --- | ---: |
+| A | 0.12 |
+
+![Figure 1.](figures/figure_1.png)
+
+**Figure 1.** Density response; panel (b) is in Fig. S1.
+
+## CRediT authorship contribution statement
+
+To be completed.
+
+## Declaration of competing interest
+
+None.
+
+## Funding
+
+None.
+
+## Data and code availability
+
+Public.
+
+## Acknowledgements
+
+Thanks.
+
+## Declaration of generative AI and AI-assisted technologies in the manuscript preparation process
+
+Claude Code drafted the text.
+
+## References
+
+Generated.
+"""
+
+SYNTH_SUPPLEMENT = """# Supplementary material
+
+Supplement to the draft manuscript [Short title](manuscript.md). It refers to
+Fig. 1 and Section 2.
+
+## S1. Dense control
+
+The control is in Fig. S1, panel (b) in Fig. S1b.
+
+![Figure S1.](figures/figure_s1.png)
+
+**Figure S1.** Dense control at 2 m; see Section 2 and Fig. 1.
+"""
+
+
+@unittest.skipUnless(PANDOC, "pandoc not available (set PANDOC=/path/to/pandoc)")
+class SyntheticPaperTests(unittest.TestCase):
+    """A small paper in a temporary copy of the repository layout, with a PDF
+    beside a figure's PNG, a supplementary figure, display and inline math."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls.tmp.cleanup)
+        root = Path(cls.tmp.name)
+        patcher = mock.patch.object(p2i, "REPO", root)
+        patcher.start()
+        cls.addClassCleanup(patcher.stop)
+        (root / "docs").mkdir()
+        (root / "docs/references.bib").write_text(BIB, encoding="utf-8")
+        md = SYNTH_MANUSCRIPT.format(title=p2i.TITLE_IEEE.lower())
+        (root / "paper/figures").mkdir(parents=True)
+        (root / "paper/manuscript.md").write_text(md, encoding="utf-8")
+        (root / "paper/supplement.md").write_text(SYNTH_SUPPLEMENT, encoding="utf-8")
+        write_png(root / "paper/figures/figure_1.png", 50, 20)
+        write_pdf(root / "paper/figures/figure_1.pdf", 360, 144)
+        write_png(root / "paper/figures/figure_s1.png", 40, 40)
+        write_png(root / "paper/figures/figure_9.png", 40, 40)  # not included anywhere
+        run_converter([f"OUT={root / 'out'}", f"PANDOC={PANDOC}", f"ZIP={root / 'up/jstars.zip'}"])
+        cls.main_tex = (root / "out/main.tex").read_text(encoding="utf-8")
+        cls.supp_tex = (root / "out/supplement.tex").read_text(encoding="utf-8")
+        cls.zip_names = sorted(zipfile.ZipFile(root / "up/jstars.zip").namelist())
+        cls.main_md = ieee_main_md(md)
+        cls.supp_md = ieee_supp_md(SYNTH_SUPPLEMENT, p2i.manuscript_numbers(md, SYNTH_SUPPLEMENT))
+
+    def test_pdf_figure_and_zip(self):
+        self.assertIn("\\includegraphics[width=\\textwidth]{figures/figure_1.pdf}", self.main_tex)
+        self.assertIn("{\\centering\\includegraphics[width=0.72\\textwidth]{figures/figure_s1.png}\\par}",
+                      self.supp_tex)
+        self.assertEqual(self.zip_names, ["figures/figure_1.pdf", "figures/figure_s1.png", "main.tex",
+                                          "references.bib", "supplement.tex"])
+
+    def test_supplementary_figure_and_references(self):
+        for line in ("\\usepackage{graphicx}", "\\usepackage{float}", "\\graphicspath{{./}{../}}"):
+            self.assertIn(line, self.supp_tex)
+        self.assertIn("\\begin{figure}[H]", self.supp_tex)
+        self.assertIn("\\textbf{Figure S1.} Dense control at 2 m; see Section~II and Fig.~1.\n\\end{figure}",
+                      self.supp_tex)
+        self.assertIn("The control is in Fig.~S1, panel (b) in Fig.~S1(b).", self.supp_tex)
+        self.assertNotRegex(self.supp_tex, r"\\caption|\\label")
+        self.assertIn("control is in Fig.~S1, its panel (b) in Fig.~S1(b) and both in Figs.~\\ref{fig:1} and S1.",
+                      self.main_tex)
+        self.assertIn("\\caption{Density response; panel (b) is in Fig.~S1.}", self.main_tex)
+
+    def test_math(self):
+        self.assertIn("between the null and a perfect score:\n\\begin{equation}\n"
+                      "F_1^{c} = \\frac{F_1 - F_1^{0}}{1 - F_1^{0}}\n\\end{equation}\n"
+                      "where \\(F_1^{0} \\leq{} F_1\\) is the F1 of 200 shifted detections (Table~\\ref{tab:1}).",
+                      self.main_tex)
+        self.assertIn("An abstract with inline math \\(F_1 \\geq 0\\) and a citation~\\cite{kuhn1955hungarian}.",
+                      self.main_tex)
+        self.assertIn("Detector & \\(F_1^{c}\\) \\\\", self.main_tex)
+
+    def test_no_word_is_lost_and_every_number_matches(self):
+        for name, md, tex in (("main", self.main_md, self.main_tex), ("supplement", self.supp_md, self.supp_tex)):
+            with self.subTest(document=name):
+                md_w, tex_w = md_words(md), tex_words(tex)
+                self.assertEqual(dict(md_w - tex_w), {})
+                self.assertEqual(dict(numbers(tex_w) - numbers(md_w)), {})
+                self.assertEqual(dict(numbers(md_w) - numbers(tex_w)), {})
+                self.assertEqual(tex_table_rows(tex), pipe_table_rows(md))
 
 
 @unittest.skipUnless(BIBTEX, "bibtex not available (set BIBTEX=/path/to/bibtex)")

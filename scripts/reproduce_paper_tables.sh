@@ -13,7 +13,7 @@
 # adapter before/after comparison; the master tables of the three populations
 # (the headline with the QL2 rung); the scoring sensitivities (matcher,
 # exact-2021 references, stem-position jitter, chance agreement), the
-# calibration/validation
+# density-routed pipeline, the calibration/validation
 # split, the matching-rule ranks and the native QL2 cross-check; the figures.
 #
 # Detector inference is not repeated: the archive holds every arm's per-cell
@@ -75,7 +75,7 @@ REBUILT=(
   paper_runs/neon/best_treetops_geojson paper_runs/neon/crown_compare_tables.md
   paper_runs/neon/adapter_before_after sparse_2018/compare_report
   paper_runs/sensitivity paper_runs/neon/native_ql2_vs_decimated.csv
-  paper_runs/neon/native_ql2_paired.csv
+  paper_runs/neon/native_ql2_paired.csv paper_runs/density_routing
 )
 for n in 1 2 3 4 5 6 7; do
   REBUILT+=("paper_runs/figures/figure_$n.csv" "paper_runs/figures/figure_$n.png")
@@ -179,8 +179,9 @@ for pop in all_mapped relaxed; do
 done
 
 ## 10. Scoring sensitivities from persisted detections (matcher, exact-2021,
-## stem jitter and the chance-agreement null), the calibration/validation
-## split, the matching-rule ranks and the native QL2 cross-check.
+## stem jitter and the chance-agreement null), the density-routed pipeline,
+## the calibration/validation split, the matching-rule ranks and the native
+## QL2 cross-check.
 for mode in matcher exact2021; do
   run "$P" "sensitivity_$mode" scripts/paper_sensitivity.R MODE=$mode CORES="$CORES"
 done
@@ -200,6 +201,11 @@ for q in "matcher" "null K=200" "null TOL=2 K=200"; do
   run "$W/paper_runs_ql2" "sensitivity_ql2_${q// /_}" scripts/paper_sensitivity.R MODE="${qa[@]}" \
     RUNGS=3.2 FROZEN_ROOT="$W/neon/frozen_2021_ql2" ARMS=$QL2_ARMS CORES="$CORES"
 done
+# The density-routed pipeline (post hoc), from the observed and null counts of
+# every level, the QL2 level's from its own root; it stops unless every
+# detector's per-level F1 and corrected F1 equal the master tables and nulls.
+run "$P" density_routing scripts/paper_density_routing.R \
+  RUNG_JOBS="$W/paper_runs_ql2:$W/neon/frozen_2021_ql2"
 # The baseline without its sub-8 pulses/m² smoothing, on the sealed clips, in
 # its own job directory (lasR runs single-threaded per site), and the audit
 # of the learned arms' persisted instances.

@@ -11,6 +11,16 @@ Overleaf's default. The highlights are dropped, the keywords become IEEE Index
 Terms, headings take IEEE headline style, and the AI-use statement moves into
 the Acknowledgment as IEEE asks.
 
+A figure is included as the PDF beside its PNG (figure_3.pdf beside
+figure_3.png) when there is one and as the PNG otherwise; its width follows the
+PNG's aspect ratio. The supplement's figures (Figure S1) are labelled in the
+text and set where they stand, like its tables, without LaTeX's numbering, and
+references to them (Fig. S1) stay as text in both documents. Display math
+($$...$$) becomes a numbered equation in main.tex and stays unnumbered in the
+supplement; it joins the paragraph before it, and the text after it when that
+text continues the sentence in lower case. Inline math ($...$) is kept, and the
+Unicode symbols in math become math commands.
+
 The IEEE copy of the bibliography is written for IEEEtran.bst, which ignores
 several fields. Software and dataset entries become misc entries. The version,
 the access date (urldate), the DOI (last, as in IEEE's reference forms) and,
@@ -30,15 +40,19 @@ The converter stops with an error instead of guessing when it meets markdown it
 does not handle: a bracketed citation with a prefix or locator, a narrative
 citation followed by a bracket, a reference to a section, table or figure that
 neither the manuscript nor the supplement has, a caption not followed by its
-table, a table without a caption, an image without a "Figure N." caption, a
-table cell, caption or heading that pandoc would read as a block, or a BibTeX
-form it does not parse (@string, @preamble, @comment, "#" concatenation or a
-macro value).
+table, a table without a caption, an image without a "Figure N." caption
+("Figure Sn." in the supplement), a figure that is not a PNG file under paper/,
+a table cell, caption or heading that pandoc would read as a block or that
+holds display math, display math outside the body text or in a ```math fence
+(GitHub's other form), a character in math that has no LaTeX mapping, or a
+BibTeX form it does not parse (@string, @preamble, @comment, "#" concatenation
+or a macro value).
 
 Arguments are KEY=VALUE pairs:
   OUT=paper/ieee        output directory (relative to the repository root)
   PANDOC=pandoc         pandoc binary (3.x)
-  ZIP=path.zip          also write an Overleaf upload zip with figures/
+  ZIP=path.zip          also write an Overleaf upload zip with the sources and
+                        the figure files they include
 
   python3 scripts/paper_to_ieee.py PANDOC=/path/to/pandoc \\
     ZIP=work/paper-ieee/jstars-overleaf.zip
@@ -50,7 +64,8 @@ import sys
 import textwrap
 import unicodedata
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from struct import unpack
 
 REPO = Path(__file__).resolve().parents[1]
 PANDOC = "pandoc"
@@ -60,8 +75,8 @@ SEP = "ZZSNIPSEPZZ"
 # The IEEE (headline-style) form of the manuscript's "Full title:" line. The
 # build stops if the two differ other than in case, so a retitled manuscript
 # cannot leave a stale title here.
-TITLE_IEEE = ("Zero-Shot Deep Tree Detectors on National-Mapping Airborne LiDAR: Small Leads Above "
-              "Chance at Native Density and No Guarantee Below the QL2 Floor")
+TITLE_IEEE = ("Choosing Tree Detectors by Point Density: A Field-Stem Benchmark for National-Mapping "
+              "Airborne LiDAR")
 
 # --------------------------------------------------------------------- helpers
 
@@ -112,7 +127,83 @@ def pandoc_snippets(snips, inline=True):
         for src, part in zip(snips, parts):
             if BLOCK_TEX.search(part):
                 raise SystemExit(f"inline snippet became a block: {src!r} -> {part!r}")
+            if any(display for _, _, display in math_spans(part)):
+                raise SystemExit(f"display math in a table cell, caption or heading: {src!r}")
     return parts
+
+
+# ------------------------------------------------------------------------ math
+
+MATH_OPEN = {"(": "\\)", "[": "\\]"}
+
+
+def math_spans(tex):
+    """[(start, end, display)] of the math in pandoc's LaTeX: \\(...\\) inline,
+    \\[...\\] display, and the equation environments made from the latter.
+    Pandoc escapes a literal backslash, bracket or parenthesis in text, so only
+    math opens these; a doubled backslash (a line break, as in \\\\[4pt])
+    opens nothing."""
+    spans, i = [], 0
+    while (j := tex.find("\\", i)) >= 0:
+        if tex[j + 1:j + 2] in MATH_OPEN:
+            close = MATH_OPEN[tex[j + 1]]
+        elif tex.startswith("\\begin{equation}", j):
+            close = "\\end{equation}"
+        else:
+            i = j + 2  # an escaped character or a control word
+            continue
+        k = j + 2
+        while not tex.startswith(close, k):
+            k = tex.find("\\", k if tex[k:k + 1] != "\\" else k + 2)
+            if k < 0:
+                raise SystemExit(f"unterminated math: {tex[j:j + 60]!r}")
+        spans.append((j, k + len(close), tex[j + 1] != "("))
+        i = k + len(close)
+    return spans
+
+
+# Math takes math commands for the symbols that text maps to $...$.
+MATH_UNICODE = {"\u2212": "-", "\u00d7": "\\times{}", "\u03c4": "\\tau{}", "\u2264": "\\leq{}",
+                "\u2265": "\\geq{}", "\u00b7": "\\cdot{}", "\u00b2": "^{2}", NBSP: "~"}
+
+
+def math_to_latex(math):
+    out = "".join(MATH_UNICODE.get(c, c) for c in math)
+    bad = next((c for c in out if ord(c) > 127), None)
+    if bad:
+        raise SystemExit(f"no LaTeX mapping for {bad!r} U+{ord(bad):04X} in math: {math!r}")
+    return out
+
+
+MATH_FENCE = re.compile(r"(?m)^[ \t]*(?:`{3,}|~{3,})[ \t]*\{?[ \t]*\.?math\b")
+
+
+def check_math_fence(md):
+    """GitHub also reads a ```math fence as display math; pandoc reads it as a
+    code listing, so the build stops instead."""
+    if MATH_FENCE.search(md):
+        raise SystemExit("a ```math fence: write display math as $$...$$")
+
+
+def display_math(tex, numbered):
+    """Display math as an equation environment (numbered, as IEEE numbers
+    displayed equations) or as \\[...\\]. A display joins the paragraph before
+    it, since a blank line there would print an empty line, and the text after
+    it when that text continues the sentence in lower case ('where ...')."""
+    out, i = [], 0
+    for start, end, _ in math_spans(tex):
+        if not tex.startswith("\\[", start):
+            continue  # inline math, or an equation environment already
+        out.append(re.sub(r"\n[ \t]*\n\s*$", "\n", tex[i:start]))
+        body = tex[start + 2:end - 2].strip()
+        out.append(f"\\begin{{equation}}\n{body}\n\\end{{equation}}" if numbered else f"\\[\n{body}\n\\]")
+        i = end
+        after = re.match(r"[ \t]*\n[ \t]*\n\s*(?=[a-z])", tex[i:])
+        if after:
+            out.append("\n")
+            i += after.end()
+    out.append(tex[i:])
+    return "".join(out)
 
 
 def roman(n):
@@ -142,8 +233,13 @@ def headline(title):
     """IEEE headline style: capitalise every word except short articles,
     conjunctions and prepositions, which stay lower case unless they open the
     title, end it or follow a colon. Words that already hold a capital, a
-    digit or an underscore, and a unit after a number (2 m, 10 pulses/m²),
-    are left as they are."""
+    digit or an underscore, a unit after a number (2 m, 10 pulses/m²) and
+    inline math ($x + y$) are left as they are."""
+    maths = re.findall(r"\$[^$]+\$", title)
+    if maths:
+        index = iter(range(len(maths)))
+        out = headline(re.sub(r"\$[^$]+\$", lambda m: f"ZZMATH{next(index)}ZZ", title))
+        return re.sub(r"ZZMATH(\d+)ZZ", lambda m: maths[int(m.group(1))], out)
     words = title.split()
 
     def cap(part):
@@ -551,7 +647,7 @@ SEPS = r"(?:,\s+(?:and\s+|or\s+)?|\s+(?:and|or|to)\s+|\s*–\s*)"
 CONT_END = r"(?!\.?\d)(?!\s*(?:m\b|km\b|%|pulses|points|pts|stems|plots|trees|cm\b|ha\b))"
 SEC_ITEM = r"S?\d+(?:\.\d+)?"
 TAB_ITEM = r"S?\d+[a-z]?"
-FIG_ITEM = r"\d+[a-z]?"
+FIG_ITEM = r"S?\d+[a-z]?"
 
 
 def convert_refs(md, mode, known=None):
@@ -561,7 +657,9 @@ def convert_refs(md, mode, known=None):
     the manuscript and the supplement (see paper_numbers); a reference to
     anything else stops the build. A plural word (Sections, Tables, Figures,
     Figs.) starts a list; after a singular one only 'or' continues it, so a
-    number in the prose after 'Table 2 and' is never read as a reference."""
+    number in the prose after 'Table 2 and' is never read as a reference. A
+    figure panel is written the IEEE way in both documents: Fig. 2d and
+    Fig. S1d become Fig. 2(d) and Fig. S1(d)."""
     def check(kind, item):
         if known is not None and item not in known[kind]:
             raise SystemExit(f"reference to {kind} {item}, which the manuscript does not have")
@@ -569,7 +667,7 @@ def convert_refs(md, mode, known=None):
     def s_check(kind, item):
         if known is None:
             return
-        pool = known[kind]
+        pool = known.get(kind, set())
         # 'Table S16' may name the group of Tables S16a, S16b and so on.
         if item in pool or (kind == "stab" and any(re.fullmatch(re.escape(item) + "[a-z]", t) for t in pool)):
             return
@@ -592,10 +690,14 @@ def convert_refs(md, mode, known=None):
         return f"\\ref{{tab:{it}}}" if mode == "main" else roman(int(it))
 
     def fig_one(it):
-        mm = re.fullmatch(r"(\d+)([a-z]?)", it)
-        check("fig", mm.group(1))
-        base = f"\\ref{{fig:{mm.group(1)}}}" if mode == "main" else mm.group(1)
-        return base + (f"({mm.group(2)})" if mm.group(2) else "")  # IEEE writes Fig. 2(d)
+        mm = re.fullmatch(r"(S?)(\d+)([a-z]?)", it)
+        if mm.group(1):
+            s_check("sfig", "S" + mm.group(2))
+            base = "S" + mm.group(2)
+        else:
+            check("fig", mm.group(2))
+            base = f"\\ref{{fig:{mm.group(2)}}}" if mode == "main" else mm.group(2)
+        return base + (f"({mm.group(3)})" if mm.group(3) else "")  # IEEE writes Fig. 2(d)
 
     def rewrite(plural, single, item_re, one, text):
         pattern = (rf"\b(?:({plural})\s+({item_re}(?:{SEPS}{item_re}{CONT_END})*)"
@@ -606,15 +708,12 @@ def convert_refs(md, mode, known=None):
             parts = re.split(f"({SEPS})", items)
             return word + NBSP + "".join(one(x) if re.fullmatch(item_re, x) else x for x in parts)
         return re.sub(pattern, repl, text)
-    supp_fig = re.search(r"\bFig(?:ure)?s?\.?\s+S\d", md)
-    if supp_fig:
-        raise SystemExit(f"{supp_fig.group(0)}: the supplement has no figures")
     md = rewrite(r"Sections", r"Section", SEC_ITEM, sec_one, md)
     md = rewrite(r"Tables", r"Table", TAB_ITEM, tab_one, md)
     return rewrite(r"Figs\.|Figures", r"Fig\.|Figure", FIG_ITEM, fig_one, md)
 
 
-def unicode_to_latex(tex):
+def text_to_latex(tex):
     tex = tex.replace("−", "$-$").replace("²", "\\textsuperscript{2}").replace("—", "---")
     tex = tex.replace("–", "--").replace("×", "$\\times$").replace("τ", "$\\tau$")
     tex = tex.replace("≤", "$\\leq$").replace("≥", "$\\geq$").replace("·", "$\\cdot$")
@@ -622,6 +721,16 @@ def unicode_to_latex(tex):
     # Any accented letter left (e.g. in a narrative author name) becomes a
     # LaTeX accent; latex_accents stops on anything it cannot map.
     return latex_accents(tex)
+
+
+def unicode_to_latex(tex):
+    """Map the Unicode left in pandoc's LaTeX: text symbols to $...$ or text
+    commands, and symbols inside math to math commands."""
+    out, i = [], 0
+    for start, end, _ in math_spans(tex):
+        out += [text_to_latex(tex[i:start]), math_to_latex(tex[start:end])]
+        i = end
+    return "".join(out) + text_to_latex(tex[i:])
 
 
 def unescape_brackets(tex):
@@ -743,17 +852,45 @@ def table_tex(num, caption_tex, header, aligns, body, mode):
 
 
 FIG_WIDTH = {}
+FIG_FILE = {}
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
-def figure_tex(num, path, caption_tex):
-    from struct import unpack
-    b = (REPO / "paper" / path).read_bytes()
-    w, h = unpack(">II", b[16:24])
-    aspect = w / h
+def figure_png(path):
+    """(file, aspect ratio) of the PNG that a figure's markdown names, relative
+    to paper/. The aspect ratio sets the printed width, and the Overleaf zip
+    keeps the path, so it must be a PNG file under paper/ with a name that
+    LaTeX reads as it is."""
+    p = PurePosixPath(path)
+    if p.is_absolute() or ".." in p.parts or not re.fullmatch(r"[A-Za-z0-9_./-]+\.png", path):
+        raise SystemExit(f"figure {path!r}: expected the path of a PNG under paper/, such as figures/figure_1.png")
+    src = REPO / "paper" / p
+    if not src.is_file():
+        raise SystemExit(f"figure file not found: {src}")
+    with src.open("rb") as f:
+        head = f.read(24)
+    w, h = unpack(">II", head[16:24]) if len(head) == 24 else (0, 0)
+    if head[:8] != PNG_SIGNATURE or head[12:16] != b"IHDR" or not (w and h):
+        raise SystemExit(f"{src} is not a PNG file")
+    return src, w / h
+
+
+def figure_tex(num, path, caption_tex, mode="main"):
+    """A figure's LaTeX: a figure* float with \\caption and \\label in the
+    manuscript. In the supplement a figure is labelled 'Figure Sn.' in the text,
+    as its tables are, so LaTeX's own numbering never shows, and it is set where
+    it stands ([H]), as its tables are: a float would drift past the tables that
+    break across pages, sections away from its text. The PDF beside the PNG is
+    included when there is one."""
+    src, aspect = figure_png(path)
     width = "\\textwidth" if aspect >= 1.6 else ("0.85\\textwidth" if aspect >= 1.3 else "0.72\\textwidth")
-    FIG_WIDTH[num] = width
-    return "\n".join(["\\begin{figure*}[!t]", "\\centering", f"\\includegraphics[width={width}]{{{path}}}",
-                      f"\\caption{{{caption_tex}}}", f"\\label{{fig:{num}}}", "\\end{figure*}"])
+    graphic = str(PurePosixPath(path).with_suffix(".pdf")) if src.with_suffix(".pdf").is_file() else path
+    FIG_WIDTH[num], FIG_FILE[num] = width, graphic
+    if mode == "main":
+        return "\n".join(["\\begin{figure*}[!t]", "\\centering", f"\\includegraphics[width={width}]{{{graphic}}}",
+                          f"\\caption{{{caption_tex}}}", f"\\label{{fig:{num}}}", "\\end{figure*}"])
+    return "\n".join(["\\begin{figure}[H]", f"{{\\centering\\includegraphics[width={width}]{{{graphic}}}\\par}}",
+                      "\\medskip", f"\\textbf{{Figure {num}.}} {caption_tex}", "\\end{figure}"])
 
 
 # ---------------------------------------------------------------- documents
@@ -769,13 +906,14 @@ def split_sections(md):
 
 
 def manuscript_numbers(md, supp_md=""):
-    """The section, table and figure numbers of the manuscript, and the section
-    and table numbers of the supplement (S1, S12c)."""
+    """The section, table and figure numbers of the manuscript, and the section,
+    table and figure numbers of the supplement (S1, S12c, S1)."""
     return {"sec": set(re.findall(r"(?m)^#{2,3} (\d+(?:\.\d+)?)\.?\s", md)),
             "tab": set(re.findall(r"(?m)^\*\*Table (\d+)\.\*\*", md)),
             "fig": set(re.findall(r"(?m)^\*\*Figure (\d+)\.\*\*", md)),
             "ssec": set(re.findall(r"(?m)^#{2,3} (S\d+)\.?\s", supp_md)),
-            "stab": set(re.findall(r"(?m)^\*\*Table (S\d+[a-z]?)\.\*\*", supp_md))}
+            "stab": set(re.findall(r"(?m)^\*\*Table (S\d+[a-z]?)\.\*\*", supp_md)),
+            "sfig": set(re.findall(r"(?m)^\*\*Figure (S\d+)\.\*\*", supp_md))}
 
 
 def paper_numbers():
@@ -785,23 +923,28 @@ def paper_numbers():
 
 TABLE_BLOCK = re.compile(r"\*\*Table (S?\d+[a-z]?)\.\*\*[ \t]*((?:(?!\n[ \t]*\n).)*?)\n[ \t]*\n"
                          r"((?:\|[^\n]*(?:\n|\Z))+)", re.S)
-FIGURE_BLOCK = re.compile(r"!\[Figure (\d+)\.\]\(([^)]+)\)[ \t]*\n[ \t]*\n\*\*Figure \1\.\*\*[ \t]*"
+FIGURE_BLOCK = re.compile(r"!\[Figure (S?\d+)\.\]\(([^)]+)\)[ \t]*\n[ \t]*\n\*\*Figure \1\.\*\*[ \t]*"
                           r"((?:(?!\n[ \t]*\n).)*)", re.S)
 
 
 def body_to_tex(md, mode, authors, known):
     """Convert a body of markdown (headings, paragraphs, tables, figures)."""
+    check_math_fence(md)
     # Links first, so headings, captions and table cells get them too.
     md = links(convert_citations(md, authors), mode)
     blocks = {}
 
     def take_figure(m):
         num, path, cap = m.group(1), m.group(2), m.group(3)
+        if (mode == "main") == num.startswith("S"):
+            where = "the manuscript's figures are Figure 1, 2" if mode == "main" else \
+                "the supplement's figures are Figure S1, S2"
+            raise SystemExit(f"Figure {num}: {where} and so on")
         tok = f"ZZFIG{num}ZZ"
         blocks[tok] = ("figure", num, path, cap)
         return f"\n\n{tok}\n\n"
     md = FIGURE_BLOCK.sub(take_figure, md)
-    if "![" in md or re.search(r"(?m)^\*\*Figure \d+\.\*\*", md):
+    if "![" in md or re.search(r"(?m)^\*\*Figure S?\d+\.\*\*", md):
         raise SystemExit("an image or figure caption is not in the '![Figure N.](path)' + '**Figure N.**' form")
 
     def take_table(m):
@@ -835,7 +978,8 @@ def body_to_tex(md, mode, authors, known):
         return f"\n\\{cmd}{{{pandoc_snippets([headline(text)])[0]}}}\n"
     md = re.sub(r"(?m)^(#{2,3}) (.*)$", heading, md)
 
-    tex = pandoc(md)
+    # IEEE numbers displayed equations; the supplement's stay unnumbered.
+    tex = display_math(pandoc(md), numbered=mode == "main")
 
     # Captions and table cells are converted after the text so their refs and
     # citations go through the same transforms.
@@ -843,7 +987,7 @@ def body_to_tex(md, mode, authors, known):
         if spec[0] == "figure":
             _, num, path, cap = spec
             cap_tex = protect_urls(pandoc_snippets([convert_refs(cap, mode, known)])[0])
-            repl = figure_tex(num, path, cap_tex)
+            repl = figure_tex(num, path, cap_tex, mode)
         else:
             _, num, cap, table = spec
             cap_tex = pandoc_snippets([convert_refs(cap, mode, known)])[0]
@@ -862,10 +1006,14 @@ def body_to_tex(md, mode, authors, known):
 def snippet(md, mode, authors, known):
     """Convert a whole section that is not part of the body (the abstract and
     the back matter)."""
+    check_math_fence(md)
     md = links(convert_refs(convert_citations(md, authors), mode, known), mode)
     if "![" in md:
         raise SystemExit("an image outside the body is not supported")
-    return unescape_brackets(unicode_to_latex(pandoc_snippets([md], inline=False)[0]))
+    tex = pandoc_snippets([md], inline=False)[0]
+    if any(display for _, _, display in math_spans(tex)):
+        raise SystemExit("display math outside the body text (abstract, back matter) is not supported")
+    return unescape_brackets(unicode_to_latex(tex))
 
 
 def front_matter(md):
@@ -1024,6 +1172,9 @@ def build_supplement(authors):
 \\renewcommand{{\\ttdefault}}{{pcr}}
 \\usepackage[margin=2cm]{{geometry}}
 \\usepackage[nocompress]{{cite}}
+\\usepackage{{amsmath}}
+\\usepackage{{graphicx}}
+\\usepackage{{float}}
 \\usepackage{{array}}
 \\usepackage{{xltabular}}
 \\usepackage{{url}}
@@ -1032,6 +1183,7 @@ def build_supplement(authors):
 \\newcolumntype{{L}}{{>{{\\raggedright\\arraybackslash}}X}}
 \\newcolumntype{{R}}{{>{{\\raggedleft\\arraybackslash}}X}}
 \\newcolumntype{{C}}{{>{{\\centering\\arraybackslash}}X}}
+\\graphicspath{{{{./}}{{../}}}}
 \\setlength{{\\parindent}}{{0pt}}
 \\setlength{{\\parskip}}{{4pt}}
 \\setlength{{\\emergencystretch}}{{3em}}
@@ -1060,14 +1212,31 @@ def build_supplement(authors):
 """
 
 
+INCLUDE_GRAPHICS = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]*)\}")
+
+
+def graphics_files(tex):
+    """The files that a LaTeX document includes with \\includegraphics, outside
+    comments, in order of first use."""
+    return list(dict.fromkeys(INCLUDE_GRAPHICS.findall(re.sub(r"(?<!\\)%.*", "", tex))))
+
+
 def write_zip(out, zip_path):
-    """Overleaf upload: the three sources at the root and figures/."""
+    """Overleaf upload: the three sources at the root and every figure file
+    that main.tex or supplement.tex includes, at the path it is included by
+    (relative to paper/, e.g. figures/figure_3.pdf)."""
+    sources = ("main.tex", "supplement.tex", "references.bib")
+    figures = list(dict.fromkeys(f for name in sources[:2]
+                                 for f in graphics_files((out / name).read_text(encoding="utf-8"))))
+    missing = [f for f in figures if not (REPO / "paper" / f).is_file()]
+    if missing:
+        raise SystemExit(f"figure files that the LaTeX includes are not under paper/: {missing}")
     zip_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
-        for name in ("main.tex", "supplement.tex", "references.bib"):
+        for name in sources:
             z.write(out / name, name)
-        for p in sorted((REPO / "paper/figures").glob("figure_*.png")):
-            z.write(p, f"figures/{p.name}")
+        for f in figures:
+            z.write(REPO / "paper" / f, f)
     return zip_path
 
 
@@ -1089,6 +1258,8 @@ def main(argv):
     out = (REPO / args.get("OUT", "paper/ieee")).resolve()
     bib_text = (REPO / "docs/references.bib").read_text(encoding="utf-8")
     authors = bib_authors(bib_text)
+    FIG_WIDTH.clear()
+    FIG_FILE.clear()
     # Build everything before writing, so a failure leaves the folder as it was.
     docs = {"references.bib": ieee_bib(bib_text), "main.tex": build_main(authors),
             "supplement.tex": build_supplement(authors)}
@@ -1098,6 +1269,7 @@ def main(argv):
     print("wrote", ", ".join(str((out / n).relative_to(REPO)) if out.is_relative_to(REPO) else str(out / n)
                             for n in docs))
     print("figure widths:", FIG_WIDTH)
+    print("figure files:", FIG_FILE)
     if "ZIP" in args:
         z = Path(args["ZIP"])
         z = z if z.is_absolute() else REPO / z
