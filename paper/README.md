@@ -54,8 +54,10 @@ use, in the Acknowledgment. Before submission:
   its seed and minimum-shift checks, the leave-out and corrected-F1 rank
   correlations, the unsmoothed-baseline sensitivity, the instance audit, the
   density routing and the redrawn figures were added after the last
-  clean-container rebuild; then deposit it and replace "DOI to be assigned at
-  deposit" in the availability statement.
+  clean-container rebuild. Run `scripts/paper_figures.R` with its default output
+  folder first, which removes the old Figure 2's data file from
+  `paper_runs/figures`. Then deposit the archive and replace "DOI to be
+  assigned at deposit" in the availability statement.
 - Decide whether the re-staged archive carries the ForestMamba runs of Section
   S23. They are not in the staged archive, as the availability statement says,
   and the one-command rebuild does not cover them; neither
