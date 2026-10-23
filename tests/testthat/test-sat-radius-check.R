@@ -49,4 +49,17 @@ test_that("grouping_counts counts grouped tree points and multi-stem instances",
   expect_equal(g[["n_inst"]], 2)
   expect_equal(g[["n_inst_2stems"]], 1)
   expect_equal(g[["n_assigned_2stems"]], 5)
+  expect_equal(g[["max_stems"]], 2)
+})
+
+test_that("log_ok wants the exact radius for a changed-radius job and none for the control", {
+  f <- tempfile(); on.exit(unlink(f))
+  writeLines(c("Input directory: /pilot/in", "sat_compat: region_grow radius 1.0181 m", "done"), f)
+  expect_true(log_ok(f, "1.0181"))
+  expect_false(log_ok(f, "1.4000"))
+  expect_false(log_ok(f, ""))
+  writeLines(c("Input directory: /pilot/in", "done"), f)
+  expect_true(log_ok(f, ""))
+  expect_false(log_ok(f, "1.0181"))
+  expect_false(log_ok(file.path(tempdir(), "no-such.log"), ""))
 })

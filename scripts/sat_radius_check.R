@@ -7,9 +7,13 @@
 # widens that radius with the clip's mean point spacing and asks whether the
 # detector's collapse goes away.
 #
-#   Rscript scripts/sat_radius_check.R MODE=prep  [RUNS=<paper job dir>] [OUT=...]
+#   Rscript scripts/sat_radius_check.R MODE=prep  RUNS=<paper job dir> [OUT=...]
 #   bash gpu/run_sat_radius_check.sh <OUT> [PARALLEL]
-#   Rscript scripts/sat_radius_check.R MODE=score [RUNS=<paper job dir>] [OUT=...]
+#   Rscript scripts/sat_radius_check.R MODE=score RUNS=<paper job dir> [OUT=...]
+#
+# RUNS, the job directory of the paper runs (work/paper_runs, its sealed root at
+# neon/frozen_2021), is required and read only; OUT defaults to
+# $CLAUDE_JOB_DIR/sat_radius_check and MODE to score.
 #
 # Cells: 10 California plots of the adopted population, per site evenly spaced
 # in plot-ID order among the plots with zero-shot results at both levels (SJER
@@ -19,17 +23,19 @@
 # the cell widened to the spacing); `double`, twice that; and `default`, the
 # upstream radius on two cells, a control. MODE=prep exports the fixed
 # evaluation clips of the sealed root as PLY and writes manifest.csv and
-# jobs.tsv under a fresh OUT. MODE=score scores each job as
+# jobs.tsv under a fresh (missing or empty) OUT. MODE=score checks each job's
+# log (the radius it ran with, or no override for the control) and scores it as
 # detect_segmentanytree_sweep.R scores a cell (instance apexes, height above
 # the clip DTM, 4 m on the plot core) with the paper's 200-shift chance null,
 # and compares with RUNS's zero-shot SegmentAnyTree, ForestFormer3D, multichm
 # and CHM-VWF rows and null cells on the same cells: pooled summed counts,
-# paired plot-bootstrap intervals (2,000 draws) over the 10 plots. RUNS (the
-# job directory of the paper runs, its sealed root at neon/frozen_2021) is read
-# only. Writes under OUT: scores.csv (one row per job and per comparison cell),
-# control.csv, summary.csv (pooled per level and arm), contrasts.csv and
-# grouping.csv (core points grouped into instances, and the instances whose
-# outline holds two or more mapped stems, pooled per level and arm).
+# paired plot-bootstrap intervals (2,000 draws) over the 10 plots. It stops
+# when the control does not reproduce the paper's rows. Writes under OUT:
+# scores.csv (one row per job and per comparison cell), control.csv,
+# summary.csv (pooled per level and arm), contrasts.csv and grouping.csv (core
+# points grouped into instances, and the instances whose outline holds two or
+# more mapped stems, pooled per level and arm, with the zero-shot clouds of the
+# same plots at native density and at 8 and 4 points/m2 as a baseline).
 suppressMessages({ library(lidR); library(data.table) })
 options(lidR.progress = FALSE)
 d <- Sys.getenv("CLAUDE_JOB_DIR", file.path(getwd(), "work"))
@@ -44,7 +50,7 @@ source(.find("sweep_lib.R")); source(.find("model_bench_lib.R")); source(.find("
 args <- strsplit(commandArgs(TRUE), "=")
 A    <- setNames(lapply(args, `[`, 2), sapply(args, `[`, 1))
 MODE <- if (is.null(A$MODE)) "score" else A$MODE
-RUNS <- if (is.null(A$RUNS)) d else A$RUNS
+RUNS <- A$RUNS
 OUT  <- if (is.null(A$OUT)) file.path(d, "sat_radius_check") else A$OUT
 NPLOT <- c(SJER = 2L, SOAP = 4L, TEAK = 4L)
 RUNGS <- c(2, 1)
@@ -58,7 +64,8 @@ SEED   <- 20261023L
 sat_radius <- function(pdens, k, grid = GRID) k * pmax(grid, 1 / sqrt(pdens))
 
 prep <- function() {
-  if (dir.exists(file.path(OUT, "in"))) stop("inputs exist under ", OUT, "; use a fresh OUT")
+  if (dir.exists(OUT) && length(list.files(OUT, all.files = TRUE, no.. = TRUE)))
+    stop(OUT, " is not empty; use a fresh OUT")
   dir.create(file.path(OUT, "in"), recursive = TRUE)
   rows <- list()
   for (site in names(NPLOT)) {
@@ -136,7 +143,7 @@ in_polygon <- function(px, py, vx, vy) {
   inside
 }
 GROUP_KEYS <- c("n_core", "n_tree", "n_tree_assigned", "n_assigned", "n_inst",
-                "n_inst_2stems", "n_assigned_2stems")
+                "n_inst_2stems", "n_assigned_2stems", "max_stems")
 grouping_counts <- function(las, cx, cy, ph, stems) {
   p <- suppressWarnings(lidR::readLAS(las))@data
   core <- abs(p$X - cx) <= ph & abs(p$Y - cy) <= ph
@@ -153,7 +160,18 @@ grouping_counts <- function(las, cx, cy, ph, stems) {
   multi <- unique(ids)[n_stems >= 2]
   c(n_core = sum(core), n_tree = sum(tree), n_tree_assigned = sum(tree & grouped),
     n_assigned = length(ids), n_inst = length(unique(ids)),
-    n_inst_2stems = length(multi), n_assigned_2stems = sum(ids %in% multi))
+    n_inst_2stems = length(multi), n_assigned_2stems = sum(ids %in% multi),
+    max_stems = if (length(n_stems)) max(n_stems) else 0L)
+}
+
+# A job's log holds the shim's line for exactly its radius; the control's log
+# holds no override line.
+SHIM_LINE <- "sat_compat: region_grow radius"
+log_ok <- function(log, radius) {
+  if (!file.exists(log)) return(FALSE)
+  txt <- readLines(log, warn = FALSE)
+  if (nzchar(radius)) any(grepl(sprintf("%s %s m", SHIM_LINE, radius), txt, fixed = TRUE))
+  else !any(grepl(SHIM_LINE, txt, fixed = TRUE))
 }
 
 f1 <- function(TP, n_ref, tp_core, n_det) {
@@ -185,6 +203,8 @@ score <- function() {
   for (i in seq_len(nrow(jobs))) {
     las <- file.path(OUT, "out", paste0(jobs$job[i], ".las"))
     if (!file.exists(las)) stop("no output for job ", jobs$job[i], "; run gpu/run_sat_radius_check.sh")
+    if (!log_ok(file.path(OUT, "logs", paste0(jobs$job[i], ".log")), jobs$radius[i]))
+      stop("the log of job ", jobs$job[i], " does not show the radius it should have run with")
     cell <- sub("__.*$", "", jobs$job[i]); arm <- sub("^.*__", "", jobs$job[i])
     c1 <- m[m$cell == cell, ]
     det_abs <- read_instances_laz(las, id_field = "PredInstance")
@@ -250,7 +270,8 @@ score <- function() {
     logical(1))
   write.csv(z, file.path(OUT, "control.csv"), row.names = FALSE)
   cat("== control: upstream radius re-run against the paper's rows\n"); print(z, digits = 4)
-  if (!all(z$identical)) warning("the control does not reproduce the paper's rows")
+  if (nrow(z) != sum(S$arm == "default") || !all(z$identical))
+    stop("the control does not reproduce the paper's rows (control.csv); the check is void")
 
   arms <- c("zero_shot", "scaled", "double", "forestformer3d", "multichm", "chm_vwf")
   out <- list(); boot <- list(); grp <- list()
@@ -261,7 +282,7 @@ score <- function() {
       x <- A[A$rung == rg & A$arm == a & A$plot %in% plots, ]
       out[[length(out) + 1L]] <- data.frame(rung = rg, arm = a, t(pool(x)))
       if (a %in% c("zero_shot", "scaled", "double")) {
-        s <- colSums(x[, GROUP_KEYS])
+        s <- colSums(x[, GROUP_KEYS]); s[["max_stems"]] <- max(x$max_stems)
         grp[[length(grp) + 1L]] <- data.frame(rung = rg, arm = a, t(s),
           tree_share = s[["n_tree"]] / s[["n_core"]],
           assigned_of_tree = s[["n_tree_assigned"]] / s[["n_tree"]],
@@ -291,6 +312,25 @@ score <- function() {
         corr_upper = quantile(dd[2, ], 0.975, na.rm = TRUE))
     }
   }
+  # Baseline: the paper's zero-shot clouds of the same plots at the denser levels.
+  pl <- m[!duplicated(m$plot), ]
+  for (rg in c("native", "8", "4")) {
+    x <- t(vapply(seq_len(nrow(pl)), function(i) {
+      las <- file.path(RUNS, "neon", pl$site[i], "segmentanytree_instances",
+                       sprintf("%s_%s.laz", pl$plot[i], rg))
+      if (!file.exists(las)) stop("no zero-shot instance cloud ", las)
+      grouping_counts(las, pl$cx[i], pl$cy[i], pl$ph[i],
+                      stems_of(pl$site[i], pl$plot[i], pl$cx[i], pl$cy[i], pl$ph[i]))
+    }, numeric(length(GROUP_KEYS))))
+    colnames(x) <- GROUP_KEYS
+    s <- colSums(x); s[["max_stems"]] <- max(x[, "max_stems"])
+    grp[[length(grp) + 1L]] <- data.frame(rung = rg, arm = "zero_shot", t(s),
+      tree_share = s[["n_tree"]] / s[["n_core"]],
+      assigned_of_tree = s[["n_tree_assigned"]] / s[["n_tree"]],
+      points_per_instance = s[["n_assigned"]] / s[["n_inst"]],
+      share_inst_2stems = s[["n_inst_2stems"]] / s[["n_inst"]],
+      share_assigned_2stems = s[["n_assigned_2stems"]] / s[["n_assigned"]])
+  }
   P <- do.call(rbind, out); B <- do.call(rbind, boot); G <- do.call(rbind, grp)
   rownames(P) <- rownames(B) <- rownames(G) <- NULL
   write.csv(P, file.path(OUT, "summary.csv"), row.names = FALSE)
@@ -302,5 +342,6 @@ score <- function() {
 }
 
 if (sys.nframe() == 0L) {
+  if (is.null(RUNS)) stop("RUNS=<job directory of the paper runs> is required")
   switch(MODE, prep = prep(), score = score(), stop("MODE must be prep or score"))
 }

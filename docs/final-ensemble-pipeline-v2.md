@@ -12,6 +12,15 @@ artifacts remain byte-identical for historical replay. The
 original detector runs; the changes here neither rerun them nor retune methods.
 The supported population and scientific limits remain unchanged.
 
+Two files of the sealed execution core have since changed, so the receipts'
+code hashes no longer match the repository: `scripts/fgiemit_pilot_cell.R`,
+edited on 5 October 2026 for the thinned-cell scoring, and
+`gpu/sat_compat/usercustomize.py`, which gained an opt-in grouping radius for
+the [SegmentAnyTree radius check](../results/segmentanytree-radius-results.md)
+on 23 October 2026 and behaves as before when `SAT_CLUSTER_RADIUS` is unset.
+Verify or replay the accepted runs from a checkout in which these two files
+have their sealed SHA-256 hashes, beginning `e0c49bfc` and `d2e14b9d`.
+
 ## Reuse accepted inference
 
 Run from the repository root with the existing Python environment. Choose a

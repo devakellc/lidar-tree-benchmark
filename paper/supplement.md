@@ -599,9 +599,9 @@ spacing (1.0 to 2.9 m; Table S15) on ten California plots at 1.3 and 0.6
 pulses/m², and F1 changed by −0.019 to +0.027, every paired interval including
 zero. The larger radius grouped 0.40 of the tree points at 0.6 pulses/m² instead
 of 0.05, but about half of the grouped points then lay in instances holding two
-or more mapped stems, so it merged trees, and the fixed radius alone does not
-explain the collapse. Source: [radius
-check](../results/segmentanytree-radius-results.md).
+or more mapped stems, against 0.14 with the upstream radius at native density,
+so it merged trees, and the fixed radius alone does not explain the collapse.
+Source: [radius check](../results/segmentanytree-radius-results.md).
 
 TreeisoNet's apexes below 2 m are at most 0.3% at any density level and
 SegmentAnyTree has none. Scoring ForestFormer3D's apexes below 2 m as removed
