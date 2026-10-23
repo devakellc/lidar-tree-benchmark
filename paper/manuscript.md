@@ -1095,13 +1095,14 @@ degrade gracefully. The persisted outputs locate the failure (Table S18). From
 native density to 0.6 pulses/m² SegmentAnyTree's semantic head still labels 70
 to 89% of the core points as tree, but the share of those points grouped into an
 instance falls from 0.86 to 0.05 and the mean core instance from 272 to 13
-points. ForestFormer3D keeps 0.67 to 0.55 of its core points in instances.
-SegmentAnyTree groups points with a 0.3 m search radius on a 0.2 m grid, while
-the mean point spacing grows from 0.24 m at native density to 0.53 m at the QL2
-level and 0.95 m at 0.6 pulses/m². It is the grouping stage, not the learned
-semantics, that fails; ForestFormer3D's mask decoder, which keeps instances of
-at least 10 points, degrades with the point count instead. The coarse voxels of
-TreeisoNet's localisation pass aggregate sparse returns, consistent with its
+points. ForestFormer3D keeps 0.67 to 0.55 of its core points in instances. It is
+the grouping stage, not the learned semantics, that fails, and not through its
+fixed 0.3 m search radius alone: in a post hoc check on ten California plots,
+radii scaled to the point spacing grouped more tree points but merged
+neighbouring trees, and F1 changed by −0.02 to +0.03, within intervals that
+include zero (Section S18). ForestFormer3D's mask decoder, which keeps instances
+of at least 10 points, degrades with the point count instead. The coarse voxels
+of TreeisoNet's localisation pass aggregate sparse returns, consistent with its
 flat response. Ablations by the model authors would settle the mechanisms.
 
 ### 6.3 The dense benchmark and integration defects
@@ -1218,8 +1219,9 @@ also uses public-domain USGS 3DEP point clouds [@usgs2026usgs]. The fixed
 evaluation clips, field-stem references, plot populations, per-cell results and
 persisted detections, checkpoint hashes and container image identifiers are
 archived at Zenodo (DOI to be assigned at deposit), with a script that rebuilds
-every table from the archive, the density-routing analysis included; the
-ForestMamba run of Section S23 is not in the archive. The code is available at
+every table from the archive, the density-routing analysis included; the radius
+check of Section S18 and the ForestMamba run of Section S23 are not in the
+archive. The code is available at
 <https://github.com/devakellc/lidar-tree-benchmark> under the MIT licence.
 Third-party models are used under their own licences and are not redistributed;
 the archive lists their sources, versions and SHA-256 hashes, and the repository

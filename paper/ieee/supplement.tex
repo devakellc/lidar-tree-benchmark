@@ -965,17 +965,26 @@ ForestFormer3D & 0.6 & --- & 0.55 & --- & 3243 & 18 & 18 & 5.8\% \\
 }
 
 SegmentAnyTree's semantic head keeps labelling most core points as tree while
-its instance grouping empties, consistent with a fixed 0.3 m clustering radius
-on clouds whose mean point spacing grows to 0.95 m (Table~S15); ForestFormer3D
-keeps grouping but with ever smaller instances. TreeisoNet's apexes below 2 m
-are at most 0.3\% at any density level and SegmentAnyTree has none. Scoring
-ForestFormer3D's apexes below 2 m as removed would raise its five-site F1 by
-+0.002 at native density and by +0.004, +0.007, +0.011 and +0.013 at the density
-levels of Table~S18a from 4.7 to 0.6 pulses/m\textsuperscript{2}, recomputed from the pooled
-counts. In the order by F1 of Table~IV of the manuscript it would lift
-ForestFormer3D to a nominal second at 1.3 pulses/m\textsuperscript{2} (0.449 against TreeisoNet's
-0.444 and \texttt{multichm}'s 0.440) and to a nominal third at 0.6 pulses/m\textsuperscript{2}, 0.0002
-above \texttt{multichm}; the order at the other density levels is unchanged.
+its instance grouping empties; ForestFormer3D keeps grouping but with ever
+smaller instances. A check run after the tables were fixed widened
+SegmentAnyTree's clustering radius from 0.3 m to 1.5 and 3 times the mean point
+spacing (1.0 to 2.9 m; Table~S15) on ten California plots at 1.3 and 0.6
+pulses/m\textsuperscript{2}, and F1 changed by $-$0.019 to +0.027, every paired interval including
+zero. The larger radius grouped 0.40 of the tree points at 0.6 pulses/m\textsuperscript{2} instead
+of 0.05, but about half of the grouped points then lay in instances holding two
+or more mapped stems, so it merged trees, and the fixed radius alone does not
+explain the collapse. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/segmentanytree-radius-results.md}{radius
+check}.
+
+TreeisoNet's apexes below 2 m are at most 0.3\% at any density level and
+SegmentAnyTree has none. Scoring ForestFormer3D's apexes below 2 m as removed
+would raise its five-site F1 by +0.002 at native density and by +0.004, +0.007,
++0.011 and +0.013 at the density levels of Table~S18a from 4.7 to 0.6 pulses/m\textsuperscript{2},
+recomputed from the pooled counts. In the order by F1 of Table~IV of the
+manuscript it would lift ForestFormer3D to a nominal second at 1.3 pulses/m\textsuperscript{2}
+(0.449 against TreeisoNet's 0.444 and \texttt{multichm}'s 0.440) and to a nominal third
+at 0.6 pulses/m\textsuperscript{2}, 0.0002 above \texttt{multichm}; the order at the other density levels
+is unchanged.
 SegmentAnyTree returned no core detection in 2 of the 106 plots at 1.3 pulses/m\textsuperscript{2}
 and in 19 at 0.6; ForestFormer3D, \texttt{ptrees} and AMS3D each in one plot at 0.6.
 

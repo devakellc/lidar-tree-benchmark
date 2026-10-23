@@ -69,6 +69,11 @@ use, in the Acknowledgment. Before submission:
   hashes, because `scripts/stage_archive.sh` copies
   `docs/model-provenance.json` into the archive, which would then list them
   too.
+- The SegmentAnyTree radius check of Section S18 was run after the tables were
+  fixed and, like the ForestMamba runs, is not in the staged archive, as the
+  availability statement says; its instance clouds rebuild with the commands
+  of its report and a GPU. If the re-staged archive carries it, drop it from
+  that clause.
 - ForestMamba stays outside the result tables, figures, abstract counts and
   density routing by design, and Section S23 says so: adding it to Table 4 or
   Figure 4 would re-open the rank statistics of Sections 4.4 and 5.2, which are
@@ -103,6 +108,7 @@ generated tables that report documents. The archive rebuilds those tables with
 | 4.2, 5.1–5.4 Chance agreement | [matcher robustness](../results/matcher-robustness-results.md#chance-agreement) |
 | 4.1, 5.2, 6.1, 6.4 Baseline smoothing sensitivity | [baseline smoothing sensitivity](../results/baseline-smoothing-sensitivity-results.md) |
 | 3.1, 4.1, 6.2 Stands, apex floor, instance assignment | [instance audit](../results/instance-audit-results.md) |
+| 6.2 Grouping radius check (Section S18) | [radius check](../results/segmentanytree-radius-results.md) |
 | 4.3, 5.5 Reference completeness | [censused subplots](../results/census-support-results.md), [coverage gap](../results/coverage-gap-results.md) |
 | 4.5, 5.3 Regions | [configuration provenance](../docs/configuration-provenance.md), [master tables](../results/master-tables-results.md), [density ladder](../results/density-ladder-sweep-results.md) |
 | 4.4, 5.1, 5.2, 5.4 Accuracy, density, rank stability, crown classes | [master tables](../results/master-tables-results.md), [model comparison](../results/model-benchmark-results.md) |

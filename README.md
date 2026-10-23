@@ -104,7 +104,8 @@ on the three-site population are described under
 | Density ladder | How does accuracy change from native density to 0.6 pulses/m²? | 5 NEON sites, 106 plots, 2,525 stems; 8 detectors at 6 densities | ForestFormer3D loses 0.08 F1 over the ladder and TreeisoNet stays flat; SegmentAnyTree falls from 0.495 to 0.128; below native density the leads over CHM-VWF rest on its smoothing rule (next row) | [master tables](results/master-tables-results.md#headline-tables), [model comparison](results/model-benchmark-results.md#five-sites-every-arm-paper-numbers) |
 | Baseline smoothing | Does CHM-VWF's sub-8 pulses/m² smoothing rule drive the sparse-density leads? | CHM-VWF re-run without the rule on the four decimated rungs other than the QL2 rung; post hoc | The rule costs CHM-VWF 0.06–0.07 F1 on each rung; against the unsmoothed baseline the leads of ForestFormer3D, TreeisoNet and `multichm` below native density, and SegmentAnyTree's at 4.7 and 2.5 pulses/m², are −0.013 to +0.024 (only the two segmenters' at 4.7 pulses/m² exclude zero, both weakly); the headline keeps the declared rule | [baseline smoothing](results/baseline-smoothing-sensitivity-results.md) |
 | QL2 floor | On which side of 2 pulses/m² does each detector change? | A sixth rung at 2.0 pulses/m², declared and frozen in its own root | SegmentAnyTree is level with the leaders at the floor, having lost almost a quarter of its recall, and collapses below it; native rank predicts rank down to the floor (Spearman 0.71) and not below (−0.05), and the break survives the chance correction | [QL2 rung](results/master-tables-results.md#the-ql2-rung), [rank stability](results/master-tables-results.md#rank-stability-across-density), [chance agreement](results/matcher-robustness-results.md#chance-agreement) |
-| Collapse mechanism | Why does SegmentAnyTree collapse below the QL2 floor? | Persisted instance clouds of the two segmenters at native density and the four decimated rungs other than the QL2 rung | Its semantic head still labels 70–89% of core points as tree, but the share of them grouped into instances falls from 0.86 to 0.05: a 0.3 m grouping radius against a point spacing that grows to 0.95 m | [instance audit](results/instance-audit-results.md) |
+| Collapse mechanism | Why does SegmentAnyTree collapse below the QL2 floor? | Persisted instance clouds of the two segmenters at native density and the four decimated rungs other than the QL2 rung | Its semantic head still labels 70–89% of core points as tree, but the share of them grouped into instances falls from 0.86 to 0.05; its fixed 0.3 m grouping radius does not explain the collapse alone (next row) | [instance audit](results/instance-audit-results.md) |
+| Grouping radius check | Does widening SegmentAnyTree's grouping radius with the point spacing restore it on sparse clouds? | 10 California plots at 2 and 1 point/m²; radius 1.5 and 3 times the mean point spacing (1.0–2.9 m) against the upstream 0.3 m; post hoc, outside the tables (Section S18 of the supplement) | No: F1 changes by −0.019 to +0.027, every interval including zero; the wider radius groups more tree points but merges trees, about half of the grouped points then lying in instances that hold two or more mapped stems | [radius check](results/segmentanytree-radius-results.md) |
 | Chance agreement | How much F1 do randomly shifted detections earn? | 200 shared random shifts per plot on every rung, 4 m and 2 m radius | At native density the null reaches 70–79% of every detector's F1 at 4 m (67–79% below native density), and the two segmenters' corrected leads at 4 or 2 m are 0.00–0.03; below native density, positive corrected leads that exclude zero at 4 m appear only for SegmentAnyTree at 4.7 and 2.5 pulses/m² (+0.053, and +0.033 weakly) and ForestFormer3D at 4.7 pulses/m² (+0.041) | [matcher robustness](results/matcher-robustness-results.md#chance-agreement) |
 | Regions | Do the California findings replicate in Washington? | 43 California plots (development), 63 Washington plots (replication) | At native density the two segmenters lead CHM-VWF by about 0.09 in California and 0.03 in Washington (weak contrasts), and above chance only in California; `multichm` and DeepForest lead only in California; at 4.7 pulses/m² the two segmenters' corrected leads do not separate the regions | [regions](results/master-tables-results.md#development-and-replication-regions), [chance agreement](results/matcher-robustness-results.md#chance-agreement) |
 | Population rule | Do the leads depend on the DBH floor or the six-tree plot rule? | Populations without the 10 cm DBH floor (116 plots, 2,854 stems) and without the six-tree rule (149 plots, 2,628 stems) | At native density ForestFormer3D's lead holds in both (+0.038, and +0.033 weakly) and SegmentAnyTree's without the DBH floor (+0.035, weakly); SegmentAnyTree's inference fails on one clip of the other population | [sensitivity populations](results/master-tables-results.md#sensitivity-populations) |
@@ -167,14 +168,15 @@ reference stems.*
   at 0.6 pulses/m², but corrected for chance those leads are −0.008 to +0.021,
   and against CHM-VWF run without its sub-8 pulses/m² smoothing (a post hoc
   sensitivity on the four decimated rungs other than the QL2 rung) they are
-  within 0.03 of zero; see the
-  [baseline smoothing
+  within 0.03 of zero; see the [baseline smoothing
   sensitivity](results/baseline-smoothing-sensitivity-results.md).
   SegmentAnyTree's collapse is a failure of its instance grouping, not of its
-  semantic head ([instance audit](results/instance-audit-results.md)). Native
-  rank predicts rank down to the QL2 floor (Spearman 0.71) and not below (−0.05
-  at 1.3 pulses/m²); SegmentAnyTree and AMS3D carry the break, and without them
-  the other six keep 0.54.
+  semantic head ([instance audit](results/instance-audit-results.md)), and
+  widening its grouping radius with the point spacing does not restore it
+  ([radius check](results/segmentanytree-radius-results.md)). Native rank
+  predicts rank down to the QL2 floor (Spearman 0.71) and not below (−0.05 at
+  1.3 pulses/m²); SegmentAnyTree and AMS3D carry the break, and without them the
+  other six keep 0.54.
 - CHM-VWF is flat across density on the California sites but loses
   0.07–0.10 F1 in Washington; one density curve does not describe every site.
   See the [density-ladder study](results/density-ladder-sweep-results.md).
@@ -487,6 +489,7 @@ comparison and larger-area experiments.
 | Precision inside censused subplots | [Censused-subplot study](results/census-support-results.md) and its reviewed declarations under `docs/` |
 | NEON field-stem density ladder | [Density-ladder study](results/density-ladder-sweep-results.md) and [cross-model comparison](results/model-benchmark-results.md) |
 | ForestMamba arm, outside the paper's twelve | [ForestMamba benchmark](results/forestmamba-results.md) and its [Blackwell runtime](gpu/forestmamba-sm120/README.md) |
+| SegmentAnyTree grouping-radius check, outside the tables | [Radius check](results/segmentanytree-radius-results.md) |
 | Crown diameters and segmentation | [Crown benchmark](results/crown-segmentation-results.md) |
 | Paired optical/LiDAR fusion | [RGB-LiDAR comparison](results/rgb-lidar-fusion-results.md) and [confidence calibration](results/confidence-calibration-results.md) |
 | Native FGI-EMIT products | [Current execution guide](docs/final-ensemble-pipeline-v2.md) and [development/reserve results](results/final-ensemble-pipeline-results.md) |
@@ -537,6 +540,7 @@ scripts and configuration.
 | Point-cloud understory detection | [detect_pc_sweep.R](scripts/detect_pc_sweep.R), [detect_pc_ladder.R](scripts/detect_pc_ladder.R) |
 | Cross-model detection analysis | [analyze_model_benchmark.R](scripts/analyze_model_benchmark.R), [compare_model_sites.R](scripts/compare_model_sites.R) |
 | ForestMamba arm | [detect_forestmamba_sweep.R](scripts/detect_forestmamba_sweep.R), [analyze_forestmamba.R](scripts/analyze_forestmamba.R), [gpu/forestmamba-sm120](gpu/forestmamba-sm120/README.md) |
+| SegmentAnyTree grouping-radius check | [sat_radius_check.R](scripts/sat_radius_check.R), [run_sat_radius_check.sh](gpu/run_sat_radius_check.sh), the opt-in radius of [gpu/sat_compat](gpu/sat_compat/usercustomize.py) |
 | Crown-diameter evaluation | [crown_metrics_sweep.R](scripts/crown_metrics_sweep.R), [crown_metrics_3d.R](scripts/crown_metrics_3d.R), [crown_metrics_deepmodel.R](scripts/crown_metrics_deepmodel.R), [analyze_crown_metrics.R](scripts/analyze_crown_metrics.R) |
 | Instance masks, credited F1 and re-scoring | [score_instances_iou.R](scripts/score_instances_iou.R), [compare_matching_rules.R](scripts/compare_matching_rules.R), [coverage_gap.R](scripts/coverage_gap.R), [export_best_treetops_geojson.R](scripts/export_best_treetops_geojson.R), [rescore_population.R](scripts/rescore_population.R), [compare_adapter_reruns.R](scripts/compare_adapter_reruns.R) |
 | Calibration/validation and the historical sensitivity studies | [calval_split.R](scripts/calval_split.R), [matcher_robustness.R](scripts/matcher_robustness.R), [mc_positional_uncertainty.R](scripts/mc_positional_uncertainty.R), [temporal_sensitivity.R](scripts/temporal_sensitivity.R) |
