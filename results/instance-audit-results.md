@@ -52,7 +52,11 @@ floor would have removed (CHM-VWF has a 2 m floor by construction).
   instance grouping, not of the learned semantics: the model groups points with
   a search radius of 1.5 grid cells (0.3 m at its 0.2 m grid), and the mean
   point spacing of the clouds grows from 0.24 m at native density to 0.53 m at
-  the QL2 rung and 0.95 m at 0.6 pulses/m².
+  the QL2 rung and 0.95 m at 0.6 pulses/m². A later check widened that radius
+  with the point spacing and did not restore the detections: the wider of its
+  two radii grouped more of the tree points but merged neighbouring trees, so
+  the fixed radius does not explain the collapse alone ([radius
+  check](segmentanytree-radius-results.md)).
 - ForestFormer3D keeps grouping: 0.67 to 0.55 of its core points stay in
   instances, with 278 to 18 points each; its mask decoder keeps instances of at
   least 10 points, so it degrades with the point count instead of collapsing.
