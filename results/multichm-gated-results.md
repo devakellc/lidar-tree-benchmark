@@ -73,7 +73,12 @@ plots 82 of the 86 non-stock grid configurations score above stock in corrected
 F1 (median +0.019; 32 intervals lie above zero and none below), and the
 selected one (+0.034) ranks fifth of the 87 configurations. What the validation
 half does test is whether the calibration ranking carries over: across the grid
-the calibration and validation changes correlate at 0.81. An untouched test
+the calibration and validation changes correlate at 0.81. Those figures are the
+default split's, which is on the favourable side. Over the 200 splits of the
+[Stability](#stability) section the correlation has a median of 0.68 (0.48 to
+0.81 for the middle 80% of the splits), a split's own selection ranks at a
+median of 10th of 87 on its validation half, and a median of 79 of the 86
+configurations score above stock there (38 at the fewest). An untouched test
 needs plots outside these five sites.
 
 ## Held-out scores
@@ -81,7 +86,10 @@ needs plots outside these five sites.
 Validation plots only, the declared configuration against stock `multichm`,
 nominal plot core. Intervals are paired plot-bootstrap percentiles (1,000 draws,
 plots resampled within site, the same draws for both arms and for observed and
-null counts). "Corrected" means corrected for chance as above.
+null counts). They are not adjusted for the number of contrasts. With 1,000
+draws the Monte Carlo standard error of a bound is about 2% of the interval's
+width, and a bound that close to zero is read below as sitting on zero.
+"Corrected" means corrected for chance as above.
 
 At native density (9.8 pulses/m²):
 
@@ -121,22 +129,24 @@ the difference between the regions (both regions resampled together):
   +0.042], which does not exclude zero.
 - The change is +0.044 [+0.008, +0.074] in Washington and +0.013 [−0.006,
   +0.028] in California. The difference between the regions, +0.030 [−0.008,
-  +0.064], includes zero at native density; down the ladder it excludes zero at
-  4.7 and 0.6 pulses/m². At native density 61 of the 63 Washington plots are
-  closed at a cover of 0.6, against 8 of the 43 California plots.
+  +0.064], includes zero at native density. Down the ladder it excludes zero
+  at 0.6 pulses/m² only; at 4.7 pulses/m² its lower bound sits on zero
+  (+0.001). At native density 61 of the 63 Washington plots are closed at a
+  cover of 0.6, against 8 of the 43 California plots.
 - The two Washington sites move in opposite directions. At WREF, old-growth
-  Douglas-fir and western hemlock, the arm keeps 404 of 675 detections:
-  corrected precision rises by 0.136 and corrected recall falls by 0.048 [0.002,
-  0.119]. At ABBY, managed Douglas-fir, it places 530 detections against 415:
-  corrected recall rises by 0.165 [0.062, 0.287]. The unchanged pooled recall
-  is the sum of these two changes. Only ABBY's change in corrected F1 excludes
-  zero among the larger sites; SJER's validation half holds 3 plots, too few
-  for its interval to carry weight.
+  Douglas-fir and western hemlock, the arm places 404 detections against 675:
+  corrected precision rises by 0.136 and corrected recall falls by 0.048, with
+  the bound of its interval on zero ([0.002, 0.119]). At ABBY, managed
+  Douglas-fir, it places 530 detections against 415: corrected recall rises by
+  0.165 [0.062, 0.287]. The two offset in the pool, where Washington's
+  corrected recall changes by +0.012 [−0.036, +0.052]. Only ABBY's change in
+  corrected F1 excludes zero among the larger sites; SJER's validation half
+  holds 3 plots, too few for its interval to carry weight.
 - Down the ladder the five-site change stays positive (+0.012 to +0.042) and
   excludes zero at 2.5 and 0.6 pulses/m² as well as at native density.
   California's change is negative on three of the four decimated rungs (−0.009
-  to −0.013), never excluding zero, with lower corrected recall (−0.063
-  [−0.119, −0.029] at 4.7 pulses/m²).
+  to −0.013), none of the three excluding zero, with lower corrected recall
+  (−0.063 [−0.119, −0.029] at 4.7 pulses/m²).
 - At 0.6 pulses/m² the arm places more detections than stock (1,608 against
   1,371): the exemption admits more surface peaks than the gate removes.
   Corrected recall rises by 0.066 [+0.033, +0.101] there and corrected precision
@@ -147,7 +157,8 @@ the difference between the regions (both regions resampled together):
   score: 57 of those plots selected the configuration. By site it changes the
   detection count from 1,312 to 791 at WREF, 894 to 1,125 at ABBY, 388 to 342
   at SOAP, 385 to 329 at TEAK and 178 to 146 at SJER. On the 38 WREF plots
-  plain F1 falls by 0.029 [0.001, 0.062].
+  plain F1 falls by 0.029, with the bound of its interval on zero ([0.001,
+  0.062]).
 
 ## What each part does
 
@@ -162,18 +173,28 @@ against stock `multichm` (1,472 detections):
 | Exemption only | 1,682 | +0.023 [+0.008, +0.040] | +0.015 [+0.003, +0.027] | +0.000 [−0.012, +0.010] | +0.059 [+0.035, +0.087] |
 | All three (declared) | 1,264 | +0.015 [−0.012, +0.042] | +0.034 [+0.005, +0.059] | +0.050 [+0.020, +0.079] | +0.003 [−0.033, +0.036] |
 
-Then what each part adds to the other two: the declared configuration against
-the declared configuration without that part.
+Then what each part adds: the declared configuration against a reduction of
+it. The first three rows take one part away. The cover switch row applies the
+same share gate and exemption in every stand (`cover_min` 0). The last row
+reduces the declared configuration to its floor alone.
 
-| Part | Detections, with / without | Change in F1 | Change in corrected F1 | Change in corrected precision | Change in corrected recall |
+| Part | Detections, declared / reduced | Change in F1 | Change in corrected F1 | Change in corrected precision | Change in corrected recall |
 | --- | --- | --- | --- | --- | --- |
 | Floor | 1,264 / 1,325 | +0.009 [+0.005, +0.013] | +0.008 [+0.004, +0.013] | +0.014 [+0.007, +0.023] | −0.001 [−0.005, +0.002] |
 | Share gate | 1,264 / 1,575 | −0.022 [−0.041, −0.005] | +0.007 [−0.018, +0.027] | +0.034 [+0.012, +0.061] | −0.053 [−0.085, −0.027] |
 | Exemption | 1,264 / 965 | +0.035 [+0.013, +0.058] | +0.007 [−0.008, +0.022] | −0.028 [−0.053, −0.005] | +0.043 [+0.022, +0.063] |
+| Cover switch | 1,264 / 1,313 | +0.013 [+0.005, +0.021] | +0.014 [+0.004, +0.025] | +0.015 [+0.004, +0.028] | +0.013 [−0.008, +0.030] |
+| Share gate and exemption together | 1,264 / 1,332 | −0.003 [−0.032, +0.023] | +0.020 [−0.010, +0.046] | +0.027 [−0.006, +0.059] | +0.006 [−0.028, +0.036] |
 
-- The floor is the only part whose own contribution to corrected F1 excludes
-  zero (+0.008 [+0.004, +0.013]). It removes 61 detections at no cost in
-  recall.
+The detection counts in the bullets below are net changes. The distance filter
+runs after the gate, so a peak the gate removes can let a lower neighbour
+through, and an exempted surface peak can exclude one.
+
+- Of the floor, the share gate and the exemption, only the floor has an own
+  contribution to corrected F1 that excludes zero on the validation plots
+  (+0.008 [+0.004, +0.013]). On the calibration plots it does not (+0.004
+  [−0.002, +0.010]), and the exemption's does (+0.017 [+0.005, +0.028]). The
+  floor removes 61 detections at no cost in corrected recall.
 - The share gate removes 311 of 1,575 detections. Corrected precision rises by
   0.034 and corrected recall falls by 0.053, so some of what it removes are
   real trees, and plain F1 falls by 0.022 [0.005, 0.041]. Its own change in
@@ -182,15 +203,46 @@ the declared configuration without that part.
   a share gate by a margin it cannot resolve.
 - The exemption adds 299 detections to the floor and share gate. Corrected
   recall rises by 0.043 and corrected precision falls by 0.028. Its own change
-  in corrected F1 is +0.007 [−0.008, +0.022] on the validation plots and +0.017
-  [+0.005, +0.028] on the calibration plots. Alone against stock it adds 210
-  detections and 0.059 corrected recall at unchanged corrected precision, so
-  the distance filter had been removing real neighbouring trees.
+  in corrected F1 is +0.007 [−0.008, +0.022] on the validation plots. Alone
+  against stock it adds 210 detections and 0.059 corrected recall at unchanged
+  corrected precision, so the distance filter had been removing real
+  neighbouring trees.
+- The cover switch adds +0.014 [+0.004, +0.025] on the validation plots and
+  +0.014 [+0.001, +0.026] on the calibration plots: applied in every stand, the
+  share gate and the exemption score lower. The two configurations differ only
+  on open plots, and 35 of the 37 open plots are in California (see
+  [Limits](#limits)), so the switch cannot be told from the region.
 - The share gate and the exemption trade precision against recall. Corrected F1
   does not separate the declared configuration from the floor with either one
   of them: +0.028 [+0.015, +0.040] with the exemption, +0.027 [+0.001, +0.049]
   with the share gate. Those two differ in plain F1 (+0.037 against −0.019)
   and in the number of detections (1,575 against 965).
+- Nor does corrected F1 separate the declared configuration from the floor
+  alone at native density. Together the share gate and the exemption add
+  +0.020 [−0.010, +0.046] to it on the validation plots and +0.017 [−0.003,
+  +0.039] on the calibration plots, and leave plain F1 where it was (−0.003
+  [−0.032, +0.023]). At native density the held-out scores therefore show the
+  floor's gain over stock (+0.015 [+0.009, +0.021]) and do not show a further
+  gain from the other two parts together.
+
+The same contrasts down the ladder, as the change in corrected F1 on the
+validation plots:
+
+| Pulses/m² | Floor | Share gate | Exemption | Cover switch | Share gate and exemption together |
+| --- | --- | --- | --- | --- | --- |
+| 9.8 (native) | +0.008 [+0.004, +0.013] | +0.007 [−0.018, +0.027] | +0.007 [−0.008, +0.022] | +0.014 [+0.004, +0.025] | +0.020 [−0.010, +0.046] |
+| 4.7 | −0.001 [−0.007, +0.005] | +0.007 [−0.015, +0.030] | +0.016 [+0.002, +0.032] | +0.015 [+0.000, +0.031] | +0.018 [−0.009, +0.046] |
+| 2.5 | +0.007 [+0.001, +0.013] | +0.021 [+0.003, +0.040] | +0.011 [−0.003, +0.025] | +0.014 [+0.004, +0.025] | +0.033 [+0.012, +0.058] |
+| 1.3 | +0.004 [−0.003, +0.010] | +0.001 [−0.011, +0.014] | +0.005 [−0.013, +0.027] | +0.013 [+0.000, +0.028] | +0.007 [−0.016, +0.029] |
+| 0.6 | +0.002 [−0.002, +0.006] | +0.017 [+0.005, +0.030] | +0.001 [−0.016, +0.022] | +0.018 [+0.003, +0.035] | +0.025 [+0.001, +0.056] |
+
+- No part's own contribution excludes zero on every rung. The floor's does at
+  native density and at 2.5 pulses/m², the share gate's at 2.5 and 0.6, and
+  the exemption's at 4.7. The cover switch's does at native density, 2.5 and
+  0.6; at 4.7 and 1.3 its lower bound sits on zero.
+- Together the share gate and the exemption add to the floor alone on every
+  rung in the point estimate (+0.007 to +0.033). The interval excludes zero at
+  2.5 pulses/m² only; at 0.6 its lower bound sits on zero.
 
 ## Stability
 
@@ -259,16 +311,22 @@ selection.
 - Precision rises from 0.636 to 0.749 (+0.112 [+0.072, +0.160]) on all admitted
   plots, and by 0.094 [0.027, 0.149] on the validation plots among them. The
   precision gain of the nominal-core scores is not an artefact of the
-  uncensused area.
+  uncensused area. It is Washington's: +0.129 [+0.080, +0.185] on its 45
+  plots, while on the 12 California plots precision does not move (0.635
+  against 0.630).
 - F1 changes by +0.029 [−0.006, +0.062] on all admitted plots and by +0.013
   [−0.034, +0.059] on the validation plots. Neither excludes zero, as with
   plain F1 in the nominal core.
-- The two Washington sites differ more sharply here than in the nominal core.
-  At WREF the arm keeps 271 of 463 detections; recall falls from 0.526 to 0.375
-  and F1 by 0.067 [0.029, 0.100]. At ABBY it places 353 detections against
-  295; recall rises from 0.598 to 0.777 and F1 by 0.145 [0.097, 0.192]. On the
-  validation plots alone the same holds: −0.091 [−0.143, −0.042] at WREF (15
-  plots) and +0.140 [+0.063, +0.196] at ABBY (9 plots).
+- In plain F1 the two Washington sites differ more sharply here than in the
+  nominal core. At WREF the arm places 271 detections against 463; recall
+  falls from 0.526 to 0.375 and F1 by 0.067 [0.029, 0.100]. At ABBY it places
+  353 detections against 295; recall rises from 0.598 to 0.777 and F1 by 0.145
+  [0.097, 0.192]. On the validation plots alone the same holds: −0.091
+  [−0.143, −0.042] at WREF (15 plots) and +0.140 [+0.063, +0.196] at ABBY (9
+  plots). The fall in recall is not specific to the censused subplots: in the
+  nominal core plain recall on WREF's validation plots falls from 0.542 to
+  0.396 (−0.145 [−0.209, −0.095]), and the −0.048 quoted for it above is
+  corrected for chance.
 
 ## Against CHM-VWF
 
@@ -307,11 +365,14 @@ Selecting on all 106 plots, which is not a held-out result, gives `min_share`
 ## Limits
 
 - **Features chosen on all plots.** See the exploratory provenance above.
-- **The share gate is not established.** Its own change in corrected F1 is not
-  separable from zero, it lowers plain F1 and recall, and the splits do not
-  agree on its threshold. The declared configuration keeps it because the
-  calibration selected it; dropping it now would be a selection on the
-  validation plots.
+- **The share gate is not established.** At native density its own change in
+  corrected F1 is not separable from zero, it lowers plain F1 and recall, and
+  the splits do not agree on its threshold. On the decimated rungs its own
+  change excludes zero on two of the four. Nor is what it and the exemption add
+  to the floor together separable from zero at native density (+0.020 [−0.010,
+  +0.046]). The declared configuration keeps both because the calibration
+  selected them; dropping either now would be a selection on the validation
+  plots.
 - **Cover and region are confounded.** Site median cover at native density is
   0.91 at WREF and 0.85 at ABBY against 0.50 at TEAK, 0.41 at SOAP and 0.31 at
   SJER. The switch may stand for forest type rather than canopy closure; only
@@ -341,11 +402,13 @@ Under `work/multichm_gated_runs/neon/multichm_gated/`:
 
 - `cells.csv` holds the observed and null counts of every cell and
   configuration, and CHM-VWF.
-- `selection.csv` and `validation.csv` hold every selection and contrast above,
-  every split included.
+- `selection.csv` and `validation.csv` hold every selection and, apart from
+  those in the files named next, every contrast above, every split included.
 - `region_differences.csv` holds the differences between the regions,
-  `grid_contrasts.csv` every grid configuration against stock, and
-  `census_scores.csv` and `census_contrasts.csv` the censused-subplot scores.
+  `grid_contrasts.csv` every grid configuration against stock, `seed_grid.csv`
+  how each split's calibration ranking carries over to its validation plots,
+  and `census_scores.csv` and `census_contrasts.csv` the censused-subplot
+  scores.
 - `declared_config.json` holds the declared configuration, and `tables.md` the
   tables in full.
 

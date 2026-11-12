@@ -23,8 +23,9 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # stratified per-site split the other cal/val studies use (calval_lib.R).
 # Provenance that every output repeats: the gate's form and the grid values
 # were informed by an exploratory pass over all plots of the five sites
-# (calibration and validation alike), so a held-out score tests only the
-# selection within the grid, not the grid's values or the choice of features.
+# (calibration and validation alike), and the selection criterion was fixed
+# after that pass, so a held-out score tests only the selection within the
+# grid, not the grid's values or the choice of features.
 #
 # Scores are pooled by summing counts (never averaging rates). Besides
 # recall/precision/F1, every cell carries the benchmark's chance-agreement
@@ -56,13 +57,18 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #               sites and rungs, and whether chm_vwf was scored).
 #   analyze     checks against the paper runs, the headline split and
 #               selection, held-out contrasts (by scope and by site), the
-#               difference between the regions, components and what each part
-#               of the selection adds, the whole grid against stock, seeds,
-#               leave one site out, criterion sensitivity, the all-plots
-#               selection and the headline selection's in-sample contrasts on
-#               all plots, and, when both censused score files exist, the
-#               arm's persisted detections against the paper's multichm inside
-#               the censused subplots.
+#               difference between the regions, components and the selection
+#               minus each reduction of it (without its floor, its share gate
+#               or its exemption, with the gate and the exemption applied in
+#               every stand (the cover switch), and its floor alone), at native
+#               density on the validation and the calibration plots and down
+#               the ladder on the validation plots, the whole grid against
+#               stock, seeds (with how each split's calibration ranking
+#               carries over), leave one site out, criterion sensitivity, the
+#               all-plots selection and the headline selection's in-sample
+#               contrasts on all plots, and, when both censused score files
+#               exist, the arm's persisted detections against the paper's
+#               multichm inside the censused subplots.
 #               K and TOL come from OUT/cells.config.json; an explicit K= or
 #               TOL= must equal the recorded value, and cells scored on another
 #               grid, population or root stop the stage.
@@ -71,7 +77,11 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #               validation and calibration plots), OUT/region_differences.csv
 #               (only when both regions are in the study),
 #               OUT/census_scores.csv and OUT/census_contrasts.csv (only with
-#               the censused scores), OUT/declared_config.json, OUT/tables.md.
+#               the censused scores), OUT/seed_grid.csv (one row per split: the
+#               correlation across the grid of the calibration and validation
+#               changes, how many configurations gain on the validation plots,
+#               and the rank of the split's own selection),
+#               OUT/declared_config.json, OUT/tables.md.
 #
 # Usage:
 #   Rscript scripts/calval_multichm_gated.R [STAGE=all|candidates|score|analyze]
@@ -89,7 +99,11 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # CENSUS holds the arm's censused-subplot scores (score_census_support.R run on
 # the arm's persisted detections, ARMS=multichm_gated), BASE_CENSUS the paper
 # runs' (with multichm); without BASE there is no default for BASE_CENSUS, and
-# the censused contrast is skipped when either file is missing.
+# the censused contrast is skipped when either file is missing. Both files must
+# carry the support identity (support_id, support_policy,
+# reference_population), and at native density their nominal-box detection
+# counts (rect_n_det) must equal the study's cells: the arm's file the
+# selection's, BASE_CENSUS stock's. The stage stops otherwise.
 suppressMessages({ library(lidR); library(lidRplugins); library(sf)
                    library(data.table); library(parallel) })
 options(lidR.progress = FALSE)
@@ -108,9 +122,9 @@ CV_SIDE    <- c("n_det", "recall", "precision", "F1", "null_F1", "cF1", "cRecall
                 "cPrecision", "det_per_ref")
 CV_PROVENANCE <- paste(
   "The gate's form and the grid values were informed by an exploratory pass over all",
-  "plots of the five sites (calibration and validation plots alike), so the held-out",
-  "scores test only the selection within the grid, not the grid's values or the choice of",
-  "features.")
+  "plots of the five sites (calibration and validation plots alike), and the selection",
+  "criterion was fixed after that pass, so the held-out scores test only the selection",
+  "within the grid, not the grid's values or the choice of features.")
 CV_SELECTED_ON <- "selected on the calibration plots at native density"
 # The regional contrast of the headline gain: set 1 minus set 2 (MT_REGIONS names).
 CV_REGION_DIFFERENCE <- c("Washington", "California")
@@ -734,10 +748,14 @@ cv_canonical_label <- function(zmin, min_share, cover_min, surface_exempt) {
 # The selected configuration's parts, as two named vectors of grid labels.
 # versus_stock: reduced configurations each scored against stock (the floor
 # alone, without the share gate, without the exemption, the exemption alone).
-# marginal: per part, the selection without it, so that the selection minus it
-# is what that part adds to the other two. Labels equal to stock (that
-# contrast would be the headline itself) or to the selection (the part is off),
-# then repeats, are dropped; the first name of a repeat is kept.
+# marginal: the selection reduced in one way, so that the selection minus it is
+# what the reduction took away: without its floor, its share gate or its
+# exemption (what that part adds to the rest); with the gate and the exemption
+# applied in every stand (cover_switch: cover_min 0, what the cover threshold
+# adds); and reduced to its floor alone (gate_and_exemption: what the share
+# gate and the exemption add together). Labels equal to stock (that contrast
+# would be the headline itself) or to the selection (the part is off), then
+# repeats, are dropped; the first name of a repeat is kept.
 cv_components <- function(sel) {
   lab <- function(zmin, min_share, cover_min, surface_exempt)
     cv_canonical_label(zmin, min_share, cover_min, surface_exempt)
@@ -755,7 +773,9 @@ cv_components <- function(sel) {
     marginal = keep(c(
       floor = lab(0, sel$min_share, sel$cover_min, sel$surface_exempt),
       share_gate = lab(sel$zmin, 0, sel$cover_min, sel$surface_exempt),
-      exemption = lab(sel$zmin, sel$min_share, sel$cover_min, FALSE))))
+      exemption = lab(sel$zmin, sel$min_share, sel$cover_min, FALSE),
+      cover_switch = lab(sel$zmin, sel$min_share, 0, sel$surface_exempt),
+      gate_and_exemption = lab(sel$zmin, 0, 0, FALSE))))
 }
 
 # The whole grid against stock (rows of analysis "grid": one per configuration
@@ -821,6 +841,35 @@ cv_seed_summary <- function(selection, validation, selected_label, headline_seed
        headline_d_cF1 = hd, n_at_least_headline = if (is.na(hd)) NA_integer_ else sum(d >= hd))
 }
 
+# How one split's calibration ranking carries over to its validation plots, at
+# native density: point estimates from the pooled counts of each configuration
+# (no bootstrap) on the split's calibration plots and on its validation plots.
+# One row: the number of non-stock configurations compared, the correlation
+# across them of their change in cF1 against stock on the two halves (NA with
+# fewer than two), how many of them gain on the validation plots, and the rank
+# of `selected_id` by validation cF1 among the configurations and stock (1 =
+# best; ties share the better rank). Stops when stock has no native rows on
+# either half.
+cv_split_carry <- function(cells, split, selected_id) {
+  nat <- cells[cells$rung == "native" & !is.na(cells$config_id), , drop = FALSE]
+  cf1 <- function(ids, half) {
+    P <- mcg_pool(nat[cv_ids(nat) %in% ids, , drop = FALSE], "config_id")
+    if (!1L %in% P$config_id)
+      stop("cv_split_carry: stock (config_id 1) has no native rows on the ", half,
+           " plots", call. = FALSE)
+    stats::setNames(P$cF1, P$config_id)
+  }
+  k <- cf1(split$calib, "calibration"); v <- cf1(split$valid, "validation")
+  ids <- intersect(names(k), names(v))
+  g <- setdiff(ids, "1")
+  dk <- k[g] - k[["1"]]; dv <- v[g] - v[["1"]]
+  own <- v[as.character(selected_id)]
+  data.frame(n_configs = length(g),
+             pearson = if (length(g) < 2L) NA_real_ else suppressWarnings(stats::cor(dk, dv)),
+             n_positive_valid = sum(dv > 0, na.rm = TRUE),
+             rank_valid = if (is.na(own)) NA_integer_ else 1L + sum(v[ids] > own, na.rm = TRUE))
+}
+
 # Every analysis of the study from the scored cells. S carries SITES, RUNGS,
 # SEED, FRAC, SEEDS, CRITERION, N_BOOT (and the bootstrap seed MT_SEED).
 cv_analyze <- function(cells, S, boot_seed = MT_SEED) {
@@ -858,9 +907,10 @@ cv_analyze <- function(cells, S, boot_seed = MT_SEED) {
     add_v(con(sp$valid[sub("::.*", "", sp$valid) == site], "native", sel$label, "stock",
               cv_tag("site", S$CRITERION, "valid", site, S$SEED)))
 
-  ## d. components of the selection against stock (validation plots), and what
-  ## each part adds to the other two (validation, then calibration plots), at
-  ## native density
+  ## d. components of the selection against stock (validation plots, native
+  ## density), and the selection minus each reduction of it (cv_components()):
+  ## at native density on the validation, then the calibration plots, then on
+  ## the validation plots at every other rung, rung by rung
   comp <- lapply(cv_components(sel), function(v) v[v %in% cells$config])
   for (nm in names(comp$versus_stock))
     add_v(con(sp$valid, "native", comp$versus_stock[[nm]], "stock",
@@ -868,12 +918,19 @@ cv_analyze <- function(cells, S, boot_seed = MT_SEED) {
   for (spl in c("valid", "calib")) for (nm in names(comp$marginal))
     add_v(con(sp[[spl]], "native", sel$label, comp$marginal[[nm]],
               cv_tag(paste0("marginal_", nm), S$CRITERION, spl, all_scope, S$SEED)))
+  for (rl in setdiff(rungs, "native")) for (nm in names(comp$marginal))
+    add_v(con(sp$valid, rl, sel$label, comp$marginal[[nm]],
+              cv_tag(paste0("marginal_", nm), S$CRITERION, "valid", all_scope, S$SEED)))
 
-  ## e. seeds
+  ## e. seeds, each with how its calibration ranking carries over
+  carry <- list()
   for (sd in S$SEEDS) {
     s2 <- cv_split(cells, sd, S$FRAC)
     sl <- cv_select(cells, s2$calib, S$CRITERION)
     sel_rows[[length(sel_rows) + 1L]] <- cv_selection_row(sl, "seed", sd)
+    carry[[length(carry) + 1L]] <- data.frame(seed = sd, config = sl$label,
+                                              cv_split_carry(cells, s2, sl$config_id),
+                                              stringsAsFactors = FALSE)
     add_v(con(s2$valid, "native", sl$label, "stock",
               cv_tag("seed", S$CRITERION, "valid", all_scope, sd)))
   }
@@ -935,12 +992,15 @@ cv_analyze <- function(cells, S, boot_seed = MT_SEED) {
   validation <- do.call(rbind, val_rows)
   regions <- if (length(reg)) do.call(rbind, reg)
   grid <- if (length(grid_rows)) do.call(rbind, grid_rows)
+  seed_grid <- if (length(carry)) do.call(rbind, carry)
   rownames(selection) <- NULL; rownames(validation) <- NULL
   if (!is.null(regions)) rownames(regions) <- NULL
   if (!is.null(grid)) rownames(grid) <- NULL
+  if (!is.null(seed_grid)) rownames(seed_grid) <- NULL
   list(selection = selection, validation = validation, selected = sel, split = sp,
        n_calib = length(sel$plots), n_valid = length(intersect(sp$valid, native_ids)),
-       scopes = scopes, components = comp, regions = regions, grid = grid)
+       scopes = scopes, components = comp, regions = regions, grid = grid,
+       seed_grid = seed_grid)
 }
 
 # The declared configuration with what it was selected on. The window
@@ -997,6 +1057,34 @@ cv_census_config_check <- function(d, sites, sel) {
   invisible(TRUE)
 }
 
+# The stamps tie the job directory's detections to the selection, not a censused
+# file, which may have been scored elsewhere or before the arm was re-run. A
+# censused file also holds the nominal-box count of the detections it scored
+# (rect_n_det, a function of the detections and the plot core alone): at native
+# density it must equal n_det of `config` in `cells` in every cell of `detector`
+# at the study's sites. A necessary condition, not a proof of identical
+# detections. Stops otherwise.
+cv_census_cells_check <- function(csv, detector, cells, config) {
+  g <- read.csv(csv, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
+  g <- g[g$detector %in% detector & g$rung %in% "native" & g$site %in% cells$site, ,
+         drop = FALSE]
+  if (!nrow(g)) return(invisible(TRUE))        # cv_census() reports a file without rows
+  if (!"rect_n_det" %in% names(g))
+    stop(csv, " has no rect_n_det (the nominal-box detection count), so its ", detector,
+         " scores cannot be tied to configuration ", config,
+         "; score the detections with score_census_support.R", call. = FALSE)
+  s <- cells[cells$config == config & cells$rung == "native", , drop = FALSE]
+  n <- s$n_det[match(paste(g$site, g$plot), paste(s$site, s$plot))]
+  bad <- is.na(n) | is.na(g$rect_n_det) | g$rect_n_det != n
+  if (any(bad))
+    stop(sprintf(paste("%s does not score the %s detections of configuration %s: the",
+                       "nominal-box detection count differs from cells.csv in %d of %d",
+                       "cells (first %s); score that configuration's persisted detections",
+                       "with score_census_support.R"), csv, detector, config, sum(bad),
+                 length(bad), g$plot[which(bad)[1]]), call. = FALSE)
+  invisible(TRUE)
+}
+
 # Censused-subplot scores (score_census_support.R) at native density: the arm
 # (detector multichm_gated) from `gated_csv` against the paper's multichm from
 # `base_csv`, on the cells both scored on the same support. For split "all"
@@ -1008,6 +1096,12 @@ cv_census_config_check <- function(d, sites, sel) {
 cv_census <- function(gated_csv, base_csv, valid_ids, scopes, sites, n_boot, seed = MT_SEED) {
   read <- function(f, det) {
     x <- read.csv(f, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
+    # a file without the support identity holds nominal-box scores, which the
+    # support guard of mt_equal_support() would let through unchecked
+    gone <- setdiff(c("support_id", "support_policy", "reference_population"), names(x))
+    if (length(gone))
+      stop(f, " has no ", paste(gone, collapse = ", "), ", so it is not a censused score ",
+           "file; score the detections with score_census_support.R", call. = FALSE)
     x <- x[x$detector %in% det & x$rung %in% "native", , drop = FALSE]
     if (!nrow(x))
       stop("there are no censused ", det, " rows at native density in ", f,
@@ -1135,6 +1229,36 @@ cv_md_seeds <- function(ss, selected_label, headline_seed) {
             headline_seed, cv_f3(ss$headline_d_cF1)))
 }
 
+# The paragraph on how each split's calibration ranking carries over to its
+# validation plots (rows of cv_split_carry() with their seed and selection): the
+# median, percentiles and range of the correlations, the headline seed's and how
+# many splits exceed it, and the median and range of each split's own rank and
+# of the configurations that gain on its validation plots.
+cv_md_carry <- function(sg, headline_seed) {
+  if (is.null(sg) || !nrow(sg)) return("(no rows)")
+  f2 <- function(x) ifelse(is.na(x), "NA", sprintf("%.2f", x))
+  r <- sg$pearson[!is.na(sg$pearson)]
+  st <- function(f) if (length(r)) f(r) else NA_real_
+  q <- function(p) st(function(x) unname(stats::quantile(x, p)))
+  h <- sg$pearson[sg$seed %in% headline_seed]
+  h <- if (length(h)) h[1] else NA_real_
+  # the configurations compared (one number unless the splits differ)
+  n <- range(sg$n_configs)
+  nc <- function(add = 0L) if (n[1] == n[2]) sprintf("%d", n[1] + add) else
+    sprintf("%d to %d", n[1] + add, n[2] + add)
+  sprintf(paste("Across the %s non-stock grid configurations the calibration and validation",
+                "changes in cF1 correlate at a median of %s over the %d splits (10th to 90th",
+                "percentile %s to %s, range %s to %s; seed %s: %s, exceeded in %s splits). A",
+                "split's own selection ranks at a median of %g of %s on its validation plots,",
+                "stock included (range %d to %d), and a median of %g of the %s configurations",
+                "score above stock there (range %d to %d). Every split is in `seed_grid.csv`."),
+          nc(), f2(st(stats::median)), nrow(sg), f2(q(0.1)), f2(q(0.9)), f2(st(min)),
+          f2(st(max)), headline_seed, f2(h), if (is.na(h)) "NA" else sum(r > h),
+          stats::median(sg$rank_valid), nc(1L), min(sg$rank_valid), max(sg$rank_valid),
+          stats::median(sg$n_positive_valid), nc(), min(sg$n_positive_valid),
+          max(sg$n_positive_valid))
+}
+
 # One line per split and scope of the censused contrast (cv_census()).
 cv_md_census <- function(cs) {
   k <- cs$contrasts
@@ -1170,7 +1294,12 @@ cv_tables_md <- function(res, S, root_id, population, census = NULL) {
     for (k in names(f)) x <- x[x[[k]] %in% f[[k]], , drop = FALSE]
     x
   }
+  # the selection minus each reduction: native rows (validation, then
+  # calibration), and the validation rows of the decimated rungs
+  red <- res$components$marginal
   marg <- v[startsWith(v$analysis, "marginal_"), , drop = FALSE]
+  ladder <- marg[marg$rung != "native", , drop = FALSE]
+  marg <- marg[marg$rung == "native", , drop = FALSE]
   marg <- marg[order(marg$split != "valid"), , drop = FALSE]
   # the ten lowest seeds; selection.csv and validation.csv hold every one
   first <- utils::head(sort(unique(s$seed[s$analysis == "seed"])), 10)
@@ -1213,10 +1342,21 @@ cv_tables_md <- function(res, S, root_id, population, census = NULL) {
     "",
     cv_md_contrasts(v[startsWith(v$analysis, "component_"), , drop = FALSE]),
     "",
-    paste("## What each part adds to the other two (the selection minus the selection without",
-          "that part, native density)"),
+    "## What each part adds (the selection minus a reduction of it)",
     "",
-    cv_md_contrasts(marg),
+    if (!length(red)) "(no rows)" else c(
+      sprintf("Reductions (B): %s.", paste(sprintf("%s `%s`", names(red), red), collapse = "; ")),
+      paste("floor, share_gate and exemption are the selection without that part; cover_switch",
+            "is the selection with its gate and exemption applied in every stand (cover_min 0);",
+            "gate_and_exemption is its floor alone. Native density, validation plots then",
+            "calibration plots (in-sample):"),
+      "",
+      cv_md_contrasts(marg),
+      if (nrow(ladder)) c(
+        "",
+        "The same on the validation plots of the decimated rungs:",
+        "",
+        cv_md_contrasts(ladder))),
     "",
     "## Held-out by site (validation plots, native density)",
     "",
@@ -1236,6 +1376,8 @@ cv_tables_md <- function(res, S, root_id, population, census = NULL) {
     "## Seeds (validation plots, native density)",
     "",
     cv_md_seeds(cv_seed_summary(s, v, sel$label, S$SEED), sel$label, S$SEED),
+    "",
+    cv_md_carry(res$seed_grid, S$SEED),
     "",
     "The first ten splits (`selection.csv` and `validation.csv` hold all of them):",
     "",
@@ -1326,13 +1468,16 @@ cv_stage_analyze <- function(S) {
   if (!length(gone)) {
     sites <- intersect(S$SITES, unique(cells$site))
     cv_census_config_check(S$d, sites, res$selected)
+    cv_census_cells_check(S$CENSUS, "multichm_gated", cells, res$selected$label)
+    cv_census_cells_check(S$BASE_CENSUS, "multichm", cells, "stock")
     census <- cv_census(S$CENSUS, S$BASE_CENSUS, res$split$valid, res$scopes, sites, S$N_BOOT)
   } else cat(sprintf("no censused scores at %s; the censused contrast is skipped\n", gone[1]))
   write.csv(res$selection, file.path(S$OUT, "selection.csv"), row.names = FALSE)
   write.csv(res$validation, file.path(S$OUT, "validation.csv"), row.names = FALSE)
   # a file from an earlier run that this run does not produce is removed, not kept
   extra <- list(grid_contrasts.csv = res$grid, region_differences.csv = res$regions,
-                census_scores.csv = census$scores, census_contrasts.csv = census$contrasts)
+                census_scores.csv = census$scores, census_contrasts.csv = census$contrasts,
+                seed_grid.csv = res$seed_grid)
   for (nm in names(extra)) {
     f <- file.path(S$OUT, nm)
     if (is.null(extra[[nm]]) || !nrow(extra[[nm]])) unlink(f) else

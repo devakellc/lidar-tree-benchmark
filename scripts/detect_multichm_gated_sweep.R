@@ -34,9 +34,10 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # records its provenance). Without arguments or a CONFIG= file the run uses
 # MCG_DECLARED; were it unset, all four arguments would be required and the
 # run would stop before any work. The gate's form and the calibration grid
-# were informed by an exploratory pass over all 106 frozen plots, so held-out
-# scores test only the selection within that grid, not the grid's values or
-# the choice of features.
+# were informed by an exploratory pass over all 106 frozen plots, and the
+# selection criterion was fixed after that pass, so held-out scores test only
+# the selection within that grid, not the grid's values or the choice of
+# features.
 #
 # The stock configuration (ZMIN=0 MIN_SHARE=0 COVER_MIN=0 SURFACE_EXEMPT=FALSE)
 # reproduces lidRplugins::multichm, so its detections equal the multichm arm's.

@@ -308,14 +308,18 @@ held-out plots at native density corrected F1 rises from 0.166 to **0.200**
 detections, while plain F1 changes by +0.015 [−0.012, +0.042], which does not
 exclude zero. The change is +0.044 [+0.008, +0.074] in Washington and +0.013
 [−0.006, +0.028] in California; the difference between the regions (+0.030
-[−0.008, +0.064]) includes zero. The share gate's own contribution to corrected
-F1, +0.007 [−0.018, +0.027], is not separable from zero. Inside censused
-subplots (57 plots, calibration plots included) precision rises from 0.636 to
-0.749 and F1 from 0.597 to 0.626 (+0.029 [−0.006, +0.062]), with a gain at ABBY
-and a loss at WREF. The gate's form and the grid of candidate thresholds were
-chosen after an exploratory pass over all plots, so the held-out score tests
-only the selection within that grid: 82 of its 86 non-stock configurations beat
-stock on the held-out plots.
+[−0.008, +0.064]) includes zero. At that density the 5 m floor alone gives
++0.015 [+0.009, +0.021]; what the share gate and the exemption add to it
+together, +0.020 [−0.010, +0.046], is not separable from zero, and neither is
+the share gate's own contribution (+0.007 [−0.018, +0.027]). On the four
+decimated rungs the first excludes zero at 2.5 pulses/m² only, the second at
+2.5 and 0.6. Inside censused subplots (57 plots, calibration plots included)
+precision rises from 0.636 to 0.749 and plain F1 from 0.597 to 0.626 (+0.029
+[−0.006, +0.062]), with a gain at ABBY and a loss at WREF. The gate's form, the
+grid of candidate thresholds and the criterion were fixed after an exploratory
+pass over all plots, so the held-out score tests only the selection within
+that grid: 82 of its 86 non-stock configurations beat stock on the held-out
+plots.
 
 ### Crown delineation
 

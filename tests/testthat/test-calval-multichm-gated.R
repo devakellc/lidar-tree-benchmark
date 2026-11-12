@@ -183,27 +183,33 @@ test_that("components reduce the selection part by part and skip stock and the s
                      no_exemption = "z5_s0.75_c0.7_e0", exemption_only = "z0_s0_c0.7_e1"))
   expect_identical(comp$marginal,
                    c(floor = "z0_s0.75_c0.7_e1", share_gate = "z5_s0_c0.7_e1",
-                     exemption = "z5_s0.75_c0.7_e0"))
+                     exemption = "z5_s0.75_c0.7_e0", cover_switch = "z5_s0.75_c0_e1",
+                     gate_and_exemption = "z5_s0_c0_e0"))
   expect_true(all(unlist(comp) %in% mcg_grid()$label))
   # the floor alone: every reduction is the selection or stock
   fl <- cv_components(list(zmin = 5, min_share = 0, cover_min = 0, surface_exempt = FALSE))
   expect_length(fl$versus_stock, 0)
   expect_length(fl$marginal, 0)
   # no share gate: no share_gate part; without the exemption the cover is moot
-  # (canonical cover 0), which repeats the floor alone and is dropped
+  # (canonical cover 0), which repeats the floor alone and is dropped, and so is
+  # the floor alone, which repeats the exemption's reduction
   ns <- cv_components(list(zmin = 5, min_share = 0, cover_min = 0.6, surface_exempt = TRUE))
   expect_identical(ns$versus_stock, c(floor_only = "z5_s0_c0_e0", exemption_only = "z0_s0_c0.6_e1"))
-  expect_identical(ns$marginal, c(floor = "z0_s0_c0.6_e1", exemption = "z5_s0_c0_e0"))
-  expect_false("share_gate" %in% names(ns$marginal))
+  expect_identical(ns$marginal, c(floor = "z0_s0_c0.6_e1", exemption = "z5_s0_c0_e0",
+                                  cover_switch = "z5_s0_c0_e1"))
+  expect_false(any(c("share_gate", "gate_and_exemption") %in% names(ns$marginal)))
   expect_true(all(unlist(ns) %in% mcg_grid()$label))
-  # the exemption alone: removing it gives stock, every other reduction the selection
+  # the exemption alone: removing it gives stock and the floor alone is stock;
+  # only the cover switch reduces it to another configuration
   ex <- cv_components(list(zmin = 0, min_share = 0, cover_min = 0.7, surface_exempt = TRUE))
   expect_length(ex$versus_stock, 0)
-  expect_length(ex$marginal, 0)
-  # no exemption: no exemption part, and its versus-stock reduction is the selection
+  expect_identical(ex$marginal, c(cover_switch = "z0_s0_c0_e1"))
+  # no exemption: no exemption part, its versus-stock reduction is the selection,
+  # and the floor alone repeats the share gate's reduction
   ne <- cv_components(list(zmin = 5, min_share = 0.5, cover_min = 0.8, surface_exempt = FALSE))
   expect_identical(ne$versus_stock, c(floor_only = "z5_s0_c0_e0"))
-  expect_identical(ne$marginal, c(floor = "z0_s0.5_c0.8_e0", share_gate = "z5_s0_c0_e0"))
+  expect_identical(ne$marginal, c(floor = "z0_s0.5_c0.8_e0", share_gate = "z5_s0_c0_e0",
+                                  cover_switch = "z5_s0.5_c0_e0"))
   expect_true(all(unlist(ne) %in% mcg_grid()$label))
   expect_identical(cv_canonical_label(0, 0, 0.8, FALSE), "stock")
 })
@@ -313,14 +319,14 @@ test_that("the study writes every analysis, held-out and in-sample apart", {
   expect_identical(c(dc$n_calibration_plots, dc$n_validation_plots), c(res$n_calib, res$n_valid))
   expect_match(dc$provenance, paste("test only the selection within the grid, not the grid's",
                                     "values or the choice of features"), fixed = TRUE)
+  expect_match(dc$provenance, "the selection criterion was fixed after that pass", fixed = TRUE)
   md <- cv_tables_md(res, S, "abc", "adopted")
   expect_true(any(grepl("calib (in-sample)", md, fixed = TRUE)))
   expect_true(any(grepl("^## All plots \\(in-sample; not a held-out result\\)$", md)))
   expect_false(any(grepl("^## All-plots selection", md)))
   expect_true(any(grepl("exploratory pass", md)))
   heads <- c("## Components of the selection (validation plots, native density)",
-             paste("## What each part adds to the other two (the selection minus the selection",
-                   "without that part, native density)"),
+             "## What each part adds (the selection minus a reduction of it)",
              "## Held-out by site (validation plots, native density)",
              "## Difference between regions (validation plots)",
              "## The whole grid against stock (native density)",
@@ -418,6 +424,18 @@ test_that("the study adds all-plots, site, region and whole-grid contrasts", {
   }
   gs <- cv_grid_summary(g, lab)
   expect_identical(c(gs$n, gs$n_ranked), c(2L, 3L))
+  # how each seed's calibration ranking carries over: one row per seed, each with
+  # its own selection; for the headline seed (its split and selection are the
+  # headline's) the pooled point estimates agree with the bootstrap rows of the grid
+  sg <- res$seed_grid
+  expect_identical(names(sg), c("seed", "config", "n_configs", "pearson", "n_positive_valid",
+                                "rank_valid"))
+  expect_identical(sg$seed, S$SEEDS)
+  expect_identical(sg$config, res$selection$config[res$selection$analysis == "seed"])
+  expect_identical(sg$n_configs, rep(2L, length(S$SEEDS)))
+  h <- sg[sg$seed == S$SEED, ]
+  expect_identical(c(h$n_positive_valid, h$rank_valid), c(gs$n_positive_valid, gs$rank_valid))
+  expect_equal(h$pearson, gs$pearson)
 })
 
 test_that("the tables summarise every seed and list the first ten", {
@@ -447,11 +465,18 @@ test_that("components of an exempting selection are scored against stock and aga
                         cover_min = 0.7, surface_exempt = TRUE, TP = 13),
               transform(SYN_CONFIGS[2, ], config = "z0_s0.75_c0.7_e1", config_id = 55L, zmin = 0,
                         min_share = 0.75, cover_min = 0.7, surface_exempt = TRUE, TP = 13,
+                        n_det = 26),
+              transform(SYN_CONFIGS[2, ], config = "z5_s0.75_c0_e1", config_id = 61L,
+                        min_share = 0.75, cover_min = 0, surface_exempt = TRUE, TP = 12,
                         n_det = 26))
-  cells <- syn_cells(sites = "WREF", n = 10, rungs = "native", configs = cf)
+  cells <- syn_cells(sites = "WREF", n = 10, rungs = c("native", "1"), configs = cf)
   bump <- as.integer(sub(".*_", "", cells$plot)) %% 3
   cells$TP <- cells$TP + bump; cells$tp_core <- cells$tp_core + bump
-  res <- cv_analyze(cells, syn_settings(SITES = "WREF", RUNGS = "native", SEEDS = 1L))
+  # other counts at rung 1, so a row pooled on the wrong rung shows
+  r1 <- cells$rung == "1"
+  cells$TP[r1] <- cells$TP[r1] - 1; cells$tp_core[r1] <- cells$tp_core[r1] - 1
+  S <- syn_settings(SITES = "WREF", RUNGS = c("native", "1"), SEEDS = 1L)
+  res <- cv_analyze(cells, S)
   lab <- res$selected$label
   expect_identical(lab, "z5_s0.75_c0.7_e1")
   v <- res$validation
@@ -461,23 +486,43 @@ test_that("components of an exempting selection are scored against stock and aga
   expect_identical(comp$config_a, c("z5_s0_c0_e0", "z5_s0_c0.7_e1", "z5_s0.75_c0.7_e0",
                                     "z0_s0_c0.7_e1"))
   expect_true(all(comp$config_b == "stock" & comp$split == "valid" & comp$rung == "native"))
-  # what each part adds: the selection minus the selection without it, validation
-  # rows then calibration rows
+  # the selection minus each reduction: at native density the validation rows,
+  # then the calibration rows, then the validation rows at rung 1
   mg <- v[startsWith(v$analysis, "marginal_"), ]
   parts <- c(floor = "z0_s0.75_c0.7_e1", share_gate = "z5_s0_c0.7_e1",
-             exemption = "z5_s0.75_c0.7_e0")
-  expect_identical(mg$analysis, rep(paste0("marginal_", names(parts)), 2))
-  expect_identical(mg$split, rep(c("valid", "calib"), each = 3))
-  expect_true(all(mg$config_a == lab & mg$rung == "native"))
-  expect_identical(mg$config_b, unname(rep(parts, 2)))
+             exemption = "z5_s0.75_c0.7_e0", cover_switch = "z5_s0.75_c0_e1",
+             gate_and_exemption = "z5_s0_c0_e0")
+  np <- length(parts)
+  expect_identical(mg$analysis, rep(paste0("marginal_", names(parts)), 3))
+  expect_identical(mg$rung, rep(c("native", "1"), c(2L * np, np)))
+  expect_identical(mg$split, rep(c("valid", "calib", "valid"), each = np))
+  expect_true(all(mg$config_a == lab))
+  expect_identical(mg$config_b, unname(rep(parts, 3)))
   for (i in seq_len(nrow(mg))) {
     ids <- res$split[[mg$split[i]]]
-    p <- mcg_pool(cells[cv_ids(cells) %in% ids & cells$config %in% c(lab, mg$config_b[i]), ],
-                  "config")
+    p <- mcg_pool(cells[cells$rung == mg$rung[i] & cv_ids(cells) %in% ids &
+                          cells$config %in% c(lab, mg$config_b[i]), ], "config")
     expect_identical(mg$n_plots[i], length(ids))
     expect_equal(mg$d_cF1[i], p$cF1[p$config == lab] - p$cF1[p$config == mg$config_b[i]])
   }
+  # the rung-1 rows are not the native ones
+  expect_false(isTRUE(all.equal(mg$d_cF1[mg$rung == "1"], mg$d_cF1[seq_len(np)])))
   expect_identical(res$components$marginal, parts)
+  # the tables name every reduction and print the decimated rungs apart
+  md <- cv_tables_md(res, S, "abc", "adopted")
+  red <- grep("^Reductions \\(B\\): ", md, value = TRUE)
+  expect_length(red, 1L)
+  for (nm in names(parts))
+    expect_match(red, sprintf("%s `%s`", nm, parts[[nm]]), fixed = TRUE)
+  ladder <- "The same on the validation plots of the decimated rungs:"
+  expect_true(ladder %in% md)
+  # (the headline row at rung 1 is against stock)
+  expect_identical(sum(grepl("^\\| WREF \\| 1 \\| valid \\| z5_s0.75_c0.7_e1 \\| z", md)), np)
+  nat <- cv_analyze(cells, utils::modifyList(S, list(RUNGS = "native")))
+  expect_false(any(nat$validation$rung == "1"))
+  md <- cv_tables_md(nat, S, "abc", "adopted")
+  expect_true(any(startsWith(md, "Reductions (B): ")))
+  expect_false(ladder %in% md)
   # a component missing from the cells is left out
   res2 <- cv_analyze(cells[cells$config != "z5_s0_c0.7_e1", ],
                      syn_settings(SITES = "WREF", RUNGS = "native", SEEDS = 1L))
@@ -556,6 +601,88 @@ test_that("the seed summary counts the selections and the held-out changes", {
                         fixed = TRUE)))
   expect_true(any(grepl("3 of the 5 splits reach the headline split's change", md,
                         fixed = TRUE)))
+})
+
+test_that("a split's calibration ranking carries over by pooled counts at native density", {
+  cf <- rbind(SYN_CONFIGS[1:3, ],
+              transform(SYN_CONFIGS[2, ], config = "z5_s0.5_c0.7_e0", config_id = 12L,
+                        min_share = 0.5, cover_min = 0.7, TP = 11, n_det = 22),
+              transform(SYN_CONFIGS[2, ], config = "z0_s0_c0.7_e1", config_id = 50L, zmin = 0,
+                        cover_min = 0.7, surface_exempt = TRUE, TP = 11, n_det = 33),
+              SYN_CONFIGS[4, ])
+  cells <- syn_cells(configs = cf)
+  # counts that differ by plot and by configuration, so the two halves of a split
+  # rank the configurations differently
+  i <- as.integer(sub(".*_", "", cells$plot)) + 3L * (cells$site == "WREF")
+  bump <- (i * ifelse(is.na(cells$config_id), 0L, cells$config_id)) %% 5
+  cells$TP <- cells$TP + bump; cells$tp_core <- cells$tp_core + bump
+  # rung 1, where config 3 is the best, must not count
+  b1 <- cells$rung == "1" & cells$config_id %in% 3L
+  cells[b1, c("TP", "tp_core", "n_det")] <- list(19, 18, 20)
+  sp <- cv_split(cells, 1L, 0.5)
+  cf1 <- function(ids) {
+    P <- mcg_pool(cells[cells$rung == "native" & !is.na(cells$config_id) &
+                          cv_ids(cells) %in% ids, ], "config_id")
+    stats::setNames(P$cF1, P$config_id)
+  }
+  k <- cf1(sp$calib); v <- cf1(sp$valid)
+  ids <- c("2", "3", "12", "50")
+  dk <- k[ids] - k[["1"]]; dv <- v[ids] - v[["1"]]
+  expect_false(isTRUE(all.equal(unname(dk), unname(dv))))
+  expect_true(any(dv > 0) && any(dv < 0))
+  rk <- rank(-v, ties.method = "min")
+  ranks <- integer()
+  for (id in c(1L, 2L, 3L, 12L, 50L)) {
+    r <- cv_split_carry(cells, sp, id)
+    expect_identical(names(r), c("n_configs", "pearson", "n_positive_valid", "rank_valid"))
+    expect_identical(nrow(r), 1L)
+    expect_identical(r$n_configs, 4L)
+    expect_equal(r$pearson, stats::cor(dk, dv))
+    expect_identical(r$n_positive_valid, sum(dv > 0))
+    expect_identical(r$rank_valid, as.integer(rk[[as.character(id)]]))
+    ranks <- c(ranks, r$rank_valid)
+  }
+  expect_setequal(ranks, 1:5)
+  # a selection that is stock ranks below every configuration that gains
+  r <- cv_split_carry(cells, sp, 1L)
+  expect_identical(r$rank_valid, 1L + r$n_positive_valid)
+  # one configuration: no correlation
+  one <- cells[cells$config_id %in% c(1L, 12L), ]
+  r <- cv_split_carry(one, sp, 12L)
+  expect_identical(r$n_configs, 1L)
+  expect_true(is.na(r$pearson))
+  expect_identical(r$n_positive_valid, as.integer(dv[["12"]] > 0))
+  expect_identical(r$rank_valid, if (dv[["12"]] > 0) 1L else 2L)
+  expect_error(cv_split_carry(cells[!cells$config_id %in% 1L, ], sp, 2L),
+               "stock (config_id 1) has no native rows", fixed = TRUE)
+})
+
+test_that("the carry-over paragraph gives the medians, ranges and the headline seed's place", {
+  sg <- data.frame(seed = 1:5, config = "a", n_configs = 86L,
+                   pearson = c(0.81, 0.5, 0.9, 0.3, 0.85),
+                   n_positive_valid = c(82L, 40L, 86L, 79L, 60L),
+                   rank_valid = c(5L, 10L, 2L, 68L, 12L), stringsAsFactors = FALSE)
+  md <- cv_md_carry(sg, 1L)
+  expect_length(md, 1L)
+  expect_match(md, paste("Across the 86 non-stock grid configurations the calibration and",
+                         "validation changes in cF1 correlate at a median of 0.81 over the 5",
+                         "splits (10th to 90th percentile 0.38 to 0.88, range 0.30 to 0.90;",
+                         "seed 1: 0.81, exceeded in 2 splits)."), fixed = TRUE)
+  expect_match(md, paste("A split's own selection ranks at a median of 10 of 87 on its validation",
+                         "plots, stock included (range 2 to 68), and a median of 79 of the 86",
+                         "configurations score above stock there (range 40 to 86)."), fixed = TRUE)
+  expect_match(md, "Every split is in `seed_grid.csv`.", fixed = TRUE)
+  # a headline seed that is not among the seeds
+  expect_match(cv_md_carry(sg, 99L), "seed 99: NA, exceeded in NA splits", fixed = TRUE)
+  # an undefined correlation is left out; medians of an even count
+  sg$pearson[2] <- NA
+  md <- cv_md_carry(sg[-5, ], 1L)
+  expect_match(md, "median of 0.81 over the 4 splits", fixed = TRUE)
+  expect_match(md, "range 0.30 to 0.90; seed 1: 0.81, exceeded in 1 splits", fixed = TRUE)
+  expect_match(md, "ranks at a median of 7.5 of 87", fixed = TRUE)
+  expect_match(md, "a median of 80.5 of the 86 configurations", fixed = TRUE)
+  expect_identical(cv_md_carry(NULL, 1L), "(no rows)")
+  expect_identical(cv_md_carry(sg[0, ], 1L), "(no rows)")
 })
 
 test_that("calibration needs the native rung", {
@@ -651,6 +778,11 @@ test_that("the analyze stage writes the grid and region contrasts, and drops a s
   v <- read.csv(file.path(st$out, "validation.csv"), stringsAsFactors = FALSE)
   expect_false(any(v$analysis %in% c("grid", "region_difference")))
   expect_true(any(grepl("grid_contrasts.csv, region_differences.csv", a$out, fixed = TRUE)))
+  # one row per seed (SEEDS=1) of how the calibration ranking carries over
+  sg <- read.csv(file.path(st$out, "seed_grid.csv"), stringsAsFactors = FALSE)
+  expect_identical(nrow(sg), 1L)
+  expect_identical(sg$config, a$res$selected$label)
+  expect_true(any(grepl("seed_grid.csv", a$out[startsWith(a$out, "wrote ")], fixed = TRUE)))
   # one region only: no region rows, and the earlier file is removed
   st$args <- sub("^SITES=.*$", "SITES=WREF", st$args)
   b <- analyze_with(st)
@@ -809,10 +941,12 @@ test_that("the analyze stage reports the skipped cells of its sites and rungs", 
 
 ## ---- censused subplots ----------------------------------------------------------------------
 # Censused scores as score_census_support.R writes them (the columns the study
-# reads), one row per plot ("SITE_nnn").
-syn_census <- function(det, plots, n_ref, n_det, TP, tp_core, rung = "native")
+# reads), one row per plot ("SITE_nnn"); rect_n_det is the nominal-box
+# detection count of the scored detections.
+syn_census <- function(det, plots, n_ref, n_det, TP, tp_core, rung = "native",
+                       rect_n_det = NA_real_)
   data.frame(site = sub("_.*", "", plots), plot = plots, rung = rung, detector = det,
-             n_ref = n_ref, n_det = n_det, TP = TP, tp_core = tp_core,
+             n_ref = n_ref, n_det = n_det, TP = TP, tp_core = tp_core, rect_n_det = rect_n_det,
              support_id = paste0("bundle_", plots),
              support_policy = "measured_subplots_uncertainty_interior_v1",
              reference_population = "live_mapped_boles_dbh_ge_10cm", stringsAsFactors = FALSE)
@@ -889,6 +1023,17 @@ test_that("the censused contrast pools summed counts on equal support, by split 
   expect_error(cv_census(file.path(d, "base.csv"), file.path(d, "base.csv"), valid,
                          cv_scopes(sites), sites, n_boot = 20),
                "no censused multichm_gated rows at native density")
+  # a file without the support identity (a nominal-box result file) is refused in
+  # either position, so the equal-support guard cannot be bypassed by dropping it
+  rect <- base[setdiff(names(base), c("support_id", "support_policy", "reference_population"))]
+  write.csv(rect, file.path(d, "rect.csv"), row.names = FALSE)
+  expect_error(cv_census(file.path(d, "gated.csv"), file.path(d, "rect.csv"), valid,
+                         cv_scopes(sites), sites, n_boot = 20),
+               "is not a censused score file")
+  expect_error(cv_census(file.path(d, "rect.csv"), file.path(d, "base.csv"), valid,
+                         cv_scopes(sites), sites, n_boot = 20),
+               "rect.csv has no support_id, support_policy, reference_population, so it is not a",
+               fixed = TRUE)
   # the tables print the section only when given the censused results
   S <- syn_settings(N_BOOT = 20L)
   res <- cv_analyze(syn_cells(), S, boot_seed = 11L)
@@ -941,17 +1086,73 @@ test_that("the censused contrast needs each site's stamp to hold the selection",
   expect_true(cv_census_config_check(d, "SJER", sel))
 })
 
+test_that("a censused file must hold the nominal-box detection counts of the study's cells", {
+  d <- tempfile("mcg_rect"); dir.create(d)
+  f <- file.path(d, "census.csv")
+  cells <- syn_cells(sites = "SJER", n = 3)     # z5_s0_c0_e0: 24 per cell, stock 30
+  sj <- sprintf("SJER_%03d", 1:3)
+  ok <- syn_census("multichm_gated", sj, 10, 8, 6, 6, rect_n_det = 24)
+  write.csv(ok, f, row.names = FALSE)
+  expect_true(cv_census_cells_check(f, "multichm_gated", cells, "z5_s0_c0_e0"))
+  expect_error(cv_census_cells_check(f, "multichm_gated", cells, "stock"),
+               paste("does not score the multichm_gated detections of configuration stock: the",
+                     "nominal-box detection count differs from cells.csv in 3 of 3 cells (first",
+                     "SJER_001)"), fixed = TRUE)
+  # rows of another detector, another rung or another site are ignored
+  other <- rbind(ok, syn_census("multichm", sj, 10, 8, 6, 6, rect_n_det = 99),
+                 syn_census("multichm_gated", sj, 10, 8, 6, 6, rung = "1", rect_n_det = 99),
+                 syn_census("multichm_gated", "WREF_001", 10, 8, 6, 6, rect_n_det = 99))
+  write.csv(other, f, row.names = FALSE)
+  expect_true(cv_census_cells_check(f, "multichm_gated", cells, "z5_s0_c0_e0"))
+  # a plot of the file that the cells lack, or a missing count, is a difference
+  write.csv(rbind(ok, syn_census("multichm_gated", "SJER_009", 10, 8, 6, 6, rect_n_det = 24)),
+            f, row.names = FALSE)
+  expect_error(cv_census_cells_check(f, "multichm_gated", cells, "z5_s0_c0_e0"),
+               "differs from cells.csv in 1 of 4 cells (first SJER_009)", fixed = TRUE)
+  na <- ok; na$rect_n_det[2] <- NA
+  write.csv(na, f, row.names = FALSE)
+  expect_error(cv_census_cells_check(f, "multichm_gated", cells, "z5_s0_c0_e0"),
+               "in 1 of 3 cells (first SJER_002)", fixed = TRUE)
+  # a file without the count stops; a file with no row of the detector passes
+  # (cv_census() reports it)
+  write.csv(ok[setdiff(names(ok), "rect_n_det")], f, row.names = FALSE)
+  expect_error(cv_census_cells_check(f, "multichm_gated", cells, "z5_s0_c0_e0"),
+               "has no rect_n_det", fixed = TRUE)
+  write.csv(syn_census("multichm", sj, 10, 8, 6, 6), f, row.names = FALSE)
+  expect_true(cv_census_cells_check(f, "multichm_gated", cells, "z5_s0_c0_e0"))
+})
+
 test_that("the analyze stage adds the censused contrast with both files, and drops it otherwise", {
   st <- syn_study()
   plots <- c(sprintf("SJER_%03d", 1:8), sprintf("WREF_%03d", 1:8))
   gated <- file.path(st$d, "gated.csv"); base <- file.path(st$d, "base.csv")
-  write.csv(syn_census("multichm_gated", plots, 10, 8, 6, 6), gated, row.names = FALSE)
-  write.csv(syn_census("multichm", plots, 10, 12, 7, 6), base, row.names = FALSE)
+  # the nominal-box counts of the synthetic cells: the selection 24, stock 30
+  write_gated <- function(rect_n_det = 24)
+    write.csv(syn_census("multichm_gated", plots, 10, 8, 6, 6, rect_n_det = rect_n_det), gated,
+              row.names = FALSE)
+  write_base <- function(rect_n_det = 30)
+    write.csv(syn_census("multichm", plots, 10, 12, 7, 6, rect_n_det = rect_n_det), base,
+              row.names = FALSE)
+  write_gated(); write_base()
   args <- c(paste0("CENSUS=", gated), paste0("BASE_CENSUS=", base))
   # the headline selection of the synthetic cells is z5_s0_c0_e0
   for (s in c("SJER", "WREF")) syn_stamp(st$d, s, mcg_config(8, 0, 0, FALSE))
   expect_error(analyze_with(st, args), "the censused scores are of configuration z8_s0_c0_e0")
   for (s in c("SJER", "WREF")) syn_stamp(st$d, s, mcg_config(5, 0, 0, FALSE))
+  # with the stamps holding the selection, censused files of other detections
+  # (here the other configuration's counts) still stop the stage
+  write_gated(30)
+  expect_error(analyze_with(st, args),
+               "does not score the multichm_gated detections of configuration z5_s0_c0_e0",
+               fixed = TRUE)
+  write_gated(); write_base(24)
+  expect_error(analyze_with(st, args),
+               "does not score the multichm detections of configuration stock", fixed = TRUE)
+  write_base()
+  g <- syn_census("multichm_gated", plots, 10, 8, 6, 6)
+  write.csv(g[setdiff(names(g), "rect_n_det")], gated, row.names = FALSE)
+  expect_error(analyze_with(st, args), "has no rect_n_det", fixed = TRUE)
+  write_gated()
   a <- analyze_with(st, args)
   expect_true(any(grepl("census_scores.csv, census_contrasts.csv", a$out, fixed = TRUE)))
   k <- read.csv(file.path(st$out, "census_contrasts.csv"), stringsAsFactors = FALSE)

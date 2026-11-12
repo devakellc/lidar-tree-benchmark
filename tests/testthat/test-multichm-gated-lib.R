@@ -162,7 +162,15 @@ test_that("the candidate search runs on one lidR thread and restores the caller'
   one <- mcg_candidates(las, 0.5, ws_factory(0.10))
   lidR::set_lidr_threads(2L)
   before <- lidR::get_lidr_threads()
-  two <- mcg_candidates(las, 0.5, ws_factory(0.10))
+  # lmf() calls the window function inside the search: record the thread count there
+  seen <- integer()
+  ws <- function(x) {
+    seen <<- c(seen, lidR::get_lidr_threads())
+    ws_factory(0.10)(x)
+  }
+  two <- mcg_candidates(las, 0.5, ws)
+  expect_gt(length(seen), 0L)
+  expect_true(all(seen == 1L))
   expect_identical(lidR::get_lidr_threads(), before)
   expect_identical(two, one)
 })

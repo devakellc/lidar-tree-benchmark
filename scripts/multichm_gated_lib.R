@@ -13,16 +13,18 @@
 # stand (canopy cover >= cover_min), when the first-return share around its own
 # top is at least min_share; in a closed stand surface peaks may skip the
 # distance filter (surface_exempt). The calibration study does not establish the
-# share premise: on its validation plots the share gate's own change in
-# chance-corrected F1, given the floor and the exemption, is not separable from
-# zero, and it lowers plain F1 and corrected recall
+# share premise: on its validation plots at native density the share gate's own
+# change in chance-corrected F1, given the floor and the exemption, is not
+# separable from zero, and it lowers plain F1 and corrected recall; on the
+# decimated rungs that change excludes zero on two of the four
 # (results/multichm-gated-results.md).
 #
 # Provenance: the gate's form and the calibration grid values (mcg_grid) were
 # informed by an exploratory pass over all 106 frozen NEON plots of the five
-# sites. A held-out score of a configuration selected on calibration plots
-# therefore tests only the selection within that grid, not the grid's values or
-# the choice of features.
+# sites, and the selection criterion was fixed after that pass. A held-out
+# score of a configuration selected on calibration plots therefore tests only
+# the selection within that grid, not the grid's values or the choice of
+# features.
 #
 # The stock configuration (MCG_STOCK: no floor, no share gate, no exemption)
 # reproduces lidRplugins::multichm 0.4.0 exactly; mcg_candidates() is an
