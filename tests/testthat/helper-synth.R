@@ -47,3 +47,37 @@ synth_block_points <- function() {
   rbind(dt, noise)
 }
 
+# A closed stand (canopy cover about 0.72) where both closed-stand mechanisms of
+# the multichm_gated arm change the detections: two tall crowns 4 m apart at
+# similar heights (the distance filter keeps one of them unless surface peaks
+# are exempt), and an understory crown under the edge of a wide crown whose
+# returns are all later returns (a deeper-layer peak with a low first-return
+# share, which the share gate removes).
+synth_cone <- function(x, y, h, r, n, rn = 1L) {
+  d <- r * sqrt(runif(n)); a <- runif(n, 0, 2 * pi)
+  data.frame(X = x + d * cos(a), Y = y + d * sin(a),
+             Z = pmax(0, h * (1 - 0.6 * d / r) + rnorm(n, 0, 0.1)), ReturnNumber = rn)
+}
+SYNTH_CLOSED_TREES <- data.frame(
+  x = c(8, 12, 21, 25.5), y = c(8, 8, 21, 21), h = c(24, 23.5, 24, 9), r = c(4, 4, 7, 1.5),
+  cls = c("dominant", "dominant", "dominant", "suppressed"))
+synth_closed_stand <- function(seed = 1) {
+  set.seed(seed)
+  t <- SYNTH_CLOSED_TREES
+  df <- rbind(synth_cone(t$x[1], t$y[1], t$h[1], t$r[1], 1200),
+              synth_cone(t$x[2], t$y[2], t$h[2], t$r[2], 1200),
+              synth_cone(t$x[3], t$y[3], t$h[3], t$r[3], 1500),
+              synth_cone(t$x[4], t$y[4], t$h[4], t$r[4], 300, rn = 2L),
+              data.frame(X = runif(1500, 0, 32), Y = runif(1500, 0, 32),
+                         Z = abs(rnorm(1500, 0, 0.05)), ReturnNumber = 1L))
+  df$ReturnNumber <- as.integer(df$ReturnNumber)
+  las <- suppressWarnings(LAS(df))
+  st_crs(las) <- 32611L
+  las
+}
+synth_closed_stems <- function()
+  data.frame(E = SYNTH_CLOSED_TREES$x, N = SYNTH_CLOSED_TREES$y, height = SYNTH_CLOSED_TREES$h,
+             crown_class = SYNTH_CLOSED_TREES$cls, stringsAsFactors = FALSE)
+synth_closed_meta <- function()
+  list(site = "SYN", plot = "SYN_002", plotType = "tower", rung = NA, cx = 16, cy = 16,
+       half = 16, pdens = 10, frdens = 5)

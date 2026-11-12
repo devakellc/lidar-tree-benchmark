@@ -42,39 +42,6 @@ meta <- function(frdens = 5, rung = NA)
 args_of <- function(...) { a <- c(...); setNames(as.list(unname(a)), names(a)) }
 GATED <- mcg_config(5, 0.75, 0.7, TRUE)
 
-# A closed stand (canopy cover about 0.72) where both closed-stand mechanisms
-# change the detections: two tall crowns 4 m apart at similar heights (the
-# distance filter keeps one of them unless surface peaks are exempt), and an
-# understory crown under the edge of a wide crown whose returns are all later
-# returns (a deeper-layer peak with a low first-return share, which the share
-# gate removes).
-cone <- function(x, y, h, r, n, rn = 1L) {
-  d <- r * sqrt(runif(n)); a <- runif(n, 0, 2 * pi)
-  data.frame(X = x + d * cos(a), Y = y + d * sin(a),
-             Z = pmax(0, h * (1 - 0.6 * d / r) + rnorm(n, 0, 0.1)), ReturnNumber = rn)
-}
-CLOSED_TREES <- data.frame(x = c(8, 12, 21, 25.5), y = c(8, 8, 21, 21), h = c(24, 23.5, 24, 9),
-                           r = c(4, 4, 7, 1.5),
-                           cls = c("dominant", "dominant", "dominant", "suppressed"))
-closed_stand <- function(seed = 1) {
-  set.seed(seed)
-  t <- CLOSED_TREES
-  df <- rbind(cone(t$x[1], t$y[1], t$h[1], t$r[1], 1200), cone(t$x[2], t$y[2], t$h[2], t$r[2], 1200),
-              cone(t$x[3], t$y[3], t$h[3], t$r[3], 1500),
-              cone(t$x[4], t$y[4], t$h[4], t$r[4], 300, rn = 2L),
-              data.frame(X = runif(1500, 0, 32), Y = runif(1500, 0, 32),
-                         Z = abs(rnorm(1500, 0, 0.05)), ReturnNumber = 1L))
-  df$ReturnNumber <- as.integer(df$ReturnNumber)
-  las <- suppressWarnings(LAS(df))
-  st_crs(las) <- 32611L
-  las
-}
-closed_stems <- function() data.frame(E = CLOSED_TREES$x, N = CLOSED_TREES$y,
-                                      height = CLOSED_TREES$h, crown_class = CLOSED_TREES$cls,
-                                      stringsAsFactors = FALSE)
-closed_meta <- function() list(site = "SYN", plot = "SYN_002", plotType = "tower", rung = NA,
-                               cx = 16, cy = 16, half = 16, pdens = 10, frdens = 5)
-
 ## ---- configuration --------------------------------------------------------------------------
 test_that("no configuration stops with a message naming the ways to give one", {
   # the declared configuration is passed as NULL: these hold whatever MCG_DECLARED is
@@ -153,15 +120,26 @@ test_that("a CONFIG file must exist, hold the four values and match the library'
 ## ---- the detections directory's configuration stamp -----------------------------------------
 test_that("a detections directory holds the detections of one configuration only", {
   dir <- file.path(tempfile(), "multichm_gated_detections"); on.exit(unlink(dirname(dir), TRUE))
-  mcg_arm_stamp_config(dir, GATED)
-  st <- jsonlite::read_json(file.path(dir, MCG_ARM_CONFIG_STAMP), simplifyVector = TRUE)
+  stamp <- file.path(dir, MCG_ARM_CONFIG_STAMP)
+  mcg_arm_stamp_config(dir, GATED, a = 0.10)
+  st <- jsonlite::read_json(stamp, simplifyVector = TRUE)
   expect_identical(st$label, "z5_s0.75_c0.7_e1")
-  mcg_arm_stamp_config(dir, MCG_STOCK)              # nothing persisted yet: restamped
+  # everything that changes the apexes is stamped
+  expect_equal(st[c("a", "radius", "half_dz", "cover_height")],
+               list(a = 0.10, radius = MCG_RADIUS, half_dz = MCG_HALF_DZ,
+                    cover_height = MCG_COVER_HEIGHT))
+  mcg_arm_stamp_config(dir, MCG_STOCK, a = 0.10)    # nothing persisted yet: restamped
   persist_detections(dir, "P1", NA, data.frame(x = 1, y = 2, z = 3))
-  expect_silent(mcg_arm_stamp_config(dir, MCG_STOCK))
-  expect_error(mcg_arm_stamp_config(dir, GATED), "another configuration")
-  unlink(file.path(dir, MCG_ARM_CONFIG_STAMP))
-  expect_error(mcg_arm_stamp_config(dir, MCG_STOCK), "another configuration")
+  expect_silent(mcg_arm_stamp_config(dir, MCG_STOCK, a = 0.10))
+  expect_error(mcg_arm_stamp_config(dir, GATED, a = 0.10), "another configuration")
+  expect_error(mcg_arm_stamp_config(dir, MCG_STOCK, a = 0.3), "another configuration")
+  expect_error(mcg_arm_stamp_config(dir, MCG_STOCK, a = NA_real_), "window coefficient")
+  # a stamp written before the window coefficient and the feature constants were stamped
+  jsonlite::write_json(c(MCG_STOCK, list(label = "stock")), stamp, auto_unbox = TRUE,
+                       pretty = TRUE, digits = NA)
+  expect_error(mcg_arm_stamp_config(dir, MCG_STOCK, a = 0.10), "another configuration")
+  unlink(stamp)
+  expect_error(mcg_arm_stamp_config(dir, MCG_STOCK, a = 0.10), "another configuration")
 })
 
 ## ---- one cell ------------------------------------------------------------------------------
@@ -204,11 +182,11 @@ test_that("a cell row carries the arm, the rung, the cover and the closed flag",
 })
 
 test_that("in a closed stand the share gate and the exemption change the detections", {
-  las <- closed_stand(1)
+  las <- synth_closed_stand(1)
   cover <- mcg_canopy_cover(las)
   expect_gt(cover, 0.6)
   near <- function(det, x, y, r = 1) any((det$x - x)^2 + (det$y - y)^2 <= r^2)
-  cell <- function(cfg) mcg_arm_cell(las, closed_stems(), closed_meta(), cfg)
+  cell <- function(cfg) mcg_arm_cell(las, synth_closed_stems(), synth_closed_meta(), cfg)
   gated <- cell(mcg_config(5, 0.75, 0.6, TRUE))
   plain <- cell(mcg_config(5, 0, 0.6, FALSE))        # the same without share gate and exemption
   expect_equal(gated$cover, cover)
@@ -253,7 +231,9 @@ test_that("a flat clip gives an empty, persistable detection set", {
   expect_identical(nrow(read.csv(f)), 0L)
 })
 
-test_that("an empty clip scores as no detections, with the cover and closed flag unknown", {
+# The driver stops on an empty clip before it calls mcg_arm_cell(); this is the
+# function alone.
+test_that("mcg_arm_cell on an empty clip returns no detections and an unknown cover", {
   empty <- suppressWarnings(LAS(data.frame(X = numeric(), Y = numeric(), Z = numeric(),
                                            ReturnNumber = integer())))
   st_crs(empty) <- 32611L
@@ -281,7 +261,9 @@ test_that("results gain tp_core, then cover, closed and the configuration", {
                                  "surface_exempt"))
   expect_identical(n[1:9], c("site", "plot", "plotType", "detector", "rung", "pdens", "frdens",
                              "chm_res", "n_apex"))
-  expect_identical(out$tp_core, round(out$precision * out$n_det))
+  expect_identical(mcg_arm_finish(data.frame(precision = c(0.5, NA), n_det = c(8L, 0L),
+                                             cover = 0.7, closed = TRUE), GATED)$tp_core,
+                   c(4, NA))
   expect_identical(out$zmin, c(5, 5)); expect_identical(out$surface_exempt, c(TRUE, TRUE))
   expect_identical(out$rung, c("native", "4"))
 })

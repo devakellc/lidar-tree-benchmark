@@ -35,13 +35,16 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # MCG_DECLARED; were it unset, all four arguments would be required and the
 # run would stop before any work. The gate's form and the calibration grid
 # were informed by an exploratory pass over all 106 frozen plots, so held-out
-# scores test the threshold selection, not the choice of features.
+# scores test only the selection within that grid, not the grid's values or
+# the choice of features.
 #
 # The stock configuration (ZMIN=0 MIN_SHARE=0 COVER_MIN=0 SURFACE_EXEMPT=FALSE)
 # reproduces lidRplugins::multichm, so its detections equal the multichm arm's.
 # Unlike the package, the library also handles a clip with a single candidate
-# (the package crashes there and the multichm arm skips the cell). A detector
-# error here fails its plot, and a failed plot stops the run.
+# (the package crashes there and the multichm arm skips the cell). An
+# unreadable or empty frozen clip, or a detector error, fails its plot, and a
+# failed plot stops the run; the multichm arm skips such a cell without a
+# record.
 #
 # Usage:
 #   Rscript scripts/detect_multichm_gated_sweep.R [SITE=SOAP] [PLOTS=ALL]
@@ -137,24 +140,33 @@ mcg_arm_config <- function(A, declared = MCG_DECLARED) {
   list(cfg = cfg, source = src, file = file)
 }
 
-# Stamps a detections directory with its configuration before any detection is
-# written; a directory that already holds detections of another (or an
-# unrecorded) configuration must be moved aside first.
-mcg_arm_stamp_config <- function(dir, cfg) {
+# Stamps a detections directory, before any detection is written, with
+# everything that changes the apexes it holds: the configuration, the variable-
+# window coefficient `a` (it changes the candidates) and the library's feature
+# constants (radius, half_dz, cover_height). A directory that already holds
+# detections stamped otherwise (or not stamped with all of these) must be moved
+# aside first. The matching tolerance is not stamped: it changes the scores,
+# not the detections.
+mcg_arm_stamp_config <- function(dir, cfg, a) {
   cfg <- .mcg_check_config(cfg)
+  if (!is.numeric(a) || length(a) != 1L || !is.finite(a) || a <= 0)
+    stop("multichm_gated: the window coefficient a must be one finite number > 0", call. = FALSE)
+  want <- c(cfg, list(a = as.numeric(a), radius = MCG_RADIUS, half_dz = MCG_HALF_DZ,
+                      cover_height = MCG_COVER_HEIGHT))
   f <- file.path(dir, MCG_ARM_CONFIG_STAMP)
   held <- list.files(dir, pattern = "\\.csv$")
   if (length(held)) {
     old <- if (file.exists(f)) tryCatch(jsonlite::read_json(f, simplifyVector = TRUE),
                                         error = function(e) NULL)
-    same <- !is.null(old) && all(names(MCG_CONFIG_FIELDS) %in% names(old)) &&
-      isTRUE(all.equal(lapply(old[names(MCG_CONFIG_FIELDS)], unname), cfg, tolerance = 1e-12))
+    same <- !is.null(old) && all(names(want) %in% names(old)) &&
+      isTRUE(all.equal(lapply(old[names(want)], unname), want, tolerance = 1e-12))
     if (!same)
-      stop(sprintf("multichm_gated: %s holds detections of another configuration; move it aside to start fresh",
+      stop(sprintf(paste0("multichm_gated: %s holds detections of another configuration, ",
+                          "window coefficient or feature constants; move it aside to start fresh"),
                    dir), call. = FALSE)
   }
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
-  jsonlite::write_json(c(cfg, list(label = mcg_config_label(cfg))), f, auto_unbox = TRUE,
+  jsonlite::write_json(c(want, list(label = mcg_config_label(cfg))), f, auto_unbox = TRUE,
                        pretty = TRUE, digits = NA)
   invisible(f)
 }
@@ -238,7 +250,7 @@ run_main <- function() {
               cfg$cover_min, cfg$surface_exempt))
   det_dir <- file.path(nd, paste0(MCG_ARM, "_detections"))
   frozen_stamp(det_dir, fz$root)          # detections made on other clips stop here
-  mcg_arm_stamp_config(det_dir, cfg)      # ... and those of another configuration
+  mcg_arm_stamp_config(det_dir, cfg, A_VWF)  # ... and those of another configuration or A=
 
   run_plot <- function(pid) {
     ci <- pc[pc$plotID == pid, ][1, ]
@@ -256,8 +268,10 @@ run_main <- function() {
       if (is.na(rung)) native_pdens <- pdens
       # no-upsampling guard: rung TARGET vs the plot's NATIVE all-return density.
       else if (is.na(native_pdens) || rung >= native_pdens) next
-      las <- tryCatch(readLAS(prep$normalized), error = function(e) NULL)
-      if (is.null(las) || is.empty(las)) next
+      las <- readLAS(prep$normalized)       # a read error fails the plot
+      if (is.empty(las))
+        stop(sprintf("multichm_gated: the frozen clip of %s at rung %s is empty", pid,
+                     if (is.na(rung)) "native" else rung), call. = FALSE)
       cell <- mcg_arm_cell(las, stems,
                            list(site = SITE, plot = pid, plotType = ci$plotType, rung = rung,
                                 cx = cx, cy = cy, half = ph, pdens = pdens, frdens = frdens),
@@ -289,6 +303,8 @@ run_main <- function() {
                          list(label = mcg_config_label(cfg), source = conf$source,
                               config_file = if (is.null(conf$file)) NA_character_ else
                                 normalizePath(conf$file, mustWork = FALSE),
+                              config_file_sha256 = if (is.null(conf$file)) NA_character_ else
+                                frozen_sha256(conf$file),
                               radius = MCG_RADIUS, half_dz = MCG_HALF_DZ,
                               cover_height = MCG_COVER_HEIGHT, a = A_VWF, tol = TOL,
                               population = fz$population,

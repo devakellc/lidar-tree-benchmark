@@ -102,8 +102,14 @@ test_that("candidate tables keep the package's invariants", {
   expect_false(anyDuplicated(C[, .(X, Y)]) > 0)               # unique positions
   expect_true(any(C$layer == 1L) && any(C$layer > 1L))        # surface and deeper layers
   expect_true(all(C$Z > 2))                                   # hmin
-  expect_false(anyNA(C$ztop))
-  expect_true(all(C$ztop >= C$Z))                             # a cell's top is above its p95
+  # ztop is the highest return of the candidate's own 0.5 m cell, not its p95
+  p <- las@data
+  S1 <- C[C$layer == 1L]
+  top1 <- vapply(seq_len(nrow(S1)), function(i)
+    max(p$Z[floor(p$X / 0.5) == floor(S1$X[i] / 0.5) & floor(p$Y / 0.5) == floor(S1$Y[i] / 0.5)]),
+    numeric(1))
+  expect_identical(S1$ztop, top1)
+  expect_true(any(C$ztop[C$layer > 1L] > C$Z[C$layer > 1L]))  # deeper layers carry a top too
   expect_true(all(sort(unique(C$layer)) == seq_len(max(C$layer))))
   P <- mcg_prepare(las, 0.5)
   expect_identical(names(P$cand), c("X", "Y", "Z", "layer", "ztop", "share"))
@@ -143,6 +149,22 @@ test_that("an empty cloud gives 0 rows even for a configuration that reads the c
 test_that("a candidate's top falls back to its Z when the raster misses its own cell", {
   expect_identical(.mcg_ztop(c(NA, 9.99, 10, 12), c(10, 10, 10, 10)), c(10, 10, 10, 12))
   expect_identical(.mcg_ztop(numeric(), numeric()), numeric())
+  # the p95 read at the candidate's coordinates: another cell's value (q != Z)
+  # or NA means the coordinates miss its cell, whatever the top raster reads there
+  expect_identical(.mcg_ztop(c(12, 12, 12), c(10, 10, 10), c(10.5, NA, 10)), c(10, 10, 12))
+  expect_identical(.mcg_ztop(c(9, 12), c(10, 10), c(10, 10)), c(10, 12))
+})
+
+test_that("the candidate search runs on one lidR thread and restores the caller's setting", {
+  old <- lidR::get_lidr_threads(); on.exit(lidR::set_lidr_threads(old), add = TRUE)
+  las <- synth_stand(1)
+  lidR::set_lidr_threads(1L)
+  one <- mcg_candidates(las, 0.5, ws_factory(0.10))
+  lidR::set_lidr_threads(2L)
+  before <- lidR::get_lidr_threads()
+  two <- mcg_candidates(las, 0.5, ws_factory(0.10))
+  expect_identical(lidR::get_lidr_threads(), before)
+  expect_identical(two, one)
 })
 
 ## ---- first-return share and canopy cover ----------------------------------------------------
@@ -206,6 +228,7 @@ test_that("canopy cover is the share of first returns above 2 m", {
 ## ---- the gate -------------------------------------------------------------------------------
 test_that("the height floor applies to deeper layers only, in every stand", {
   C <- cands(X = 1:4, Y = 0, Z = c(9, 4.9, 5, 3), layer = c(2, 2, 3, 1))
+  C$ztop <- C$Z + 1        # the floor reads Z, not the top return
   for (cover in c(0.1, 0.9, NA)) {
     g <- mcg_gate(C, cover, mcg_config(zmin = 5))
     expect_identical(g$keep, c(TRUE, FALSE, TRUE, TRUE))
@@ -483,6 +506,13 @@ test_that("mcg_contrast pairs the resamples of both configurations", {
   expect_lt(unpaired$lower, 0)
   own <- mt_interval(recall_of(W1, 0))
   expect_lt(rec$upper - rec$lower, 0.25 * (own$upper - own$lower))
+  # the interval is the one computed by hand from the same weight matrix, and
+  # each configuration's counts stay aligned with their plots whatever the row order
+  paired <- mt_interval(recall_of(W1, 1) - recall_of(W1, 0))
+  expect_equal(c(rec$lower, rec$upper), c(paired$lower, paired$upper))
+  mixed <- rbind(r[r$config == "a", ][c(8, 3, 1, 6, 2, 7, 5, 4), ],
+                 r[r$config == "b", ][c(2, 5, 8, 1, 4, 3, 7, 6), ])
+  expect_identical(mcg_contrast(mixed, ids, "a", "b", n_boot = 300, seed = 1), up)
 })
 
 test_that("mcg_contrast is signed by the better configuration", {
@@ -501,4 +531,67 @@ test_that("mcg_contrast is signed by the better configuration", {
   expect_identical(better, mcg_contrast(r, ids, "c3", "stock", n_boot = 200, seed = 1))
   expect_error(mcg_contrast(r[!(r$config == "c3" & r$plot == "p1"), ], ids, "c3", "stock",
                             n_boot = 10), "cover each")
+})
+
+# Two sites whose contrast a - b differs in sign: config "a" is config "b" plus
+# `gain` true positives (and core true positives) per plot, gains on site A's
+# plots and losses on site B's.
+region_rows <- function() {
+  base <- data.frame(site = rep(c("A", "B"), c(5, 4)), plot = paste0("q", 1:9),
+                     n_ref = c(12, 30, 8, 45, 20, 25, 6, 40, 15),
+                     TP = c(8, 14, 5, 30, 9, 15, 2, 22, 10), stringsAsFactors = FALSE)
+  base$n_det <- base$n_ref + c(3, 6, 0, 10, 4, 5, 2, 12, 1)
+  one <- function(config, gain) do.call(rbind, lapply(seq_len(nrow(base)), function(i) {
+    b <- base[i, ]
+    cbind(data.frame(site = b$site, plot = b$plot, rung = "native", config = config,
+                     stringsAsFactors = FALSE),
+          count_row(n_ref = b$n_ref, n_det = b$n_det, TP = b$TP + gain[i],
+                    tp_core = b$TP + gain[i], n_det0 = b$n_det, TP0 = 0.2 * b$n_ref,
+                    tp_core0 = 0.15 * b$n_det))
+  }))
+  rbind(one("a", c(2, 3, 1, 4, 2, 0, -1, -3, -2)), one("b", rep(0, 9)))
+}
+
+test_that("mcg_contrast_difference compares a contrast between two plot sets on shared resamples", {
+  r <- region_rows()
+  ids <- paste(r$site, r$plot, sep = "::")[r$config == "a"]
+  p1 <- ids[startsWith(ids, "A::")]; p2 <- ids[startsWith(ids, "B::")]
+  d <- mcg_contrast_difference(r, p1, p2, "a", "b", n_boot = 300, seed = 1)
+  expect_identical(d$metric, c("cF1", "F1", "cPrecision", "cRecall", "precision", "recall",
+                               "det_per_ref"))
+  expect_identical(c(d$n_plots_1[1], d$n_plots_2[1]), c(5L, 4L))
+  # each set's estimate is the contrast on that set alone
+  expect_equal(d$difference_1, mcg_contrast(r, p1, "a", "b", n_boot = 300, seed = 1)$difference)
+  expect_equal(d$difference_2, mcg_contrast(r, p2, "a", "b", n_boot = 300, seed = 1)$difference)
+  expect_equal(d$difference, d$difference_1 - d$difference_2)
+  rec <- d[d$metric == "recall", ]
+  expect_equal(c(rec$difference_1, rec$difference_2), c(12 / 115, -6 / 86))
+  # recall by hand: one weight matrix over the union, each set from its own rows
+  W <- mt_plot_weights(sub("::.*", "", ids), sub("^[^:]*::", "", ids), 300, 1)
+  at <- function(config) {
+    x <- r[r$config == config, ]
+    x[match(rownames(W), paste(x$site, x$plot, sep = "::")), ]
+  }
+  ra <- at("a"); rb <- at("b"); in1 <- rownames(W) %in% p1
+  recall_of <- function(x, k) drop(crossprod(W[k, , drop = FALSE], x$TP[k])) /
+    drop(crossprod(W[k, , drop = FALSE], x$n_ref[k]))
+  hand <- mt_interval((recall_of(ra, in1) - recall_of(rb, in1)) -
+                        (recall_of(ra, !in1) - recall_of(rb, !in1)))
+  expect_equal(c(rec$lower, rec$upper, rec$defined_draws),
+               c(hand$lower, hand$upper, hand$defined_draws))
+  expect_gt(rec$lower, 0)
+  # swapping the sets negates the difference and mirrors the interval
+  s <- mcg_contrast_difference(r, p2, p1, "a", "b", n_boot = 300, seed = 1)
+  expect_equal(s$difference, -d$difference)
+  expect_equal(s$lower, -d$upper); expect_equal(s$upper, -d$lower)
+  # the row order does not matter
+  shuffled <- r[c(18, 3, 11, 7, 1, 15, 9, 13, 5, 2, 17, 8, 12, 4, 16, 6, 10, 14), ]
+  expect_identical(mcg_contrast_difference(shuffled, p1, p2, "a", "b", n_boot = 300, seed = 1), d)
+  cd <- function(rows = r, plots_1 = p1, plots_2 = p2, ...)
+    mcg_contrast_difference(rows, plots_1, plots_2, "a", "b", n_boot = 300, seed = 1, ...)
+  expect_error(cd(plots_2 = c(p2, p1[1])), "disjoint")
+  expect_error(cd(plots_2 = character()), "both plot sets")
+  expect_error(cd(rows = rbind(r, transform(r, rung = "4"))), "one rung at a time")
+  expect_error(cd(metrics = c("recall", "accuracy")), "unknown metrics")
+  expect_error(cd(rows = r[!(r$config == "b" & r$plot == "q7"), ]), "must cover each of the")
 })

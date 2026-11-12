@@ -4,23 +4,33 @@
 # surface-layer peaks from the package's distance filter in closed stands.
 #
 # multichm strips the top of the cloud layer by layer and re-runs local maxima
-# on what is left. In closed, tall conifer stands most deeper-layer peaks are not
-# trees; the ones that are tend to sit in returns that are mostly FIRST returns
-# (lit from above). The package's distance filter (3 m horizontal, 5 m in 3-D)
-# also deletes real neighbouring surface peaks in dense stands. The gate keeps a
-# deeper-layer candidate when it is high enough (zmin) and, in a closed stand
-# (canopy cover >= cover_min), when the first-return share around its own top is
-# at least min_share; in a closed stand surface peaks may skip the distance
-# filter (surface_exempt).
+# on what is left. The gate rests on a premise from an exploratory pass: in
+# closed, tall conifer stands many deeper-layer peaks are not trees, and a
+# deeper-layer peak whose surroundings are mostly FIRST returns (lit from above)
+# is more likely to be one. The package's distance filter (3 m horizontal, 5 m
+# in 3-D) also deletes real neighbouring surface peaks in dense stands. The gate
+# keeps a deeper-layer candidate when it is high enough (zmin) and, in a closed
+# stand (canopy cover >= cover_min), when the first-return share around its own
+# top is at least min_share; in a closed stand surface peaks may skip the
+# distance filter (surface_exempt). The calibration study does not establish the
+# share premise: on its validation plots the share gate's own change in
+# chance-corrected F1, given the floor and the exemption, is not separable from
+# zero, and it lowers plain F1 and corrected recall
+# (results/multichm-gated-results.md).
 #
 # Provenance: the gate's form and the calibration grid values (mcg_grid) were
 # informed by an exploratory pass over all 106 frozen NEON plots of the five
 # sites. A held-out score of a configuration selected on calibration plots
-# therefore tests the threshold selection, not the choice of features.
+# therefore tests only the selection within that grid, not the grid's values or
+# the choice of features.
 #
 # The stock configuration (MCG_STOCK: no floor, no share gate, no exemption)
 # reproduces lidRplugins::multichm 0.4.0 exactly; mcg_candidates() is an
 # instrumented, bit-identical re-implementation of its candidate search.
+# Parity assumes lidR runs on one thread: on several threads lmf() breaks tied
+# heights differently from call to call, so mcg_candidates() pins one thread
+# for its own search and restores the caller's setting; run the package on one
+# thread to compare.
 #
 # Sourced, not run. No side effects. The caller sources sweep_lib.R
 # (ws_factory, score_plot, null_offset, shift_detections), model_bench_lib.R
@@ -84,14 +94,15 @@ mcg_config_label <- function(cfg) {
 
 ## ---- candidates: instrumented lidRplugins::multichm 0.4.0 ---------------------------------
 # The height of each candidate's own top return, `zt`, read from the layer's
-# top raster at the candidate's coordinates. Upstream quirk: a one-row layer
-# raster can return a maximum whose coordinates miss its own cell; such maxima
-# lie on the clip's edge row, in the buffer. The raster then gives NA or the top
-# of a neighbouring cell, which shows as a value below the candidate's Z (the
-# highest return of its own cell is at least the cell's 95th percentile). Both
-# fall back to the candidate's Z.
-.mcg_ztop <- function(zt, z) {
-  bad <- is.na(zt) | zt < z
+# top raster at the candidate's coordinates; `q` is the layer's p95 raster read
+# at the same coordinates. Upstream quirk: a one-row layer raster can return a
+# maximum whose coordinates miss its own cell (such maxima lie on the clip's
+# edge row, in the buffer); the p95 raster at those coordinates is then NA or
+# another cell's value rather than the candidate's Z, and the top raster cannot
+# be trusted there. Such a candidate falls back to its Z, as does one whose top
+# reads below its Z.
+.mcg_ztop <- function(zt, z, q = z) {
+  bad <- is.na(zt) | zt < z | is.na(q) | q != z
   zt[bad] <- z[bad]
   zt
 }
@@ -105,6 +116,9 @@ mcg_config_label <- function(cfg) {
 # ztop (highest return of the maximum's cell). Sorted by descending Z (stable)
 # and unique by (X, Y), as the package does.
 mcg_candidates <- function(las, res, ws, layer_thickness = 0.5, hmin = 2) {
+  threads <- lidR::get_lidr_threads()    # lmf breaks tied heights by thread timing
+  lidR::set_lidr_threads(1L)
+  on.exit(lidR::set_lidr_threads(threads), add = TRUE)
   empty <- data.table::data.table(X = numeric(), Y = numeric(), Z = numeric(),
                                   layer = integer(), ztop = numeric())
   lc <- lidR::LAS(las@data[, c("X", "Y", "Z"), with = FALSE], las@header)
@@ -120,7 +134,8 @@ mcg_candidates <- function(las, res, ws, layer_thickness = 0.5, hmin = 2) {
         z <- lm@data$Z
         LM[[i]] <- data.table::data.table(X = unname(co[, 1]), Y = unname(co[, 2]), Z = z,
                                           layer = i,
-                                          ztop = .mcg_ztop(raster::extract(m[["top"]], co), z))
+                                          ztop = .mcg_ztop(raster::extract(m[["top"]], co), z,
+                                                           raster::extract(c95, co)))
       }
       lc <- lidR::merge_spatial(lc, c95, "c95")
       lc <- lidR::filter_poi(lc, Z < c95 - layer_thickness)
@@ -440,6 +455,19 @@ mcg_split <- function(rows, seed, frac = 0.5) {
   out
 }
 
+# The count columns of configuration `cfg` as a list of numeric vectors in the
+# order of `ids` (the row names of a weight matrix, "site::plot"). The
+# configuration must cover each of those plots exactly once.
+.mcg_aligned_counts <- function(rows, cfg, ids) {
+  r <- rows[rows$config == cfg & .mcg_ids(rows) %in% ids, , drop = FALSE]
+  have <- .mcg_ids(r)
+  if (anyDuplicated(have) || !setequal(have, ids))
+    stop(sprintf("multichm_gated: configuration %s must cover each of the %d plots once",
+                 cfg, length(ids)), call. = FALSE)
+  r <- r[match(ids, have), , drop = FALSE]
+  lapply(stats::setNames(MCG_COUNT_COLS, MCG_COUNT_COLS), function(k) as.numeric(r[[k]]))
+}
+
 # Paired contrast config_a minus config_b over `plots` (ids "site::plot") at one
 # rung. rows carry site, plot, config and MCG_COUNT_COLS; config_a / config_b
 # are values of `config` (a grid label or a reference detector such as
@@ -462,16 +490,8 @@ mcg_contrast <- function(rows, plots, config_a, config_b, n_boot = MT_N_BOOT, se
   plots <- unique(plots)
   if (!length(plots)) stop("multichm_gated: no plots to contrast", call. = FALSE)
   W <- mt_plot_weights(sub("::.*", "", plots), sub("^[^:]*::", "", plots), n_boot, seed)
-  counts <- function(cfg) {
-    r <- rows[rows$config == cfg & .mcg_ids(rows) %in% plots, , drop = FALSE]
-    ids <- .mcg_ids(r)
-    if (anyDuplicated(ids) || !setequal(ids, rownames(W)))
-      stop(sprintf("multichm_gated: configuration %s must cover each of the %d plots once",
-                   cfg, nrow(W)), call. = FALSE)
-    r <- r[match(rownames(W), ids), , drop = FALSE]
-    lapply(stats::setNames(MCG_COUNT_COLS, MCG_COUNT_COLS), function(k) as.numeric(r[[k]]))
-  }
-  ca <- counts(config_a); cb <- counts(config_b)
+  ca <- .mcg_aligned_counts(rows, config_a, rownames(W))
+  cb <- .mcg_aligned_counts(rows, config_b, rownames(W))
   est <- function(cn) lapply(cn, sum)
   ea <- .mcg_rate_list(est(ca)); eb <- .mcg_rate_list(est(cb))
   draw <- function(cn) lapply(cn, function(v) drop(crossprod(W, v)))
@@ -485,5 +505,54 @@ mcg_contrast <- function(rows, plots, config_a, config_b, n_boot = MT_N_BOOT, se
   attr(out, "pooled") <- cbind(data.frame(config = c(config_a, config_b), n_plots = nrow(W),
                                           stringsAsFactors = FALSE),
                                mcg_rates(rbind(as.data.frame(est(ca)), as.data.frame(est(cb)))))
+  out
+}
+
+# How a paired contrast differs between two disjoint plot sets (two regions,
+# say): (config_a - config_b over plots_1) minus (config_a - config_b over
+# plots_2), at one rung. One weight matrix is drawn over the union of the two
+# sets (mt_plot_weights: plots resampled within site) and every draw gives each
+# set's rates from its own rows of that matrix, as mt_region_leads() does for
+# the master tables. Returns one row per metric: difference_1 and difference_2
+# (a - b within each set), difference (set 1 minus set 2) and its percentile
+# interval (mt_interval).
+mcg_contrast_difference <- function(rows, plots_1, plots_2, config_a, config_b,
+                                    n_boot = MT_N_BOOT, seed = MT_SEED,
+                                    metrics = c("cF1", "F1", "cPrecision", "cRecall",
+                                                "precision", "recall", "det_per_ref")) {
+  rows <- as.data.frame(rows, stringsAsFactors = FALSE)
+  plots_1 <- unique(plots_1); plots_2 <- unique(plots_2)
+  if (!length(plots_1) || !length(plots_2))
+    stop("multichm_gated: both plot sets must hold plots", call. = FALSE)
+  if (length(intersect(plots_1, plots_2)))
+    stop("multichm_gated: the two plot sets must be disjoint", call. = FALSE)
+  plots <- c(plots_1, plots_2)
+  if (!is.null(rows$rung) && length(unique(rows$rung[rows$config %in% c(config_a, config_b) &
+                                                     .mcg_ids(rows) %in% plots])) > 1L)
+    stop("multichm_gated: mcg_contrast_difference compares one rung at a time", call. = FALSE)
+  bad <- setdiff(metrics, MCG_RATE_COLS)
+  if (length(bad)) stop("multichm_gated: unknown metrics: ", paste(bad, collapse = ","),
+                        call. = FALSE)
+  W <- mt_plot_weights(sub("::.*", "", plots), sub("^[^:]*::", "", plots), n_boot, seed)
+  ca <- .mcg_aligned_counts(rows, config_a, rownames(W))
+  cb <- .mcg_aligned_counts(rows, config_b, rownames(W))
+  # a - b within the rows `keep` of W: the estimate and its value in every draw
+  lead <- function(keep) {
+    Wk <- W[keep, , drop = FALSE]
+    est <- function(cn) .mcg_rate_list(lapply(cn, function(v) sum(v[keep])))
+    drw <- function(cn) .mcg_rate_list(lapply(cn, function(v) drop(crossprod(Wk, v[keep]))))
+    ea <- est(ca); eb <- est(cb); da <- drw(ca); db <- drw(cb)
+    list(est = lapply(stats::setNames(metrics, metrics), function(m) ea[[m]] - eb[[m]]),
+         draw = lapply(stats::setNames(metrics, metrics), function(m) da[[m]] - db[[m]]))
+  }
+  in1 <- rownames(W) %in% plots_1
+  l1 <- lead(in1); l2 <- lead(!in1)
+  out <- do.call(rbind, lapply(metrics, function(m)
+    cbind(data.frame(metric = m, config_a = config_a, config_b = config_b,
+                     n_plots_1 = sum(in1), n_plots_2 = sum(!in1),
+                     difference_1 = l1$est[[m]], difference_2 = l2$est[[m]],
+                     difference = l1$est[[m]] - l2$est[[m]], stringsAsFactors = FALSE),
+          mt_interval(l1$draw[[m]] - l2$draw[[m]]))))
+  rownames(out) <- NULL
   out
 }

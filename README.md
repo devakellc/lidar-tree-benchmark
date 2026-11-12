@@ -296,18 +296,26 @@ density (**0.564**) is the lowest point estimate of the five arms compared,
 level with CHM-VWF's.
 
 The [gated multichm study](results/multichm-gated-results.md) adds a post hoc
-arm, `multichm_gated`, outside the paper's twelve. In closed stands
-`multichm`'s deeper layers mostly find peaks inside crowns already detected,
-and its distance filter removes neighbouring surface peaks. The arm drops
-deeper-layer peaks below 5 m everywhere. Where canopy cover is at least 0.6 it
-also drops those not lit from above (first-return share below 0.75) and exempts
-surface peaks from the distance filter. The four thresholds were selected on
-57 calibration plots by chance-corrected F1. On the 49 held-out plots at
-native density corrected F1 rises from 0.166 to **0.200** (+0.034 [+0.005,
-+0.059]) with 14% fewer detections. The gain is Washington's (+0.044 [+0.008,
-+0.074]); California's +0.013 [−0.006, +0.028] includes zero. The gate's form
-was chosen after an exploratory pass over all plots, so the held-out score
-tests the thresholds only.
+arm, `multichm_gated`, outside the paper's twelve. Its premise is that in
+closed stands `multichm`'s deeper layers often find peaks inside crowns already
+detected, and that its distance filter removes neighbouring surface peaks. The
+arm drops deeper-layer peaks below 5 m everywhere. Where canopy cover is at
+least 0.6 it also drops those not lit from above (first-return share below
+0.75) and exempts surface peaks from the distance filter. The four thresholds
+were selected on 57 calibration plots by chance-corrected F1. On the 49
+held-out plots at native density corrected F1 rises from 0.166 to **0.200**
+(+0.034 [+0.005, +0.059]; median +0.027 over 200 splits) with 14% fewer
+detections, while plain F1 changes by +0.015 [−0.012, +0.042], which does not
+exclude zero. The change is +0.044 [+0.008, +0.074] in Washington and +0.013
+[−0.006, +0.028] in California; the difference between the regions (+0.030
+[−0.008, +0.064]) includes zero. The share gate's own contribution to corrected
+F1, +0.007 [−0.018, +0.027], is not separable from zero. Inside censused
+subplots (57 plots, calibration plots included) precision rises from 0.636 to
+0.749 and F1 from 0.597 to 0.626 (+0.029 [−0.006, +0.062]), with a gain at ABBY
+and a loss at WREF. The gate's form and the grid of candidate thresholds were
+chosen after an exploratory pass over all plots, so the held-out score tests
+only the selection within that grid: 82 of its 86 non-stock configurations beat
+stock on the held-out plots.
 
 ### Crown delineation
 
