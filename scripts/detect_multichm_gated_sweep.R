@@ -15,9 +15,10 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # multichm_gated tree-top arm of the NEON density ladder.
 #
 # lidRplugins::multichm (Eysn-style multi-layer CHM local maxima) with a gate on
-# its deeper-layer candidates, switched on by canopy cover, and an optional
-# exemption of the surface-layer peaks from the package's distance filter in
-# closed stands (multichm_gated_lib.R holds the detector and its semantics).
+# its deeper-layer candidates, switched on by canopy cover and crown spacing,
+# and an optional exemption of the surface-layer peaks from the package's
+# distance filter in closed stands (multichm_gated_lib.R holds the detector and
+# its semantics).
 # The loop mirrors detect_multichm_sweep.R: the SAME sealed frozen root and
 # declared population, per plot x density rung {native, then the root's
 # decimated rungs} with the same no-upsampling guard (rung target vs the plot's
@@ -26,18 +27,35 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # clamped variable window ws_factory(A). Like detect_lidrplugins_sweep.R it
 # keeps the apexes it scored per cell for re-scoring without inference.
 #
-# Configuration (zmin, min_share, cover_min, surface_exempt), in order of
-# precedence: explicit ZMIN= MIN_SHARE= COVER_MIN= SURFACE_EXEMPT= arguments
-# (each overrides one field), the CONFIG= file (a declared_config.json written by
-# calval_multichm_gated.R), then MCG_DECLARED, the configuration the
-# calibration study selected on its calibration plots (multichm_gated_lib.R
-# records its provenance). Without arguments or a CONFIG= file the run uses
-# MCG_DECLARED; were it unset, all four arguments would be required and the
-# run would stop before any work. The gate's form and the calibration grid
-# were informed by an exploratory pass over all 106 frozen plots, and the
-# selection criterion was fixed after that pass, so held-out scores test only
-# the selection within that grid, not the grid's values or the choice of
-# features.
+# Configuration (zmin, min_share, cover_min, surface_exempt, spacing_min), in
+# order of precedence: explicit ZMIN= MIN_SHARE= COVER_MIN= SURFACE_EXEMPT=
+# SPACING_MIN= arguments (each overrides one field), the CONFIG= file (a
+# declared_config.json written by calval_multichm_gated.R; a file without
+# spacing_min has no spacing condition, and a file whose label is not the one
+# this library gives its configuration is refused), then MCG_DECLARED, the
+# configuration the calibration study selected on its calibration plots
+# (multichm_gated_lib.R records its provenance). SPACING_MIN= (metres) applies
+# the share gate only in a closed stand whose crown spacing (mcg_crowns: the
+# side of the square each crown occupies on the clip's first-return canopy
+# surface) is at least that value: a stand of few, large crowns. SPACING_MIN=0
+# applies it in every closed stand, and without a share gate (MIN_SHARE=0)
+# spacing_min is 0 whatever is given. The floor and the exemption do not depend
+# on it. An argument left out keeps the value of the file or of MCG_DECLARED,
+# SPACING_MIN= included: SPACING_MIN=0 drops a declared spacing condition.
+# Without arguments or a CONFIG= file the run uses MCG_DECLARED; were it unset,
+# the four arguments ZMIN= MIN_SHARE= COVER_MIN= SURFACE_EXEMPT= would be
+# required (SPACING_MIN= stays optional, 0 when absent) and the run would stop
+# before any work.
+#
+# The gate's form and the grid values were informed by an exploratory pass
+# over all plots of the five sites (calibration and validation plots alike),
+# and the selection criterion was fixed after that pass. The crown-spacing
+# switch, its measure and its grid values were added after further exploratory
+# passes, which read the scores of all plots by stand top height and by crown
+# density, the validation plots' nominal cores and censused subplots included,
+# and the detection counts on four closed plots outside the benchmark that have
+# no field reference. The held-out scores therefore test only the selection
+# within the grid, not the grid's values or the choice of features.
 #
 # The stock configuration (ZMIN=0 MIN_SHARE=0 COVER_MIN=0 SURFACE_EXEMPT=FALSE)
 # reproduces lidRplugins::multichm, so its detections equal the multichm arm's.
@@ -51,13 +69,16 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #   Rscript scripts/detect_multichm_gated_sweep.R [SITE=SOAP] [PLOTS=ALL]
 #       [CORES=8] [TOL=4] [A=0.10] [POP=adopted] [FROZEN_ROOT=...]
 #       [CONFIG=<declared_config.json>]
-#       [ZMIN= MIN_SHARE= COVER_MIN= SURFACE_EXEMPT=]
+#       [ZMIN= MIN_SHARE= COVER_MIN= SURFACE_EXEMPT= SPACING_MIN=]
 # Output under $CLAUDE_JOB_DIR/neon/<SITE>/:
 #   multichm_gated_results.csv          one row per plot x rung (the columns of
 #                                       multichm_sweep_results.csv plus detector,
-#                                       cover, closed and the configuration);
+#                                       the clip's cover, closed, top_height,
+#                                       crown_spacing and spaced, and the
+#                                       configuration);
 #   multichm_gated_results.csv.frozen   the sealed root and population;
-#   multichm_gated_results.config.json  the configuration used;
+#   multichm_gated_results.config.json  the configuration used and the feature
+#                                       constants;
 #   multichm_gated_detections/          the apexes of every cell, stamped with
 #                                       the sealed root and the configuration.
 suppressMessages({ library(lidR); library(lidRplugins); library(sf)
@@ -70,7 +91,9 @@ source(.find("multichm_gated_lib.R"))  # detector, MCG_* constants, MCG_DECLARED
 
 MCG_ARM <- "multichm_gated"
 MCG_CONFIG_FIELDS <- c(zmin = "ZMIN", min_share = "MIN_SHARE", cover_min = "COVER_MIN",
-                       surface_exempt = "SURFACE_EXEMPT")
+                       surface_exempt = "SURFACE_EXEMPT", spacing_min = "SPACING_MIN")
+# The fields a configuration cannot do without; spacing_min is 0 when not given.
+MCG_REQUIRED_FIELDS <- MCG_CONFIG_FIELDS[c("zmin", "min_share", "cover_min", "surface_exempt")]
 # Configuration stamp of a detections directory: one directory holds the
 # detections of one configuration only.
 MCG_ARM_CONFIG_STAMP <- "multichm_gated_config.json"
@@ -91,30 +114,53 @@ MCG_ARM_CONFIG_STAMP <- "multichm_gated_config.json"
   x
 }
 
-# A declared configuration file: the four values at the top level. When it
-# records the feature constants (radius, half_dz, cover_height), they must be
-# the library's, or the declared thresholds would be applied to other features.
+# A declared configuration file: zmin, min_share, cover_min and surface_exempt
+# at the top level, and spacing_min when it has one (a file without spacing_min
+# has no spacing condition: spacing_min 0). When it records the feature
+# constants (radius, half_dz, cover_height, and crown_res and crown_ws of the
+# crown spacing), they must be the library's, or the declared thresholds would
+# be applied to other features. The top height's quantile (top_prob) is not
+# checked: the top height decides nothing. When the file records a label, it
+# must be the label this library gives the configuration read from the file:
+# a file labelled otherwise was declared by another version of the library,
+# possibly with a field this one does not read.
 mcg_read_config_file <- function(path) {
   if (!file.exists(path)) stop("multichm_gated: CONFIG file not found: ", path, call. = FALSE)
   j <- jsonlite::read_json(path, simplifyVector = TRUE)
-  miss <- setdiff(names(MCG_CONFIG_FIELDS), names(j))
+  miss <- setdiff(names(MCG_REQUIRED_FIELDS), names(j))
   if (length(miss))
     stop(sprintf("multichm_gated: CONFIG file %s lacks %s", path, paste(miss, collapse = ", ")),
          call. = FALSE)
-  const <- c(radius = MCG_RADIUS, half_dz = MCG_HALF_DZ, cover_height = MCG_COVER_HEIGHT)
+  const <- c(radius = MCG_RADIUS, half_dz = MCG_HALF_DZ, cover_height = MCG_COVER_HEIGHT,
+             crown_res = MCG_CROWN_RES, crown_ws = MCG_CROWN_WS)
   for (k in names(const)) if (!is.null(j[[k]]) &&
                               !isTRUE(all.equal(as.numeric(j[[k]]), const[[k]])))
     stop(sprintf("multichm_gated: CONFIG file %s was declared with %s = %s, but this library uses %s",
                  path, k, format(j[[k]]), format(const[[k]])), call. = FALSE)
   if (!is.logical(j$surface_exempt))
     stop("multichm_gated: surface_exempt in ", path, " must be true or false", call. = FALSE)
-  list(zmin = as.numeric(j$zmin), min_share = as.numeric(j$min_share),
-       cover_min = as.numeric(j$cover_min), surface_exempt = j$surface_exempt)
+  spacing_min <- j[["spacing_min"]]
+  cfg <- list(zmin = as.numeric(j$zmin), min_share = as.numeric(j$min_share),
+              cover_min = as.numeric(j$cover_min), surface_exempt = j$surface_exempt,
+              spacing_min = if (is.null(spacing_min)) 0 else as.numeric(spacing_min))
+  label <- j[["label"]]
+  if (!is.null(label)) {
+    own <- mcg_config_label(cfg)
+    if (!identical(label, own))
+      stop(sprintf(paste0("multichm_gated: CONFIG file %s is labelled %s, while this library ",
+                          "labels its configuration %s, so it was declared by another version ",
+                          "of the library"), path, paste(format(label), collapse = " "), own),
+           call. = FALSE)
+  }
+  cfg
 }
 
 # The configuration of a run from the parsed KEY=VALUE args: explicit arguments
 # override the CONFIG= file, which takes precedence over `declared`
-# (MCG_DECLARED by default; NULL means no declared configuration). Returns
+# (MCG_DECLARED by default; NULL means no declared configuration), field by
+# field, spacing_min included. Without either, the four required arguments must
+# all be given and SPACING_MIN= is optional (0). The result is a checked
+# configuration, so spacing_min is 0 without a share gate. Returns
 # list(cfg, source, file).
 mcg_arm_config <- function(A, declared = MCG_DECLARED) {
   given <- MCG_CONFIG_FIELDS[vapply(MCG_CONFIG_FIELDS, function(k) k %in% names(A), logical(1))]
@@ -123,69 +169,94 @@ mcg_arm_config <- function(A, declared = MCG_DECLARED) {
     stop("multichm_gated: CONFIG= needs a path", call. = FALSE)
   base <- if (!is.null(file)) mcg_read_config_file(file) else declared
   base_src <- if (!is.null(file)) "config file" else if (!is.null(declared)) "MCG_DECLARED"
-  if (is.null(base) && length(given) < length(MCG_CONFIG_FIELDS)) {
+  if (is.null(base) && !all(MCG_REQUIRED_FIELDS %in% given)) {
     if (!length(given))
       stop("multichm_gated: no configuration: there is no declared configuration ",
            "(MCG_DECLARED); pass CONFIG=<declared_config.json> ",
-           "or all of ZMIN= MIN_SHARE= COVER_MIN= SURFACE_EXEMPT= (the stock multichm is ",
-           "ZMIN=0 MIN_SHARE=0 COVER_MIN=0 SURFACE_EXEMPT=FALSE)", call. = FALSE)
-    stop("multichm_gated: without CONFIG= or MCG_DECLARED all four configuration arguments ",
-         "are needed; missing ",
-         paste0(setdiff(MCG_CONFIG_FIELDS, given), "=", collapse = " "), call. = FALSE)
+           "or all of ZMIN= MIN_SHARE= COVER_MIN= SURFACE_EXEMPT=, with SPACING_MIN= optional ",
+           "(the stock multichm is ZMIN=0 MIN_SHARE=0 COVER_MIN=0 SURFACE_EXEMPT=FALSE)",
+           call. = FALSE)
+    stop("multichm_gated: without CONFIG= or MCG_DECLARED the four configuration arguments ",
+         "ZMIN= MIN_SHARE= COVER_MIN= SURFACE_EXEMPT= are needed (SPACING_MIN= is optional); ",
+         "missing ", paste0(setdiff(MCG_REQUIRED_FIELDS, given), "=", collapse = " "),
+         call. = FALSE)
   }
   cfg <- if (is.null(base)) list() else base
   for (f in names(given)) cfg[[f]] <- .mcg_arm_value(A[[given[[f]]]], given[[f]], f)
-  cfg <- .mcg_check_config(cfg[names(MCG_CONFIG_FIELDS)])
+  cfg <- .mcg_check_config(cfg[intersect(names(MCG_CONFIG_FIELDS), names(cfg))])
   src <- if (is.null(base)) "arguments" else if (length(given)) paste(base_src, "+ arguments")
          else base_src
   list(cfg = cfg, source = src, file = file)
 }
 
 # Stamps a detections directory, before any detection is written, with
-# everything that changes the apexes it holds: the configuration, the variable-
-# window coefficient `a` (it changes the candidates) and the library's feature
-# constants (radius, half_dz, cover_height). A directory that already holds
+# everything that changes the apexes it holds: the configuration (its five
+# fields, spacing_min included), the variable-window coefficient `a` (it changes
+# the candidates), the library's feature constants (radius, half_dz,
+# cover_height, and crown_res and crown_ws of the crown spacing) and the label
+# the library gives the configuration. A directory that already holds
 # detections stamped otherwise (or not stamped with all of these) must be moved
-# aside first. The matching tolerance is not stamped: it changes the scores,
-# not the detections.
+# aside first; an accepted directory is restamped in full. A stamp that records
+# none of spacing_min, crown_res and crown_ws is read as spacing_min 0 with the
+# library's crown constants: without a spacing condition the crown measure
+# decides nothing. A stamp that records some but not all three is refused. A
+# stamp's label, when it records one, must be the label this library gives the
+# configuration: a stamp labelled otherwise was written by a library that
+# labelled another behaviour, whatever fields it shares with this one. The top
+# height's quantile is not stamped (the top height decides no detection), nor
+# is the matching tolerance (it changes the scores, not the detections).
 mcg_arm_stamp_config <- function(dir, cfg, a) {
   cfg <- .mcg_check_config(cfg)
   if (!is.numeric(a) || length(a) != 1L || !is.finite(a) || a <= 0)
     stop("multichm_gated: the window coefficient a must be one finite number > 0", call. = FALSE)
   want <- c(cfg, list(a = as.numeric(a), radius = MCG_RADIUS, half_dz = MCG_HALF_DZ,
-                      cover_height = MCG_COVER_HEIGHT))
+                      cover_height = MCG_COVER_HEIGHT, crown_res = MCG_CROWN_RES,
+                      crown_ws = MCG_CROWN_WS))
+  label <- mcg_config_label(cfg)
   f <- file.path(dir, MCG_ARM_CONFIG_STAMP)
   held <- list.files(dir, pattern = "\\.csv$")
   if (length(held)) {
     old <- if (file.exists(f)) tryCatch(jsonlite::read_json(f, simplifyVector = TRUE),
                                         error = function(e) NULL)
-    same <- !is.null(old) && all(names(want) %in% names(old)) &&
-      isTRUE(all.equal(lapply(old[names(want)], unname), want, tolerance = 1e-12))
+    crown <- c("spacing_min", "crown_res", "crown_ws")
+    if (is.list(old) && !any(vapply(crown, function(k) !is.null(old[[k]]), logical(1))))
+      old[crown] <- list(0, MCG_CROWN_RES, MCG_CROWN_WS)
+    same <- is.list(old) && all(names(want) %in% names(old)) &&
+      isTRUE(all.equal(lapply(old[names(want)], unname), want, tolerance = 1e-12)) &&
+      (is.null(old[["label"]]) || identical(old[["label"]], label))
     if (!same)
       stop(sprintf(paste0("multichm_gated: %s holds detections of another configuration, ",
-                          "window coefficient or feature constants; move it aside to start fresh"),
+                          "window coefficient or feature constants (or a stamp that does not ",
+                          "record them); move it aside to start fresh"),
                    dir), call. = FALSE)
   }
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
-  jsonlite::write_json(c(want, list(label = mcg_config_label(cfg))), f, auto_unbox = TRUE,
-                       pretty = TRUE, digits = NA)
+  jsonlite::write_json(c(want, list(label = label)), f, auto_unbox = TRUE, pretty = TRUE,
+                       digits = NA)
   invisible(f)
 }
 
 ## ---- one cell ----------------------------------------------------------------
 # Detects and scores one plot x rung clip. `meta` carries site, plot, plotType,
 # rung (NA = native), cx, cy, half, pdens, frdens. Returns list(det, row, cover,
-# closed): the x,y,z detections over the whole clip, one result row, the clip's
-# canopy cover and whether the configuration treats it as a closed stand.
-# `closed` is NA only where the cover is unknown and decided nothing (no
-# candidates, or a configuration that does not read it); mcg_apply() has
-# already stopped where an unknown cover would decide a candidate.
+# closed, top_height, crown_spacing, spaced): the x,y,z detections over the
+# whole clip, one result row, the clip's canopy cover, whether the configuration
+# treats it as a closed stand, the clip's top height (recorded; it decides
+# nothing), its crown spacing (mcg_crowns) and whether the configuration treats
+# it as a stand of widely spaced crowns. `closed` is NA only where the cover is
+# unknown and decided nothing (no candidates, or a configuration that does not
+# read it); `spaced` is TRUE under a configuration without a spacing condition
+# (spacing_min 0) and NA only where the crown spacing is unknown and decided
+# nothing (no candidates, or a stand that is not closed). mcg_apply() has
+# already stopped where an unknown cover or crown spacing would decide a
+# candidate.
 mcg_arm_cell <- function(las, stems, meta, cfg, a = 0.10, tol = 4) {
   cfg <- .mcg_check_config(cfg)
   res <- if (meta$frdens >= 8) 0.25 else 0.5     # density-derived, like CHM-VWF
   prep <- mcg_prepare(las, res, a)                # detect_multichm_gated(), in two steps
-  det <- mcg_apply(prep, cfg)                     # so the cover is reported with it
+  det <- mcg_apply(prep, cfg)                     # so the stand features are reported with it
   closed <- mcg_closed(prep$cover, cfg)
+  spaced <- mcg_spaced(prep$crown_spacing, cfg)
   sc <- score_plot(stems, det, tol_xy = tol, core_cx = meta$cx, core_cy = meta$cy,
                    core_half = meta$half)
   row <- cbind(data.frame(site = meta$site, plot = meta$plot, plotType = meta$plotType,
@@ -193,14 +264,18 @@ mcg_arm_cell <- function(las, stems, meta, cfg, a = 0.10, tol = 4) {
                           rung = ifelse(is.na(meta$rung), "native", as.character(meta$rung)),
                           pdens = round(meta$pdens, 2), frdens = round(meta$frdens, 2),
                           chm_res = res, n_apex = nrow(det), stringsAsFactors = FALSE), sc)
-  list(det = det, row = row, cover = prep$cover, closed = closed)
+  list(det = det, row = row, cover = prep$cover, closed = closed,
+       top_height = prep$top_height, crown_spacing = prep$crown_spacing, spaced = spaced)
 }
 
-# Adds the recovered core true positives and the stand/configuration columns.
+# Adds the recovered core true positives, moves the stand columns (cover,
+# closed, top_height, crown_spacing, spaced) after it and appends the five
+# configuration fields (spacing_min last).
 mcg_arm_finish <- function(results, cfg) {
   cfg <- .mcg_check_config(cfg)
   results$tp_core <- round(results$precision * results$n_det)
-  results <- results[c(setdiff(names(results), c("cover", "closed")), "cover", "closed")]
+  stand <- c("cover", "closed", "top_height", "crown_spacing", "spaced")
+  results <- results[c(setdiff(names(results), stand), stand)]
   for (f in names(MCG_CONFIG_FIELDS)) results[[f]] <- cfg[[f]]
   results
 }
@@ -246,9 +321,10 @@ run_main <- function() {
   keep   <- intersect(keep, pc$plotID)
   cat(sprintf("[%s] multichm_gated plots (%s): %d (%s)\n", SITE, fz$population, length(keep),
               paste(keep, collapse = ",")))
-  cat(sprintf("[%s] configuration %s (%s): zmin=%g min_share=%g cover_min=%g surface_exempt=%s\n",
+  cat(sprintf(paste("[%s] configuration %s (%s): zmin=%g min_share=%g cover_min=%g",
+                    "surface_exempt=%s spacing_min=%g\n"),
               SITE, mcg_config_label(cfg), conf$source, cfg$zmin, cfg$min_share,
-              cfg$cover_min, cfg$surface_exempt))
+              cfg$cover_min, cfg$surface_exempt, cfg$spacing_min))
   det_dir <- file.path(nd, paste0(MCG_ARM, "_detections"))
   frozen_stamp(det_dir, fz$root)          # detections made on other clips stop here
   mcg_arm_stamp_config(det_dir, cfg, A_VWF)  # ... and those of another configuration or A=
@@ -278,7 +354,9 @@ run_main <- function() {
                                 cx = cx, cy = cy, half = ph, pdens = pdens, frdens = frdens),
                            cfg, a = A_VWF, tol = TOL)
       persist_detections(det_dir, pid, rung, cell$det)
-      out[[length(out) + 1]] <- cbind(cell$row, cover = cell$cover, closed = cell$closed)
+      out[[length(out) + 1]] <- cbind(cell$row, cover = cell$cover, closed = cell$closed,
+                                      top_height = cell$top_height,
+                                      crown_spacing = cell$crown_spacing, spaced = cell$spaced)
     }
     if (!length(out)) return(NULL)
     do.call(rbind, out)
@@ -300,6 +378,9 @@ run_main <- function() {
   results <- mcg_arm_finish(results, cfg)
   write.csv(results, out_csv, row.names = FALSE)
   frozen_results_stamp(out_csv, fz)
+  # the feature constants: those of the share, the cover and the crown spacing,
+  # which decide detections, and top_prob, which describes the recorded
+  # top_height column
   jsonlite::write_json(c(list(detector = MCG_ARM), cfg,
                          list(label = mcg_config_label(cfg), source = conf$source,
                               config_file = if (is.null(conf$file)) NA_character_ else
@@ -307,7 +388,9 @@ run_main <- function() {
                               config_file_sha256 = if (is.null(conf$file)) NA_character_ else
                                 frozen_sha256(conf$file),
                               radius = MCG_RADIUS, half_dz = MCG_HALF_DZ,
-                              cover_height = MCG_COVER_HEIGHT, a = A_VWF, tol = TOL,
+                              cover_height = MCG_COVER_HEIGHT, top_prob = MCG_TOP_PROB,
+                              crown_res = MCG_CROWN_RES, crown_ws = MCG_CROWN_WS,
+                              a = A_VWF, tol = TOL,
                               population = fz$population,
                               clip_manifest_sha256 = frozen_root_id(fz$root))),
                        paste0(sub("\\.csv$", "", out_csv), ".config.json"),

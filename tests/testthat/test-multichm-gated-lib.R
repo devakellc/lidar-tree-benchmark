@@ -1,7 +1,9 @@
 # Unit tests for the multichm_gated arm library: the instrumented multichm
-# candidate search (parity with lidRplugins::multichm), the first-return share
-# and canopy cover, the gate, the distance filter, the calibration grid and the
-# count-pooling, selection, split and contrast helpers. Synthetic data only.
+# candidate search (parity with lidRplugins::multichm), the first-return share,
+# canopy cover, top height and the crowns with their spacing, the configuration
+# and its label, the gate with its cover and crown-spacing switches, the
+# distance filter, the calibration grid and the count-pooling, selection, split
+# and contrast helpers. Synthetic data only.
 suppressMessages({ library(lidR); library(data.table); library(sf) })
 source(file.path("..", "..", "scripts", "sweep_lib.R"), local = TRUE)
 source(file.path("..", "..", "scripts", "model_bench_lib.R"), local = TRUE)
@@ -47,10 +49,23 @@ pts_las <- function(df) {
 # Hand-built candidates (already in descending Z).
 cands <- function(X, Y, Z, layer, share = NA_real_)
   data.table(X = X, Y = Y, Z = Z, layer = as.integer(layer), ztop = Z, share = share)
+# Conical crowns 20 m high and 2.5 m in radius on a square lattice of step sp:
+# first returns on a 0.5 m grid over a side x side clip, each on the cone of its
+# own lattice cell (Z 0 outside the cone).
+cone_lattice <- function(sp, side) {
+  g <- seq(0.25, side - 0.25, by = 0.5)
+  df <- expand.grid(X = g, Y = g)
+  cx <- floor(df$X / sp) * sp + sp / 2; cy <- floor(df$Y / sp) * sp + sp / 2
+  df$Z <- pmax(0, 20 * (1 - sqrt((df$X - cx)^2 + (df$Y - cy)^2) / 2.5))
+  df$ReturnNumber <- 1L
+  df
+}
+UNKNOWN_CROWNS <- list(n = NA_integer_, area = NA_real_, spacing = NA_real_)
 
 ## ---- configuration ------------------------------------------------------------------------
 test_that("configurations are validated and labelled", {
-  expect_identical(MCG_STOCK, list(zmin = 0, min_share = 0, cover_min = 0, surface_exempt = FALSE))
+  expect_identical(MCG_STOCK, list(zmin = 0, min_share = 0, cover_min = 0, surface_exempt = FALSE,
+                                   spacing_min = 0))
   expect_identical(mcg_config_label(MCG_STOCK), "stock")
   expect_identical(mcg_config_label(mcg_config(5, 0.75, 0.7, TRUE)), "z5_s0.75_c0.7_e1")
   expect_identical(mcg_config_label(mcg_config(zmin = 8)), "z8_s0_c0_e0")
@@ -62,15 +77,77 @@ test_that("configurations are validated and labelled", {
 })
 
 test_that("the declared configuration is a gated grid configuration", {
-  expect_identical(MCG_DECLARED, mcg_config(5, 0.75, 0.6, TRUE))
+  expect_identical(MCG_DECLARED, mcg_config(5, 0.75, 0.6, TRUE, 8))
   expect_identical(.mcg_check_config(MCG_DECLARED), MCG_DECLARED)
   expect_false(identical(MCG_DECLARED, MCG_STOCK))
   g <- mcg_grid()
   row <- g[g$label == mcg_config_label(MCG_DECLARED), , drop = FALSE]
   expect_identical(nrow(row), 1L)
   expect_identical(list(zmin = row$zmin, min_share = row$min_share, cover_min = row$cover_min,
-                        surface_exempt = row$surface_exempt), MCG_DECLARED)
-  expect_false(row$config_id == 1L)
+                        surface_exempt = row$surface_exempt, spacing_min = row$spacing_min),
+                   MCG_DECLARED)
+  expect_identical(row$config_id, 360L)
+})
+
+test_that("spacing_min is validated, stored last and normalised to 0 without a share gate", {
+  expect_identical(names(mcg_config()),
+                   c("zmin", "min_share", "cover_min", "surface_exempt", "spacing_min"))
+  expect_identical(mcg_config(5, 0.75, 0.6, TRUE, 8),
+                   list(zmin = 5, min_share = 0.75, cover_min = 0.6, surface_exempt = TRUE,
+                        spacing_min = 8))
+  expect_identical(mcg_config(min_share = 0.5, spacing_min = 8L)$spacing_min, 8)  # a double
+  expect_identical(mcg_config(min_share = 0.5, spacing_min = 8.5)$spacing_min, 8.5)
+  for (bad in list(-1, -1e-9, NA, NA_real_, Inf, NaN, "8", TRUE, c(7, 9), numeric(), NULL))
+    expect_error(mcg_config(min_share = 0.5, spacing_min = bad),
+                 "multichm_gated: spacing_min must be one number in [0, Inf]", fixed = TRUE)
+  expect_error(mcg_config(spacing_min = -1), "spacing_min")   # validated without a share gate too
+  # spacing_min switches only the share gate: without one it is stored as 0
+  expect_identical(mcg_config(zmin = 5, cover_min = 0.6, surface_exempt = TRUE, spacing_min = 8),
+                   mcg_config(zmin = 5, cover_min = 0.6, surface_exempt = TRUE))
+  expect_identical(mcg_config(spacing_min = 8), MCG_STOCK)
+  expect_identical(mcg_config(min_share = 0.5, spacing_min = 0)$spacing_min, 0)
+  # a configuration recorded without spacing_min (or with spacing_min NULL) has no
+  # spacing condition
+  four <- list(zmin = 5, min_share = 0.75, cover_min = 0.6, surface_exempt = TRUE)
+  expect_identical(.mcg_check_config(four), mcg_config(5, 0.75, 0.6, TRUE, 0))
+  expect_identical(.mcg_check_config(four)$spacing_min, 0)
+  expect_identical(.mcg_check_config(c(four, list(spacing_min = NULL))), .mcg_check_config(four))
+  expect_identical(.mcg_check_config(c(four, spacing_min = 8)), MCG_DECLARED)
+  # the canonical field order whatever the input's order
+  expect_identical(.mcg_check_config(rev(c(four, spacing_min = 8))), MCG_DECLARED)
+  expect_identical(.mcg_check_config(c(list(spacing_min = 8), four[c(4, 1, 3, 2)])), MCG_DECLARED)
+  expect_identical(.mcg_check_config(c(four[-2], min_share = 0, spacing_min = 8))$spacing_min, 0)
+  expect_error(.mcg_check_config(c(four, spacing_min = NA)), "spacing_min must be one number")
+  expect_error(.mcg_check_config(four[-1]),
+               "list(zmin, min_share, cover_min, surface_exempt, spacing_min)", fixed = TRUE)
+  expect_error(.mcg_check_config(list(spacing_min = 8)), "spacing_min may be absent")
+  # what a configuration reads: the crown spacing only with a spacing condition
+  expect_true(.mcg_needs_spacing(MCG_DECLARED))
+  expect_true(.mcg_needs_spacing(mcg_config(min_share = 0.5, spacing_min = 7)))
+  expect_false(.mcg_needs_spacing(mcg_config(5, 0.75, 0.6, TRUE)))
+  expect_false(.mcg_needs_spacing(mcg_config(5, 0, 0.6, TRUE, 8)))
+  expect_false(.mcg_needs_spacing(MCG_STOCK))
+})
+
+test_that("a label carries the spacing_min suffix only with a spacing condition", {
+  expect_identical(mcg_config_label(MCG_DECLARED), "z5_s0.75_c0.6_e1_d8")
+  expect_identical(mcg_config_label(mcg_config(5, 0.75, 0.6, TRUE, 8.5)), "z5_s0.75_c0.6_e1_d8.5")
+  expect_identical(mcg_config_label(mcg_config(5, 0.75, 0.6, TRUE)), "z5_s0.75_c0.6_e1")
+  expect_identical(mcg_config_label(mcg_config(5, 0.75, 0.6, TRUE, 0)), "z5_s0.75_c0.6_e1")
+  expect_identical(mcg_config_label(mcg_config(0, 0.5, 0, FALSE, 7.5)), "z0_s0.5_c0_e0_d7.5")
+  expect_identical(mcg_config_label(mcg_config(8, 0.9, 0.8, FALSE, 7)), "z8_s0.9_c0.8_e0_d7")
+  # normalised away without a share gate
+  expect_identical(mcg_config_label(mcg_config(5, 0, 0.6, TRUE, 8)), "z5_s0_c0.6_e1")
+  expect_identical(mcg_config_label(mcg_config(spacing_min = 8)), "stock")
+  expect_identical(mcg_config_label(MCG_STOCK), "stock")
+  # a four-field list labels as its spacing_min 0 form
+  expect_identical(mcg_config_label(list(zmin = 0, min_share = 0, cover_min = 0,
+                                         surface_exempt = FALSE)), "stock")
+  expect_identical(mcg_config_label(list(zmin = 5, min_share = 0.75, cover_min = 0.6,
+                                         surface_exempt = TRUE)), "z5_s0.75_c0.6_e1")
+  expect_identical(mcg_config_label(list(zmin = 5, min_share = 0.75, cover_min = 0.6,
+                                         surface_exempt = TRUE, spacing_min = 8)),
+                   "z5_s0.75_c0.6_e1_d8")
 })
 
 ## ---- candidates -----------------------------------------------------------------------------
@@ -112,9 +189,12 @@ test_that("candidate tables keep the package's invariants", {
   expect_true(any(C$ztop[C$layer > 1L] > C$Z[C$layer > 1L]))  # deeper layers carry a top too
   expect_true(all(sort(unique(C$layer)) == seq_len(max(C$layer))))
   P <- mcg_prepare(las, 0.5)
+  expect_identical(names(P), c("cand", "cover", "top_height", "crown_spacing", "n_crowns",
+                               "crown_area", "has_return_number", "res", "a"))
   expect_identical(names(P$cand), c("X", "Y", "Z", "layer", "ztop", "share"))
   expect_true(all(is.na(P$cand$share) | (P$cand$share >= 0 & P$cand$share <= 1)))
   expect_equal(P$cover, mcg_canopy_cover(las))
+  expect_identical(P$top_height, mcg_top_height(las))
 })
 
 test_that("an empty or flat cloud yields the 0-row detection contract", {
@@ -137,6 +217,7 @@ test_that("an empty cloud gives 0 rows even for a configuration that reads the c
   expect_identical(nrow(P$cand), 0L)
   expect_true(P$has_return_number)
   expect_true(is.na(P$cover))                          # no first returns
+  expect_identical(P$crown_spacing, NA_real_)          # nor a crown spacing
   for (cfg in list(MCG_STOCK, mcg_config(5, 0.75, 0.7, TRUE), MCG_DECLARED)) {
     det <- mcg_apply(P, cfg)
     expect_true(assert_detection_contract(det))
@@ -233,6 +314,245 @@ test_that("canopy cover is the share of first returns above 2 m", {
   expect_true(is.na(mcg_canopy_cover(pts_las(df))))
 })
 
+test_that("the top height is the type-7 95th percentile of the first returns above 2 m", {
+  # First returns above 2 m: 3, 5, 10, 20, 40. Not counted: the first returns at
+  # 0.5, 1 and exactly 2 m, and the later returns at 60 and 50 m.
+  df <- data.frame(X = as.numeric(1:10), Y = as.numeric(1:10),
+                   Z = c(0.5, 2, 3, 5, 10, 20, 40, 60, 50, 1),
+                   ReturnNumber = c(1, 1, 1, 1, 1, 1, 1, 2, 3, 1))
+  las <- pts_las(df)
+  # type 7, p = 0.95, n = 5: h = 1 + 4 * 0.95 = 4.8, so 20 + 0.8 * (40 - 20) = 36
+  # (counting the first return at exactly 2 m would give 35, counting the later
+  # returns 57)
+  expect_equal(mcg_top_height(las), 36)
+  expect_identical(mcg_top_height(las), unname(stats::quantile(c(3, 5, 10, 20, 40), 0.95,
+                                                               type = 7)))
+  expect_null(names(mcg_top_height(las)))
+  # `height` and `prob` are honoured: above 4 m, h = 1 + 3 * 0.95 = 3.85 -> 37;
+  # above 1.5 m the 2 m return counts -> 35; the median of the five -> 10
+  expect_equal(mcg_top_height(las, height = 4), 37)
+  expect_equal(mcg_top_height(las, height = 1.5), 35)
+  expect_equal(mcg_top_height(las, prob = 0.5), 10)
+  expect_equal(mcg_top_height(las, height = 4, prob = 1), 40)
+  # a return number of NA counts as not first
+  las_na <- pts_las(df)
+  las_na@data$ReturnNumber[7] <- NA_integer_                 # the 40 m first return
+  expect_equal(mcg_top_height(las_na), unname(stats::quantile(c(3, 5, 10, 20), 0.95)))
+  # NA without ReturnNumber, and without a first return above the height
+  df0 <- df; df0$ReturnNumber <- NULL
+  expect_identical(mcg_top_height(pts_las(df0)), NA_real_)
+  low <- data.frame(X = c(1, 2, 3, 4), Y = c(1, 2, 3, 4), Z = c(0.5, 2, 30, 25),
+                    ReturnNumber = c(1, 1, 2, 2))
+  expect_identical(mcg_top_height(pts_las(low)), NA_real_)
+  expect_identical(mcg_top_height(las, height = 40), NA_real_)  # 40 is not above 40
+  expect_identical(mcg_top_height(pts_las(data.frame(X = numeric(), Y = numeric(), Z = numeric(),
+                                                     ReturnNumber = integer()))), NA_real_)
+})
+
+## ---- crowns and their spacing ---------------------------------------------------------------
+# n, area and spacing agree with one another: whole 1 m cells, n an integer and
+# spacing the side of the square each crown would occupy.
+expect_coherent_crowns <- function(r) {
+  expect_identical(names(r), c("n", "area", "spacing"))
+  expect_true(is.integer(r$n) && is.double(r$area) && is.double(r$spacing))
+  expect_identical(r$area %% (MCG_CROWN_RES^2), 0)
+  expect_identical(r$spacing, sqrt(r$area / r$n))
+}
+# An independent count of mcg_crowns()'s n and area, made from coordinates rather
+# than from the raster's matrix: the same surface (lidR::dsmtin(highest =
+# highest), on one thread), its lmf maxima, and a cell interior when the centre
+# of every cell within ws / 2 of its centre (by distance in metres, with a
+# tolerance of 1e-9) is on the raster and not NA.
+crowns_from_coordinates <- function(las, res = MCG_CROWN_RES, ws = MCG_CROWN_WS,
+                                    hmin = MCG_COVER_HEIGHT, highest = TRUE) {
+  old <- lidR::get_lidr_threads(); on.exit(lidR::set_lidr_threads(old), add = TRUE)
+  lidR::set_lidr_threads(1L)
+  first <- lidR::filter_poi(las, ReturnNumber == 1L)
+  chm <- lidR::rasterize_canopy(first, res, lidR::dsmtin(highest = highest), pkg = "terra")
+  v <- terra::values(chm, mat = FALSE)
+  xy <- terra::xyFromCell(chm, seq_len(terra::ncell(chm)))
+  m <- ceiling(ws / 2 / res) + 1
+  off <- expand.grid(i = -m:m, j = -m:m)
+  off <- off[sqrt((off$i * res)^2 + (off$j * res)^2) <= ws / 2 + 1e-9, ]
+  inner <- which(!is.na(v))                      # the cells interior for every offset so far
+  for (o in seq_len(nrow(off))) {
+    cc <- terra::cellFromXY(chm, cbind(xy[inner, 1] + off$i[o] * res,
+                                       xy[inner, 2] + off$j[o] * res))
+    inner <- inner[!is.na(cc) & !is.na(v[cc])]
+  }
+  p <- sf::st_coordinates(lidR::locate_trees(chm, lidR::lmf(ws = ws, hmin = hmin)))
+  n <- if (nrow(p)) sum(terra::cellFromXY(chm, p[, 1:2, drop = FALSE]) %in% inner) else 0L
+  list(n = n, area = length(inner) * res^2)
+}
+
+test_that("the crown spacing of a lattice of cones is the lattice step", {
+  expect_identical(c(MCG_CROWN_RES, MCG_CROWN_WS), c(1, 5))
+  d <- cone_lattice(6, 60)
+  r <- mcg_crowns(pts_las(d))
+  expect_coherent_crowns(r)
+  # about one crown per 36 m^2 of a 55 x 55 m interior: neither 0 nor the whole clip
+  expect_gt(r$n, 60L); expect_gt(r$area, 0); expect_lte(r$area, 60^2)
+  expect_lt(abs(r$spacing / 6 - 1), 0.05)
+  # fewer returns: every second point, and one in sixteen (every fourth point
+  # along each axis, a 2 m grid)
+  ix <- round((d$X - 0.25) / 0.5); iy <- round((d$Y - 0.25) / 0.5)
+  for (sub in list(d[seq(1, nrow(d), by = 2), ], d[ix %% 4 == 0 & iy %% 4 == 0, ])) {
+    s <- mcg_crowns(pts_las(sub))
+    expect_coherent_crowns(s)
+    expect_lt(abs(s$spacing / 6 - 1), 0.05)
+  }
+})
+
+test_that("the clip's size does not bias the crown spacing", {
+  for (side in c(40, 60, 90)) {
+    r <- mcg_crowns(pts_las(cone_lattice(6, side)))
+    expect_coherent_crowns(r)
+    expect_lt(abs(r$spacing / 6 - 1), 0.05)
+  }
+  for (side in c(60, 90)) {
+    r <- mcg_crowns(pts_las(cone_lattice(8, side)))
+    expect_coherent_crowns(r)
+    expect_lt(abs(r$spacing / 8 - 1), 0.05)
+  }
+})
+
+test_that("returns that are not first returns change nothing", {
+  d <- cone_lattice(6, 60)
+  set.seed(1)
+  second <- data.frame(X = runif(2000, 0, 60), Y = runif(2000, 0, 60), Z = 40, ReturnNumber = 2L)
+  expect_identical(mcg_crowns(pts_las(rbind(d, second))), mcg_crowns(pts_las(d)))
+  # a return number of NA counts as not first, without an error or a warning
+  na <- pts_las(d); as2 <- pts_las(d)
+  k <- seq(1, nrow(d), by = 7)
+  na@data$ReturnNumber[k] <- NA_integer_
+  as2@data$ReturnNumber[k] <- 2L
+  expect_no_warning(r <- mcg_crowns(na))
+  expect_coherent_crowns(r)
+  expect_identical(r, mcg_crowns(as2))
+})
+
+test_that("flat ground has interior cells but no crown, and a narrow clip has no interior", {
+  set.seed(2)
+  flat <- pts_las(data.frame(X = runif(2000, 0, 30), Y = runif(2000, 0, 30),
+                             Z = runif(2000, 0, 1.9), ReturnNumber = 1L))
+  r <- mcg_crowns(flat)
+  expect_identical(r$n, 0L); expect_gt(r$area, 0); expect_identical(r$spacing, Inf)
+  expect_coherent_crowns(r)
+  # 4 m wide: no cell has its whole 5 m window on the surface, so no area and no
+  # crown, tall returns or not
+  set.seed(3)
+  narrow <- pts_las(data.frame(X = runif(2000, 0, 4), Y = runif(2000, 0, 40),
+                               Z = runif(2000, 0, 20), ReturnNumber = 1L))
+  expect_identical(mcg_crowns(narrow), list(n = 0L, area = 0, spacing = NA_real_))
+})
+
+test_that("the surface is triangulated from the highest first return of each cell", {
+  # a low first return (1 m) at the centre of every 1 m cell of a cone lattice:
+  # wherever a cone stands it lies below its cell's highest return, so the
+  # surface of the cell maxima keeps the cones, while a surface of all first
+  # returns passes through the low returns at every cell centre
+  d <- cone_lattice(6, 40)
+  ctr <- seq(0.5, 39.5, by = 1)
+  las <- pts_las(rbind(d, data.frame(expand.grid(X = ctr, Y = ctr), Z = 1, ReturnNumber = 1L)))
+  highest <- crowns_from_coordinates(las)
+  all_first <- crowns_from_coordinates(las, highest = FALSE)
+  expect_gt(highest$n, 0L)
+  expect_false(identical(all_first$n, highest$n))   # the cloud tells the two surfaces apart
+  r <- mcg_crowns(las)
+  expect_coherent_crowns(r)
+  expect_identical(r[c("n", "area")], highest)
+})
+
+test_that("crowns on footprints that are not squares match a count from coordinates", {
+  # a triangle (X > Y) and a disc cut from the cone lattice: unlike a square,
+  # fully covered clip, they tell a mirrored row lookup or a square window apart
+  d <- cone_lattice(6, 60)
+  feet <- list(triangle = d[d$X > d$Y, ], disc = d[(d$X - 30)^2 + (d$Y - 30)^2 <= 29^2, ])
+  want <- list(triangle = list(n = 40L, area = 1349), disc = list(n = 62L, area = 2230))
+  for (nm in names(feet)) {
+    las <- pts_las(feet[[nm]])
+    r <- mcg_crowns(las)
+    expect_coherent_crowns(r)
+    expect_identical(r[c("n", "area")], crowns_from_coordinates(las))
+    expect_identical(r[c("n", "area")], want[[nm]])
+  }
+})
+
+test_that("the window holds the cells exactly ws / 2 away at a cell size of 0.1 m", {
+  # at 0.1 m the window's edge lies exactly 2.5 m (25 cells) away along the axes
+  # and at offsets such as (15, 20) cells, where a comparison in metres can lose
+  # a cell to rounding
+  las <- pts_las(cone_lattice(6, 30))
+  r <- mcg_crowns(las, res = 0.1)
+  expect_gt(r$n, 0L)
+  expect_identical(r$spacing, sqrt(r$area / r$n))
+  expect_identical(r[c("n", "area")], crowns_from_coordinates(las, res = 0.1))
+})
+
+test_that("the crown spacing is unknown without enough first returns to triangulate", {
+  d <- cone_lattice(6, 30)
+  no_rn <- d; no_rn$ReturnNumber <- NULL
+  expect_identical(mcg_crowns(pts_las(no_rn)), UNKNOWN_CROWNS)
+  later <- d; later$ReturnNumber <- 2L
+  expect_identical(mcg_crowns(pts_las(later)), UNKNOWN_CROWNS)                 # no first return
+  expect_identical(mcg_crowns(pts_las(data.frame(X = numeric(), Y = numeric(), Z = numeric(),
+                                                 ReturnNumber = integer()))), UNKNOWN_CROWNS)
+  two <- data.frame(X = c(1, 9, 5, 2), Y = c(1, 2, 9, 8), Z = c(5, 6, 7, 3),
+                    ReturnNumber = c(1, 1, 2, 2))                             # two first returns
+  expect_identical(mcg_crowns(pts_las(two)), UNKNOWN_CROWNS)
+  # five first returns in one 1 m cell: a single cell maximum to triangulate
+  one_cell <- data.frame(X = c(0.1, 0.9, 0.5, 0.2, 0.8), Y = c(0.1, 0.2, 0.9, 0.7, 0.6),
+                         Z = c(5, 6, 7, 3, 4), ReturnNumber = 1L)
+  expect_identical(mcg_crowns(pts_las(one_cell)), UNKNOWN_CROWNS)
+  # three collinear first returns (the later returns off the line do not count):
+  # lidR cannot triangulate them
+  line <- data.frame(X = c(1, 5, 9, 2, 8), Y = c(1, 5, 9, 9, 1), Z = c(5, 6, 7, 3, 4),
+                     ReturnNumber = c(1, 1, 1, 2, 2))
+  expect_identical(mcg_crowns(pts_las(line)), UNKNOWN_CROWNS)
+})
+
+test_that("the crowns are counted on one lidR thread and the caller's setting is restored", {
+  old <- lidR::get_lidr_threads(); on.exit(lidR::set_lidr_threads(old), add = TRUE)
+  las <- pts_las(cone_lattice(6, 40))
+  lidR::set_lidr_threads(1L)
+  one <- mcg_crowns(las)
+  # record the thread count inside lidR's calls that build the surface and find
+  # its maxima, then run the real functions
+  seen <- integer()
+  real_rasterize <- lidR::rasterize_canopy
+  real_locate <- lidR::locate_trees
+  local_mocked_bindings(
+    rasterize_canopy = function(...) {
+      seen <<- c(seen, lidR::get_lidr_threads())
+      real_rasterize(...)
+    },
+    locate_trees = function(...) {
+      seen <<- c(seen, lidR::get_lidr_threads())
+      real_locate(...)
+    },
+    .package = "lidR")
+  lidR::set_lidr_threads(2L)
+  expect_identical(mcg_crowns(las), one)
+  expect_gte(length(seen), 2L)
+  expect_true(all(seen == 1L))
+  expect_identical(lidR::get_lidr_threads(), 2L)
+  # also when the triangulation fails
+  line <- pts_las(data.frame(X = c(1, 5, 9), Y = c(1, 5, 9), Z = c(5, 6, 7), ReturnNumber = 1L))
+  expect_identical(mcg_crowns(line), UNKNOWN_CROWNS)
+  expect_true(all(seen == 1L))
+  expect_identical(lidR::get_lidr_threads(), 2L)
+})
+
+test_that("a prepared clip carries the crowns of mcg_crowns", {
+  las <- synth_closed_stand(1)
+  P <- mcg_prepare(las, 0.5)
+  cr <- mcg_crowns(las)
+  expect_identical(c(P$crown_spacing, P$n_crowns, P$crown_area), c(cr$spacing, cr$n, cr$area))
+  expect_identical(P$n_crowns, cr$n)
+  expect_true(is.finite(P$crown_spacing) && P$n_crowns > 0L)
+  expect_no_warning(mcg_crowns(las))
+})
+
 ## ---- the gate -------------------------------------------------------------------------------
 test_that("the height floor applies to deeper layers only, in every stand", {
   C <- cands(X = 1:4, Y = 0, Z = c(9, 4.9, 5, 3), layer = c(2, 2, 3, 1))
@@ -287,6 +607,81 @@ test_that("mcg_closed compares the cover with cover_min and never stops", {
     expect_identical(mcg_gate(C, cover, cfg)$closed, mcg_closed(cover, cfg))
 })
 
+test_that("mcg_spaced compares the crown spacing with spacing_min and never stops", {
+  d8 <- mcg_config(5, 0.75, 0.6, TRUE, 8)
+  # spacing_min 0: every stand is spaced, an unknown spacing included
+  for (s in list(NA_real_, NA, NULL, 0, 3, Inf))
+    expect_identical(mcg_spaced(s, mcg_config(5, 0.75, 0.6, TRUE)), TRUE)
+  expect_identical(mcg_spaced(NA_real_, MCG_STOCK), TRUE)
+  expect_identical(mcg_spaced(NULL, mcg_config(5, 0, 0.6, TRUE, 8)), TRUE)   # normalised to 0
+  expect_identical(mcg_spaced(8, d8), TRUE)                # the threshold itself is spaced
+  expect_identical(mcg_spaced(8.001, d8), TRUE)
+  expect_identical(mcg_spaced(7.999, d8), FALSE)
+  expect_identical(mcg_spaced(Inf, d8), TRUE)              # interior surface without a crown
+  expect_identical(mcg_spaced(NA_real_, d8), NA)           # unknown spacing: NA, no stop
+  expect_identical(mcg_spaced(NaN, d8), NA)
+  expect_identical(mcg_spaced(NULL, d8), NA)
+  # a four-field configuration has no spacing condition
+  expect_identical(mcg_spaced(NA_real_, list(zmin = 5, min_share = 0.75, cover_min = 0.6,
+                                             surface_exempt = TRUE)), TRUE)
+})
+
+test_that("the share gate applies only in closed stands of crowns spaced at least spacing_min", {
+  # surface Z 30 and 13; deeper layers: share 0.8 (passes), 0.2 (fails), NA
+  # (fails), and one below the 5 m floor
+  C <- cands(X = 1:6, Y = 0, Z = c(30, 20, 15, 14, 13, 4), layer = c(1, 2, 2, 3, 1, 2),
+             share = c(0.1, 0.8, 0.2, NA, 0.1, 0.9))
+  cfg <- mcg_config(zmin = 5, min_share = 0.75, cover_min = 0.6, surface_exempt = TRUE,
+                    spacing_min = 8)
+  gated <- c(TRUE, TRUE, FALSE, FALSE, TRUE, FALSE)
+  floor_only <- c(TRUE, TRUE, TRUE, TRUE, TRUE, FALSE)
+  surface <- c(TRUE, FALSE, FALSE, FALSE, TRUE, FALSE)
+  # closed and spaced: the share gate, and the exemption
+  for (s in c(8, 12, Inf)) {
+    g <- mcg_gate(C, 0.9, cfg, crown_spacing = s)
+    expect_identical(g$keep, gated)
+    expect_identical(g$exempt, surface)
+    expect_true(g$closed); expect_identical(g$spaced, TRUE)
+  }
+  expect_identical(names(g), c("keep", "exempt", "closed", "spaced"))
+  # closed and not spaced: every deeper candidate that passes the floor is kept
+  # and the surface candidates stay exempt
+  g <- mcg_gate(C, 0.9, cfg, crown_spacing = 7.9)
+  expect_identical(g$keep, floor_only)
+  expect_identical(g$exempt, surface)
+  expect_true(g$closed); expect_identical(g$spaced, FALSE)
+  # open: neither the gate nor the exemption, spaced or not, and an unknown
+  # spacing does not stop
+  for (s in list(5, 10, NA_real_, NULL)) {
+    g <- mcg_gate(C, 0.5, cfg, crown_spacing = s)
+    expect_identical(g$keep, floor_only)
+    expect_identical(g$exempt, rep(FALSE, 6))
+    expect_false(g$closed)
+  }
+  expect_identical(mcg_gate(C, 0.5, cfg)$spaced, NA)     # the default: an unknown spacing
+  expect_identical(mcg_gate(C, 0.5, cfg, crown_spacing = 10)$spaced, TRUE)
+  # closed with an unknown spacing: stops when spacing_min > 0 ...
+  expect_error(mcg_gate(C, 0.9, cfg), "needs the clip's crown spacing")
+  expect_error(mcg_gate(C, 0.9, cfg, crown_spacing = NA_real_), "needs the clip's crown spacing")
+  expect_error(mcg_gate(C, 0.9, cfg, crown_spacing = NULL), "needs the clip's crown spacing")
+  expect_error(mcg_gate(C, 0.9, cfg), "prepared without the crown spacing")
+  # ... and not when spacing_min == 0 (no spacing condition)
+  d0 <- mcg_config(5, 0.75, 0.6, TRUE)
+  g0 <- mcg_gate(C, 0.9, d0, crown_spacing = NA_real_)
+  expect_identical(g0$keep, gated)
+  expect_identical(g0$exempt, surface)
+  expect_identical(g0$spaced, TRUE)
+  expect_identical(mcg_gate(C, 0.9, d0), g0)
+  expect_identical(mcg_gate(C, 0.9, d0, crown_spacing = 3), g0)
+  # cover_min 0: every stand is closed, the spacing alone switches the share gate
+  d8_all <- mcg_config(5, 0.75, 0, FALSE, 8)
+  expect_identical(mcg_gate(C, NA, d8_all, crown_spacing = 9)$keep, gated)
+  expect_identical(mcg_gate(C, NA, d8_all, crown_spacing = 7)$keep, floor_only)
+  expect_error(mcg_gate(C, NA, d8_all), "needs the clip's crown spacing")
+  # an unknown cover that decides something still stops first
+  expect_error(mcg_gate(C, NA, cfg, crown_spacing = 9), "canopy cover")
+})
+
 ## ---- the distance filter --------------------------------------------------------------------
 test_that("the distance filter rejects within 3 m and within 5 m in 3-D", {
   f <- function(C) mcg_filter(C, rep(TRUE, nrow(C)), rep(FALSE, nrow(C)))
@@ -323,7 +718,11 @@ test_that("a gate that needs return numbers stops on a cloud without them", {
   P <- mcg_prepare(synth_stand(1, with_rn = FALSE), 0.5)
   expect_false(P$has_return_number)
   expect_true(is.na(P$cover))
+  expect_identical(P$top_height, NA_real_)
+  expect_identical(P[c("crown_spacing", "n_crowns", "crown_area")],
+                   list(crown_spacing = NA_real_, n_crowns = NA_integer_, crown_area = NA_real_))
   expect_true(all(is.na(P$cand$share)))
+  expect_error(mcg_apply(P, MCG_DECLARED), "ReturnNumber")
   expect_error(mcg_apply(P, mcg_config(min_share = 0.5)), "ReturnNumber")
   expect_error(mcg_apply(P, mcg_config(cover_min = 0.7, surface_exempt = TRUE)), "canopy cover")
   expect_error(mcg_apply(P, mcg_config(5, 0.75, 0.7, TRUE)), "ReturnNumber")
@@ -334,24 +733,103 @@ test_that("a gate that needs return numbers stops on a cloud without them", {
   expect_identical(mcg_apply(P, MCG_STOCK), mcg_apply(P1, MCG_STOCK))
 })
 
+# synth_closed_stand() (helper-synth.R): a closed stand with an understory peak
+# under a wide crown that the share gate removes.
+test_that("on a closed stand the spacing condition switches the share gate and nothing else", {
+  las <- synth_closed_stand(1)
+  P <- mcg_prepare(las, 0.5)
+  sp <- P$crown_spacing
+  expect_identical(sp, mcg_crowns(las)$spacing)
+  expect_true(is.finite(sp) && sp > 1)
+  cfg <- function(d, s = 0.75) mcg_config(5, s, 0.6, TRUE, d)
+  expect_true(mcg_closed(P$cover, cfg(0)))
+  gated <- mcg_apply(P, cfg(0))                    # no spacing condition
+  ungated <- mcg_apply(P, cfg(0, s = 0))           # the same without the share gate
+  expect_false(isTRUE(all.equal(gated, ungated)))
+  near <- function(det, x, y, r = 1) any((det$x - x)^2 + (det$y - y)^2 <= r^2)
+  expect_true(near(ungated, 25.5, 21))             # the understory peak
+  expect_false(near(gated, 25.5, 21))
+  # spacing_min above the stand's crown spacing: no share gate (the floor and
+  # the exemption still apply)
+  for (d in c(sp + 0.01, sp + 20)) expect_identical(mcg_apply(P, cfg(d)), ungated)
+  # spacing_min at or below it: the share gate as without a spacing condition
+  for (d in c(sp, sp - 0.01, 1)) expect_identical(mcg_apply(P, cfg(d)), gated)
+  expect_identical(detect_multichm_gated(las, 0.5, cfg = cfg(sp + 0.01)), ungated)
+  expect_identical(detect_multichm_gated(las, 0.5, cfg = cfg(sp)), gated)
+  # an infinite spacing (interior surface without a crown) counts as spaced
+  Pinf <- P; Pinf$crown_spacing <- Inf
+  expect_identical(mcg_apply(Pinf, cfg(sp + 20)), gated)
+})
+
+test_that("a clip prepared without the crown spacing serves configurations that do not need it", {
+  P <- mcg_prepare(synth_closed_stand(1), 0.5)
+  Q <- P[setdiff(names(P), "crown_spacing")]
+  expect_false("crown_spacing" %in% names(Q))
+  for (cfg in list(MCG_STOCK, mcg_config(5, 0.75, 0.6, TRUE), mcg_config(5, 0, 0.6, TRUE, 8),
+                   mcg_config(5, 0.75, 0.99, TRUE, 8)))    # the last: an open stand
+    expect_identical(mcg_apply(Q, cfg), mcg_apply(P, cfg))
+  expect_error(mcg_apply(Q, mcg_config(5, 0.75, 0.6, TRUE, 10)), "needs the clip's crown spacing")
+  expect_error(mcg_apply(Q, MCG_DECLARED), "needs the clip's crown spacing")
+  # an unknown crown spacing in the prepared clip behaves the same way
+  R <- P; R$crown_spacing <- NA_real_
+  d0 <- mcg_config(5, 0.75, 0.6, TRUE)
+  expect_identical(mcg_apply(R, d0), mcg_apply(P, d0))
+  expect_error(mcg_apply(R, MCG_DECLARED), "needs the clip's crown spacing")
+  # the top height is recorded only: without it, or unknown, nothing changes
+  for (Pt in list(P[setdiff(names(P), "top_height")], replace(P, "top_height", list(NA_real_))))
+    for (cfg in list(MCG_STOCK, d0, MCG_DECLARED, mcg_config(5, 0.75, 0.6, TRUE, 30)))
+      expect_identical(mcg_apply(Pt, cfg), mcg_apply(P, cfg))
+})
+
 ## ---- the calibration grid -------------------------------------------------------------------
-test_that("the declared grid has 87 unique rows, stock first, least intervention first", {
+test_that("the declared grid has 447 unique rows, stock first, least intervention first", {
   g <- mcg_grid()
-  expect_identical(nrow(g), 87L)
+  expect_identical(nrow(g), 447L)
   expect_identical(names(g), c("config_id", "zmin", "min_share", "cover_min", "surface_exempt",
-                               "label"))
-  expect_identical(g$config_id, seq_len(87))
-  expect_identical(g$label[1], "stock")
+                               "spacing_min", "label"))
+  expect_identical(g$config_id, seq_len(447))
   expect_identical(anyDuplicated(g$label), 0L)
-  expect_identical(anyDuplicated(g[c("zmin", "min_share", "cover_min", "surface_exempt")]), 0L)
-  expect_false(any(g$min_share == 0 & !g$surface_exempt & g$cover_min > 0))
-  expect_identical(sum(!g$surface_exempt), 39L)
-  expect_identical(order(g$surface_exempt, g$min_share, g$zmin, -g$cover_min), seq_len(87))
-  expect_setequal(unique(g$zmin), c(0, 5, 8))
-  expect_setequal(unique(g$min_share), c(0, 0.5, 0.75, 0.9))
-  expect_setequal(unique(g$cover_min), c(0, 0.6, 0.7, 0.8))
-  expect_identical(g$cover_min[2:5], c(0, 0, 0.8, 0.7))   # z5, z8, then z0 s0.5 c0.8, c0.7
-  expect_identical(g$label[40], "z0_s0_c0.8_e1")
+  fields <- c("zmin", "min_share", "cover_min", "surface_exempt", "spacing_min")
+  expect_identical(anyDuplicated(g[fields]), 0L)
+  # every row is a canonical configuration with its own label
+  cfgs <- lapply(seq_len(nrow(g)), function(i)
+    mcg_config(g$zmin[i], g$min_share[i], g$cover_min[i], g$surface_exempt[i], g$spacing_min[i]))
+  expect_identical(lapply(cfgs, unlist), lapply(seq_len(nrow(g)), function(i) unlist(g[i, fields])))
+  expect_identical(vapply(cfgs, mcg_config_label, ""), g$label)
+  # rows 1..87: the configurations without a spacing condition, with the order,
+  # ids and labels of the 87-configuration grid (cells scored on it stay
+  # comparable)
+  o <- g[1:87, ]
+  expect_true(all(o$spacing_min == 0))
+  expect_false(any(grepl("_d", o$label, fixed = TRUE)))
+  expect_identical(o$label[1], "stock")
+  expect_false(any(o$min_share == 0 & !o$surface_exempt & o$cover_min > 0))
+  expect_identical(sum(!o$surface_exempt), 39L)
+  expect_identical(order(o$surface_exempt, o$min_share, o$zmin, -o$cover_min), seq_len(87))
+  expect_setequal(unique(o$zmin), c(0, 5, 8))
+  expect_setequal(unique(o$min_share), c(0, 0.5, 0.75, 0.9))
+  expect_setequal(unique(o$cover_min), c(0, 0.6, 0.7, 0.8))
+  expect_identical(o$cover_min[2:5], c(0, 0, 0.8, 0.7))   # z5, z8, then z0 s0.5 c0.8, c0.7
+  expect_identical(o$label[c(2, 4, 40, 70, 87)],
+                   c("z5_s0_c0_e0", "z0_s0.5_c0.8_e0", "z0_s0_c0.8_e1", "z5_s0.75_c0.6_e1",
+                     "z8_s0.9_c0_e1"))
+  # rows 88..447: each of the 72 configurations with a share gate, in the order
+  # of rows 1..87, as one block of five rows with spacing_min descending 9..7
+  n <- g[88:447, ]
+  expect_identical(nrow(n), 360L)
+  expect_true(all(n$min_share > 0))
+  expect_true(all(n$spacing_min %in% c(7, 7.5, 8, 8.5, 9)))
+  expect_true(all(grepl("_d[0-9.]+$", n$label)))
+  gate <- o[o$min_share > 0, setdiff(fields, "spacing_min")]
+  expect_identical(nrow(gate), 72L)
+  expect_identical(n$spacing_min, rep(c(9, 8.5, 8, 7.5, 7), 72))
+  for (f in setdiff(fields, "spacing_min"))             # constant within each block of five
+    expect_identical(n[[f]], gate[[f]][rep(seq_len(72), each = 5)])
+  expect_identical(n$label[1:5], paste0("z0_s0.5_c0.8_e0_d", c(9, 8.5, 8, 7.5, 7)))
+  expect_identical(g$config_id[g$label == "z5_s0.75_c0.6_e1_d8"], 360L)
+  expect_identical(g$config_id[g$label == "z5_s0.75_c0.6_e1_d8.5"], 359L)
+  expect_identical(g$config_id[g$label == "z5_s0.75_c0.6_e1"], 70L)
+  expect_identical(g$label[447], "z8_s0.9_c0_e1_d7")
 })
 
 ## ---- scoring --------------------------------------------------------------------------------
@@ -444,6 +922,29 @@ test_that("mcg_select picks the best pooled criterion and breaks ties to stock",
   expect_error(mcg_select(r[!(r$config_id == 2 & r$plot == "p1"), ], ids), "every configuration")
   r2 <- rbind(r, transform(r, rung = "4"))
   expect_error(mcg_select(r2, ids), "one rung")
+})
+
+test_that("grid ties go to no spacing condition, then to the higher spacing_min", {
+  g <- mcg_grid()
+  ids <- c("A::p1", "A::p2", "B::p3")
+  for (lab in c("z5_s0.75_c0.6_e1", "z0_s0.5_c0.8_e0", "z8_s0.9_c0_e1")) {
+    base <- g[g$label == lab, ]
+    blk <- g[g$spacing_min > 0 & g$zmin == base$zmin & g$min_share == base$min_share &
+               g$cover_min == base$cover_min & g$surface_exempt == base$surface_exempt, ]
+    expect_identical(blk$spacing_min, c(9, 8.5, 8, 7.5, 7))
+    expect_identical(diff(blk$config_id), rep(1L, 4))
+    expect_true(all(blk$config_id > base$config_id))
+    # every configuration of the family scores the same: grid_rows gives
+    # config_id k to the k-th entry, so map those ids onto the grid's
+    tied <- function(cid) {
+      r <- grid_rows(rep(5, length(cid)), ids)
+      r$config_id <- cid[r$config_id]
+      r
+    }
+    expect_identical(mcg_select(tied(c(rev(blk$config_id), base$config_id)), ids), base$config_id)
+    expect_identical(mcg_select(tied(rev(blk$config_id)), ids), blk$config_id[1])  # spacing 9
+    expect_identical(mcg_select(tied(blk$config_id[3:5]), ids), blk$config_id[3])  # spacing 8
+  }
 })
 
 test_that("mcg_split is deterministic and stratified per site", {

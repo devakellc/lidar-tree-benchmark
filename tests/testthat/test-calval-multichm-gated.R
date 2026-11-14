@@ -13,6 +13,7 @@ SYN_CONFIGS <- data.frame(
   config = c("stock", "z5_s0_c0_e0", "z8_s0_c0_e0", "chm_vwf"),
   config_id = c(1L, 2L, 3L, NA), zmin = c(0, 5, 8, NA), min_share = c(0, 0, 0, NA),
   cover_min = c(0, 0, 0, NA), surface_exempt = c(FALSE, FALSE, FALSE, NA),
+  spacing_min = c(0, 0, 0, NA),
   TP = c(10, 12, 8, 9), n_det = c(30, 24, 20, 15), stringsAsFactors = FALSE)
 
 syn_cells <- function(sites = c("SJER", "WREF"), n = 8, rungs = c("native", "1"),
@@ -26,9 +27,10 @@ syn_cells <- function(sites = c("SJER", "WREF"), n = 8, rungs = c("native", "1")
     out[[length(out) + 1L]] <- data.frame(
       site = s, plot = sprintf("%s_%03d", s, i),
       plotType = if (i %% 2) "tower" else "distributed", rung = rl,
-      cover = 0.5 + i / 20, pdens = 20, frdens = 10,
+      cover = 0.5 + i / 20, top_height = 30 + i, crown_spacing = 5 + i / 2, pdens = 20,
+      frdens = 10,
       config = cf$config, config_id = cf$config_id, zmin = cf$zmin, min_share = cf$min_share,
-      cover_min = cf$cover_min, surface_exempt = cf$surface_exempt,
+      cover_min = cf$cover_min, surface_exempt = cf$surface_exempt, spacing_min = cf$spacing_min,
       n_dominant = 8 + i %% 3, n_codominant = 6, n_intermediate = if (i <= 4) 6 else 0,
       n_suppressed = 0,
       n_ref = 20 + i %% 3 + if (i <= 4) 6 else 0, n_over = 14 + i %% 3,
@@ -78,6 +80,18 @@ test_that("arguments parse as KEY=VALUE with defaults, and SEED is not read from
   expect_error(cv_settings("RUNGS=native,3", d = tempdir()), "RUNGS")
   expect_error(cv_settings("CRITERION=recall", d = tempdir()), "CRITERION")
   expect_error(cv_settings("FRAC=1", d = tempdir()), "FRAC")
+})
+
+test_that("REFERENCE is optional, and REFERENCE_CENSUS needs it", {
+  S <- cv_settings(character(), d = tempdir())
+  expect_null(S[["REFERENCE"]])
+  expect_null(S[["REFERENCE_CENSUS"]])
+  expect_null(cv_settings("REFERENCE=", d = tempdir())[["REFERENCE"]])
+  S <- cv_settings(c("REFERENCE=z5_s0.75_c0.6_e1", "REFERENCE_CENSUS=/r.csv"), d = tempdir())
+  expect_identical(c(S$REFERENCE, S$REFERENCE_CENSUS), c("z5_s0.75_c0.6_e1", "/r.csv"))
+  expect_null(cv_settings("REFERENCE=z5_s0.75_c0.6_e1", d = tempdir())$REFERENCE_CENSUS)
+  expect_error(cv_settings("REFERENCE_CENSUS=/r.csv", d = tempdir()),
+               "REFERENCE_CENSUS= needs REFERENCE=", fixed = TRUE)
 })
 
 test_that("K must be at least 1, and explicit K= and TOL= are flagged", {
@@ -138,30 +152,91 @@ test_that("the null-cell comparison is cell by cell, both ways, within 1e-9", {
 
 ## ---- the score stage --------------------------------------------------------------------------
 # One plot of the shared closed stand, prepared as the candidates stage stores
-# it, scored on four configurations whose detection sets differ.
+# it, scored on configurations whose detection sets differ; the stand's crown
+# spacing (about 16 m) is at least the grid's spacing_min 9, and below the
+# spacing condition of an extra row at 20 m, whose share gate is therefore off.
 test_that("the score stage scores each configuration's own detections and its own null", {
   dir <- tempfile("mcg_score"); dir.create(dir)
   prep <- mcg_prepare(synth_closed_stand(), 0.5, CV_A_VWF)
   m <- data.frame(site = "SYN", plot = "SYN_002", plotType = "tower", rung = "native",
                   cx = 16, cy = 16, half = 16, pdens = 10, frdens = 5, cover = prep$cover,
+                  top_height = prep$top_height, crown_spacing = prep$crown_spacing,
                   file = cv_cell_file("SYN", "SYN_002", "native"), stringsAsFactors = FALSE)
   saveRDS(list(meta = m, prep = prep, parity = TRUE), file.path(dir, m$file))
   stems <- synth_closed_stems()
   g <- mcg_grid()
-  grid <- g[match(c("stock", "z5_s0.75_c0.7_e0", "z0_s0_c0.7_e1", "z5_s0.75_c0.7_e1"), g$label), ]
+  expect_true(prep$crown_spacing >= 9 && prep$crown_spacing < 20)
+  grid <- g[match(c("stock", "z5_s0.75_c0.7_e0", "z0_s0_c0.7_e1", "z5_s0.75_c0.7_e1",
+                    "z5_s0.75_c0.7_e1_d9"), g$label), ]
+  wide <- mcg_config(5, 0.75, 0.7, TRUE, 20)
+  grid <- rbind(grid, data.frame(config_id = nrow(g) + 1L, zmin = 5, min_share = 0.75,
+                                 cover_min = 0.7, surface_exempt = TRUE, spacing_min = 20,
+                                 label = mcg_config_label(wide), stringsAsFactors = FALSE))
   r <- cv_score_job(list(site = "SYN", plot = "SYN_002", half = 16, cells = m, stems = stems),
                     grid, dir, K = 5L, tol = 4, base = NULL)
   expect_identical(r$config, grid$label)
   expect_identical(r$config_id, grid$config_id)
+  expect_identical(r$spacing_min, c(0, 0, 0, 0, 9, 20))
+  expect_identical(r$top_height, rep(prep$top_height, nrow(grid)))
+  expect_identical(r$crown_spacing, rep(prep$crown_spacing, nrow(grid)))
+  # top_height follows cover and crown_spacing top_height; spacing_min follows
+  # surface_exempt
+  expect_identical(names(r)[5:7], c("cover", "top_height", "crown_spacing"))
+  expect_identical(names(r)[match("surface_exempt", names(r)) + 1L], "spacing_min")
+  expect_false("top_prob" %in% names(r))
   offs <- mcg_null_offsets("SYN", "SYN_002", 16, tol = 4, k = 5)
   for (i in seq_len(nrow(grid))) {
-    cfg <- mcg_config(grid$zmin[i], grid$min_share[i], grid$cover_min[i], grid$surface_exempt[i])
+    cfg <- mcg_config(grid$zmin[i], grid$min_share[i], grid$cover_min[i], grid$surface_exempt[i],
+                      grid$spacing_min[i])
     want <- mcg_score_cell(stems, mcg_apply(prep, cfg), 16, 16, 16, offs, tol = 4)
     expect_equal(unlist(r[i, MCG_COUNT_COLS]), unlist(want[MCG_COUNT_COLS]))
   }
+  # at or above its spacing_min the stand gets the share gate: the configuration
+  # at spacing_min 9 scores as the one without a spacing condition; below it
+  # (spacing_min 20) the stand keeps every deeper-layer candidate, and the
+  # configuration scores as the same one without the share gate
+  expect_identical(unlist(r[5, MCG_COUNT_COLS]), unlist(r[4, MCG_COUNT_COLS]))
+  nogate <- mcg_score_cell(stems, mcg_apply(prep, mcg_config(5, 0, 0.7, TRUE)), 16, 16, 16, offs,
+                           tol = 4)
+  expect_equal(unlist(r[6, MCG_COUNT_COLS]), unlist(nogate[MCG_COUNT_COLS]))
+  expect_false(identical(unlist(r[6, MCG_COUNT_COLS]), unlist(r[4, MCG_COUNT_COLS])))
   # the configurations do not all share one null
   expect_gt(length(unique(r$n_det0)), 1L)
   expect_identical(c(r$n_dominant[1], r$n_suppressed[1]), c(3, 1))
+  # a cell whose crown spacing is unknown where the gate reads it (the stored
+  # preparation) and in the index: the configurations without a spacing condition
+  # score as before and carry NA; one with a spacing condition stops the cell
+  # with the library's message, since the stand is closed
+  unknown <- prep
+  unknown$crown_spacing <- NA_real_
+  m$crown_spacing <- NA
+  saveRDS(list(meta = m, prep = unknown, parity = TRUE), file.path(dir, m$file))
+  job <- list(site = "SYN", plot = "SYN_002", half = 16, cells = m, stems = stems)
+  na <- cv_score_job(job, grid[1:4, ], dir, K = 5L, tol = 4, base = NULL)
+  expect_identical(na$config, grid$label[1:4])
+  expect_true(is.numeric(na$crown_spacing) && all(is.na(na$crown_spacing)))
+  expect_identical(na[MCG_COUNT_COLS], r[1:4, MCG_COUNT_COLS])
+  expect_identical(grid$label[5], "z5_s0.75_c0.7_e1_d9")
+  expect_error(cv_score_job(job, grid, dir, K = 5L, tol = 4, base = NULL),
+               "this configuration needs the clip's crown spacing, which is unavailable",
+               fixed = TRUE)
+  # the real preparation back for the CHM-VWF part
+  m$crown_spacing <- prep$crown_spacing
+  saveRDS(list(meta = m, prep = prep, parity = TRUE), file.path(dir, m$file))
+  # the CHM-VWF row carries the cell's stand features and no configuration values
+  base <- tempfile("mcg_base")
+  bd <- file.path(base, "neon", "SYN", "chm_vwf_detections")
+  dir.create(bd, recursive = TRUE)
+  write.csv(data.frame(x = c(8, 21), y = c(8, 21), z = c(24, 24)),
+            frozen_detections_file(bd, "SYN_002", NA), row.names = FALSE)
+  rb <- cv_score_job(list(site = "SYN", plot = "SYN_002", half = 16, cells = m, stems = stems),
+                     grid[1, ], dir, K = 5L, tol = 4, base = base)
+  expect_identical(rb$config, c("stock", "chm_vwf"))
+  ch <- rb[rb$config == "chm_vwf", ]
+  expect_true(all(is.na(unlist(ch[c("config_id", "zmin", "min_share", "cover_min",
+                                    "surface_exempt", "spacing_min")]))))
+  expect_identical(c(ch$top_height, ch$crown_spacing), c(prep$top_height, prep$crown_spacing))
+  expect_identical(names(rb), names(r))
 })
 
 ## ---- analysis helpers -------------------------------------------------------------------------
@@ -212,6 +287,68 @@ test_that("components reduce the selection part by part and skip stock and the s
                                   cover_switch = "z5_s0.5_c0_e0"))
   expect_true(all(unlist(ne) %in% mcg_grid()$label))
   expect_identical(cv_canonical_label(0, 0, 0.8, FALSE), "stock")
+})
+
+test_that("a canonical label keeps spacing_min only with a share gate", {
+  expect_identical(cv_canonical_label(5, 0.75, 0.6, TRUE), "z5_s0.75_c0.6_e1")
+  expect_identical(cv_canonical_label(5, 0.75, 0.6, TRUE, 0), "z5_s0.75_c0.6_e1")
+  expect_identical(cv_canonical_label(5, 0.75, 0.6, TRUE, 8), "z5_s0.75_c0.6_e1_d8")
+  expect_identical(cv_canonical_label(0, 0.5, 0.8, FALSE, 8.5), "z0_s0.5_c0.8_e0_d8.5")
+  # without a share gate the spacing condition switches nothing
+  expect_identical(cv_canonical_label(5, 0, 0.6, TRUE, 8), "z5_s0_c0.6_e1")
+  expect_identical(cv_canonical_label(5, 0, 0.8, FALSE, 7), "z5_s0_c0_e0")
+  expect_identical(cv_canonical_label(0, 0, 0, FALSE, 9), "stock")
+  expect_identical(cv_canonical_label(0, 0, 0.7, FALSE, 9), "stock")
+  # every canonical label of a grid row is that row's label
+  g <- mcg_grid()
+  expect_identical(vapply(seq_len(nrow(g)), function(i)
+    cv_canonical_label(g$zmin[i], g$min_share[i], g$cover_min[i], g$surface_exempt[i],
+                       g$spacing_min[i]), character(1)), g$label)
+})
+
+test_that("a configuration's spacing_min is 0 when it records none", {
+  expect_identical(cv_spacing_min(list(zmin = 5, min_share = 0.75)), 0)
+  expect_identical(cv_spacing_min(list(spacing_min = NULL)), 0)
+  expect_identical(cv_spacing_min(list(spacing_min = 8.5)), 8.5)
+  expect_identical(cv_spacing_min(MCG_DECLARED), MCG_DECLARED$spacing_min)
+})
+
+test_that("components of a spacing-switched selection keep its spacing_min with the share gate", {
+  sel <- list(zmin = 5, min_share = 0.75, cover_min = 0.6, surface_exempt = TRUE, spacing_min = 8)
+  comp <- cv_components(sel)
+  expect_identical(comp$versus_stock,
+                   c(floor_only = "z5_s0_c0_e0", no_share_gate = "z5_s0_c0.6_e1",
+                     no_exemption = "z5_s0.75_c0.6_e0_d8",
+                     no_spacing_switch = "z5_s0.75_c0.6_e1", exemption_only = "z0_s0_c0.6_e1"))
+  expect_identical(comp$marginal,
+                   c(floor = "z0_s0.75_c0.6_e1_d8", share_gate = "z5_s0_c0.6_e1",
+                     exemption = "z5_s0.75_c0.6_e0_d8", cover_switch = "z5_s0.75_c0_e1_d8",
+                     spacing_switch = "z5_s0.75_c0.6_e1", gate_and_exemption = "z5_s0_c0_e0"))
+  expect_true(all(unlist(comp) %in% mcg_grid()$label))
+  # without the exemption, the floor or the cover threshold: the reductions that
+  # turn into the selection or stock are dropped, the spacing parts remain
+  ne <- cv_components(list(zmin = 0, min_share = 0.5, cover_min = 0.8, surface_exempt = FALSE,
+                           spacing_min = 7.5))
+  expect_identical(ne$versus_stock, c(no_spacing_switch = "z0_s0.5_c0.8_e0"))
+  expect_identical(ne$marginal, c(cover_switch = "z0_s0.5_c0_e0_d7.5",
+                                  spacing_switch = "z0_s0.5_c0.8_e0"))
+  expect_true(all(unlist(ne) %in% mcg_grid()$label))
+  # the declared configuration's parts are grid configurations
+  expect_true(all(unlist(cv_components(MCG_DECLARED)) %in% mcg_grid()$label))
+  # a selection without a spacing condition, recorded with spacing_min 0 or
+  # without it, has neither spacing part: today's lists
+  for (s in list(list(zmin = 5, min_share = 0.75, cover_min = 0.7, surface_exempt = TRUE),
+                 list(zmin = 5, min_share = 0.75, cover_min = 0.7, surface_exempt = TRUE,
+                      spacing_min = 0))) {
+    comp <- cv_components(s)
+    expect_identical(comp$versus_stock,
+                     c(floor_only = "z5_s0_c0_e0", no_share_gate = "z5_s0_c0.7_e1",
+                       no_exemption = "z5_s0.75_c0.7_e0", exemption_only = "z0_s0_c0.7_e1"))
+    expect_identical(comp$marginal,
+                     c(floor = "z0_s0.75_c0.7_e1", share_gate = "z5_s0_c0.7_e1",
+                       exemption = "z5_s0.75_c0.7_e0", cover_switch = "z5_s0.75_c0_e1",
+                       gate_and_exemption = "z5_s0_c0_e0"))
+  }
 })
 
 test_that("a contrast row pools the plots both configurations cover, by summed counts", {
@@ -312,14 +449,34 @@ test_that("the study writes every analysis, held-out and in-sample apart", {
                     "config_a", "config_b", "n_plots", "n_ref") == names(v)[1:11]))
   # the declared configuration and the tables
   dc <- cv_declared(res, S, "abc", "adopted")
-  expect_identical(dc[c("zmin", "min_share", "cover_min", "surface_exempt")],
-                   list(zmin = 5, min_share = 0, cover_min = 0, surface_exempt = FALSE))
+  expect_identical(dc[c("zmin", "min_share", "cover_min", "surface_exempt", "spacing_min")],
+                   list(zmin = 5, min_share = 0, cover_min = 0, surface_exempt = FALSE,
+                        spacing_min = 0))
   expect_identical(dc$selection, "selected on the calibration plots at native density")
-  expect_identical(c(dc$a, dc$radius, dc$half_dz, dc$cover_height), c(0.1, 1, 1, 2))
+  expect_identical(c(dc$a, dc$radius, dc$half_dz, dc$cover_height, dc$crown_res, dc$crown_ws),
+                   c(0.1, 1, 1, 2, 1, 5))
+  expect_null(dc$top_prob)                       # the top height decides nothing
   expect_identical(c(dc$n_calibration_plots, dc$n_validation_plots), c(res$n_calib, res$n_valid))
   expect_match(dc$provenance, paste("test only the selection within the grid, not the grid's",
                                     "values or the choice of features"), fixed = TRUE)
   expect_match(dc$provenance, "the selection criterion was fixed after that pass", fixed = TRUE)
+  expect_match(dc$provenance, paste("The crown-spacing switch, its measure and its grid values",
+                                    "were added after further exploratory passes, which read the",
+                                    "scores of all plots by stand top height and by crown density,",
+                                    "the validation plots' nominal cores and censused subplots",
+                                    "included, and the detection counts on four closed plots",
+                                    "outside the benchmark that have no field reference."),
+               fixed = TRUE)
+  expect_false(grepl("  ", CV_PROVENANCE, fixed = TRUE))       # one string, single spaces
+  expect_identical(CV_PROVENANCE, paste(
+    "The gate's form and the grid values were informed by an exploratory pass over all plots of",
+    "the five sites (calibration and validation plots alike), and the selection criterion was",
+    "fixed after that pass. The crown-spacing switch, its measure and its grid values were",
+    "added after further exploratory passes, which read the scores of all plots by stand top",
+    "height and by crown density, the validation plots' nominal cores and censused subplots",
+    "included, and the detection counts on four closed plots outside the benchmark that have",
+    "no field reference. The held-out scores therefore test only the selection within the",
+    "grid, not the grid's values or the choice of features."))
   md <- cv_tables_md(res, S, "abc", "adopted")
   expect_true(any(grepl("calib (in-sample)", md, fixed = TRUE)))
   expect_true(any(grepl("^## All plots \\(in-sample; not a held-out result\\)$", md)))
@@ -514,6 +671,15 @@ test_that("components of an exempting selection are scored against stock and aga
   expect_length(red, 1L)
   for (nm in names(parts))
     expect_match(red, sprintf("%s `%s`", nm, parts[[nm]]), fixed = TRUE)
+  # without a spacing condition the cover switch applies the gate and the
+  # exemption in every stand
+  expect_true(paste("floor, share_gate and exemption are the selection without that part;",
+                    "cover_switch is the selection with its gate and exemption applied in every",
+                    "stand (cover_min 0); spacing_switch is the selection with its share gate",
+                    "applied in every closed stand (spacing_min 0); gate_and_exemption is its",
+                    "floor alone. Native density, validation plots then calibration plots",
+                    "(in-sample):") %in% md)
+  expect_false(any(grepl("whose crown spacing is at least", md, fixed = TRUE)))
   ladder <- "The same on the validation plots of the decimated rungs:"
   expect_true(ladder %in% md)
   # (the headline row at rung 1 is against stock)
@@ -536,6 +702,444 @@ test_that("components of an exempting selection are scored against stock and aga
   ap <- v[v$analysis == "all_plots", ]
   expect_identical(ap$scope, "WREF")                       # the one site is the one scope
   expect_identical(ap$n_plots, 10L)
+})
+
+# Grid rows of the real grid as synthetic configurations (SYN_CONFIGS columns).
+syn_grid_configs <- function(labels, TP, n_det) {
+  g <- mcg_grid()
+  r <- g[match(labels, g$label), ]
+  data.frame(config = r$label, config_id = r$config_id, zmin = r$zmin, min_share = r$min_share,
+             cover_min = r$cover_min, surface_exempt = r$surface_exempt,
+             spacing_min = r$spacing_min, TP = TP, n_det = n_det, stringsAsFactors = FALSE)
+}
+
+test_that("a spacing-switched selection carries its spacing_min into every record of it", {
+  cf <- rbind(SYN_CONFIGS[1:3, ],
+              syn_grid_configs(c("z5_s0.75_c0.6_e1", "z5_s0.75_c0.6_e1_d8"), c(12, 13), 24),
+              SYN_CONFIGS[4, ])
+  cells <- syn_cells(configs = cf)
+  S <- syn_settings()
+  res <- cv_analyze(cells, S, boot_seed = 11L)
+  sel <- res$selected
+  expect_identical(c(sel$label, as.character(sel$config_id), as.character(sel$spacing_min)),
+                   c("z5_s0.75_c0.6_e1_d8", "360", "8"))
+  expect_identical(cv_config_of(cells, 360L),
+                   list(config_id = 360L, label = "z5_s0.75_c0.6_e1_d8", zmin = 5,
+                        min_share = 0.75, cover_min = 0.6, surface_exempt = TRUE,
+                        spacing_min = 8))
+  expect_identical(cv_config_of(cells, 2L)$spacing_min, 0)
+  # selection.csv: spacing_min follows surface_exempt
+  s <- res$selection
+  expect_identical(names(s)[match("surface_exempt", names(s)) + 1L], "spacing_min")
+  expect_identical(s$spacing_min[s$analysis == "headline"], 8)
+  # declared_config.json: spacing_min follows surface_exempt, the crown constants
+  # cover_height
+  dc <- cv_declared(res, S, "abc", "adopted")
+  expect_identical(names(dc)[match("surface_exempt", names(dc)) + 1L], "spacing_min")
+  expect_identical(names(dc)[match("cover_height", names(dc)) + 1:2], c("crown_res", "crown_ws"))
+  expect_identical(c(dc$spacing_min, dc$crown_res, dc$crown_ws),
+                   c(8, MCG_CROWN_RES, MCG_CROWN_WS))
+  expect_false("top_prob" %in% names(dc))
+  # the declared label is the library's label of the declared values
+  expect_identical(dc$label, mcg_config_label(dc[c("zmin", "min_share", "cover_min",
+                                                   "surface_exempt", "spacing_min")]))
+  # the parts in the cells: without the spacing switch, against stock and as the
+  # selection's reduction
+  v <- res$validation
+  expect_identical(v$config_a[v$analysis == "component_no_spacing_switch"], "z5_s0.75_c0.6_e1")
+  hs <- v[v$analysis == "marginal_spacing_switch", ]
+  expect_identical(hs$split, c("valid", "calib", "valid"))
+  expect_true(all(hs$config_a == sel$label & hs$config_b == "z5_s0.75_c0.6_e1"))
+  # the tables name spacing_min in the headline sentence, the selection table and
+  # the reductions paragraph, whose cover switch keeps the spacing condition
+  md <- cv_tables_md(res, S, "abc", "adopted")
+  expect_true(any(grepl(paste("Selected `z5_s0.75_c0.6_e1_d8` (config_id 360: zmin 5, min_share",
+                              "0.75, cover_min 0.6, surface_exempt TRUE, spacing_min 8), selected",
+                              "on"), md, fixed = TRUE)))
+  expect_true(any(grepl("| surface_exempt | spacing_min | Selection plots |", md, fixed = TRUE)))
+  expect_true(any(startsWith(md, paste("| headline | 1 |  | cF1 | z5_s0.75_c0.6_e1_d8 (id 360) |",
+                                        "5 | 0.75 | 0.6 | TRUE | 8 | "))))
+  expect_true(paste("floor, share_gate and exemption are the selection without that part;",
+                    "cover_switch is the selection with its exemption applied in every stand and",
+                    "its share gate in every stand whose crown spacing is at least 8 m (cover_min",
+                    "0); spacing_switch is the selection with its share gate applied in every",
+                    "closed stand (spacing_min 0); gate_and_exemption is its floor alone. Native",
+                    "density, validation plots then calibration plots (in-sample):") %in% md)
+  expect_false(any(grepl("gate and exemption applied in every stand", md, fixed = TRUE)))
+  # (only the reductions present in the cells)
+  expect_identical(res$components,
+                   list(versus_stock = c(floor_only = "z5_s0_c0_e0",
+                                         no_spacing_switch = "z5_s0.75_c0.6_e1"),
+                        marginal = c(spacing_switch = "z5_s0.75_c0.6_e1",
+                                     gate_and_exemption = "z5_s0_c0_e0")))
+  expect_true(paste("Reductions (B): spacing_switch `z5_s0.75_c0.6_e1`; gate_and_exemption",
+                    "`z5_s0_c0_e0`.") %in% md)
+  # the sentence follows the selection's own spacing_min
+  r85 <- res
+  r85$selected <- utils::modifyList(sel, list(spacing_min = 8.5, label = "z5_s0.75_c0.6_e1_d8.5"))
+  m85 <- cv_tables_md(r85, S, "abc", "adopted")
+  expect_true(any(grepl("its share gate in every stand whose crown spacing is at least 8.5 m",
+                        m85, fixed = TRUE)))
+  expect_false(any(grepl("at least 8 m", m85, fixed = TRUE)))
+})
+
+# Counts that differ by plot and by site, so contrasts on the wrong plots show.
+syn_bumped <- function(...) {
+  cells <- syn_cells(...)
+  bump <- (as.integer(sub(".*_", "", cells$plot)) + 2L * (cells$site == "WREF")) %% 3
+  cells$TP <- cells$TP + bump * (cells$config != "z8_s0_c0_e0")
+  cells$tp_core <- cells$tp_core + bump * (cells$config != "z8_s0_c0_e0")
+  cells
+}
+
+test_that("REFERENCE contrasts the selection with a grid configuration", {
+  cells <- syn_bumped()
+  ref <- "z8_s0_c0_e0"
+  S <- syn_settings(REFERENCE = ref)
+  res <- cv_analyze(cells, S, boot_seed = 11L)
+  lab <- res$selected$label
+  expect_identical(lab, "z5_s0_c0_e0")
+  expect_identical(res$reference, ref)
+  v <- res$validation
+  r <- v[v$analysis == "reference", ]
+  # the validation plots by scope and rung, then the calibration plots at native
+  expect_identical(r$split, c(rep("valid", 6), "calib"))
+  expect_identical(r$scope, c(rep(c("SJER+WREF", "California", "Washington"), each = 2),
+                              "SJER+WREF"))
+  expect_identical(r$rung, c(rep(c("native", "1"), 3), "native"))
+  rs <- v[v$analysis == "reference_site", ]
+  expect_identical(c(rs$scope, rs$split, rs$rung),
+                   c("SJER", "WREF", "valid", "valid", "native", "native"))
+  both <- rbind(r, rs)
+  expect_true(all(both$config_a == lab & both$config_b == ref))
+  expect_true(all(both$criterion == "cF1" & both$seed == S$SEED))
+  # selected minus reference, on the plots of each row
+  pooled <- function(cfg, ids, rung) mcg_pool(cells[cells$rung == rung & cells$config == cfg &
+                                                      cv_ids(cells) %in% ids, ])
+  scope_sites <- list(`SJER+WREF` = c("SJER", "WREF"), California = "SJER", Washington = "WREF",
+                      SJER = "SJER", WREF = "WREF")
+  for (i in seq_len(nrow(both))) {
+    ids <- res$split[[both$split[i]]]
+    ids <- ids[sub("::.*", "", ids) %in% scope_sites[[both$scope[i]]]]
+    a <- pooled(lab, ids, both$rung[i]); b <- pooled(ref, ids, both$rung[i])
+    expect_identical(both$n_plots[i], length(ids))
+    expect_equal(c(both$a_n_det[i], both$b_n_det[i]), c(a$n_det, b$n_det))
+    expect_equal(both$d_cF1[i], a$cF1 - b$cF1)
+    expect_equal(both$d_F1[i], a$F1 - b$F1)
+  }
+  expect_gt(abs(r$d_cF1[1]), 0)
+  # in validation.csv after the rows by site, before the components and seeds
+  pos <- which(v$analysis %in% c("reference", "reference_site"))
+  expect_gt(min(pos), max(which(v$analysis == "site")))
+  expect_lt(max(pos), min(which(v$analysis == "seed")))
+  expect_identical(v$analysis[pos], c(rep("reference", 7), rep("reference_site", 2)))
+  # one site: no rows by site
+  one <- cv_analyze(cells[cells$site == "WREF", ],
+                    syn_settings(SITES = "WREF", REFERENCE = ref, SEEDS = 1L))
+  expect_identical(sum(one$validation$analysis == "reference"), 3L)
+  expect_false(any(one$validation$analysis == "reference_site"))
+  # without REFERENCE nothing is added; an unknown label or a reference detector
+  # stops; the selection itself is skipped with a note
+  none <- cv_analyze(cells, syn_settings(), boot_seed = 11L)
+  expect_false(any(none$validation$analysis %in% c("reference", "reference_site")))
+  expect_null(none$reference)
+  rest <- v[!v$analysis %in% c("reference", "reference_site"), ]
+  rownames(rest) <- NULL
+  expect_identical(none$validation, rest)
+  expect_error(cv_analyze(cells, syn_settings(REFERENCE = "z9_s0_c0_e0")),
+               "REFERENCE=z9_s0_c0_e0 is not a grid configuration of cells.csv", fixed = TRUE)
+  expect_error(cv_analyze(cells, syn_settings(REFERENCE = "chm_vwf")),
+               "REFERENCE=chm_vwf is not a grid configuration", fixed = TRUE)
+  expect_output(self <- cv_analyze(cells, syn_settings(REFERENCE = lab)),
+                paste("REFERENCE=z5_s0_c0_e0 is the headline selection itself; the reference",
+                      "contrasts are skipped"), fixed = TRUE)
+  expect_false(any(self$validation$analysis %in% c("reference", "reference_site")))
+  expect_null(self$reference)
+})
+
+test_that("the tables hold the reference section only with reference rows", {
+  cells <- syn_bumped()
+  ref <- "z8_s0_c0_e0"
+  S <- syn_settings(REFERENCE = ref, N_BOOT = 20L)
+  res <- cv_analyze(cells, S, boot_seed = 11L)
+  md <- cv_tables_md(res, S, "abc", "adopted")
+  head <- "## The selection against the reference configuration `z8_s0_c0_e0`"
+  h <- match(head, md)
+  expect_false(is.na(h))
+  expect_identical(md[h + 1:3], c("", paste(
+    "Δ = selected − reference. Validation plots by scope and rung, the calibration plots at",
+    "native density (in-sample), then each site's validation plots at native density:"), ""))
+  expect_gt(h, match("## Held-out by site (validation plots, native density)", md))
+  expect_lt(h, match("## Difference between regions (validation plots)", md))
+  rows <- grep("^\\| [^|]+ \\| [^|]+ \\| [^|]+ \\| z5_s0_c0_e0 \\| z8_s0_c0_e0 \\|", md,
+               value = TRUE)
+  expect_length(rows, 9L)
+  expect_true(startsWith(rows[7], "| SJER+WREF | native | calib (in-sample) | "))
+  expect_true(startsWith(rows[8], "| SJER | native | valid | "))
+  # no censused rows without the censused results
+  expect_false(any(grepl("Inside the censused subplots at native density", md, fixed = TRUE)))
+  # none without reference rows: no REFERENCE, or the selection itself
+  expect_false(any(startsWith(cv_tables_md(cv_analyze(cells, syn_settings(N_BOOT = 20L)), S,
+                                           "abc", "adopted"),
+                              "## The selection against the reference")))
+  utils::capture.output(self <- cv_analyze(cells, syn_settings(REFERENCE = "z5_s0_c0_e0",
+                                                                N_BOOT = 20L)))
+  expect_false(any(startsWith(cv_tables_md(self, S, "abc", "adopted"),
+                              "## The selection against the reference")))
+})
+
+# A spacing-switched configuration (z5_s0.75_c0.6_e1_d8, the best unless `TP`
+# says otherwise), the same at spacing_min 0, 7.5 and 9, two reductions of the
+# one at spacing_min 0 that keep its share gate, and a configuration at
+# spacing_min 8.5 whose variant of z5_s0.75_c0.6_e1 is not in the cells; with
+# stock, z5_s0_c0_e0 and CHM-VWF. Counts differ by plot and site, and at rung 1.
+SYN_SPACING <- c("z5_s0.75_c0.6_e1_d8", "z5_s0.75_c0.6_e1", "z5_s0.75_c0.6_e1_d7.5",
+                 "z5_s0.75_c0.6_e1_d9", "z5_s0.75_c0.6_e0", "z5_s0.75_c0_e1",
+                 "z0_s0.75_c0.6_e1_d8.5")
+syn_spacing_cells <- function(TP = c(15, 13, 12, 14, 11, 12, 13)) {
+  cf <- rbind(SYN_CONFIGS[1:2, ],
+              syn_grid_configs(SYN_SPACING, TP, c(24, 26, 28, 25, 22, 27, 26)),
+              SYN_CONFIGS[4, ])
+  cells <- syn_cells(configs = cf)
+  bump <- (as.integer(sub(".*_", "", cells$plot)) + 2L * (cells$site == "WREF")) %% 3
+  r1 <- cells$rung == "1"
+  cells$TP <- cells$TP + bump - r1; cells$tp_core <- cells$tp_core + bump - r1
+  cells
+}
+
+# The lines of a tables.md section, from its heading to the next one.
+md_section <- function(md, head) {
+  i <- match(head, md)
+  if (is.na(i)) return(character())
+  nxt <- which(startsWith(md, "## ") & seq_along(md) > i)
+  md[i:(if (length(nxt)) nxt[1] - 1L else length(md))]
+}
+
+# The rung, split, A and B of the contrast rows of tables.md lines.
+md_rows <- function(lines) {
+  r <- grep("^\\| [^|]+ \\| [^|]+ \\| [^|]+ \\| [^|]+ \\| [^|]+ \\| \\d+ \\|", lines, value = TRUE)
+  sub("^\\| [^|]+ \\| ([^|]+) \\| ([^|]+) \\| ([^|]+) \\| ([^|]+) \\|.*$", "\\1|\\2|\\3|\\4", r)
+}
+
+test_that("a share-gated selection is set against itself at the grid's other spacing_min values", {
+  cells <- syn_spacing_cells()
+  S <- syn_settings(SEEDS = 1L, N_BOOT = 40L)
+  res <- cv_analyze(cells, S, boot_seed = 11L)
+  lab <- res$selected$label
+  expect_identical(lab, "z5_s0.75_c0.6_e1_d8")
+  # 0, 7.5 and 9, increasing: not 8, the selection's own value, nor 8.5, whose
+  # variant is not in the cells
+  tv <- c(spacing_min_0 = "z5_s0.75_c0.6_e1", spacing_min_7.5 = "z5_s0.75_c0.6_e1_d7.5",
+          spacing_min_9 = "z5_s0.75_c0.6_e1_d9")
+  expect_identical(res$spacing_min_variants, tv)
+  expect_false(lab %in% res$spacing_min_variants)
+  v <- res$validation
+  tm <- v[startsWith(v$analysis, "spacing_min_"), ]
+  # native density on the validation, then the calibration plots, then rung 1
+  expect_identical(tm$analysis, rep(names(tv), 3))
+  expect_identical(tm$split, rep(c("valid", "calib", "valid"), each = 3))
+  expect_identical(tm$rung, rep(c("native", "native", "1"), each = 3))
+  expect_true(all(tm$config_a == lab & tm$scope == "SJER+WREF" & tm$criterion == "cF1" &
+                    tm$seed == S$SEED & is.na(tm$held_out_site)))
+  expect_identical(tm$config_b, unname(rep(tv, 3)))
+  # selected minus the variant on the plots of each row
+  for (i in seq_len(nrow(tm))) {
+    ids <- res$split[[tm$split[i]]]
+    p <- mcg_pool(cells[cells$rung == tm$rung[i] & cv_ids(cells) %in% ids &
+                          cells$config %in% c(lab, tm$config_b[i]), ], "config")
+    a <- p[p$config == lab, ]; b <- p[p$config == tm$config_b[i], ]
+    expect_identical(tm$n_plots[i], length(ids))
+    expect_equal(c(tm$a_n_det[i], tm$b_n_det[i]), c(a$n_det, b$n_det))
+    expect_equal(c(tm$d_cF1[i], tm$d_recall[i]), c(a$cF1 - b$cF1, a$recall - b$recall))
+  }
+  expect_true(all(tm$d_cF1 != 0))
+  expect_false(isTRUE(all.equal(tm$d_cF1[7:9], tm$d_cF1[1:3])))   # rung 1 is not native
+  # after the selection's parts, before the seeds
+  pos <- which(startsWith(v$analysis, "spacing_min_"))
+  expect_gt(min(pos), max(which(startsWith(v$analysis, "marginal_"))))
+  expect_lt(max(pos), min(which(v$analysis == "seed")))
+  # spacing_min 0 is the spacing-switch part: the same rows under another name
+  hs <- v[v$analysis == "marginal_spacing_switch", ]
+  t0 <- tm[tm$analysis == "spacing_min_0", ]
+  expect_identical(nrow(hs), 3L)
+  rownames(hs) <- NULL; rownames(t0) <- NULL
+  expect_identical(t0[setdiff(names(t0), "analysis")], hs[setdiff(names(hs), "analysis")])
+  # a share gate without a spacing condition: 7.5, 8 and 9, not 0
+  r0 <- cv_analyze(syn_spacing_cells(TP = c(13, 15, 12, 14, 11, 12, 13)), S, boot_seed = 11L)
+  expect_identical(r0$selected$label, "z5_s0.75_c0.6_e1")
+  expect_identical(r0$spacing_min_variants,
+                   c(spacing_min_7.5 = "z5_s0.75_c0.6_e1_d7.5",
+                     spacing_min_8 = "z5_s0.75_c0.6_e1_d8", spacing_min_9 = "z5_s0.75_c0.6_e1_d9"))
+  t0 <- r0$validation[startsWith(r0$validation$analysis, "spacing_min_"), ]
+  expect_identical(t0$analysis, rep(c("spacing_min_7.5", "spacing_min_8", "spacing_min_9"), 3))
+  expect_true(all(t0$config_a == "z5_s0.75_c0.6_e1"))
+  expect_false(any(r0$validation$analysis == "marginal_spacing_switch"))
+  # no share gate: no spacing condition to vary, whatever the cells hold
+  ns <- cv_analyze(syn_spacing_cells(TP = rep(10, 7)), S, boot_seed = 11L)
+  expect_identical(ns$selected$label, "z5_s0_c0_e0")
+  expect_false(any(startsWith(ns$validation$analysis, "spacing_min_")))
+  expect_null(ns$spacing_min_variants)
+  # a share gate without any variant in the cells
+  nv <- cv_analyze(cells[!cells$config %in% tv, ], S, boot_seed = 11L)
+  expect_identical(nv$selected$label, lab)
+  expect_false(any(startsWith(nv$validation$analysis, "spacing_min_")))
+  expect_null(nv$spacing_min_variants)
+})
+
+test_that("the tables hold the spacing_min section only with its rows, in ladder order", {
+  cells <- syn_spacing_cells()
+  S <- syn_settings(SEEDS = 1L, N_BOOT = 20L)
+  res <- cv_analyze(cells, S, boot_seed = 11L)
+  md <- cv_tables_md(res, S, "abc", "adopted")
+  head <- "## The selection at other values of spacing_min"
+  h <- match(head, md)
+  expect_false(is.na(h))
+  expect_identical(md[h + 1:3], c("", paste(
+    "Δ = selected − the same configuration at another spacing_min (0 = the share gate in every",
+    "closed stand). Native density, validation plots then calibration plots (in-sample), then",
+    "the validation plots of the decimated rungs:"), ""))
+  expect_gt(h, match("## What each part adds (the selection minus a reduction of it)", md))
+  expect_identical(match("## Held-out by site (validation plots, native density)", md),
+                   h + 16L)                   # heading, 3 lines, table of 2 + 9 lines, blank
+  sec <- md_section(md, head)
+  tv <- res$spacing_min_variants
+  # increasing spacing_min within each block: 0, 7.5, 9
+  expect_identical(unname(tv), c("z5_s0.75_c0.6_e1", "z5_s0.75_c0.6_e1_d7.5",
+                                 "z5_s0.75_c0.6_e1_d9"))
+  expect_identical(md_rows(sec), paste(rep(c("native", "native", "1"), each = 3),
+                                       rep(c("valid", "calib (in-sample)", "valid"), each = 3),
+                                       "z5_s0.75_c0.6_e1_d8", unname(rep(tv, 3)), sep = "|"))
+  # the rows of validation.csv in any order make the same table
+  shuffled <- res
+  shuffled$validation <- res$validation[rev(seq_len(nrow(res$validation))), ]
+  expect_identical(md_section(cv_tables_md(shuffled, S, "abc", "adopted"), head), sec)
+  # the parts table keeps the selection's own reductions only
+  parts <- md_rows(md_section(md, "## What each part adds (the selection minus a reduction of it)"))
+  expect_true(all(sub("^[^|]+\\|[^|]+\\|([^|]+)\\|.*$", "\\1", parts) == "z5_s0.75_c0.6_e1_d8"))
+  expect_false(any(grepl("d7.5|d9", parts)))
+  # no rows, no section
+  for (r in list(cv_analyze(syn_spacing_cells(TP = rep(10, 7)), S, boot_seed = 11L),
+                 cv_analyze(cells[!cells$config %in% tv, ], S, boot_seed = 11L)))
+    expect_false(head %in% cv_tables_md(r, S, "abc", "adopted"))
+})
+
+test_that("with REFERENCE the reference's own parts are its reductions in the cells", {
+  cells <- syn_spacing_cells()
+  ref <- "z5_s0.75_c0.6_e1"
+  S <- syn_settings(SEEDS = 1L, N_BOOT = 40L, REFERENCE = ref)
+  res <- cv_analyze(cells, S, boot_seed = 11L)
+  lab <- res$selected$label
+  expect_identical(lab, "z5_s0.75_c0.6_e1_d8")
+  # the reference's reductions in the cells (its floor and share gate are not,
+  # and without a spacing condition it has no spacing switch), and the
+  # selection's own parts, which are other ones
+  rc <- c(exemption = "z5_s0.75_c0.6_e0", cover_switch = "z5_s0.75_c0_e1",
+          gate_and_exemption = "z5_s0_c0_e0")
+  expect_identical(res$reference_components, rc)
+  rcfg <- cv_config_of(cells, cells$config_id[cells$config == ref][1])
+  expect_false("spacing_switch" %in% names(cv_components(rcfg)$marginal))
+  expect_identical(res$components$marginal,
+                   c(spacing_switch = "z5_s0.75_c0.6_e1", gate_and_exemption = "z5_s0_c0_e0"))
+  v <- res$validation
+  rm <- v[startsWith(v$analysis, "reference_marginal_"), ]
+  expect_identical(rm$analysis, rep(paste0("reference_marginal_", names(rc)), 3))
+  expect_identical(rm$split, rep(c("valid", "calib", "valid"), each = 3))
+  expect_identical(rm$rung, rep(c("native", "native", "1"), each = 3))
+  expect_true(all(rm$config_a == ref & rm$scope == "SJER+WREF" & rm$criterion == "cF1" &
+                    rm$seed == S$SEED & is.na(rm$held_out_site)))
+  expect_identical(rm$config_b, unname(rep(rc, 3)))
+  # the reference minus its reduction on the plots of each row
+  for (i in seq_len(nrow(rm))) {
+    ids <- res$split[[rm$split[i]]]
+    p <- mcg_pool(cells[cells$rung == rm$rung[i] & cv_ids(cells) %in% ids &
+                          cells$config %in% c(ref, rm$config_b[i]), ], "config")
+    a <- p[p$config == ref, ]; b <- p[p$config == rm$config_b[i], ]
+    expect_identical(rm$n_plots[i], length(ids))
+    expect_equal(c(rm$a_n_det[i], rm$b_n_det[i]), c(a$n_det, b$n_det))
+    expect_equal(c(rm$d_cF1[i], rm$d_precision[i]), c(a$cF1 - b$cF1, a$precision - b$precision))
+  }
+  expect_true(all(rm$d_cF1 != 0))
+  # after the reference rows, before the selection's parts; the selection's rows
+  # are those of a run without REFERENCE
+  pos <- which(startsWith(v$analysis, "reference_marginal_"))
+  expect_gt(min(pos), max(which(v$analysis %in% c("reference", "reference_site"))))
+  expect_lt(max(pos), min(which(startsWith(v$analysis, "marginal_"))))
+  none <- cv_analyze(cells, syn_settings(SEEDS = 1L, N_BOOT = 40L), boot_seed = 11L)
+  expect_false(any(startsWith(none$validation$analysis, "reference")))
+  expect_null(none$reference_components)
+  rest <- v[!startsWith(v$analysis, "reference"), ]
+  rownames(rest) <- NULL
+  expect_identical(none$validation, rest)
+  # a reference none of whose reductions is in the cells: its rows, no parts
+  bare <- cv_analyze(cells, utils::modifyList(S, list(REFERENCE = "z0_s0.75_c0.6_e1_d8.5")),
+                     boot_seed = 11L)
+  expect_true(any(bare$validation$analysis == "reference"))
+  expect_false(any(startsWith(bare$validation$analysis, "reference_marginal_")))
+  expect_null(bare$reference_components)
+  # a reference with a spacing condition has its own spacing switch
+  r9 <- cv_analyze(cells, utils::modifyList(S, list(REFERENCE = "z5_s0.75_c0.6_e1_d9")),
+                   boot_seed = 11L)
+  expect_identical(r9$reference_components,
+                   c(spacing_switch = "z5_s0.75_c0.6_e1", gate_and_exemption = "z5_s0_c0_e0"))
+  r9s <- r9$validation[r9$validation$analysis == "reference_marginal_spacing_switch", ]
+  expect_identical(r9s$split, c("valid", "calib", "valid"))
+  expect_true(all(r9s$config_a == "z5_s0.75_c0.6_e1_d9" & r9s$config_b == "z5_s0.75_c0.6_e1"))
+  # the selection itself as the reference: nothing
+  utils::capture.output(self <- cv_analyze(cells, utils::modifyList(S, list(REFERENCE = lab)),
+                                           boot_seed = 11L))
+  expect_false(any(startsWith(self$validation$analysis, "reference")))
+  expect_null(self$reference_components)
+})
+
+test_that("the tables show the reference's own parts in the reference section when present", {
+  cells <- syn_spacing_cells()
+  ref <- "z5_s0.75_c0.6_e1"
+  S <- syn_settings(SEEDS = 1L, N_BOOT = 20L, REFERENCE = ref)
+  res <- cv_analyze(cells, S, boot_seed = 11L)
+  # a censused reference contrast, so its paragraph's place shows
+  cs <- list(contrasts = data.frame(split = "all", scope = "SJER+WREF", n_plots = 3L,
+                                    metric = c("recall", "precision", "F1"), estimate = 0.01,
+                                    lower = -0.01, upper = 0.02, stringsAsFactors = FALSE),
+             scores = data.frame(split = "all", scope = "SJER+WREF",
+                                 detector = rep(c("multichm_gated", "reference"), each = 3),
+                                 metric = c("recall", "precision", "F1"), estimate = 0.5,
+                                 n_ref = 30, n_det = 20, stringsAsFactors = FALSE))
+  md <- cv_tables_md(res, S, "abc", "adopted", census_reference = cs)
+  line <- paste("The reference configuration's own parts (the reference minus a reduction of it):",
+                "exemption `z5_s0.75_c0.6_e0`; cover_switch `z5_s0.75_c0_e1`;",
+                "gate_and_exemption `z5_s0_c0_e0`. Native density, validation plots then",
+                "calibration plots (in-sample), then the validation plots of the decimated",
+                "rungs:")
+  i <- match(line, md)
+  expect_false(is.na(i))
+  sec <- md_section(md, sprintf("## The selection against the reference configuration `%s`", ref))
+  expect_true(line %in% sec)
+  # after the by-site table, before the censused paragraph
+  lab <- res$selected$label
+  site <- max(grep(sprintf("^\\| WREF \\| native \\| valid \\| %s \\| %s \\|", lab, ref), md))
+  expect_identical(i, site + 2L)
+  expect_identical(md[i + 1L], "")
+  expect_identical(md[i + 13L], "")                       # table of 2 + 9 lines
+  expect_identical(md[i + 14L], paste("Inside the censused subplots at native density, from the",
+                                      "arm's persisted detections under each configuration; Δ =",
+                                      "selected − reference:"))
+  expect_identical(md_rows(md[i + 2:12]),
+                   paste(rep(c("native", "native", "1"), each = 3),
+                         rep(c("valid", "calib (in-sample)", "valid"), each = 3), ref,
+                         unname(rep(res$reference_components, 3)), sep = "|"))
+  # the selection's parts table does not pick them up
+  parts <- md_rows(md_section(md, "## What each part adds (the selection minus a reduction of it)"))
+  expect_true(all(sub("^[^|]+\\|[^|]+\\|([^|]+)\\|.*$", "\\1", parts) == lab))
+  # without parts in the cells, or without reference rows, no such paragraph
+  bare <- cv_analyze(cells, utils::modifyList(S, list(REFERENCE = "z0_s0.75_c0.6_e1_d8.5")),
+                     boot_seed = 11L)
+  mb <- cv_tables_md(bare, S, "abc", "adopted")
+  expect_true("## The selection against the reference configuration `z0_s0.75_c0.6_e1_d8.5`" %in%
+                mb)
+  expect_false(any(startsWith(mb, "The reference configuration's own parts")))
+  mn <- cv_tables_md(cv_analyze(cells, syn_settings(SEEDS = 1L, N_BOOT = 20L), boot_seed = 11L),
+                     S, "abc", "adopted")
+  expect_false(any(startsWith(mn, "The reference configuration's own parts")))
 })
 
 test_that("the whole-grid summary counts, ranks and correlates the configurations", {
@@ -576,7 +1180,7 @@ test_that("the seed summary counts the selections and the held-out changes", {
                     config_id = c(7L, 7L, 9L, 4L, 9L, 4L, 9L),
                     zmin = c(5, 5, 8, 5, 8, 5, 8), min_share = c(0.75, 0.75, 0.5, 0, 0.5, 0, 0.5),
                     cover_min = 0.6, surface_exempt = c(TRUE, TRUE, TRUE, FALSE, TRUE, FALSE, TRUE),
-                    stringsAsFactors = FALSE)
+                    spacing_min = c(8.5, 8.5, 0, 0, 0, 0, 0), stringsAsFactors = FALSE)
   val <- data.frame(analysis = c("headline", rep("seed", 5)), seed = c(1L, 1:5),
                     d_cF1 = c(0.03, 0.03, 0.01, -0.02, 0.05, 0.03),
                     lo_cF1 = c(0.01, 0.01, -0.01, -0.04, 0.02, 0.001), stringsAsFactors = FALSE)
@@ -588,6 +1192,7 @@ test_that("the seed summary counts the selections and the held-out changes", {
   expect_identical(s$min_share, c(`0` = 2L, `0.5` = 2L, `0.75` = 1L))
   expect_identical(s$cover_min, c(`0.6` = 5L))
   expect_identical(s$surface_exempt, c(`FALSE` = 2L, `TRUE` = 3L))
+  expect_identical(s$spacing_min, c(`0` = 4L, `8.5` = 1L))
   expect_equal(c(s$d_min, s$d_median, s$d_mean, s$d_max), c(-0.02, 0.03, 0.02, 0.05))
   expect_identical(c(s$n_positive, s$n_excludes_zero), c(4L, 3L))
   expect_equal(s$headline_d_cF1, 0.03)
@@ -599,6 +1204,8 @@ test_that("the seed summary counts the selections and the held-out changes", {
                         fixed = TRUE)))
   expect_true(any(grepl("zmin 5 in 3, 8 in 2; min_share 0 in 2, 0.5 in 2, 0.75 in 1", md,
                         fixed = TRUE)))
+  expect_true(any(grepl("surface_exempt FALSE in 2, TRUE in 3; spacing_min 0 in 4, 8.5 in 1.",
+                        md, fixed = TRUE)))
   expect_true(any(grepl("3 of the 5 splits reach the headline split's change", md,
                         fixed = TRUE)))
 })
@@ -706,7 +1313,11 @@ syn_study <- function(K = 200L, tol = 4, population = "adopted", grid_sha256 = N
   st <- cells[cells$config == "stock", ]
   idx <- data.frame(site = st$site, plot = st$plot, plotType = st$plotType, rung = st$rung,
                     a = CV_A_VWF, radius = MCG_RADIUS, half_dz = MCG_HALF_DZ,
-                    cover_height = MCG_COVER_HEIGHT, parity = TRUE, population = "adopted",
+                    cover_height = MCG_COVER_HEIGHT, top_prob = MCG_TOP_PROB,
+                    crown_res = MCG_CROWN_RES, crown_ws = MCG_CROWN_WS, cover = st$cover,
+                    top_height = st$top_height, crown_spacing = st$crown_spacing,
+                    n_crowns = 20L, crown_area = 20 * st$crown_spacing^2, parity = TRUE,
+                    population = "adopted",
                     file = cv_cell_file(st$site, st$plot, st$rung), stringsAsFactors = FALSE)
   write.csv(idx, file.path(out, "candidates.csv"), row.names = FALSE)
   write.csv(cells, file.path(out, "cells.csv"), row.names = FALSE)
@@ -746,9 +1357,14 @@ test_that("the score stage's record holds what the cells were scored with", {
   cv_write_cells_config(one, st$d)
   back <- jsonlite::read_json(file.path(st$d, CV_CELLS_CONFIG))
   expect_true(is.list(back$sites) && is.list(back$rungs))
-  # the digest follows every value of the grid
+  # the digest follows every value of the grid, spacing_min included (the labels
+  # are left as they were, so only the value changes)
   g <- mcg_grid(); g$cover_min[10] <- 0.65
   expect_false(identical(cv_grid_digest(g), cv_grid_digest()))
+  for (i in c(20L, 360L)) {
+    g <- mcg_grid(); g$spacing_min[i] <- g$spacing_min[i] + 1
+    expect_false(identical(cv_grid_digest(g), cv_grid_digest()))
+  }
   expect_identical(cv_grid_digest(mcg_grid()), cv_grid_digest())
 })
 
@@ -836,6 +1452,45 @@ test_that("candidates that do not record this library's constants, or differ, st
   other <- idx; other$cover_height[1] <- NA
   write.csv(other, f, row.names = FALSE)
   expect_error(cv_read_index(S), "cover_height = 2 ", fixed = TRUE)
+  # the top height's quantile and the crowns' cell size and window are constants
+  # like the others: each one missing, or of another value, stops
+  for (k in c("top_prob", "crown_res", "crown_ws")) {
+    v <- c(top_prob = MCG_TOP_PROB, crown_res = MCG_CROWN_RES, crown_ws = MCG_CROWN_WS)[[k]]
+    write.csv(idx[setdiff(names(idx), k)], f, row.names = FALSE)
+    expect_error(cv_read_index(S), sprintf(paste("not made with this library's %s = %g (or do",
+                                                 "not record it); re-run STAGE=candidates"), k, v),
+                 fixed = TRUE)
+    other <- idx; other[[k]][4] <- v * 1.5
+    write.csv(other, f, row.names = FALSE)
+    expect_error(cv_read_index(S), sprintf("not made with this library's %s = %g ", k, v),
+                 fixed = TRUE)
+    other <- idx; other[[k]][2] <- NA
+    write.csv(other, f, row.names = FALSE)
+    expect_error(cv_read_index(S), sprintf("%s = %g ", k, v), fixed = TRUE)
+  }
+  write.csv(idx[setdiff(names(idx), "crown_ws")], f, row.names = FALSE)
+  expect_error(analyze_with(st), "crown_ws = 5 (or do not record it)", fixed = TRUE)
+  # an index without the clips' top heights or crown spacings cannot serve the
+  # score stage
+  write.csv(idx[setdiff(names(idx), "top_height")], f, row.names = FALSE)
+  expect_error(cv_read_index(S), paste("does not record the clips' top height (column",
+                                       "top_height); re-run STAGE=candidates"), fixed = TRUE)
+  expect_error(analyze_with(st), "column top_height", fixed = TRUE)
+  write.csv(idx[setdiff(names(idx), "crown_spacing")], f, row.names = FALSE)
+  expect_error(cv_read_index(S), paste("does not record the clips' crown spacing (column",
+                                       "crown_spacing); re-run STAGE=candidates"), fixed = TRUE)
+  expect_error(analyze_with(st), "column crown_spacing", fixed = TRUE)
+  # the number of crowns and their area are recorded, not required
+  write.csv(idx[setdiff(names(idx), c("n_crowns", "crown_area"))], f, row.names = FALSE)
+  expect_identical(nrow(cv_read_index(S)), nrow(idx))
+  # an unknown top height or crown spacing (NA) is recorded, not refused, and an
+  # infinite crown spacing (interior surface without a crown) reads back as Inf
+  other <- idx; other$top_height[2] <- NA; other$crown_spacing[3] <- NA
+  other$crown_spacing[5] <- Inf
+  write.csv(other, f, row.names = FALSE)
+  back <- cv_read_index(S)
+  expect_true(is.na(back$top_height[2]) && is.na(back$crown_spacing[3]))
+  expect_identical(back$crown_spacing[5], Inf)
   write.csv(idx, f, row.names = FALSE)
   expect_identical(nrow(cv_read_index(S)), nrow(idx))
 })
@@ -889,10 +1544,29 @@ test_that("cells where the package fails are recorded as skipped and counted", {
   r <- job(j, root = d, rungs = CV_RUNGS, cdir = cdir)
   expect_identical(r$rung, c("native", "4"))
   expect_true(all(r$parity))
-  # every index row records the constants its candidates were made with
-  expect_identical(unlist(unique(r[c("a", "radius", "half_dz", "cover_height")])),
+  # every index row records the constants its candidates and crowns were made
+  # with, and the clip's cover, top height and crowns (after the constants:
+  # cover, top height, then crown spacing, the number of crowns and their area)
+  const <- c("a", "radius", "half_dz", "cover_height", "top_prob", "crown_res", "crown_ws")
+  expect_identical(unlist(unique(r[const])),
                    c(a = CV_A_VWF, radius = MCG_RADIUS, half_dz = MCG_HALF_DZ,
-                     cover_height = MCG_COVER_HEIGHT))
+                     cover_height = MCG_COVER_HEIGHT, top_prob = MCG_TOP_PROB,
+                     crown_res = MCG_CROWN_RES, crown_ws = MCG_CROWN_WS))
+  expect_identical(names(r)[match("a", names(r)) + 0:12],
+                   c(const, "cover", "top_height", "crown_spacing", "n_crowns", "crown_area",
+                     "n_cand"))
+  stand <- lidR::readLAS(file.path(d, "stand.las"))
+  expect_equal(r$top_height, rep(mcg_top_height(stand), 2), tolerance = 1e-12)
+  expect_gt(r$top_height[1], 2)
+  cr <- mcg_crowns(stand)
+  expect_identical(r$n_crowns, rep(cr$n, 2))
+  expect_identical(r$crown_area, rep(cr$area, 2))
+  expect_identical(r$crown_spacing, rep(cr$spacing, 2))
+  expect_true(cr$n > 0L && is.finite(cr$spacing))
+  expect_equal(r$crown_spacing, sqrt(r$crown_area / r$n_crowns))
+  prep <- readRDS(file.path(cdir, "SYN__SYN_001__native.rds"))$prep
+  expect_identical(c(prep$top_height, prep$crown_spacing, prep$n_crowns, prep$crown_area),
+                   c(r$top_height[1], r$crown_spacing[1], r$n_crowns[1], r$crown_area[1]))
   sk <- attr(r, "skipped")
   expect_identical(names(sk), CV_SKIPPED_COLS)
   expect_identical(c(sk$site, sk$plot, sk$rung), c("SYN", "SYN_001", "8"))
@@ -952,13 +1626,15 @@ syn_census <- function(det, plots, n_ref, n_det, TP, tp_core, rung = "native",
              reference_population = "live_mapped_boles_dbh_ge_10cm", stringsAsFactors = FALSE)
 
 # A site's configuration stamp, as the arm driver writes it: the configuration,
-# the window coefficient and the feature constants (`const`), then the label.
-syn_stamp <- function(d, site, cfg,
-                      const = list(a = CV_A_VWF, radius = MCG_RADIUS, half_dz = MCG_HALF_DZ,
-                                   cover_height = MCG_COVER_HEIGHT)) {
+# the window coefficient and the feature constants (`const`), then the label
+# (none when `label` is NULL).
+SYN_STAMP_CONST <- list(a = CV_A_VWF, radius = MCG_RADIUS, half_dz = MCG_HALF_DZ,
+                        cover_height = MCG_COVER_HEIGHT, crown_res = MCG_CROWN_RES,
+                        crown_ws = MCG_CROWN_WS)
+syn_stamp <- function(d, site, cfg, const = SYN_STAMP_CONST, label = mcg_config_label(cfg)) {
   dd <- file.path(d, "neon", site, "multichm_gated_detections")
   dir.create(dd, recursive = TRUE, showWarnings = FALSE)
-  jsonlite::write_json(c(cfg, const, list(label = mcg_config_label(cfg))),
+  jsonlite::write_json(c(cfg, const, if (!is.null(label)) list(label = label)),
                        file.path(dd, CV_ARM_CONFIG_STAMP), auto_unbox = TRUE, pretty = TRUE,
                        digits = NA)
 }
@@ -1057,6 +1733,86 @@ test_that("the censused contrast pools summed counts on equal support, by split 
   expect_true(all(startsWith(rows[6:10], "| valid | ")))
 })
 
+test_that("the censused contrast can take the arm itself, relabelled, as its base", {
+  d <- tempfile("mcg_census_ref"); dir.create(d)
+  sj <- sprintf("SJER_%03d", 1:3); wr <- sprintf("WREF_%03d", 1:3)
+  gated <- syn_census("multichm_gated", c(sj, wr), c(10, 12, 8, 20, 15, 9),
+                      c(8, 9, 0, 18, 12, 7), c(6, 7, 0, 12, 10, 6), c(6, 8, NA, 13, 9, 5))
+  # the reference run: the arm under another configuration (WREF_003 unscored),
+  # and a multichm row that the reference contrast must not read
+  ref <- rbind(syn_census("multichm_gated", c(sj, wr[1:2]), c(10, 12, 8, 20, 15),
+                          c(10, 12, 3, 22, 14), c(7, 8, 2, 13, 10), c(7, 9, 2, 14, 10)),
+               syn_census("multichm", c(sj, wr), 10, 1, 1, 1))
+  base <- syn_census("multichm", c(sj, wr), c(10, 12, 8, 20, 15, 9), c(12, 11, 9, 25, 16, 8),
+                     c(7, 7, 5, 13, 11, 6), c(6, 7, 5, 12, 9, 5))
+  files <- file.path(d, c("gated.csv", "ref.csv", "base.csv"))
+  write.csv(gated, files[1], row.names = FALSE)
+  write.csv(ref, files[2], row.names = FALSE)
+  write.csv(base, files[3], row.names = FALSE)
+  sites <- c("SJER", "WREF")
+  valid <- c("SJER::SJER_002", "WREF::WREF_001", "WREF::WREF_003")
+  run <- function(b, ...) cv_census(files[1], b, valid, cv_scopes(sites), sites, n_boot = 40, ...)
+  cs <- run(files[2], base_det = "multichm_gated", base_name = "reference")
+  # relabelled before binding, and equal support drops the plot the reference lacks
+  both <- c(paste0("SJER::", sj), paste0("WREF::", wr[1:2]))
+  expect_setequal(cv_ids(cs$cells), both)
+  expect_setequal(cs$cells$detector, c("multichm_gated", "reference"))
+  expect_setequal(cs$scores$detector, c("multichm_gated", "reference"))
+  pooled <- function(x, ids) {
+    x <- x[x$rung == "native" & cv_ids(x) %in% ids, ]
+    tp_core <- ifelse(x$n_det == 0, 0, x$tp_core)
+    r <- sum(x$TP) / sum(x$n_ref); p <- sum(tp_core) / sum(x$n_det)
+    c(recall = r, precision = p, F1 = 2 * r * p / (r + p))
+  }
+  m <- c("recall", "precision", "F1")
+  rx <- ref[ref$detector == "multichm_gated", ]
+  for (spl in c("all", "valid")) {
+    ids <- if (spl == "valid") intersect(both, valid) else both
+    k <- cs$contrasts[cs$contrasts$split == spl & cs$contrasts$scope == "SJER+WREF", ]
+    # gated minus the reference
+    expect_true(all(k$from == "reference" & k$to == "multichm_gated"))
+    expect_equal(k$estimate[match(m, k$metric)], unname(pooled(gated, ids) - pooled(rx, ids)))
+    expect_true(all(k$n_plots == length(ids)))
+  }
+  # the default call is the paper's multichm under its own name, and any other
+  # base name only renames it
+  def <- run(files[3])
+  expect_identical(def, run(files[3], base_det = "multichm", base_name = "multichm"))
+  expect_setequal(def$cells$detector, c("multichm_gated", "multichm"))
+  ren <- run(files[3], base_name = "paper")
+  expect_identical(ren$contrasts[setdiff(names(ren$contrasts), "from")],
+                   def$contrasts[setdiff(names(def$contrasts), "from")])
+  expect_true(all(ren$contrasts$from == "paper"))
+  expect_identical(ren$scores$estimate, def$scores$estimate)
+  # the base cannot carry the arm's own name
+  expect_error(run(files[2], base_det = "multichm_gated"), "another name than multichm_gated",
+               fixed = TRUE)
+  expect_error(run(files[3], base_name = "multichm_gated"), "another name than multichm_gated",
+               fixed = TRUE)
+  # a reference file without the arm's native rows stops
+  expect_error(run(files[3], base_det = "multichm_gated", base_name = "reference"),
+               "no censused multichm_gated rows at native density in", fixed = TRUE)
+  # the tables: the header words and the detector read as B follow the arguments,
+  # and the defaults keep the table of the paper's multichm
+  md <- cv_md_census(cs, base = "reference", words = c("selected", "reference"))
+  expect_identical(md[1], paste(
+    "| Split | Scope | Plots | Stems | Detections selected / reference | Recall selected /",
+    "reference | Precision selected / reference | F1 selected / reference | ΔF1 [95% interval]",
+    "| ΔPrecision [95% interval] | ΔRecall [95% interval] |"))
+  g <- pooled(gated, both); b <- pooled(rx, both)
+  # 65 stems; 47 detections of the selection, 61 of the reference
+  expect_true(startsWith(md[3], paste0(
+    "| all admitted (in-sample for the selection) | SJER+WREF | 5 | 65 | 47 / 61 | ",
+    sprintf("%.3f / %.3f | %.3f / %.3f | %.3f / %.3f | ", g[["recall"]], b[["recall"]],
+            g[["precision"]], b[["precision"]], g[["F1"]], b[["F1"]]))))
+  md0 <- cv_md_census(def)
+  expect_identical(md0[1], paste(
+    "| Split | Scope | Plots | Stems | Detections gated / stock | Recall gated / stock |",
+    "Precision gated / stock | F1 gated / stock | ΔF1 [95% interval] | ΔPrecision [95%",
+    "interval] | ΔRecall [95% interval] |"))
+  expect_identical(md0, cv_md_census(def, base = "multichm", words = c("gated", "stock")))
+})
+
 test_that("the censused contrast needs each site's stamp to hold the selection", {
   d <- tempfile("mcg_stamp"); dir.create(d)
   cfg <- mcg_config(5, 0.75, 0.6, TRUE)
@@ -1073,17 +1829,97 @@ test_that("the censused contrast needs each site's stamp to hold the selection",
                "configuration z5_s0.75_c0.6_e0, not the selection z5_s0.75_c0.6_e1", fixed = TRUE)
   # the same configuration made with another window coefficient, or a stamp
   # that does not record the window coefficient and the feature constants
-  syn_stamp(d, "WREF", cfg, const = list(a = 0.3, radius = MCG_RADIUS, half_dz = MCG_HALF_DZ,
-                                         cover_height = MCG_COVER_HEIGHT))
+  syn_stamp(d, "WREF", cfg, const = utils::modifyList(SYN_STAMP_CONST, list(a = 0.3)))
   expect_error(cv_census_config_check(d, c("SJER", "WREF"), sel),
                "the censused detections of WREF were not made with this study's a = 0.1, radius = 1",
                fixed = TRUE)
-  syn_stamp(d, "WREF", cfg, const = list())
+  syn_stamp(d, "WREF", cfg[1:4], const = list())
   expect_error(cv_census_config_check(d, c("SJER", "WREF"), sel),
                "the censused detections of WREF were not made with", fixed = TRUE)
   unlink(file.path(d, "neon", "WREF", "multichm_gated_detections", CV_ARM_CONFIG_STAMP))
   expect_error(cv_census_config_check(d, c("SJER", "WREF"), sel), "no configuration stamp at")
   expect_true(cv_census_config_check(d, "SJER", sel))
+})
+
+test_that("the stamp must hold the selection's spacing_min and the crowns' constants", {
+  d <- tempfile("mcg_stamp_spacing"); dir.create(d)
+  sites <- c("SJER", "WREF")
+  with_label <- function(cfg) c(cfg, list(label = mcg_config_label(cfg)))
+  stamp_of <- function(s) file.path(d, "neon", s, "multichm_gated_detections",
+                                    CV_ARM_CONFIG_STAMP)
+  c8 <- mcg_config(5, 0.75, 0.6, TRUE, 8); c0 <- mcg_config(5, 0.75, 0.6, TRUE)
+  # the stamp as the arm driver writes it: the five values, the constants, the label
+  for (s in sites) syn_stamp(d, s, c8)
+  expect_identical(names(jsonlite::read_json(stamp_of("WREF"))),
+                   c("zmin", "min_share", "cover_min", "surface_exempt", "spacing_min", "a",
+                     "radius", "half_dz", "cover_height", "crown_res", "crown_ws", "label"))
+  expect_true(cv_census_config_check(d, sites, with_label(c8)))
+  expect_true(cv_census_config_check(d, sites, with_label(MCG_DECLARED)))
+  # another spacing_min, either way
+  expect_error(cv_census_config_check(d, sites, with_label(c0)),
+               "configuration z5_s0.75_c0.6_e1_d8, not the selection z5_s0.75_c0.6_e1;",
+               fixed = TRUE)
+  syn_stamp(d, "WREF", mcg_config(5, 0.75, 0.6, TRUE, 7.5))
+  expect_error(cv_census_config_check(d, sites, with_label(c8)),
+               "configuration z5_s0.75_c0.6_e1_d7.5, not the selection z5_s0.75_c0.6_e1_d8;",
+               fixed = TRUE)
+  # a stamp that records none of spacing_min, crown_res and crown_ws is read as
+  # spacing_min 0 with the library's crown constants: it serves a selection
+  # without a spacing condition only
+  base <- SYN_STAMP_CONST[c("a", "radius", "half_dz", "cover_height")]
+  for (s in sites) syn_stamp(d, s, c0[1:4], const = base)
+  expect_false(any(c("spacing_min", "crown_res", "crown_ws") %in%
+                     names(jsonlite::read_json(stamp_of("WREF")))))
+  expect_true(cv_census_config_check(d, sites, with_label(c0)))
+  expect_true(cv_census_config_check(d, sites, c0[1:4]))   # a selection without spacing_min
+  for (v in c(8, 9))
+    expect_error(cv_census_config_check(d, sites, with_label(mcg_config(5, 0.75, 0.6, TRUE, v))),
+                 sprintf("configuration z5_s0.75_c0.6_e1, not the selection z5_s0.75_c0.6_e1_d%g;",
+                         v), fixed = TRUE)
+  expect_error(cv_census_config_check(d, sites, with_label(mcg_config(5, 0.75, 0.7, TRUE))),
+               "not the selection z5_s0.75_c0.7_e1;", fixed = TRUE)
+  # ... also with fields this library does not read, or without a label
+  for (s in sites) syn_stamp(d, s, c0[1:4], const = c(base, list(top_prob = MCG_TOP_PROB)))
+  expect_true(cv_census_config_check(d, sites, with_label(c0)))
+  for (s in sites) syn_stamp(d, s, c0[1:4], const = base, label = NULL)
+  expect_true(cv_census_config_check(d, sites, with_label(c0)))
+  expect_error(cv_census_config_check(d, sites, with_label(c8)),
+               "configuration (unlabelled), not the selection z5_s0.75_c0.6_e1_d8;", fixed = TRUE)
+  # a stamp that records some but not all three is refused, whatever its values
+  crown <- list(spacing_min = 0, crown_res = MCG_CROWN_RES, crown_ws = MCG_CROWN_WS)
+  for (k in list("spacing_min", "crown_res", "crown_ws", c("spacing_min", "crown_res"),
+                 c("spacing_min", "crown_ws"), c("crown_res", "crown_ws"))) {
+    for (s in sites) syn_stamp(d, s, c0[1:4], const = c(base, crown[k]))
+    expect_error(cv_census_config_check(d, sites, with_label(c0)),
+                 sprintf(paste("the censused scores are of configuration z5_s0.75_c0.6_e1 (its",
+                               "stamp records %s but not %s), not the selection",
+                               "z5_s0.75_c0.6_e1;"), paste(k, collapse = " and "),
+                         paste(setdiff(names(crown), k), collapse = " and ")), fixed = TRUE)
+  }
+  # the stamp's label must be this library's label of the selection's values,
+  # even when the values agree, and the values must agree with the label
+  for (s in sites) syn_stamp(d, s, c0, label = "z5_s0.75_c0.6_e1_x9")
+  expect_error(cv_census_config_check(d, sites, with_label(c0)),
+               paste("the censused scores are of configuration z5_s0.75_c0.6_e1_x9, not the",
+                     "selection z5_s0.75_c0.6_e1; re-run the arm and score_census_support.R"),
+               fixed = TRUE)
+  for (s in sites) syn_stamp(d, s, c8, label = mcg_config_label(c0))
+  for (cfg in list(c0, c8))
+    expect_error(cv_census_config_check(d, sites, with_label(cfg)),
+                 sprintf("configuration z5_s0.75_c0.6_e1, not the selection %s;",
+                         mcg_config_label(cfg)), fixed = TRUE)
+  # the crowns' cell size and window: another value of either
+  for (k in c("crown_res", "crown_ws")) {
+    syn_stamp(d, "SJER", c8)
+    syn_stamp(d, "WREF", c8, const = utils::modifyList(SYN_STAMP_CONST,
+                                                       stats::setNames(list(3), k)))
+    expect_error(cv_census_config_check(d, sites, with_label(c8)),
+                 paste("the censused detections of WREF were not made with this study's a = 0.1,",
+                       "radius = 1, half_dz = 1, cover_height = 2, crown_res = 1, crown_ws = 5",
+                       "(or their stamp does not record them)"), fixed = TRUE)
+  }
+  syn_stamp(d, "WREF", c8)
+  expect_true(cv_census_config_check(d, sites, with_label(c8)))
 })
 
 test_that("a censused file must hold the nominal-box detection counts of the study's cells", {
@@ -1171,4 +2007,74 @@ test_that("the analyze stage adds the censused contrast with both files, and dro
   b <- analyze_with(st)
   expect_true(any(grepl(paste0("no censused scores at ", cv_census_csv(st$d)), b$out,
                         fixed = TRUE)))
+})
+
+test_that("the analyze stage adds the censused reference contrast only beside the main one", {
+  st <- syn_study()
+  plots <- c(sprintf("SJER_%03d", 1:8), sprintf("WREF_%03d", 1:8))
+  gated <- file.path(st$d, "gated.csv"); base <- file.path(st$d, "base.csv")
+  refc <- file.path(st$d, "reference.csv")
+  # the nominal-box counts of the synthetic cells: the selection 24, stock 30, and
+  # the reference z8_s0_c0_e0 20
+  write.csv(syn_census("multichm_gated", plots, 10, 8, 6, 6, rect_n_det = 24), gated,
+            row.names = FALSE)
+  write.csv(syn_census("multichm", plots, 10, 12, 7, 6, rect_n_det = 30), base, row.names = FALSE)
+  write_ref <- function(rect_n_det = 20)
+    write.csv(syn_census("multichm_gated", plots, 10, 7, 5, 5, rect_n_det = rect_n_det), refc,
+              row.names = FALSE)
+  for (s in c("SJER", "WREF")) syn_stamp(st$d, s, mcg_config(5, 0, 0, FALSE))
+  main <- c(paste0("CENSUS=", gated), paste0("BASE_CENSUS=", base))
+  ref <- c("REFERENCE=z8_s0_c0_e0", paste0("REFERENCE_CENSUS=", refc))
+  ref_files <- file.path(st$out, c("census_reference_scores.csv", "census_reference_contrasts.csv"))
+  expect_error(analyze_with(st, main, ref), "no censused scores of the reference configuration at")
+  # a file of other detections than the reference configuration's
+  write_ref(24)
+  expect_error(analyze_with(st, main, ref),
+               "does not score the multichm_gated detections of configuration z8_s0_c0_e0",
+               fixed = TRUE)
+  write_ref()
+  # the main censused contrast must run too
+  expect_error(analyze_with(st, main[1], ref),
+               paste("REFERENCE_CENSUS= needs the censused contrast of the selection, which did",
+                     "not run (it needs both CENSUS and BASE_CENSUS)"), fixed = TRUE)
+  a <- analyze_with(st, main, ref)
+  expect_true(any(grepl(paste("census_scores.csv, census_contrasts.csv,",
+                              "census_reference_scores.csv, census_reference_contrasts.csv"),
+                        a$out, fixed = TRUE)))
+  expect_true(all(file.exists(ref_files)))
+  k <- read.csv(ref_files[2], stringsAsFactors = FALSE)
+  expect_true(all(k$from == "reference" & k$to == "multichm_gated"))
+  f1 <- function(TP, n_det) { r <- TP / 10; p <- TP / n_det; 2 * r * p / (r + p) }
+  expect_equal(k$estimate[k$split == "all" & k$scope == "SJER+WREF" & k$metric == "F1"],
+               f1(6, 8) - f1(5, 7))
+  sc <- read.csv(ref_files[1], stringsAsFactors = FALSE)
+  expect_setequal(sc$detector, c("multichm_gated", "reference"))
+  md <- readLines(file.path(st$out, "tables.md"))
+  h <- match("## The selection against the reference configuration `z8_s0_c0_e0`", md)
+  i <- match(paste("Inside the censused subplots at native density, from the arm's persisted",
+                   "detections under each configuration; Δ = selected − reference:"), md)
+  expect_true(h < i && i < match("## Difference between regions (validation plots)", md))
+  expect_true(startsWith(md[i + 2],
+                         "| Split | Scope | Plots | Stems | Detections selected / reference |"))
+  v <- read.csv(file.path(st$out, "validation.csv"), stringsAsFactors = FALSE)
+  expect_true(any(v$analysis == "reference"))
+  # without REFERENCE_CENSUS the censused reference files go, the section stays
+  b <- analyze_with(st, main, ref[1])
+  expect_false(any(file.exists(ref_files)))
+  md <- readLines(file.path(st$out, "tables.md"))
+  expect_true(any(startsWith(md, "## The selection against the reference configuration")))
+  expect_false(any(startsWith(md, "Inside the censused subplots at native density")))
+  # without REFERENCE neither; the other outputs stay
+  analyze_with(st, main)
+  md <- readLines(file.path(st$out, "tables.md"))
+  expect_false(any(startsWith(md, "## The selection against the reference configuration")))
+  v <- read.csv(file.path(st$out, "validation.csv"), stringsAsFactors = FALSE)
+  expect_false(any(v$analysis %in% c("reference", "reference_site")))
+  expect_true(all(file.exists(file.path(st$out, c("census_scores.csv", "census_contrasts.csv",
+                                                  "grid_contrasts.csv", "seed_grid.csv")))))
+  # the selection itself as the reference: skipped, its censused file unread
+  s <- analyze_with(st, main, "REFERENCE=z5_s0_c0_e0", paste0("REFERENCE_CENSUS=", refc))
+  expect_true(any(grepl("is the headline selection itself; the reference contrasts are skipped",
+                        s$out, fixed = TRUE)))
+  expect_false(any(file.exists(ref_files)))
 })

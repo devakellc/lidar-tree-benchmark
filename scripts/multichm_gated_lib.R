@@ -1,30 +1,47 @@
 # Library of the `multichm_gated` tree-top arm: lidRplugins::multichm (Eysn-
 # style multi-layer CHM local maxima) with a gate on its deeper-layer
-# candidates, switched on by canopy cover, and an optional exemption of the
-# surface-layer peaks from the package's distance filter in closed stands.
+# candidates, switched on by canopy cover and crown spacing, and an optional
+# exemption of the surface-layer peaks from the package's distance filter in
+# closed stands.
 #
 # multichm strips the top of the cloud layer by layer and re-runs local maxima
-# on what is left. The gate rests on a premise from an exploratory pass: in
-# closed, tall conifer stands many deeper-layer peaks are not trees, and a
-# deeper-layer peak whose surroundings are mostly FIRST returns (lit from above)
-# is more likely to be one. The package's distance filter (3 m horizontal, 5 m
-# in 3-D) also deletes real neighbouring surface peaks in dense stands. The gate
-# keeps a deeper-layer candidate when it is high enough (zmin) and, in a closed
-# stand (canopy cover >= cover_min), when the first-return share around its own
-# top is at least min_share; in a closed stand surface peaks may skip the
-# distance filter (surface_exempt). The calibration study does not establish the
-# share premise: on its validation plots at native density the share gate's own
-# change in chance-corrected F1, given the floor and the exemption, is not
-# separable from zero, and it lowers plain F1 and corrected recall; on the
-# decimated rungs that change excludes zero on two of the four
+# on what is left. The gate rests on a premise from exploratory passes: in
+# closed conifer stands of large crowns many deeper-layer peaks are not trees,
+# and a deeper-layer peak whose surroundings are mostly FIRST returns (lit from
+# above) is more likely to be one. The package's distance filter (3 m
+# horizontal, 5 m in 3-D) also deletes real neighbouring surface peaks in dense
+# stands. The gate keeps a deeper-layer candidate when it is high enough (zmin)
+# and, in a closed stand (canopy cover >= cover_min) whose crown spacing is at
+# least spacing_min (a stand of few, large crowns), when the first-return share
+# around its own top is at least min_share. The crown spacing (mcg_crowns) is
+# the side of the square each crown would occupy: the crowns are the local
+# maxima (5 m circular window, at least 2 m high) of a canopy surface
+# triangulated from the highest first return of each 1 m cell, counted where
+# their whole window lies on the surface, and their area is that of the surface
+# cells whose whole window does. spacing_min 0 applies the share gate in every
+# closed stand. In a closed stand, whatever its crown spacing, surface peaks may
+# skip the distance filter (surface_exempt). The clip's top height
+# (mcg_top_height) is recorded with the other stand features and decides
+# nothing. The calibration study does not establish the
+# share premise: on its validation plots the share gate's own change in
+# chance-corrected F1, given the floor and the exemption, is not separable
+# from zero at native density or on any decimated rung, and at native density
+# it lowers corrected recall. Nor does it establish the crown-spacing switch:
+# at the declared 8 m, against the share gate in every closed stand, it leaves
+# chance-corrected F1 on the validation plots where it was and raises
+# corrected recall, and the calibration does not resolve its threshold
 # (results/multichm-gated-results.md).
 #
 # Provenance: the gate's form and the calibration grid values (mcg_grid) were
 # informed by an exploratory pass over all 106 frozen NEON plots of the five
-# sites, and the selection criterion was fixed after that pass. A held-out
-# score of a configuration selected on calibration plots therefore tests only
-# the selection within that grid, not the grid's values or the choice of
-# features.
+# sites (calibration and validation plots alike), and the selection criterion
+# was fixed after that pass. The crown-spacing switch, its measure and its grid
+# values were added after further exploratory passes, which read the scores of
+# all plots by stand top height and by crown density, the validation plots'
+# nominal cores and censused subplots included, and the detection counts on
+# four closed plots outside the benchmark that have no field reference. The
+# held-out scores therefore test only the selection within the grid, not the
+# grid's values or the choice of features.
 #
 # The stock configuration (MCG_STOCK: no floor, no share gate, no exemption)
 # reproduces lidRplugins::multichm 0.4.0 exactly; mcg_candidates() is an
@@ -44,14 +61,21 @@
 MCG_RADIUS       <- 1    # horizontal radius (m) of a candidate's first-return share
 MCG_HALF_DZ      <- 1    # half height (m) of the band around the candidate's own top
 MCG_COVER_HEIGHT <- 2    # first returns above this height (m) count as canopy
+MCG_TOP_PROB     <- 0.95 # quantile of those canopy first returns' heights: the stand's top height
+MCG_CROWN_RES    <- 1    # cell size (m) of the first-return canopy surface crowns are counted on
+MCG_CROWN_WS     <- 5    # diameter (m) of the circular window a crown's maximum tops
 
 # A validated configuration. zmin: height floor (m) of deeper-layer candidates
 # in every stand (0 = none); min_share: first-return share a deeper-layer
 # candidate needs in a closed stand (0 = no share gate); cover_min: canopy cover
 # at or above which a stand is closed (0 = every stand is closed);
 # surface_exempt: surface-layer candidates skip the distance filter in closed
-# stands.
-mcg_config <- function(zmin = 0, min_share = 0, cover_min = 0, surface_exempt = FALSE) {
+# stands; spacing_min: crown spacing (m, mcg_crowns) at or above which a closed
+# stand gets the share gate (0 = every closed stand). spacing_min switches only
+# the share gate, so it is stored as 0 when min_share == 0 (one canonical form,
+# and one label, per behaviour).
+mcg_config <- function(zmin = 0, min_share = 0, cover_min = 0, surface_exempt = FALSE,
+                       spacing_min = 0) {
   num <- function(v, nm, lo, hi) {
     if (!is.numeric(v) || length(v) != 1L || !is.finite(v) || v < lo || v > hi)
       stop(sprintf("multichm_gated: %s must be one number in [%g, %g]", nm, lo, hi),
@@ -60,39 +84,56 @@ mcg_config <- function(zmin = 0, min_share = 0, cover_min = 0, surface_exempt = 
   }
   if (!is.logical(surface_exempt) || length(surface_exempt) != 1L || is.na(surface_exempt))
     stop("multichm_gated: surface_exempt must be TRUE or FALSE", call. = FALSE)
-  list(zmin = num(zmin, "zmin", 0, Inf), min_share = num(min_share, "min_share", 0, 1),
-       cover_min = num(cover_min, "cover_min", 0, 1), surface_exempt = surface_exempt)
+  cfg <- list(zmin = num(zmin, "zmin", 0, Inf), min_share = num(min_share, "min_share", 0, 1),
+              cover_min = num(cover_min, "cover_min", 0, 1), surface_exempt = surface_exempt,
+              spacing_min = num(spacing_min, "spacing_min", 0, Inf))
+  if (cfg$min_share == 0) cfg$spacing_min <- 0
+  cfg
 }
+# A configuration recorded without spacing_min (or with spacing_min NULL) has no
+# spacing condition: spacing_min counts as 0.
 .mcg_check_config <- function(cfg) {
   if (is.null(cfg))
     stop("multichm_gated: no configuration; pass one (mcg_config())", call. = FALSE)
   if (!is.list(cfg) || !all(c("zmin", "min_share", "cover_min", "surface_exempt") %in% names(cfg)))
-    stop("multichm_gated: a configuration is a list(zmin, min_share, cover_min, surface_exempt)",
-         call. = FALSE)
-  mcg_config(cfg$zmin, cfg$min_share, cfg$cover_min, cfg$surface_exempt)
+    stop("multichm_gated: a configuration is a list(zmin, min_share, cover_min, surface_exempt, ",
+         "spacing_min); spacing_min may be absent (no spacing condition)", call. = FALSE)
+  spacing_min <- cfg[["spacing_min"]]
+  mcg_config(cfg$zmin, cfg$min_share, cfg$cover_min, cfg$surface_exempt,
+             if (is.null(spacing_min)) 0 else spacing_min)
 }
 
 MCG_STOCK    <- mcg_config()
-# The declared configuration: selected by calval_multichm_gated.R as the grid
-# configuration with the highest chance-corrected F1 at native density on the
-# 57 calibration plots of the five sites (stratified split, seed 1, calibration
-# fraction 0.5; adopted population; sealed root with clip-manifest SHA-256
+# The declared configuration: selected by calval_multichm_gated.R as the
+# configuration of the calibration grid (mcg_grid(), 447 configurations) with
+# the highest chance-corrected F1 at native density on the 57 calibration plots
+# of the five sites (stratified split, seed 1, calibration fraction 0.5; adopted
+# population; sealed root with clip-manifest SHA-256
 # 4567a247a6dd6d9630d6cea5427da3e262b1dcaac4a07a1173b3764e8a63c8d4). The 49
 # validation plots are its held-out test. See results/multichm-gated-results.md.
-MCG_DECLARED <- mcg_config(zmin = 5, min_share = 0.75, cover_min = 0.6, surface_exempt = TRUE)
+MCG_DECLARED <- mcg_config(zmin = 5, min_share = 0.75, cover_min = 0.6, surface_exempt = TRUE,
+                           spacing_min = 8)
 
-# "stock" for the stock configuration, otherwise e.g. "z5_s0.75_c0.7_e1".
+# "stock" for the stock configuration, otherwise e.g. "z5_s0.75_c0.7_e1", with
+# "_d<spacing_min>" appended when the configuration has a spacing condition
+# (spacing_min > 0), e.g. "z5_s0.75_c0.6_e1_d8" or "z5_s0.75_c0.6_e1_d8.5".
 mcg_config_label <- function(cfg) {
   cfg <- .mcg_check_config(cfg)
   if (identical(cfg, MCG_STOCK)) return("stock")
-  sprintf("z%g_s%g_c%g_e%d", cfg$zmin, cfg$min_share, cfg$cover_min, as.integer(cfg$surface_exempt))
+  lab <- sprintf("z%g_s%g_c%g_e%d", cfg$zmin, cfg$min_share, cfg$cover_min,
+                 as.integer(cfg$surface_exempt))
+  if (cfg$spacing_min > 0) lab <- paste0(lab, sprintf("_d%g", cfg$spacing_min))
+  lab
 }
 
 # What a configuration reads: the first-return share iff min_share > 0; the
 # canopy cover iff cover_min > 0 and the cover decides something (a share gate
-# or the exemption). With cover_min == 0 every stand counts as closed.
+# or the exemption); the clip's crown spacing iff spacing_min > 0 (which, after
+# mcg_config(), implies a share gate). With cover_min == 0 every stand counts as
+# closed; with spacing_min == 0 every stand counts as spaced.
 .mcg_needs_share <- function(cfg) cfg$min_share > 0
 .mcg_needs_cover <- function(cfg) cfg$cover_min > 0 && (cfg$min_share > 0 || cfg$surface_exempt)
+.mcg_needs_spacing <- function(cfg) cfg$spacing_min > 0
 
 ## ---- candidates: instrumented lidRplugins::multichm 0.4.0 ---------------------------------
 # The height of each candidate's own top return, `zt`, read from the layer's
@@ -190,12 +231,82 @@ mcg_canopy_cover <- function(las, height = MCG_COVER_HEIGHT) {
   mean(las@data$Z[f] > height)
 }
 
+# Top height of a normalized clip: the `prob` quantile (type 7) of the heights
+# of its first returns above `height` (the canopy returns of mcg_canopy_cover).
+# NA when the clip has no ReturnNumber or no first return above `height`.
+mcg_top_height <- function(las, height = MCG_COVER_HEIGHT, prob = MCG_TOP_PROB) {
+  if (!"ReturnNumber" %in% names(las@data)) return(NA_real_)
+  f <- las@data$ReturnNumber == 1L
+  f[is.na(f)] <- FALSE
+  z <- las@data$Z[f]
+  z <- z[z > height]
+  if (!length(z)) return(NA_real_)
+  unname(stats::quantile(z, probs = prob, names = FALSE, type = 7))
+}
+
+# Crowns of a normalized clip and their spacing. The canopy surface is the
+# Delaunay triangulation of the highest first return of each `res` cell,
+# rasterized at `res` (lidR::dsmtin(highest = TRUE), given explicitly so that a
+# change of lidR's default cannot change the measure). A cell whose highest
+# first return is below 0 is left out of the triangulation, and a return number
+# of NA is not first, as in mcg_canopy_cover. A cell is interior when every cell
+# of its window (the cells whose centres lie within ws / 2 of its centre) lies
+# on the surface; the window is taken in cell units with a tolerance of 1e-9, so
+# that rounding cannot drop the cells exactly ws / 2 away, which lmf compares
+# against. A crown is a local maximum of the surface (lmf), at least `hmin`
+# high, in a circular window of diameter `ws` that sits on an interior cell: no
+# maximum is judged on a window cut short by the clip's edge. The surface near
+# the edge is still triangulated from returns inside the clip only, so an edge
+# can add or remove a crown there. Returns list(n, area, spacing): the number of
+# crowns, the interior area (m^2) and spacing = sqrt(area / n), the side of the
+# square each crown would occupy. All three are NA (unknown) without
+# ReturnNumber, with fewer than three first returns, or when lidR cannot build
+# the surface (for example when no more than three cell maxima lie above 0, or
+# when the cell maxima at or above 0, which it triangulates, all lie on one
+# line); a surface too narrow for one whole window gives n 0, area 0 and spacing
+# NA, and interior cells without a crown give n 0 and spacing Inf. lidR runs on
+# one thread for these calls (lmf breaks tied heights by thread timing) and the
+# caller's setting is restored.
+mcg_crowns <- function(las, res = MCG_CROWN_RES, ws = MCG_CROWN_WS, hmin = MCG_COVER_HEIGHT) {
+  unknown <- list(n = NA_integer_, area = NA_real_, spacing = NA_real_)
+  if (!"ReturnNumber" %in% names(las@data)) return(unknown)
+  if (sum(las@data$ReturnNumber == 1L, na.rm = TRUE) < 3L) return(unknown)
+  threads <- lidR::get_lidr_threads()
+  lidR::set_lidr_threads(1L)
+  on.exit(lidR::set_lidr_threads(threads), add = TRUE)
+  first <- lidR::filter_poi(las, ReturnNumber == 1L)       # an NA return number is dropped
+  chm <- tryCatch(lidR::rasterize_canopy(first, res, lidR::dsmtin(highest = TRUE), pkg = "terra"),
+                  error = function(e) NULL)                # e.g. collinear cell maxima
+  if (is.null(chm)) return(unknown)
+  ok <- !is.na(terra::as.matrix(chm, wide = TRUE))
+  # the window's radius in cells, rc, and its offsets (dx, dy) in cells
+  nr <- nrow(ok); nc <- ncol(ok); rc <- ws / 2 / res; k <- floor(rc + 1e-9)
+  # the surface padded with k off-surface cells on every side, so a window that
+  # reaches past the raster's edge fails like one that reaches an NA cell
+  P <- matrix(FALSE, nr + 2L * k, nc + 2L * k)
+  P[k + seq_len(nr), k + seq_len(nc)] <- ok
+  inner <- ok
+  for (dx in -k:k) for (dy in -k:k) if (dx^2 + dy^2 <= rc^2 + 1e-9)
+    inner <- inner & P[k + seq_len(nr) + dy, k + seq_len(nc) + dx]
+  area <- sum(inner) * res^2
+  if (area == 0) return(list(n = 0L, area = 0, spacing = NA_real_))
+  tt <- lidR::locate_trees(chm, lidR::lmf(ws = ws, hmin = hmin))
+  xy <- sf::st_coordinates(tt)                       # a 0-row logical matrix when no maximum
+  n <- if (nrow(xy))
+    sum(inner[cbind(terra::rowFromY(chm, xy[, 2]), terra::colFromX(chm, xy[, 1]))]) else 0L
+  list(n = as.integer(n), area = area, spacing = sqrt(area / n))
+}
+
 # Everything that does not depend on the configuration (cacheable per clip):
-# the candidates with their first-return share, and the clip's canopy cover.
+# the candidates with their first-return share, and the clip's canopy cover,
+# top height (recorded; it decides nothing) and crowns (mcg_crowns: crown
+# spacing, number of crowns and their area).
 mcg_prepare <- function(las, res, a = 0.10) {
   cand <- mcg_candidates(las, res, ws_factory(a))
   cand[, share := mcg_first_return_share(cand, las)]
-  list(cand = cand, cover = mcg_canopy_cover(las),
+  crowns <- mcg_crowns(las)
+  list(cand = cand, cover = mcg_canopy_cover(las), top_height = mcg_top_height(las),
+       crown_spacing = crowns$spacing, n_crowns = crowns$n, crown_area = crowns$area,
        has_return_number = "ReturnNumber" %in% names(las@data), res = res, a = a)
 }
 
@@ -208,26 +319,47 @@ mcg_closed <- function(cover, cfg) {
   if (cfg$cover_min == 0) TRUE else if (is.na(cover)) NA else cover >= cfg$cover_min
 }
 
+# Whether a clip counts as a stand of widely spaced crowns: crown spacing >=
+# spacing_min (an infinite spacing, interior surface without a crown, counts as
+# spaced), TRUE for every stand when spacing_min == 0, NA when the crown spacing
+# is unknown (NA or NULL). Never stops: whether an unknown spacing matters is
+# mcg_gate's question.
+mcg_spaced <- function(crown_spacing, cfg) {
+  cfg <- .mcg_check_config(cfg)
+  if (cfg$spacing_min == 0) TRUE
+  else if (is.null(crown_spacing) || is.na(crown_spacing)) NA
+  else crown_spacing >= cfg$spacing_min
+}
+
 # keep: surface-layer candidates always; a deeper-layer candidate iff Z >= zmin
-# (every stand) and, in a closed stand with a share gate, its share is known and
-# >= min_share. exempt: a surface-layer candidate in a closed stand when
-# surface_exempt. closed: mcg_closed() (NA only when the cover is moot and
-# unknown; an unknown cover that decides something stops).
-mcg_gate <- function(cand, cover, cfg) {
+# (every stand) and, in a closed stand of widely spaced crowns with a share
+# gate, its share is known and >= min_share. exempt: a surface-layer candidate
+# in a closed stand when surface_exempt, whatever the stand's crown spacing.
+# closed: mcg_closed() (NA only when the cover is moot and unknown; an unknown
+# cover that decides something stops). spaced: mcg_spaced() (an unknown crown
+# spacing stops only in a closed stand under a configuration with a spacing
+# condition, where it decides whether the share gate applies).
+mcg_gate <- function(cand, cover, cfg, crown_spacing = NA_real_) {
   cfg <- .mcg_check_config(cfg)
   closed <- mcg_closed(cover, cfg)
   if (is.na(closed) && .mcg_needs_cover(cfg))
     stop("multichm_gated: this configuration needs the canopy cover, which is unavailable ",
          "(the clip has no ReturnNumber or no first returns)", call. = FALSE)
+  spaced <- mcg_spaced(crown_spacing, cfg)
+  if (isTRUE(closed) && .mcg_needs_spacing(cfg) && is.na(spaced))
+    stop("multichm_gated: this configuration needs the clip's crown spacing, which is ",
+         "unavailable (the clip has no ReturnNumber or fewer than three first returns, its ",
+         "first returns cannot be triangulated or their surface is too narrow for one crown ",
+         "window, or it was prepared without the crown spacing)", call. = FALSE)
   if (cfg$min_share > 0 && is.null(cand$share))
     stop("multichm_gated: this configuration needs the candidates' first-return share ",
          "(column `share`, from mcg_prepare)", call. = FALSE)
   surface <- cand$layer == 1L
   share_ok <- if (cfg$min_share > 0) !is.na(cand$share) & cand$share >= cfg$min_share else TRUE
-  gated <- isTRUE(closed) && cfg$min_share > 0
+  gated <- isTRUE(closed) && isTRUE(spaced) && cfg$min_share > 0
   keep <- surface | (cand$Z >= cfg$zmin & (if (gated) share_ok else TRUE))
   exempt <- surface & isTRUE(closed) & cfg$surface_exempt
-  list(keep = keep, exempt = exempt, closed = closed)
+  list(keep = keep, exempt = exempt, closed = closed, spaced = spaced)
 }
 
 # The package's greedy distance filter over the kept candidates in descending Z:
@@ -261,7 +393,9 @@ mcg_filter <- function(cand, keep, exempt, dist_2d = 3, dist_3d = 5) {
 # Detections of one configuration on a prepared clip: data.frame x, y, z
 # (z = the candidate's Z), in descending z; 0 rows when nothing is detected.
 # A clip without candidates gives 0 rows under any configuration, before the
-# share or cover a configuration reads is asked for.
+# share, cover or crown spacing a configuration reads is asked for. A clip
+# prepared without the crown spacing (no `crown_spacing` element) serves every
+# configuration that does not need it.
 mcg_apply <- function(prep, cfg) {
   cfg <- .mcg_check_config(cfg)
   C <- prep$cand
@@ -276,7 +410,8 @@ mcg_apply <- function(prep, cfg) {
   if (.mcg_needs_cover(cfg) && is.na(prep$cover))
     stop("multichm_gated: this configuration needs the canopy cover, which is unavailable ",
          "(the clip has no ReturnNumber or no first returns)", call. = FALSE)
-  g <- mcg_gate(C, prep$cover, cfg)
+  crown_spacing <- prep[["crown_spacing"]]
+  g <- mcg_gate(C, prep$cover, cfg, if (is.null(crown_spacing)) NA_real_ else crown_spacing)
   acc <- mcg_filter(C, g$keep, g$exempt)
   C <- C[acc]
   data.table::setorderv(C, "Z", order = -1L)
@@ -291,23 +426,41 @@ detect_multichm_gated <- function(las, res, a = 0.10, cfg = MCG_DECLARED) {
 }
 
 ## ---- the declared calibration grid ------------------------------------------------------
-# zmin {0, 5, 8} x min_share {0, 0.5, 0.75, 0.9} x cover_min {0, 0.6, 0.7, 0.8} x
-# surface_exempt {FALSE, TRUE}; without a share gate and without the exemption
-# the cover is moot, so those rows keep cover_min = 0 only: 3 * (1 + 7 * 4) = 87.
-# "Least intervention first": surface_exempt (FALSE first), min_share ascending,
-# zmin ascending, cover_min descending (a higher cover_min closes fewer stands).
-# config_id = row number; config_id 1 is the stock configuration.
+# Two parts, 87 + 360 = 447 configurations; config_id = row number.
+# config_id 1..87, no spacing condition (spacing_min 0): zmin {0, 5, 8} x
+# min_share {0, 0.5, 0.75, 0.9} x cover_min {0, 0.6, 0.7, 0.8} x surface_exempt
+# {FALSE, TRUE}; without a share gate and without the exemption the cover is
+# moot, so those rows keep cover_min = 0 only: 3 * (1 + 7 * 4) = 87. "Least
+# intervention first": surface_exempt (FALSE first), min_share ascending, zmin
+# ascending, cover_min descending (a higher cover_min closes fewer stands).
+# config_id 1 is the stock configuration.
+# config_id 88..447, the crown-spacing switch: each of the 72 configurations of
+# the first part with a share gate (spacing_min switches only the share gate)
+# at spacing_min {9, 8.5, 8, 7.5, 7}, in the same order with spacing_min
+# descending (a higher spacing_min gates fewer stands) last: one block of five
+# consecutive rows per configuration.
+# A selection's ties go to the smaller config_id (mcg_select), so a
+# configuration without a spacing condition wins a tie against any of its
+# variants with one, and a higher spacing_min against a lower one.
 mcg_grid <- function() {
   g <- expand.grid(cover_min = c(0.8, 0.7, 0.6, 0), zmin = c(0, 5, 8),
                    min_share = c(0, 0.5, 0.75, 0.9), surface_exempt = c(FALSE, TRUE),
                    KEEP.OUT.ATTRS = FALSE)
   g <- g[!(g$min_share == 0 & !g$surface_exempt & g$cover_min > 0), , drop = FALSE]
   g <- g[order(g$surface_exempt, g$min_share, g$zmin, -g$cover_min), , drop = FALSE]
+  g$spacing_min <- 0
+  spacings <- c(9, 8.5, 8, 7.5, 7)
+  h <- g[rep(which(g$min_share > 0), each = length(spacings)), , drop = FALSE]
+  h$spacing_min <- rep(spacings, length.out = nrow(h))
+  h <- h[order(h$surface_exempt, h$min_share, h$zmin, -h$cover_min, -h$spacing_min), ,
+         drop = FALSE]
+  g <- rbind(g, h)
   g <- data.frame(config_id = seq_len(nrow(g)), zmin = g$zmin, min_share = g$min_share,
                   cover_min = g$cover_min, surface_exempt = g$surface_exempt,
-                  stringsAsFactors = FALSE)
+                  spacing_min = g$spacing_min, stringsAsFactors = FALSE)
   g$label <- vapply(seq_len(nrow(g)), function(i)
-    mcg_config_label(mcg_config(g$zmin[i], g$min_share[i], g$cover_min[i], g$surface_exempt[i])),
+    mcg_config_label(mcg_config(g$zmin[i], g$min_share[i], g$cover_min[i], g$surface_exempt[i],
+                                g$spacing_min[i])),
     character(1))
   g
 }

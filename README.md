@@ -298,28 +298,38 @@ level with CHM-VWF's.
 The [gated multichm study](results/multichm-gated-results.md) adds a post hoc
 arm, `multichm_gated`, outside the paper's twelve. Its premise is that in
 closed stands `multichm`'s deeper layers often find peaks inside crowns already
-detected, and that its distance filter removes neighbouring surface peaks. The
-arm drops deeper-layer peaks below 5 m everywhere. Where canopy cover is at
-least 0.6 it also drops those not lit from above (first-return share below
-0.75) and exempts surface peaks from the distance filter. The four thresholds
-were selected on 57 calibration plots by chance-corrected F1. On the 49
-held-out plots at native density corrected F1 rises from 0.166 to **0.200**
-(+0.034 [+0.005, +0.059]; median +0.027 over 200 splits) with 14% fewer
-detections, while plain F1 changes by +0.015 [−0.012, +0.042], which does not
-exclude zero. The change is +0.044 [+0.008, +0.074] in Washington and +0.013
-[−0.006, +0.028] in California; the difference between the regions (+0.030
-[−0.008, +0.064]) includes zero. At that density the 5 m floor alone gives
-+0.015 [+0.009, +0.021]; what the share gate and the exemption add to it
-together, +0.020 [−0.010, +0.046], is not separable from zero, and neither is
-the share gate's own contribution (+0.007 [−0.018, +0.027]). On the four
-decimated rungs the first excludes zero at 2.5 pulses/m² only, the second at
-2.5 and 0.6. Inside censused subplots (57 plots, calibration plots included)
-precision rises from 0.636 to 0.749 and plain F1 from 0.597 to 0.626 (+0.029
-[−0.006, +0.062]), with a gain at ABBY and a loss at WREF. The gate's form, the
-grid of candidate thresholds and the criterion were fixed after an exploratory
-pass over all plots, so the held-out score tests only the selection within
-that grid: 82 of its 86 non-stock configurations beat stock on the held-out
-plots.
+detected, mainly where crowns are large and far apart, and that its distance
+filter removes neighbouring surface peaks. The arm drops deeper-layer peaks
+below 5 m everywhere. Where canopy cover is at least 0.6 it exempts surface
+peaks from the distance filter, and where the clip's crowns are also at least
+8 m apart it drops deeper-layer peaks not lit from above (first-return share
+below 0.75). Crown spacing is measured on the clip itself, from the local
+maxima of its first-return canopy surface. The five thresholds were selected
+on 57 calibration plots by chance-corrected F1. On the 49 held-out plots at
+native density corrected F1 rises from 0.166 to **0.200** (+0.034 [+0.014,
++0.053]; median +0.030 over 200 splits) with 7% fewer detections than stock,
+and plain F1 rises by 0.032 [0.010, 0.057]. The change is +0.044 [+0.019,
++0.068] in Washington and +0.013 [−0.006, +0.028] in California; the
+difference between the regions (+0.031 [+0.000, +0.059]) has its lower bound
+on zero. At that density the 5 m floor alone gives +0.015 [+0.009, +0.021].
+What the share gate and the exemption add to it together, +0.019 [−0.002,
++0.039], is not separable from zero there, and neither is the share gate's own
+contribution (+0.006 [−0.008, +0.023]) there or on any decimated rung. The
+crown-spacing switch was added after later exploratory passes and is not
+established by the held-out criterion: against the same configuration with
+the share gate in every closed stand it changes corrected F1 by −0.000
+[−0.016, +0.017] and raises corrected recall by 0.022 [0.004, 0.045]. The 200
+splits pick 8 m and 8.5 m equally often (70 each). Inside censused subplots
+(57 plots, calibration plots included) precision rises from 0.636 to 0.733
+and plain F1 from 0.597 to 0.657 (+0.059 [+0.031, +0.087]), with a gain at
+ABBY, no change at WREF and a lower point estimate on the California plots
+(−0.024 [−0.064, +0.008]). The gate's form, the grid of candidate thresholds
+and the criterion were fixed after exploratory passes over all plots. The
+later passes read all plots by stand height and by crown density, the held-out
+plots' nominal cores and censused subplots included, and detection counts on
+four closed plots outside the benchmark that have no field reference. The
+held-out score therefore tests only the selection within that grid: 434 of its
+446 non-stock configurations beat stock on the held-out plots.
 
 ### Crown delineation
 
