@@ -295,6 +295,42 @@ censused F1 at native
 density (**0.564**) is the lowest point estimate of the five arms compared,
 level with CHM-VWF's.
 
+The [gated multichm study](results/multichm-gated-results.md) adds a post hoc
+arm, `multichm_gated`, outside the paper's twelve. Its premise is that in
+closed stands `multichm`'s deeper layers often find peaks inside crowns already
+detected, mainly where crowns are large and far apart, and that its distance
+filter removes neighbouring surface peaks. The arm drops deeper-layer peaks
+below 5 m everywhere. Where canopy cover is at least 0.6 it exempts surface
+peaks from the distance filter, and where the clip's crowns are also at least
+8 m apart it drops deeper-layer peaks not lit from above (first-return share
+below 0.75). Crown spacing is measured on the clip itself, from the local
+maxima of its first-return canopy surface. The five thresholds were selected
+on 57 calibration plots by chance-corrected F1. On the 49 held-out plots at
+native density corrected F1 rises from 0.166 to **0.200** (+0.034 [+0.014,
++0.053]; median +0.030 over 200 splits) with 7% fewer detections than stock,
+and plain F1 rises by 0.032 [0.010, 0.057]. The change is +0.044 [+0.019,
++0.068] in Washington and +0.013 [−0.006, +0.028] in California; the
+difference between the regions (+0.031 [+0.000, +0.059]) has its lower bound
+on zero. At that density the 5 m floor alone gives +0.015 [+0.009, +0.021].
+What the share gate and the exemption add to it together, +0.019 [−0.002,
++0.039], is not separable from zero there, and neither is the share gate's own
+contribution (+0.006 [−0.008, +0.023]) there or on any decimated rung. The
+crown-spacing switch was added after later exploratory passes and is not
+established by the held-out criterion: against the same configuration with
+the share gate in every closed stand it changes corrected F1 by −0.000
+[−0.016, +0.017] and raises corrected recall by 0.022 [0.004, 0.045]. The 200
+splits pick 8 m and 8.5 m equally often (70 each). Inside censused subplots
+(57 plots, calibration plots included) precision rises from 0.636 to 0.733
+and plain F1 from 0.597 to 0.657 (+0.059 [+0.031, +0.087]), with a gain at
+ABBY, no change at WREF and a lower point estimate on the California plots
+(−0.024 [−0.064, +0.008]). The gate's form, the grid of candidate thresholds
+and the criterion were fixed after exploratory passes over all plots. The
+later passes read all plots by stand height and by crown density, the held-out
+plots' nominal cores and censused subplots included, and detection counts on
+four closed plots outside the benchmark that have no field reference. The
+held-out score therefore tests only the selection within that grid: 434 of its
+446 non-stock configurations beat stock on the held-out plots.
+
 ### Crown delineation
 
 The [crown benchmark](results/crown-segmentation-results.md) compares growing
@@ -480,6 +516,7 @@ comparison and larger-area experiments.
 | Precision inside censused subplots | [Censused-subplot study](results/census-support-results.md) and its reviewed declarations under `docs/` |
 | NEON field-stem density ladder | [Density-ladder study](results/density-ladder-sweep-results.md) and [cross-model comparison](results/model-benchmark-results.md) |
 | ForestMamba arm, outside the paper's twelve | [ForestMamba benchmark](results/forestmamba-results.md) and its [Blackwell runtime](gpu/forestmamba-sm120/README.md) |
+| Gated multichm arm, outside the paper's twelve | [Gated multichm study](results/multichm-gated-results.md) |
 | Crown diameters and segmentation | [Crown benchmark](results/crown-segmentation-results.md) |
 | Paired optical/LiDAR fusion | [RGB-LiDAR comparison](results/rgb-lidar-fusion-results.md) and [confidence calibration](results/confidence-calibration-results.md) |
 | Native FGI-EMIT products | [Current execution guide](docs/final-ensemble-pipeline-v2.md) and [development/reserve results](results/final-ensemble-pipeline-results.md) |
@@ -528,6 +565,7 @@ scripts and configuration.
 | Point-cloud understory detection | [detect_pc_sweep.R](scripts/detect_pc_sweep.R), [detect_pc_ladder.R](scripts/detect_pc_ladder.R) |
 | Cross-model detection analysis | [analyze_model_benchmark.R](scripts/analyze_model_benchmark.R), [compare_model_sites.R](scripts/compare_model_sites.R) |
 | ForestMamba arm | [detect_forestmamba_sweep.R](scripts/detect_forestmamba_sweep.R), [analyze_forestmamba.R](scripts/analyze_forestmamba.R), [gpu/forestmamba-sm120](gpu/forestmamba-sm120/README.md) |
+| Gated multichm arm | [detect_multichm_gated_sweep.R](scripts/detect_multichm_gated_sweep.R), [calval_multichm_gated.R](scripts/calval_multichm_gated.R), [multichm_gated_lib.R](scripts/multichm_gated_lib.R) |
 | Crown-diameter evaluation | [crown_metrics_sweep.R](scripts/crown_metrics_sweep.R), [crown_metrics_3d.R](scripts/crown_metrics_3d.R), [crown_metrics_deepmodel.R](scripts/crown_metrics_deepmodel.R), [analyze_crown_metrics.R](scripts/analyze_crown_metrics.R) |
 | Instance masks, credited F1 and re-scoring | [score_instances_iou.R](scripts/score_instances_iou.R), [compare_matching_rules.R](scripts/compare_matching_rules.R), [coverage_gap.R](scripts/coverage_gap.R), [export_best_treetops_geojson.R](scripts/export_best_treetops_geojson.R), [rescore_population.R](scripts/rescore_population.R), [compare_adapter_reruns.R](scripts/compare_adapter_reruns.R) |
 | Calibration/validation and the historical sensitivity studies | [calval_split.R](scripts/calval_split.R), [matcher_robustness.R](scripts/matcher_robustness.R), [mc_positional_uncertainty.R](scripts/mc_positional_uncertainty.R), [temporal_sensitivity.R](scripts/temporal_sensitivity.R) |
