@@ -101,6 +101,12 @@ Each job directory links `neon/frozen_2021` to the archive's sealed root;
 - FGI-EMIT data (CC BY-NC-SA 4.0) and the historical studies outside the
   frozen-root benchmark.
 - Logs, scratch figures and superseded copies of re-run outputs.
+- Runs added after the tables were fixed: the SegmentAnyTree grouping-radius
+  check of Section S18 of the supplement and the ForestMamba arm of Section
+  S23. Their reports in the repository,
+  `results/segmentanytree-radius-results.md` and
+  `results/forestmamba-results.md`, give the commands that regenerate them
+  with a GPU.
 
 ## Licence
 

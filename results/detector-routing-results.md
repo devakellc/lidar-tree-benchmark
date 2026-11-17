@@ -1,9 +1,12 @@
 # Per-cell detector routing
 
 > **Historical (three-site population), supplement only.** The routing policy
-> here was learned and scored on the June runs. The paper does not route: its
-> per-rung and per-site comparisons of every arm on the frozen five-site
-> population are in the [master tables](master-tables-results.md) and the
+> here was learned and scored on the June runs. The paper's density routing,
+> on the frozen five-site population with picks chosen on the California
+> development plots and checked on the Washington replication plots, is in the
+> [density-routing report](density-routing-results.md); its per-rung and
+> per-site comparisons of every arm are in the
+> [master tables](master-tables-results.md) and the
 > [model benchmark](model-benchmark-results.md#five-sites-every-arm-paper-numbers).
 
 The repo's only routing knob today is measured density (the `frdens`/`pdens`

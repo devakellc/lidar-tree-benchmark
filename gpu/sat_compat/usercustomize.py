@@ -14,6 +14,9 @@
 # inference END-TO-END on the 5090 (verified: SOAP-native clip -> labeled .laz
 # with PredInstance). The four shims below each restore one behavior the 2023-era
 # stack assumed; the torch-geometric pin (not a shim) fixes the Data.keys drift.
+# A fifth function changes behavior only when SAT_CLUSTER_RADIUS is set: it
+# replaces the grouping radius for the radius check, and is off for every
+# benchmark run.
 import warnings
 
 
@@ -110,11 +113,51 @@ def _patch_tensor_getitem_cross_device():
     torch.Tensor._sat_compat_getitem = True
 
 
+def _patch_region_grow_radius():
+    # Opt-in, for the radius check (scripts/sat_radius_check.R): SAT's type-5
+    # clustering region-grows the offset-shifted tree points with
+    # cluster_radius_search, 1.5 grid cells (0.3 m), against a mean point
+    # spacing of 0.67 m at 2 points/m2. SAT_CLUSTER_RADIUS (metres) replaces
+    # that radius in every region_grow call; unset or empty, nothing is
+    # imported or changed. The model module binds region_grow by name when it
+    # is imported, after this file runs. A malformed value raises here, which
+    # the interpreter reports and then ignores, so callers must check for the
+    # logged line (gpu/run_sat_radius_check.sh does).
+    import os
+    import sys
+    value = os.environ.get("SAT_CLUSTER_RADIUS", "")
+    if not value:
+        return
+    radius = float(value)
+    if not radius > 0:
+        raise ValueError("SAT_CLUSTER_RADIUS must be positive, got %r" % value)
+    import torch_points_kernels as tpk
+    if getattr(tpk, "_sat_compat_region_grow", False):
+        return
+    _orig = tpk.region_grow
+    logged = []
+
+    def _region_grow(*a, **k):
+        # radius is the sixth positional argument of region_grow.
+        if len(a) > 5:
+            a = a[:5] + (radius,) + a[6:]
+        else:
+            k["radius"] = radius
+        if not logged:
+            sys.stderr.write("sat_compat: region_grow radius %.4f m\n" % radius)
+            logged.append(True)
+        return _orig(*a, **k)
+
+    tpk.region_grow = _region_grow
+    tpk._sat_compat_region_grow = True
+
+
 def apply():
     _patch_omegaconf_missing_attr()
     _patch_torch_load_weights_only()
     _set_spawn_start_method()
     _patch_tensor_getitem_cross_device()
+    _patch_region_grow_radius()
 
 
 with warnings.catch_warnings():
