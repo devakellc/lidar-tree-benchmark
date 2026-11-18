@@ -9,7 +9,8 @@ The [chance-correction simulation](chance-correction-simulation-results.md)
 found that chance-corrected leads overstate skill when a detector's extra
 detections lie beside trees rather than on them. Its example is a split crown:
 a second detection of one crown, 1.5 to 4 m from the tree. In its loosely
-clustered stands, the pattern nearest to the benchmark's reference stems, split
+clustered stands, the simulated pattern nearest to the reference stems of all
+54 distributed plots, split
 crowns at rate 0.8 per detected tree, about the segmenters' surplus of
 detections, reproduce the point-cloud segmenters' corrected recall lead over
 CHM-VWF of about 0.11 at 4 m (rate 0.5 gives about two-thirds of it), but not a
@@ -74,10 +75,12 @@ simulated 0.5 and 0.8; only an upper-bound view that also counts neighbouring
 trees the arm resolves reaches 0.6 for SegmentAnyTree (Table 7). And
 TreeisoNet, which places as many candidates as the two segmenters, has almost
 no corrected recall lead. Split crowns therefore probably inflate part of the
-segmenters' corrected recall leads, at most about two-thirds of them on the
-simulation's reading and a seventh to two-fifths if the arms that split as
-often are the guide (Table 5), and do not explain those leads or their
-corrected F1 leads.
+segmenters' corrected recall leads, about a sixth to two-thirds of them on the
+simulation's reading at the point estimates of Table 5's valley settings (up
+to about seven-tenths over all twelve valley settings and nine-tenths or
+more at their upper interval limits) and a seventh to two-fifths if the arms that
+split as often are the guide (Table 5), and do not explain those leads or
+their corrected F1 leads.
 
 Confidence is moderate. The direction holds across both canopy models, six
 valley thresholds, both scopes and the window-free pairs of Table 6. The size of
@@ -201,9 +204,9 @@ the canopy surface (p2r model).
   0.36 to 0.46 and 0.56. The ordering does not change: in every setting the
   segmenters' pairs lie on one crown more often than CHM-VWF's, by a factor of
   1.3 (pit-free model, 2 m) to 13 (p2r model, 5%) on all plots.
-- CHM-VWF's tops are maxima of its own smoothed, pit-filled canopy model, so a
-  valley between two of them is close to guaranteed there; their low share is
-  partly mechanical.
+- CHM-VWF's tops are maxima of its own pit-filled canopy model (smoothed only
+  on the 18 native cells below 8 pulses/m²), so a valley between two of them
+  is close to guaranteed there; their low share is partly mechanical.
 - Many of ForestFormer3D's and `multichm`'s pairs without a valley hold a
   detection well beneath the canopy surface: an understory instance under a
   neighbour's crown, or a lower part of the same tree. The canopy model cannot
@@ -370,16 +373,19 @@ took a neighbouring stem's match.
   ForestFormer3D's pairs without a valley hold a detection more than 2 m below
   the canopy surface.
 - **Window suppression.** CHM-VWF's window rules out a second top within 1.5 to
-  2.5 m, and its tops are maxima of its own smoothed canopy model, so its low
-  counts are partly by construction. Table 6 repeats the counts beyond the
-  window; the comparison holds.
+  2.5 m, and its tops are maxima of its own canopy model (smoothed on 18 of
+  the 106 native cells), so its low counts are partly by construction.
+  Table 6 repeats the counts beyond the window; the comparison holds.
 - **Canopy-model resolution.** Both models are 0.5 m grids of a native clip of
   a few to about twenty pulses per m². A valley narrower than a cell or two can
   vanish, and a laser pit can read as a valley. The p2r and pit-free models
   bracket these effects; neither is a ground truth for crown boundaries.
 - **Calibration.** The equivalent rates and the corrected recall they imply
   assume the loose clusters stand in for the benchmark's stands, as the
-  clustering of its reference stems suggests. In the tight clusters the same
+  clustering of its reference stems on all 54 distributed plots suggests. On
+  the 24 of them with admitted census support the stems lie between the
+  unclustered stand and the loose clusters, and a less clustered stand-in
+  lowers the lift attributed to split crowns. In the tight clusters the same
   candidates would imply about twice the lift in corrected recall; in the
   unclustered stand about a third. The simulated split pieces lie at the tree's
   height; many of the segmenters' candidates lie lower, where the matcher's

@@ -98,9 +98,13 @@ the master tables, and the core-density table (`CORE_DENSITY=`, default
 `core_density/core_density.csv` of the job directory). `RUNG_JOBS=<job
 dir>:<root>` locates the QL2 level elsewhere, as for `master_tables.R`.
 `DENSITY=clip` bands by the clip manifest's whole-clip density instead: it
-reproduces the six CSV files of 22 October 2026 byte for byte, and its
-generated markdown and contract differ from them only by the recorded density
-definition. In the paper rebuild (`scripts/reproduce_paper_tables.sh`) the
+reproduces five of the six CSV files of 22 October 2026 byte for byte and
+`routing_scores.csv` row for row (the same rows, 40 of them in another
+order). Its generated markdown differs from them only by the recorded density
+definition; its contract differs by that definition, by the code checksums
+and by the hashes of the QL2 level's `null_cells.csv` and `null_delta.csv`,
+which were rewritten on 17 November 2026 with the same rows in another order.
+In the paper rebuild (`scripts/reproduce_paper_tables.sh`) the
 analysis runs after the chance-agreement steps and after `core_density.R`,
 and its outputs are compared with the archived copies. The archive staged on
 5 October 2026 predates this analysis and holds none of its outputs, so it
@@ -422,7 +426,7 @@ one native cell from B to A.
 
 **Picks.** One pick changes: with a GPU, band B goes from ForestFormer3D to
 SegmentAnyTree. On the whole-clip bands, ForestFormer3D led `multichm` by
-0.0015 F1 and SegmentAnyTree by 0.011 (−0.011 [−0.033, +0.015]); on the core
+0.0015 F1 and SegmentAnyTree by 0.011 (+0.011 [−0.015, +0.033]); on the core
 bands, SegmentAnyTree leads ForestFormer3D by 0.0016. Neither definition
 separates the band-B candidates, so the pick follows which cells fall in the
 band rather than a difference the development data resolve. The California

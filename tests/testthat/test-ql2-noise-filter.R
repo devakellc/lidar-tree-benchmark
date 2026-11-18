@@ -58,6 +58,18 @@ test_that("the diagnostic and off settings drop only what they name", {
   expect_equal(e$noise_filter_label(integer(0), FALSE), "none")
 })
 
+test_that("a cloud read from file without the withheld flag stops the filter", {
+  e <- ql2_env()
+  f <- tempfile(fileext = ".las"); on.exit(unlink(f))
+  suppressMessages(suppressWarnings(lidR::writeLAS(synth_noisy_las(), f)))
+  full <- suppressWarnings(lidR::readLAS(f))           # default select: the flag is read
+  expect_equal(e$ql2_noise_filter(full)$counts$n_withheld, 2L)
+  bare <- suppressWarnings(lidR::readLAS(f, select = "xyzc"))
+  expect_null(bare$Withheld_flag)
+  expect_error(e$ql2_noise_filter(bare), "without the withheld flag", class = "ql2_read_error")
+  expect_error(e$ql2_noise_filter(bare, withheld = FALSE), "without the withheld flag")
+})
+
 test_that("a clean cloud is returned untouched", {
   e <- ql2_env()
   las <- lidR::filter_poi(synth_noisy_las(), Classification %in% c(2L, 5L) & !Withheld_flag)

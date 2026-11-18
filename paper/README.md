@@ -6,7 +6,7 @@ committed study reports, extended on 20 October 2026 with the ForestMamba run
 (now Section S23 of the supplement), restructured for IEEE JSTARS on 22 October
 2026 and revised on 17 November 2026 after a pre-submission review.
 
-- [manuscript.md](manuscript.md): the main text, with eight tables and seven
+- [manuscript.md](manuscript.md): the main text, with seven tables and seven
   figures.
 - [supplement.md](supplement.md): supplementary tables and figures and the
   studies the main text only summarises (Sections S1 to S28).
@@ -73,8 +73,9 @@ Acknowledgment. Before submission:
   design, whose only commit is dated 11 November 2026, came to notice then
   (Section S24).
 - Re-stage the archive from this branch and rebuild it in the clean container:
-  the [archive guide](../docs/reproduction-archive.md) lists the analyses added
-  since the clean-container rebuild of October. A test rebuild of a staged copy
+  the [rebuild record](../docs/reproduction-rebuilds.md) lists the analyses
+  added since the clean-container rebuild of October and records the
+  re-staging and its rebuild once run. A test rebuild of a staged copy
   on the development machine (17 November 2026) found six differing files; after
   they were put right, a second test the same evening rebuilt 1,483 files with
   none differing. The rebuild in the clean container is still to run. Run
@@ -111,7 +112,7 @@ generated tables that report documents. The archive rebuilds those tables with
 | 4.5, 5.3 Regions | [configuration provenance](../docs/configuration-provenance.md), [master tables](../results/master-tables-results.md), [density ladder](../results/density-ladder-sweep-results.md) |
 | 4.4, 5.1, 5.2, 5.4 Accuracy, density, rank stability, crown classes | [master tables](../results/master-tables-results.md), [model comparison](../results/model-benchmark-results.md) |
 | 6.1, 7 and Section S25 Choosing a detector by density (decision table) | [density routing](../results/density-routing-results.md), banded by [core density](../results/core-density-results.md) |
-| 4.7 Implementation and reproducibility | [reproduction archive](../docs/reproduction-archive.md) |
+| 4.7 Implementation and reproducibility | [reproduction archive](../docs/reproduction-archive.md), [rebuild record](../docs/reproduction-rebuilds.md) |
 | 4.4, 4.6, 5.1 Uncertainty and sensitivity | [matcher robustness](../results/matcher-robustness-results.md), [positional uncertainty](../results/positional-uncertainty-results.md), [temporal sensitivity](../results/temporal-sensitivity-results.md), [calibration/validation](../results/calibration-validation-results.md) |
 | 6, 7 Discussion and conclusion; Table 7 | the reports of the sections they summarise |
 | 2.3, 6.4 and the availability statement: ForestMamba, added after the tables were fixed | [ForestMamba benchmark](../results/forestmamba-results.md), [ForestMamba runtime](../gpu/forestmamba-sm120/README.md) |

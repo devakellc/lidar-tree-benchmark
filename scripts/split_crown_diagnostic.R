@@ -462,7 +462,7 @@ for (sc in c("all_plots", "censused")) {
   md <- c(md, sprintf("## %s (%d plots)", if (sc == "all_plots") "All scored plots, nominal cores" else
     "Censused subplots", np), "",
     "### Close pairs", "",
-    "| Arm | Detections | Close-pair rate | Lead over CHM-VWF | Closer than 1.5 m |",
+    sprintf("| Arm | Detections | Close-pair rate | Lead over CHM-VWF | Closer than %g m |", RMIN),
     "| --- | --- | --- | --- | --- |")
   for (a in arms_order) {
     p <- get(pooled, scope = sc, detector = a, chm = HEAD_CHM, threshold = HEAD_THR, metric = "close_rate")
@@ -516,7 +516,8 @@ for (sc in c("all_plots", "censused")) {
     }
     md <- c(md, "")
   }
-  md <- c(md, sprintf("### Matched pairs 1.5-4 m apart on one crown, per detected tree (%s)", HEAD_THR), "",
+  md <- c(md, sprintf("### Matched pairs %g-%g m apart on one crown, per detected tree (%s)", RMIN, RMAX,
+                      HEAD_THR), "",
           "| Arm | All matched pairs | Lead over CHM-VWF | No valley, p2r | Lead over CHM-VWF | No valley, pitfree | Lead over CHM-VWF |",
           "| --- | --- | --- | --- | --- | --- | --- |")
   for (a in arms_order) {

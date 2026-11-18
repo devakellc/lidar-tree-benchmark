@@ -221,7 +221,8 @@ nominal-box corrected leads on all 106 plots (43 and 63).
   in Washington, where its corrected lead in the nominal box on the same 45
   plots is +0.019 [−0.013, +0.053]. ForestFormer3D's is +0.034 and +0.030,
   excluding zero in neither.
-- At 2 m the regional contrast returns: the corrected censused leads are
+- At 2 m the leads are larger in California again, though the difference
+  between the regions was not tested: the corrected censused leads are
   +0.076 [+0.010, +0.143] (SegmentAnyTree) and +0.064 [+0.024, +0.106]
   (ForestFormer3D) in California, and +0.026 [−0.005, +0.056] and +0.002
   [−0.034, +0.039] in Washington.
@@ -399,19 +400,22 @@ Corrected censused lead over the unsmoothed baseline by region, 4 m:
   zero: SegmentAnyTree's at rungs 2 and 1 (−0.153 and −0.220), ForestFormer3D's
   at rung 2 (−0.050 [−0.100, −0.002]), `multichm`'s at native density and rungs
   4, 2 and 1, and those of `lmfauto`, `ptrees` and AMS3D on most levels.
-- Among the observed censused leads below native density only TreeisoNet's at
-  rung 4 excludes zero (+0.029 [+0.007, +0.047]); corrected it is +0.024
-  [−0.015, +0.055].
+- Among the positive observed censused leads below native density only
+  TreeisoNet's at rung 4 excludes zero (+0.029 [+0.007, +0.047]); corrected it
+  is +0.024 [−0.015, +0.055].
 - In the nominal box on the same plots no positive corrected lead over the
   unsmoothed baseline excludes zero on any level, native density included
   (SegmentAnyTree +0.027 [−0.005, +0.059] at native density).
 - Inside the censused subplots no positive corrected lead over the unsmoothed
   baseline excludes zero in either region alone at 4 m (in the nominal box of
-  the twelve California plots ForestFormer3D's does at rungs 8 and 2). The
-  regions differ in sign for `multichm` (positive in California at four levels,
-  negative in Washington at all six and excluding zero at five) and for
-  ForestFormer3D at rungs 3.2 and 1 (+0.016 and +0.026 in California, −0.025 and
-  −0.037 in Washington).
+  the twelve California plots SegmentAnyTree's and ForestFormer3D's do at
+  native density, +0.081 [+0.027, +0.127] and +0.059 [+0.018, +0.107], and
+  ForestFormer3D's at rungs 8 and 2, +0.060 and +0.050; on the 45 Washington
+  plots Li 2012's does at native density, narrowly, +0.018 [+0.001, +0.036]).
+  The regions differ in sign for `multichm` (positive in California at four
+  levels, negative in Washington at all six and excluding zero at five) and
+  for ForestFormer3D at rungs 3.2 and 1 (+0.016 and +0.026 in California,
+  −0.025 and −0.037 in Washington).
 - At native density the unsmoothed baseline's censused corrected F1 is 0.006
   above the declared one's (−0.006 [−0.016, +0.003] for declared minus
   unsmoothed), so every native lead is 0.006 smaller over it: SegmentAnyTree
@@ -512,8 +516,9 @@ leads over CHM-VWF (native density, 4 m):
 | AMS3D | −0.132 [−0.159, −0.107] | −0.131 [−0.156, −0.104] | −0.128 [−0.173, −0.081] | −0.123 [−0.169, −0.079] | −0.136 [−0.206, −0.080] | −0.120 [−0.184, −0.063] |
 | SAM2Point | −0.116 [−0.143, −0.089] | −0.117 [−0.145, −0.090] | −0.082 [−0.134, −0.033] | −0.083 [−0.137, −0.033] | −0.014 [−0.095, +0.058] | −0.010 [−0.100, +0.063] |
 
-- On the five sites the largest move of a corrected lead is 0.0017 at 4 m and
-  0.0021 at 2 m (SegmentAnyTree +0.017 to +0.015 at 2 m). In California the
+- On the five sites the largest move of a corrected lead is 0.0017 at 4 m
+  (AMS3D) and 0.0021 at 2 m (SAM2Point); SegmentAnyTree's moves by 0.0013 at
+  2 m (+0.017 to +0.015). In California the
   two segmenters' leads move by 0.001 and 0.004 at 4 m and by 0.002 and 0.001
   at 2 m.
 - At SOAP alone SegmentAnyTree's corrected lead falls from +0.072 to +0.065
@@ -586,8 +591,8 @@ arm on the five sites has a standard deviation of 0.008 to 0.013 at native
 density and 4 m, so the standard error of the 200-shift mean is 0.0006 to 0.0009
 (0.0005 to 0.0010 on every rung; 0.0003 to 0.0007 for the nominal box at native
 density). On the 12 California plots it is 0.0017 to 0.0030 on any rung, except
-for SegmentAnyTree at rung 1, where some shifts leave no detection in the
-interior and the error is not defined.
+for SegmentAnyTree at rung 1, where F1 is not defined for some shifts, most
+likely shifts with no match on the pooled plots, and so neither is the error.
 
 **Runs not made.** Other seeds and minimum shifts were not repeated inside the
 censused subplots; in the nominal box they move the five-site corrected leads by
@@ -611,8 +616,9 @@ agreement](matcher-robustness-results.md#chance-agreement)).
   window, but the 20 references outside the nominal box have part of their
   4 m match disc beyond it (see the sensitivity above). At 2 m the window is
   the box plus 2 m: three plots have interior beyond it (TEAK_013, TEAK_043
-  and WREF_073, 15.9 m² in total), and one reference (TEAK_013) lies beyond it,
-  so no shifted detection can match it.
+  and WREF_073, 15.9 m² in total), and one reference (TEAK_013) lies 0.34 m
+  beyond it, so most of its 2 m match disc is out of reach of the shifted
+  detections.
 - **The null is held fixed in the bootstrap.** As in the paper, the plot
   bootstrap resamples plots with each cell's null mean held fixed, so the
   Monte Carlo error of the null is not in the intervals. It is 0.0006 to

@@ -2,8 +2,9 @@
 
 Prepared 2026-09-30 from the committed study reports and a literature scan of
 about ninety primary sources. Revised 2026-10-05 after every arm was re-run on
-the frozen five-site population, and 2026-10-06 after the remaining
-pre-submission steps were completed. This document records which part of the
+the frozen five-site population, 2026-10-06 after the remaining
+pre-submission steps were completed, and 2026-11-16 to 2026-11-18 after a
+pre-submission review. This document records which part of the
 repository is proposed for a peer-reviewed paper, the outline of that paper,
 and the state of the work. Task tracking lives in the GitHub issues labelled
 `pre-paper`; this document stays free of tracker identifiers.
@@ -20,10 +21,13 @@ sparse behaviour. The repository contains both: the benchmark on one frozen
 population of 106 plots and 2,525 field stems, and a decimation test against
 earlier, sparser flights over 39 of the California plots.
 
-The evidence is complete. Every step of the pre-submission plan below is
-done except the archive deposit, every number the paper needs sits in a
-committed report with a plot-bootstrap interval, and the tables rebuild from
-the staged archive in a clean container. Writing can start on every section.
+As of 6 October 2026 the evidence was complete. Every step of the
+pre-submission plan below was done except the archive deposit, every number
+the paper needed sat in a committed report with a plot-bootstrap interval, and
+the tables rebuilt from the staged archive in a clean container. The
+pre-submission review of November 2026 added analyses that this archive does
+not hold; the archive's re-staging and its clean-container rebuild are in
+progress, and the [rebuild record](reproduction-rebuilds.md) records them.
 
 The results changed the expected story twice. The first version of this
 proposal expected deep segmenters to win at native density and collapse when
@@ -175,7 +179,7 @@ decimated rungs.
 | F1 gain after co-detection crediting, per arm | +0.07 to +0.14 | [coverage gap](../results/coverage-gap-results.md) |
 | CHM-VWF F1 change, native to 4.7 pulses/m²: California / Washington | −0.018 [−0.054, +0.017] / −0.070 [−0.098, −0.044] | [density ladder](../results/density-ladder-sweep-results.md) |
 | Native sparse flight vs decimated rungs, recall: CHM arms / ForestFormer3D and TreeisoNet / SegmentAnyTree (three California sites) | 0.03 to 0.05 lower / 0.03 to 0.05 lower / 0.06 to 0.19 lower | [native sparse epochs](../results/native-sparse-epoch-results.md) |
-| Decimated 3DEP minus decimated NEON, F1, 43 California plots: CHM-VWF / `multichm` | −0.014 [−0.047, +0.016] / −0.030 [−0.055, −0.006] | [native 3DEP cross-check](../results/native-ql2-crosscheck-results.md) |
+| Decimated 3DEP minus decimated NEON, F1, 43 California plots: CHM-VWF / `multichm` | −0.026 [−0.057, +0.006] / −0.015 [−0.037, +0.009] (corrected 17 November 2026 for noise-class and withheld points; before: −0.014 / −0.030 [−0.055, −0.006]) | [native 3DEP cross-check](../results/native-ql2-crosscheck-results.md) |
 | FGI-EMIT reserve apex F1, 257 trees: CHM-VWF / SegmentAnyTree / ForestFormer3D | 0.49 / 0.75 / 0.78 | [native pipeline](../results/final-ensemble-pipeline-results.md) |
 | ForestFormer3D lead over CHM-VWF on FGI-EMIT thinned to 11.3 / 5.4 / 2.9 / 1.5 / 0.7 pulses/m² | +0.08 / +0.20 / +0.21 / +0.18 / +0.17 | [FGI-EMIT thinning](../results/fgiemit-thinning-results.md) |
 | SegmentAnyTree lead over CHM-VWF on thinned FGI-EMIT: 2.9 / 1.5 / 0.7 pulses/m² | +0.19 / +0.03 [−0.04, +0.10] / −0.23 | [FGI-EMIT thinning](../results/fgiemit-thinning-results.md) |
@@ -191,7 +195,7 @@ decimated rungs.
 | Best fused mode minus best single arm, F1: native / rungs 8 to 1 | −0.009 / +0.009 to +0.022, in sample | [fusion study](../results/detector-fusion-results.md) |
 | Crown diameter RMSE, 790 common stems: stop-rule random walker / SegmentAnyTree | 1.71 m / 1.74 m | [crown benchmark](../results/crown-segmentation-results.md) |
 | Wall time per plot, native density: classical arms / ForestFormer3D / SegmentAnyTree | seconds / 64 to 104 s / 251 to 445 s | [compute cost](../results/compute-cost-results.md) |
-| Clean-container rebuilds of the archive, 5 and 6 October 2026 | 1,207 and 1,204 of 1,221 files byte-identical, none differing; the second run's report is kept | [archive guide](reproduction-archive.md) |
+| Clean-container rebuilds of the archive, 5 and 6 October 2026 | 1,207 and 1,204 of 1,221 files byte-identical, none differing; the second run's report is kept | [rebuild record](reproduction-rebuilds.md) |
 
 Every report the paper cites now opens with its five-site section; the
 historical three-site sections are marked as such and stay for the record.
@@ -402,7 +406,7 @@ The plan of 2026-09-30 had ten steps. Their outcomes:
 | 6. Native sparse validation | Done for CHM-VWF, `multichm` and SegmentAnyTree, then for the other learned arms in step 11. Hand-annotated canopy boxes stay a supplementary reference | [native sparse epochs](../results/native-sparse-epoch-results.md) |
 | 7. Fill or drop pending items | Done: crown and fusion results on the frozen population | [crown benchmark](../results/crown-segmentation-results.md), [fusion study](../results/detector-fusion-results.md) |
 | 8. Master tables and bootstrap intervals | Done, and extended in step 14 | [master tables](../results/master-tables-results.md) |
-| 9. Publication hygiene | Licence, bibliography, availability statement, pulse-density units, archive staging and a clean-container rebuild done. The deposit remains | [availability](data-code-availability.md) |
+| 9. Publication hygiene | Licence, bibliography, availability statement, pulse-density units, archive staging and a clean-container rebuild done as of 6 October 2026; the re-staging after the November revision and its clean-container rebuild are in progress. The deposit remains | [availability](data-code-availability.md), [rebuild record](reproduction-rebuilds.md) |
 | 10. Optional fine-tuning of SegmentAnyTree | Not pursued. Zero-shot use of published checkpoints is the stated scope | — |
 
 ### Outcome of the remaining steps
@@ -417,7 +421,7 @@ The seven steps added on 2026-10-05, numbered on from the first plan:
 | 14. Extend the master tables | Done: crown-class and height-band strata, regional tables and leads, rank stability with intervals, and the configuration provenance record | [master tables](../results/master-tables-results.md), [configuration provenance](configuration-provenance.md) |
 | 15. Settle mask scoring and bridge the dense control | Done. SegmentAnyTree is on the five-site mask board and the TreeisoNet mask voxel is declared; the proxy costs about a third of mask F1 on FGI-EMIT, so mask scores go to the supplement; thinning matches the NEON lead at 11 pulses/m² and keeps 0.17 to 0.21 below it, so the datasets are a contrast | [proxy validation](../results/fgiemit-proxy-validation-results.md), [FGI-EMIT thinning](../results/fgiemit-thinning-results.md) |
 | 16. Figures, detector table and compute cost | Done: nine figures with their numbers (seven in the manuscript, two in the supplement, redrawn for JSTARS), the detector table with verified training data, and timed runs of every arm | [detector table](../results/detector-table.md), [compute cost](../results/compute-cost-results.md) |
-| 17. Archive and reproduction | Staged (5.5 GB) and rebuilt in a clean container with no differing file; the deposit remains | [archive guide](reproduction-archive.md) |
+| 17. Archive and reproduction | Staged (5.5 GB) and rebuilt in a clean container with no differing file, as of 6 October 2026; the re-staging after the November revision and its clean-container rebuild are in progress; the deposit remains | [archive guide](reproduction-archive.md), [rebuild record](reproduction-rebuilds.md) |
 
 ### Before submission
 
@@ -488,8 +492,11 @@ censused subplots stays necessary.
 
 ## Timeline
 
-Every pre-submission step is complete except the Zenodo deposit, which takes
-a day once the final archive is approved. Writing needs four to six weeks.
+As of 6 October 2026 every pre-submission step was complete except the
+Zenodo deposit, which takes a day once the final archive is approved, and
+writing needed four to six weeks. The archive's re-staging after the November
+revision and its clean-container rebuild are in progress (see the [rebuild
+record](reproduction-rebuilds.md)).
 
 ## Spin-offs
 

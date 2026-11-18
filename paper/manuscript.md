@@ -37,9 +37,10 @@ pulses/m². At native density and a 4 m match radius, ForestFormer3D and
 SegmentAnyTree lead a canopy-height-model baseline by 0.048 and 0.044 F1, but
 randomly shifted detections reach 70–79% of every detector's F1. In
 chance-corrected F1 SegmentAnyTree leads by 0.03 on nominal plot cores and by
-0.06 inside censused subplots; in Washington, the held-out region, that lead
-excludes zero narrowly and not in sensitivity checks. ForestFormer3D's lead of
-0.02–0.03 does not exclude zero. SegmentAnyTree holds down to 1.8 pulses/m² and
+0.06 inside censused subplots; in Washington, the held-out region, the
+nominal-core lead does not exclude zero and the censused lead does so narrowly,
+and not in sensitivity checks. ForestFormer3D's lead of 0.02–0.03 does not
+exclude zero. SegmentAnyTree holds down to 1.8 pulses/m² and
 collapses below it, just under the U.S. Geological Survey quality level 2 floor
 of 2 pulses/m², while ForestFormer3D and TreeisoNet degrade gracefully;
 native-density rank predicts rank down to 1.8 pulses/m² (Spearman 0.71), not
@@ -491,15 +492,18 @@ much closer the detections lie to the mapped stems than shifted copies of the
 same detections; against an incomplete reference it compares detectors rather
 than measuring an attainable share.
 
-A simulation with detectors of known skill, scored with the same code, shows
-both errors (Section S27; figures at 4 m). Corrected recall falls short of the
-true skilled share by 0.06 to 0.14 in an unclustered stand and exceeds it by
-0.04 to 0.13 in tight clusters of which 60 to 80% of the trees are mapped; in
-loose clusters, the pattern nearest to the benchmark's reference stems, it lies
-from 0.07 below that share to 0.01 above it when the trees left out of the
-reference are a random share of the stand. In clustered stands, detections
-that lie beside trees rather than on them score without any skill: placed 5
-to 10 m from their trees, they reach a corrected recall of 0.11 to 0.15 and
+A post hoc simulation with detectors of known skill, scored with the same code,
+shows both errors (Section S27; figures at 4 m). Corrected recall falls short of
+the true skilled share by 0.05 to 0.16 in an unclustered stand of 60 to 400
+trees/ha and exceeds it by 0.04 to 0.13 in tight clusters of which 60 to 80% of
+the trees are mapped; in loose clusters it lies from 0.07 below that share to
+0.01 above it when the trees left out of the reference are a random share of the
+stand. Of the simulated patterns, the loose clusters are nearest to the
+reference stems of all 54 distributed plots; the stems of the 24 among them
+admitted to censused scoring (Section 4.3) lie between the loose clusters and
+the unclustered stand. In clustered stands, detections that lie beside trees
+rather than on them score without any skill: placed 5 to 10 m from their trees,
+they reach a corrected recall of 0.11 to 0.15 and
 lead a uniform detector without skill by 0.06 to 0.10 in corrected F1. For
 leads the simulation gives a condition rather than a sign. When a leader's
 extra detections were of its own trees or uniform, more skill gave a positive
@@ -515,9 +519,9 @@ most about three fifths of its size, observed, corrected and oracle alike. The
 benchmark does not measure where its unmapped trees stand, so the direction of
 the error is not established and a corrected recall lead is not by itself
 evidence of skill; we read corrected F1 leads beside the corrected recall leads
-and the censused scoring. For the extra detections, a diagnostic counts each
-detector's split-crown candidates: unmatched detections 1.5 to 4 m from one of
-its matched detections, with no valley deeper than 1 m in the canopy model
+and the censused scoring. For the extra detections, a post hoc diagnostic counts
+each detector's split-crown candidates: unmatched detections 1.5 to 4 m from one
+of its matched detections, with no valley deeper than 1 m in the canopy model
 between them (Section S28).
 
 Kappa is criticised in remote sensing because its chance term, a product of
@@ -620,9 +624,10 @@ apexes are matched within 4 m horizontally and 5 m in height. The ten
 development plots are also thinned under a protocol declared beforehand, by the
 thinning of Section 3.3, with targets at the whole-clip medians of the NEON
 levels without the QL2 level; the realised densities, which we report, are about
-15% above the targets, and so a fifth to a third above the core medians that
-name the NEON levels. The thinned series is scored under the 2 m apex rule,
-which keeps every instance whose top is at least 2 m above ground. Heights come
+15% above the targets, and so as much above the core median that names the
+native NEON level and about a quarter to a third above those that name the
+thinned levels. The thinned series is scored under the 2 m apex rule, which
+keeps every instance whose top is at least 2 m above ground. Heights come
 from the dense cloud, which gives a better terrain model than a sparse
 acquisition would.
 
@@ -688,21 +693,22 @@ trailing it narrowly and SegmentAnyTree level with it (Table S12e). The
 segmenters' advantage in the corrected scores is thus in recall, not in
 precision. Part of it may come from their detections being more numerous, over a
 third more than the baseline's: in simulation, split crowns adding as many
-detections without any gain in skill raise corrected recall by 0.09 to 0.13 in a
-stand clustered like the benchmark's, though not corrected F1 (Section 4.2), so
-the recall lead is not by itself evidence of skill. The benchmark's detections
+detections without any gain in skill raise corrected recall by 0.09 to 0.13 in
+the simulated loose clusters, though not corrected F1 (Section 4.2), so the
+recall lead is not by itself evidence of skill. The benchmark's detections
 show such splitting, at less than the simulated rate. Per detected tree,
 SegmentAnyTree and ForestFormer3D place 0.09 and 0.12 split-crown candidates
 against the baseline's 0.01, and 0.15 and 0.17 against 0.04 on a pit-free canopy
-model (Table S28). Counted the same way on the simulated stands, their excess
-over the baseline corresponds to split crowns on 0.26 to 0.43 of the detected
-trees, against the simulated 0.5 and 0.8, and to 0.03 to 0.07 of the recall
-lead; TreeisoNet and `multichm` place as many candidates and lead the baseline
-in corrected recall by 0.02 and 0.03. Split crowns thus explain part of the
-recall lead, and at a rate of 0.5 they give the simulation a corrected F1 lead
-of at most 0.011. About two fifths of the
-nominal core area can hold no reference stem, which in simulation lowers a real
-F1 lead, observed or corrected. Inside censused subplots SegmentAnyTree's
+model (Table S28). Counted the same way on the simulated loose clusters, their
+excess over the baseline corresponds to split crowns on 0.26 to 0.43 of the
+detected trees, against the simulated 0.5 and 0.8, and to 0.03 to 0.07 of the
+recall lead, a less clustered stand-in lowering the lift attributed to split
+crowns; TreeisoNet and `multichm` place as many candidates and lead the
+baseline in corrected recall by 0.02 and 0.03. Split crowns thus explain part
+of the recall lead, and at a rate of 0.5 they give a corrected F1 lead of at
+most 0.011 in the simulation's loose clusters. About two fifths of the nominal
+core area can hold no reference stem, which in simulation lowers a real F1
+lead, observed or corrected. Inside censused subplots SegmentAnyTree's
 corrected lead is +0.063 [+0.016, +0.108] and ForestFormer3D's +0.030 [−0.016,
 +0.074] (Section 5.5).
 
@@ -720,12 +726,13 @@ flight-year stems only (Section S21). The segmenters lead CHM-VWF by 0.03 to
 in every one of 200 draws that move each stem by its recorded uncertainty.
 Scored only against stems measured in the flight year, on 44 plots,
 ForestFormer3D's lead vanishes (+0.000 [−0.034, +0.034], against +0.034 with all
-stems on the same plots), and it stays near zero (+0.006 [−0.026, +0.037]) when
-the stems measured in other years are ignored, so that detections of them do not
-count as errors. Its matching pairs 69% of those stems, against 35% for CHM-VWF,
-and 45% of them are understory, against 18% of the flight-year stems: its lead
-on these plots rests largely on stems that the cut removes. SegmentAnyTree keeps
-its lead under both scorings, narrowly on the cut.
+stems on the same plots), and it stays near zero (+0.006 [−0.026, +0.037]) in a
+post hoc variant that ignores the stems measured in other years, so that
+detections of them do not count as errors. Its matching pairs 69% of those
+stems, against 35% for CHM-VWF, and 45% of them are understory, against 18% of
+the flight-year stems: its lead on these plots rests largely on stems that the
+cut removes. SegmentAnyTree keeps its lead under both scorings, narrowly on the
+cut.
 
 **Table 3.** Accuracy at native density (median 9.8 pulses/m²), five sites,
 nominal plot core (106 plots and 2,525 stems), with 95% intervals. Detections
@@ -909,9 +916,10 @@ baseline at SJER (Table S2).
 ### 5.4 Understory trees
 
 The point-clustering detectors and ForestFormer3D recall the most understory
-stems, and most understory recall at 4 m is reproduced by chance. At native
-density the nine LiDAR detectors recall 0.55 to 0.79 of the 1,872 overstory
-stems and 0.17 to 0.63 of the 592 understory stems (Fig. 5; Table S1; height
+stems, and randomly shifted copies of the detections reach most of each
+detector's understory recall at 4 m. At native density the nine LiDAR detectors
+recall 0.55 to 0.79 of the 1,872 overstory stems and 0.17 to 0.63 of the 592
+understory stems (Fig. 5; Table S1; height
 bands in Table S17): AMS3D, `ptrees` and ForestFormer3D 0.63, 0.46 and 0.45 of
 the understory stems, SegmentAnyTree 0.29 and CHM-VWF 0.17. Understory recall
 falls with density for most detectors; at 0.6 pulses/m² ForestFormer3D keeps
@@ -972,12 +980,12 @@ distinguishably. A lead that doubles from the nominal cores to the censused
 subplots is what the simulation gives for a real difference in skill when half
 of a core holds no reference, for observed and corrected leads alike (Section
 S27), and part of it is scale, since every detector's corrected F1 is higher
-inside censused subplots. The plot types do not show that mechanism, however. On
-the 54 distributed plots, whose core is a single 20 m subplot, the nominal-core
-corrected leads of SegmentAnyTree and ForestFormer3D are +0.022 and +0.027, with
-intervals that include zero on a third of the stems, and on the half-mapped
-tower plots SegmentAnyTree's is larger, +0.042, and ForestFormer3D's only
-slightly smaller, +0.021 (Table S12k).
+inside censused subplots. The plot types, split post hoc, do not show that
+mechanism, however. On the 54 distributed plots, whose core is a single 20 m
+subplot, the nominal-core corrected leads of SegmentAnyTree and ForestFormer3D
+are +0.022 and +0.027, with intervals that include zero on a third of the stems,
+and on the half-mapped tower plots SegmentAnyTree's is larger, +0.042, and
+ForestFormer3D's only slightly smaller, +0.021 (Table S12k).
 
 The co-detection credit raises F1 by 0.07 to 0.14 per detector at its best
 density per site and leaves the two segmenters in the lead (Table S5). Both
@@ -1261,20 +1269,21 @@ bias the results, and where it is tested.
 | A 4 m match radius admits chance matches; the shift null is not an estimate of the chance part of a score | Raises every F1, shifted copies reaching 70 to 79% of native F1; in simulation corrected F1 leads understate a difference in skill when the extra detections are of the leader's own trees or uniform and overstate it when they lie beside trees (unmapped trees, split crowns), and corrected recall credits extra detections; the segmenters split crowns at about half the simulated rate or less, enough for part of their recall lead, and where the unmapped trees stand is not measured | Sections 4.2, 5.1, S12, S21, S27 and S28 |
 | Thinning instead of native sparse acquisitions; one seed per density level | Optimistic, mildly for four detectors and strongly for SegmentAnyTree's recall, untested at or below QL2; seed spread measured for the baseline only | Sections 3.3, 3.4 and 5.6 |
 | The baseline's pre-declared smoothing rule | Costs it about 0.06 F1 and 0.02 to 0.04 corrected F1 on the thinned levels, inflating the leads over it | Sections 5.2 and S16 |
-| Settings developed in California; chance null, censused null, unsmoothed baseline, core densities and the decision table of Section 6.1 added post hoc | Favour California scores, Washington held out; choices not blind to Washington, the table's picks selected on California only, and its pick between the QL2 and QL1 floors changes with the definition of density | Sections 4.5, 4.7, 5.3, 6.1, S11, S19, S25 and S26 |
+| Settings developed in California; chance null, censused null, unsmoothed baseline, core densities, the simulation of the correction, the split-crown count and the decision table of Section 6.1 added post hoc | Favour California scores, Washington held out; choices not blind to Washington, the table's picks selected on California only, and its pick between the QL2 and QL1 floors changes with the definition of density | Sections 4.5, 4.7, 5.3, 6.1, S11, S19, S25, S26, S27 and S28 |
 | Pooling weights sites by stems, Washington holding 74%; intervals not adjusted for multiple contrasts | Five-site estimates are mostly Washington estimates; about five of 90 corrected-lead contrasts would exclude zero by chance alone | Sections 4.4 and S19 |
 | Learned detectors inferred once; TreeisoNet's threshold untuned for its voxel, no dense-domain control; Li 2012 run at native density only | Run-to-run variation of ForestFormer3D and TreeisoNet unknown, and of the size of the margins that decide the decision table's picks if it resembles ForestMamba's; TreeisoNet's precision-recall balance, hence its flat response, is that of an arbitrary operating point; Li 2012's density response unknown | Not tested (Sections 4.1, 4.4 and 6.1) |
 | DeepForest trained on annotations from SJER and TEAK; checkpoints' training histories incomplete | Could favour DeepForest there, though its California lead does not follow them; overlap with the test data not excluded | Sections 3.5 and 5.3 |
 | Oak woodland and conifer forest in two western regions only; SJER's 31 March flight may precede its blue oaks' full leaf-out | Results may not transfer to closed-canopy broadleaf or deciduous forest | Not tested |
 | Mask quality not assessed on NEON | Rankings of masks rest on a proxy reference | Sections S7 and S8 |
 
-Three threats bear on every conclusion: the reference is incomplete, so
-nominal-plot precision is a lower bound and the corrected scores, which measure
-agreement beyond shifted copies of the same detections, are not bounds on
-skill; every density below native is simulated by thinning, which the
+Of the threats in Table 7, three bear on every conclusion: the reference is
+incomplete, so nominal-plot precision is a lower bound and the corrected scores,
+which measure agreement beyond shifted copies of the same detections, are not
+bounds on skill; every density below native is simulated by thinning, which the
 one native comparison, at 3 to 5 pulses/m², suggests is optimistic; and the
-chance null, its censused form, the unsmoothed baseline and the decision table
-were added after the five-site results were known. The learned detectors are
+chance null, its censused form, the unsmoothed baseline, the simulation of the
+correction, the split-crown count and the decision table were added after the
+five-site results were known. The learned detectors are
 evaluated zero-shot, as a practitioner would use published checkpoints; NEON
 provides stems and not instance labels, so the benchmark says nothing about what
 training at these densities could achieve. A fourth learned detector,
@@ -1299,12 +1308,14 @@ sensitivity checks. ForestFormer3D's lead of 0.02 to 0.03 does not exclude zero.
 A corrected score measures agreement beyond shifted copies of the same
 detections. In simulation a corrected F1 lead understates a difference in skill
 when the extra detections are of the leader's own trees or uniform and
-overstates it when they lie beside trees, and in a stand clustered like the
-benchmark's, split crowns at the segmenters' surplus of detections reproduce
-their corrected recall lead but not a positive corrected F1 lead. In the
-benchmark's own detections the segmenters split crowns at about half that rate
-or less, enough for part of the recall lead. The corrected leads are therefore
-not bounds on a difference in skill.
+overstates it when they lie beside trees, and in loose clusters, the simulated
+stand nearest to the reference stems of all distributed plots, split crowns at
+the segmenters' surplus of detections reproduce their corrected recall lead but
+not a positive corrected F1 lead. In the benchmark's own detections the
+segmenters split crowns at about half that rate or less, enough for part of the
+recall lead, and for a smaller part if the stands are as little clustered as the
+reference stems of the distributed plots admitted to censused scoring. The
+corrected leads are therefore not bounds on a difference in skill.
 
 Density response is a property of the individual model, not of its family (RQ2):
 SegmentAnyTree collapses just below the QL2 floor, between 1.8 and 1.1
@@ -1384,7 +1395,7 @@ data, code and weights.
 
 During the preparation of this work the author used Claude Code (Anthropic), an
 AI assistant. All sections of the manuscript, Sections 1 to 7 with the abstract,
-and all sections of the supplement, Sections S1 to S27, contain text that was
+and all sections of the supplement, Sections S1 to S28, contain text that was
 drafted with this tool from the repository's study reports, which were written
 with the same tool under the author's direction, and then revised by the author.
 The tool was used at four levels: to draft and edit the text; to search

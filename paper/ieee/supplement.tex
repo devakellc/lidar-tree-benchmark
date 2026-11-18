@@ -824,7 +824,9 @@ nominal cores (Table~S16c), and the leads over it grow accordingly. Four of the
 fifteen positive leads that exclude zero below native density do not without the
 nine plots with a reference outside the nominal core: SegmentAnyTree's and
 \texttt{multichm}'s at 1.8 pulses/m\textsuperscript{2}, ForestFormer3D's at 1.1 and \texttt{ptrees}'s at 4.4.
-Over the baseline without its smoothing none of the fifteen excludes zero (Table~S16e).
+Over the baseline without its smoothing none of the fifteen remains a positive
+lead that excludes zero, and two become negative leads that exclude zero,
+ForestFormer3D's at 1.1 and \texttt{ptrees}'s at 4.4 pulses/m\textsuperscript{2} (Table~S16e).
 
 {\footnotesize
 \setlength{\tabcolsep}{3pt}
@@ -985,17 +987,19 @@ measurement. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blo
 audit}, added after an
 internal review.
 
-\textbf{Fire at SOAP.} A wildfire passed between part of the SOAP reference and the
-2021 flight. The perimeter of the 2020 Creek Fire (4 September to 24 December
-2020) as CAL FIRE maps it contains six of the 18 SOAP plots (Table~S14c). The
-interagency copies of the same perimeter have the same shape about 0.9 km away
-and contain none, the nearest plot lying 256 m outside; NEON's field records
-mention fire or scorch on every one of the 18 SOAP plots with records after the
-fire's start, seven of them benchmark plots, which fits CAL FIRE's placement
-better. The three tower plots inside CAL FIRE's perimeter were re-measured after
-the fire. The three distributed plots there, like all eleven distributed SOAP
-plots (96 stems), have references measured only before it, from June 2019 to
-March 2020, so a tree killed or consumed before the flight of 12 and 13 July
+\textbf{Fire at SOAP.} A wildfire may have passed between part of the SOAP reference
+and the 2021 flight. The perimeter of the 2020 Creek Fire (4 September to 24
+December 2020) as CAL FIRE maps it contains six of the 18 SOAP plots (Table~S14c). The interagency copies of the same perimeter have the same shape about
+0.9 km away and contain none, the nearest plot lying 256 m outside; NEON's
+individual measurement records mention fire or scorch on every one of the 18
+SOAP plots with such records after the fire's start, seven of them benchmark
+plots, which fits CAL FIRE's placement better. Its mapping-and-tagging records
+dated after the fire's start cover 39 SOAP plots, 17 of them benchmark plots,
+and only two of these records, both at one plot outside the benchmark, mention
+a burn zone. The three tower plots inside CAL FIRE's perimeter were re-measured
+after the fire. The three distributed plots there, like all eleven distributed
+SOAP plots (96 stems), have references measured only before it, from June 2019
+to March 2020, so a tree killed or consumed before the flight of 12 and 13 July
 2021 is still a reference and is scored as a missed stem. Leaving out the three
 distributed plots inside CAL FIRE's perimeter (22 stems) moves no five-site
 corrected lead at 4 m by more than 0.002 and the two segmenters' California
@@ -2278,7 +2282,8 @@ every thinned level. The QL2 level was declared on its whole-clip median, and
 the repository's reports name the levels by whole-clip medians (4.7, 2.5, 2.0,
 1.3 and 0.6 pulses/m\textsuperscript{2}). No detector was re-run and no detector's score at any
 density level depends on the choice: the baseline's density rules read the
-whole-clip density, as in the runs. Only the level names and the bands, picks
+whole-clip density, as in the runs. Only the level names, the density
+comparisons with the native sparse flights (Table~S26b) and the bands, picks
 and route scores of Section~S25 use the core density. The measurement was added
 after an internal review, when all results were known. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/core-density-results.md}{core-density
 study}.
@@ -2363,21 +2368,21 @@ pairs as matches. Each setting pools 200 plots with 200 shifts each.
 
 Three scenarios use an unclustered stand, random beyond a minimum spacing of 1.5
 m, with every tree mapped, at 240 trees per hectare, as dense as the benchmark's
-reference stems over its nominal cores, and at 60, 150 and 300 per hectare in
-one series (Table~S27a). A fourth varies what those hold fixed (Tables~S27b and
-S27c). Its stand is unclustered, in loose clusters (radius 8 m, four trees on
-average) or in tight clusters (radius 4 m, six trees), and its reference maps a
-random 100\%, 80\% or 60\% of the trees, at 240 trees/ha or, with the reference
-density held, at 300 and 400. It adds detectors whose detections follow the
-trees without finding the mapped stems: two without skill, one placing each
-detection 5 to 10 m from its tree and one detecting only unmapped trees, and the
-baseline with split crowns, a second detection 1.5 to 4 m from some of the trees
-it detects. The plots have no crowns and no canopy layers, so the study shows
-how the statistic behaves and does not reproduce the benchmark's numbers. It was
-added after an internal review, when all results were known; the fourth scenario
-followed a second review, which showed that the first three could only find the
-correction conservative, and the split crowns a third, which showed the same of
-the leads in the fourth. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/chance-correction-simulation-results.md}{chance-correction
+reference stems over its nominal cores (Table~S27a), and at 60, 150 and 300 per
+hectare in one series, given in the text. A fourth varies what those hold fixed
+(Tables~S27b and S27c). Its stand is unclustered, in loose clusters (radius 8 m,
+four trees on average) or in tight clusters (radius 4 m, six trees), and its
+reference maps a random 100\%, 80\% or 60\% of the trees, at 240 trees/ha or, with
+the reference density held, at 300 and 400. It adds detectors whose detections
+follow the trees without finding the mapped stems: two without skill, one
+placing each detection 5 to 10 m from its tree and one detecting only unmapped
+trees, and the baseline with split crowns, a second detection 1.5 to 4 m from
+some of the trees it detects. The plots have no crowns and no canopy layers, so
+the study shows how the statistic behaves and does not reproduce the benchmark's
+numbers. It was added after an internal review, when all results were known; the
+fourth scenario followed a second review, which showed that the first three
+could only find the correction conservative, and the split crowns a third, which
+showed the same of the leads in the fourth. Source: \href{https://github.com/devakellc/lidar-tree-benchmark/blob/main/results/chance-correction-simulation-results.md}{chance-correction
 simulation}.
 
 {\scriptsize
@@ -2487,19 +2492,20 @@ Tight clusters & 60\% & +0.030 [+0.023, +0.036]; +0.046 & $-$0.046 [$-$0.056, $-
 \renewcommand{\arraystretch}{1.15}
 \begin{xltabular}{\textwidth}{LlllLLLL}
 \multicolumn{8}{@{}p{\textwidth}@{}}{\normalsize\textbf{Table S27d.} Clustering of reference stems: on the 54 distributed plots,
-which NEON censuses whole (SJER has none), the number of other reference stems
+which NEON's design censuses whole (SJER has none), and on the 24 of them
+admitted to censused scoring (Table~S4), the number of other reference stems
 within 2 and 4 m of a stem against the number that as many stems placed at
 random in the same 20 m box would give, as a ratio and as an excess (observed
 minus random), beside the simulated stands at 400 trees/ha with every tree
 mapped. The ratio falls as density rises for clusters of a fixed size; the
 excess does not. With 95\% intervals from plot resamples.} \\[4pt]
 \hline
-Stems & Plots & Stems & Stems/ha & Within 2 m: ratio & Within 2 m: excess & Within 4 m: ratio & Within 4 m: excess \\
+Source & Plots & Stems & Stems/ha & Within 2 m: ratio & Within 2 m: excess & Within 4 m: ratio & Within 4 m: excess \\
 \hline
 \endfirsthead
 \multicolumn{8}{@{}l@{}}{\normalsize\textbf{Table S27d} (continued)} \\[4pt]
 \hline
-Stems & Plots & Stems & Stems/ha & Within 2 m: ratio & Within 2 m: excess & Within 4 m: ratio & Within 4 m: excess \\
+Source & Plots & Stems & Stems/ha & Within 2 m: ratio & Within 2 m: excess & Within 4 m: ratio & Within 4 m: excess \\
 \hline
 \endhead
 \hline
@@ -2509,6 +2515,7 @@ TEAK & 13 & 168 & 323 & 1.56 [1.11, 2.02] & +0.24 [+0.04, +0.44] & 1.30 [1.11, 1
 WREF & 18 & 378 & 525 & 1.19 [0.81, 1.48] & +0.19 [$-$0.12, +0.61] & 1.10 [0.95, 1.19] & +0.37 [$-$0.11, +0.85] \\
 ABBY & 12 & 234 & 488 & 0.66 [0.31, 0.96] & $-$0.23 [$-$0.39, $-$0.03] & 1.16 [0.98, 1.37] & +0.40 [$-$0.03, +0.78] \\
 Four sites & 54 & 876 & 406 & 1.11 [0.86, 1.34] & +0.08 [$-$0.08, +0.30] & 1.14 [1.06, 1.21] & +0.37 [+0.13, +0.63] \\
+Admitted to censused scoring & 24 & 447 & 466 & 0.92 [0.72, 1.09] & $-$0.06 [$-$0.17, +0.06] & 1.06 [0.97, 1.14] & +0.16 [$-$0.07, +0.38] \\
 Simulated, unclustered & 200 & 12811 & 400 & 0.45 [0.43, 0.47] & $-$0.25 [$-$0.26, $-$0.24] & 0.87 [0.85, 0.88] & $-$0.22 [$-$0.25, $-$0.19] \\
 Simulated, loose clusters & 200 & 12536 & 392 & 1.24 [1.20, 1.28] & +0.12 [+0.10, +0.14] & 1.20 [1.18, 1.23] & +0.38 [+0.34, +0.43] \\
 Simulated, tight clusters & 200 & 12550 & 392 & 2.65 [2.56, 2.76] & +0.95 [+0.91, +1.00] & 2.20 [2.13, 2.28] & +2.53 [+2.39, +2.66] \\
@@ -2516,52 +2523,57 @@ Simulated, tight clusters & 200 & 12550 & 392 & 2.65 [2.56, 2.76] & +0.95 [+0.91
 }
 
 Whether corrected recall falls short of the true skilled share or exceeds it
-depends on the stand and on the reference (Table~S27b). In the unclustered
-stand it is below the truth in every setting, by 0.06 to 0.14 at 4 m and by
-0.02 to 0.07 at 2 m, whether or not trees are left out of the reference: stems
-that the detector missed find fewer chance partners than the shifted copies
-offer, because the detections near them are taken by their own stems. In the
-tight clusters it is within 0.02 of the truth at 4 m when every tree is mapped,
-and above it by 0.04 to 0.06 with 80\% of the trees mapped and by 0.08 to 0.13
-with 60\%. The loose clusters lie between, 0.07 below the truth with every tree
-mapped, 0.03 to 0.05 below with 80\% mapped, and from 0.03 below to 0.01 above
-with 60\%, when the trees left out of the reference are a random share of the
-stand. A detection beside a mapped stem rather than on it, whether of a tree
-that the reference leaves out, of a split crown or of no tree, can match that
-stem when the stem's own detection is missing, and few shifted copies reproduce
-that. The displaced detector, without skill, therefore reaches +0.11 to +0.15
-in corrected recall at 4 m in the clustered stands, with every tree mapped or
-not, and the unmapped-only detector +0.04 to +0.14 with 80\% of the trees mapped
-and +0.10 to +0.31 with 60\%; both score about zero in the unclustered stand. A
-corrected score above zero shows that the detections lie closer to the
-reference stems than shifted copies of them, which in a clustered stand holds
-for any detections that follow the trees. A uniform detector without skill
-scores within 0.03 of zero in every setting.
+depends on the stand and on the reference (Table~S27b). In the unclustered stand
+it is below the truth in every setting, by 0.05 to 0.16 at 4 m (0.06 to 0.14 at
+240 trees/ha on complete references) and by 0.02 to 0.07 at 2 m, whether or not
+trees are left out of the reference: stems that the detector missed find fewer
+chance partners than the shifted copies offer, because the detections near them
+are taken by their own stems. In the tight clusters it is within 0.02 of the
+truth at 4 m when every tree is mapped, and above it by 0.04 to 0.06 with 80\% of
+the trees mapped and by 0.08 to 0.13 with 60\%. The loose clusters lie between,
+0.07 below the truth with every tree mapped, 0.03 to 0.05 below with 80\% mapped,
+and from 0.03 below to 0.01 above with 60\%, when the trees left out of the
+reference are a random share of the stand. A detection beside a mapped stem
+rather than on it, whether of a tree that the reference leaves out, of a split
+crown or of no tree, can match that stem when the stem's own detection is
+missing, and few shifted copies reproduce that. The displaced detector, without
+skill, therefore reaches +0.11 to +0.15 in corrected recall at 4 m in the
+clustered stands, with every tree mapped or not, and the unmapped-only detector
++0.04 to +0.14 with 80\% of the trees mapped and +0.10 to +0.31 with 60\%. In the
+unclustered stand the displaced detector scores about zero, and the
+unmapped-only detector about zero or below it ($-$0.043 [$-$0.061, $-$0.024] at 400
+trees/ha with 60\% mapped). A corrected score above zero shows that the
+detections lie closer to the reference stems than shifted copies of them, which
+in a clustered stand holds for any detections that follow the trees. A uniform
+detector without skill scores a corrected F1 within 0.03 of zero in every
+setting, and a corrected recall of $-$0.025 to +0.040 (7 of the 60 intervals of
+the fourth scenario exclude zero, all in the clustered stands).
 
 Corrected F1 leads behave as intended when a leader's extra detections are of
 its own trees or uniform (Tables~S27a and S27c). More skill at equal commission,
 (b), gives a positive lead in all 60 settings of the fourth scenario (three
 stands, five combinations of density and mapped share, two radii, complete and
 half references), and more uniform commission at equal skill, (c), a negative
-one in all, as the null guarantees: uniform points match as often after a shift
-as before, and fewer stems are free for them before it. The corrected F1 leads
-of (a) and (b) stay below their oracle leads in every setting; (a), whose skill
-comes with more detections, gains 0.149 in skilled share and 0.047 in oracle F1
-in the unclustered stand with every tree mapped, but +0.009 [$-$0.002, +0.019] in
-corrected F1 at 4 m. Extra detections that follow the trees reverse this. With
-split crowns, (d), the corrected F1 lead lies above the oracle lead in all 60
-settings of each rate. It stays negative in the unclustered stand; at 4 m it
-turns positive in the tight clusters with every tree or 80\% of the trees mapped
-(up to +0.062 [+0.054, +0.071]), and in the loose clusters at rate 0.8 is
-$-$0.001 [$-$0.011, +0.008] with every tree mapped and $-$0.031 to $-$0.055 otherwise
-at 4 m. Split crowns raise corrected recall by +0.094 to +0.126 at 4 m in the
-loose clusters at that rate, and the displaced detector leads the uniform one
-by +0.057 to +0.099 in corrected F1 at 4 m in the clustered stands. Uniform
-commission alone also raises corrected recall at 4 m, by 0.01 to 0.06 on
-complete references and by 0.01 to 0.07 on half ones. A corrected F1 lead
-therefore understates a difference in skill when the extra detections are of
-the leader's own trees or uniform and overstates it when they lie beside trees,
-and a corrected recall lead is not by itself evidence of skill.
+one in all, as expected though not guaranteed by the null: uniform points match
+as often after a shift as before, and fewer stems are free for them before it.
+The corrected F1 leads of (a) and (b) stay below their oracle leads in every
+setting; (a), whose skill comes with more detections, gains 0.149 in skilled
+share and 0.047 in oracle F1 in the unclustered stand with every tree mapped,
+but +0.009 [$-$0.002, +0.019] in corrected F1 at 4 m. Extra detections that follow
+the trees reverse this. With split crowns, (d), the corrected F1 lead lies above
+the oracle lead in all 60 settings of each rate. It stays negative in the
+unclustered stand; at 4 m it turns positive in the tight clusters with every
+tree or 80\% of the trees mapped (up to +0.062 [+0.054, +0.071]), and in the
+loose clusters at rate 0.8 is $-$0.001 [$-$0.011, +0.008] with every tree mapped and
+$-$0.031 to $-$0.055 otherwise at 4 m. Split crowns raise corrected recall by +0.094
+to +0.126 at 4 m in the loose clusters at that rate, and the displaced detector
+leads the uniform one by +0.057 to +0.099 in corrected F1 at 4 m in the
+clustered stands. Uniform commission alone also raises corrected recall at 4 m,
+by 0.01 to 0.06 on complete references and by 0.01 to 0.07 on half ones. A
+corrected F1 lead therefore understates a difference in skill when the extra
+detections are of the leader's own trees or uniform and overstates it when they
+lie beside trees, and a corrected recall lead is not by itself evidence of
+skill.
 
 Leaving half of the core unsampled cuts the F1 lead of (b) to between 0.28 and
 0.56 of its size when corrected, between 0.10 and 0.58 when observed and
@@ -2575,13 +2587,17 @@ trees/ha, where the null is 33\% of the baseline's F1, and +0.004 to +0.009, not
 distinguishable from zero, at 150 to 300 trees/ha, where the oracle lead stays
 at +0.036 to +0.047.
 
-The benchmark's reference stems are slightly clustered (Table~S27d): within 4 m
-a stem has 0.37 [0.13, 0.63] more neighbouring stems than random placement
-would give, as in the loose clusters (+0.38), far fewer than in the tight ones
-(+2.53), and more than in the unclustered stand ($-$0.22); within 2 m the excess
-cannot be told from random. In the loose clusters split crowns at about the
-segmenters' surplus of detections give no positive corrected F1 lead but
-reproduce a corrected recall lead of about 0.1. The direction of the error also
+On the 54 distributed plots the benchmark's reference stems are slightly
+clustered (Table~S27d): within 4 m a stem has 0.37 [0.13, 0.63] more
+neighbouring stems than random placement would give, as in the loose clusters
+(+0.38), far fewer than in the tight ones (+2.53), and more than in the
+unclustered stand ($-$0.22); within 2 m the excess cannot be told from random. On
+the 24 of them admitted to censused scoring the excess is +0.16 [$-$0.07, +0.38]
+within 4 m and $-$0.06 [$-$0.17, +0.06] within 2 m, between the unclustered stand
+and the loose clusters and at neither radius distinguishable from random. In
+the loose clusters split crowns at about the segmenters' surplus of detections
+give no positive corrected F1 lead but reproduce a corrected recall lead of
+about 0.1. The direction of the error also
 depends, however, on where the trees that the reference leaves out and the
 detectors' extra detections stand relative to the reference stems. The
 benchmark does not measure the first: its reference leaves out stems below 10
@@ -2661,8 +2677,10 @@ stem's match is not a candidate; pairs of matched detections with no valley
 between them, which also count neighbours that a detector resolves, correspond
 to split rates of 0.33 to 0.59 for SegmentAnyTree and 0.31 to 0.46 for
 ForestFormer3D, the only view that reaches the simulated 0.5. And the equivalent
-rates assume that the loose clusters stand in for the benchmark's stands; only
-native density was examined.
+rates assume that the loose clusters stand in for the benchmark's stands, which
+on the distributed plots admitted to censused scoring are less clustered
+(Section~S27), and a less clustered stand-in lowers the lift attributed to split
+crowns; only native density was examined.
 
 {\scriptsize
 \setlength{\tabcolsep}{3pt}

@@ -13,11 +13,18 @@
 #              from run to run, single-threaded too, which moves apex heights
 #              and height errors. In repeats of the baseline it also changed
 #              one tree top in a few cells (12 of 1,184 configurations, a
-#              scored count in one), so the steps whose tables are compared
-#              strictly re-score persisted detections and do not re-detect.
-#              Counts and rates never get this allowance. Summed crown
-#              overlaps measured on that canopy model (iou_sum_*) inherit
-#              the same noise and are allowed OVERLAP_TOL (default 0.01).
+#              scored count in one). Most strictly compared tables re-score
+#              persisted detections; the others come from classical detectors
+#              that the rebuild re-runs, directly or through the treetop
+#              caches it re-detects: the coverage-gap ladder
+#              (coverage_gap.csv), the fusion (fusion_results.csv,
+#              fusion_rgb_summary.csv) and the crown steps
+#              (crown_metrics_results.csv, crown_metrics_3d_results.csv).
+#              Those tables, and what is built from them, are compared
+#              strictly too. Counts and rates never get this allowance.
+#              Summed crown overlaps measured on that canopy model
+#              (iou_sum_*) inherit the same noise and are allowed
+#              OVERLAP_TOL (default 0.01).
 #   differs    anything else, listing the columns that differ
 #   missing    archived but not rebuilt; extra: rebuilt but not archived
 # A PATHS line starting with "~" marks intermediate outputs (the re-detected
@@ -38,8 +45,9 @@ TOL <- if (is.null(A$TOL)) 1e-8 else as.numeric(A$TOL)
 LENGTH_TOL <- if (is.null(A$LENGTH_TOL)) 0.01 else as.numeric(A$LENGTH_TOL)
 OVERLAP_TOL <- if (is.null(A$OVERLAP_TOL)) 0.01 else as.numeric(A$OVERLAP_TOL)
 # Columns holding lengths in metres; everything else (counts, rates, scores)
-# must match within TOL.
-LENGTH_COL <- "^(x|y|z|X|Y|Z)$|height|_h$|^h_|rmse|bias|mae|diam|d_eq|d_caliper|_m$"
+# must match within TOL. "bias" is the crown tables' error column only, so an
+# F1-scale bias (baseline_bias) is compared as a rate.
+LENGTH_COL <- "^(x|y|z|X|Y|Z)$|height|_h$|^h_|rmse|^bias$|mae|diam|d_eq|d_caliper|_m$"
 OVERLAP_COL <- "^iou_sum_"
 TOPS <- list.dirs(A$ARCHIVE, recursive = FALSE, full.names = FALSE)
 

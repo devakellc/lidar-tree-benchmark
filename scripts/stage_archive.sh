@@ -22,6 +22,8 @@
 #
 # Also writes <OUT>/model-provenance.json (from docs/), <OUT>/README.md
 # (from docs/reproduction-archive.md) and <OUT>/SHA256SUMS over every file.
+# Stops before writing anything while scripts/, docs/ or reproduce/ hold changed
+# or untracked files: CODE_COMMIT records HEAD and must name the staging code.
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="$REPO/work"; OUT=""
@@ -34,6 +36,11 @@ for a in "$@"; do
 done
 [ -n "$OUT" ] || { echo "OUT= is required" >&2; exit 2; }
 [ ! -e "$OUT" ] || { echo "OUT exists: $OUT (stage into a new directory)" >&2; exit 2; }
+# CODE_COMMIT records HEAD, so the code the archive depends on must be HEAD's.
+dirty="$(git -C "$REPO" status --porcelain -- scripts docs reproduce)" ||
+  { echo "cannot read the git status of $REPO" >&2; exit 1; }
+[ -z "$dirty" ] || { printf '%s\n' "uncommitted changes under scripts/, docs/ or reproduce/ of $REPO;" \
+  "CODE_COMMIT records HEAD, so commit or remove them before staging:" "$dirty" >&2; exit 1; }
 WORK="$(cd "$WORK" && pwd)"
 [ -f "$WORK/neon/frozen_2021/clip_manifest.csv" ] || { echo "no sealed root under $WORK/neon/frozen_2021" >&2; exit 1; }
 
@@ -50,6 +57,7 @@ ROOTS=(frozen_2021 frozen_2021_ql2)
 QL2_SITES=(SJER SOAP TEAK)
 SPARSE=(sparse_2017 sparse_2018 sparse_compare_2021)
 EXCL=(--exclude=/neon/frozen_2021 --exclude=/neon/frozen_2021_ql2 --exclude=rgb/ --exclude=lidar/ --exclude=figs/
+      --exclude=figures_jstars/   # the figures as drawn on 22 October 2026, since redrawn into figures/
       --exclude=chain/ --exclude=.rumdl_cache/ --exclude=sjer_header_check/ --exclude=nte/
       --exclude='*.log' --exclude='*.nohup' --exclude='*.progress'
       --exclude='master_tables.*/' --exclude='*.prev' --exclude='*.oldcrop-*'

@@ -108,8 +108,9 @@ years. Records by measurement year:
 | ABBY | 0 | 1 | 184 | 1 | 550 | 7 | 3 | 54 |
 | All | 1 | 1 | 368 | 155 | 1,318 | 504 | 94 | 84 |
 
-SJER has no 2021 census: its references were measured one to three years
-after its flight of 31 March 2021. The other flights were in July 2021.
+SJER has no 2021 census: its references were measured 9 months to 3.6 years
+after its flight of 31 March 2021 (January 2022 to November 2024). The other
+flights were in July 2021.
 
 ## Fire history
 
@@ -188,14 +189,18 @@ FIRE's placement six adopted plots are inside; under the NIFC placement none
 is, the nearest centroid lying 256 m outside. The Blue and Garnet perimeters
 agree across their sources.
 
-NEON field records dated after the fire's start exist at 18 SOAP plots (7
-adopted, 11 others), and each plot has records whose remarks or status
-mention fire, burning or scorch. With CAL FIRE's placement 14 of the 18
-centroids lie inside the Creek or Blue perimeter and the other 4 within 63 to
-182 m of one. With the NIFC placement only the four inside the Blue perimeter
-do; the others lie up to 924 m from either. The field remarks fit CAL FIRE's
-placement better. The audit does not establish which copy is correctly
-georeferenced, and a scorch remark does not date the fire that left it.
+NEON individual measurement records (`vst_apparentindividual`) dated after the
+fire's start exist at 18 SOAP plots (7 adopted, 11 others), and each plot has
+records whose remarks or status mention fire, burning or scorch. In the cached
+tables, mapping-and-tagging records (`vst_mappingandtagging`), which the audit
+does not read for remarks, postdate the fire's start at 39 SOAP plots (17 of the
+18 adopted ones); two of them, at SOAP_052, mention burning. With CAL FIRE's
+placement 14 of the 18 centroids lie inside the Creek or Blue perimeter and the
+other 4 within 63 to 182 m of one. With the NIFC placement only the four inside
+the Blue perimeter do; the others lie up to 924 m from either. The field remarks
+fit CAL FIRE's placement better. The audit does not establish which copy is
+correctly georeferenced, and a scorch remark does not date the fire that left
+it.
 
 ## What it means for the benchmark
 
@@ -226,15 +231,15 @@ georeferenced, and a scorch remark does not date the fire that left it.
   transitions do not isolate fire mortality.
 - **Sparse-flight comparison.** All 18 SOAP plots belong to the native
   sparse-flight comparison (209 of its 586 stems). The six plots inside CAL
-  FIRE's Creek perimeter, holding 62 of those stems, burned between the June
-  2018 and July 2021 flights, and the Blue Fire fell between them too. On
-  those plots the two clouds may differ for reasons other than density, and
-  the stems live in both references were last measured before the fire on
-  the three distributed plots. Under the NIFC placement no comparison plot
-  is inside a perimeter. No wildfire perimeter contains or comes within
-  250 m of the 4 SJER and 17 TEAK comparison plots between their flights;
-  the prescribed burns 206 m from SJER_051 in 2019 and 2020 fall between
-  SJER's flights.
+  FIRE's perimeter of the Creek Fire hold 62 of those stems; that fire burned
+  between the June 2018 and July 2021 flights, and the Blue Fire fell between
+  them too. On those plots the two clouds may differ for reasons other than
+  density, and the stems live in both references were last measured before the
+  fire on the three distributed plots. Under the NIFC placement no comparison
+  plot is inside a perimeter. No wildfire perimeter contains or comes within
+  250 m of the 4 SJER and 17 TEAK comparison plots between their flights; the
+  prescribed burns 206 m from SJER_051 in 2019 and 2020 fall between SJER's
+  flights.
 - **TEAK.** The Garnet Fire burned after the flight and after the 2022
   references, so it does not affect this benchmark; a later TEAK flight or
   census would need it.

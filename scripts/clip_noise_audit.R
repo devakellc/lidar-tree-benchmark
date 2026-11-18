@@ -52,7 +52,9 @@ for (site in SITES) {
     cl <- raw$Classification
     noise <- cl %in% NOISE
     core <- abs(raw$X - r$cx) <= r$core_half & abs(raw$Y - r$cy) <= r$core_half
-    wh <- if (is.null(raw$Withheld_flag)) logical(length(cl)) else raw$Withheld_flag %in% TRUE
+    if (is.null(raw$Withheld_flag))
+      stop("The raw clip was read without the withheld flag; read it with readLAS select including \"w\"")
+    wh <- raw$Withheld_flag %in% TRUE
     rows[[length(rows) + 1L]] <- data.table(
       site = site, plot = r$plot, rung = r$rung, core_half = r$core_half,
       n_raw = length(cl), n_class7 = sum(cl == 7L), n_class18 = sum(cl == 18L),

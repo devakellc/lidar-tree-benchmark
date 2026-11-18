@@ -22,6 +22,10 @@ source(.find("sweep_lib.R")); source(.find("model_bench_lib.R")); source(.find("
 # (NOSMOOTH_QL2=, default <NOSMOOTH>_ql2); QL2=none leaves it out. Their native
 # rows must repeat the main job directories' counts, up to lasR's run-to-run
 # variation (bs_native_mismatch).
+# Each pair of job directories (the paper's run and the unsmoothed one) must
+# be made on one sealed root (bs_check_root): the main pair on FROZEN_ROOT=
+# (default <job dir>/neon/frozen_2021), the QL2 pair on FROZEN_ROOT_QL2=
+# (default <QL2>/neon/frozen_2021_ql2); the script stops otherwise.
 # Chance agreement, where the null re-scores of both baselines exist
 # (paper_sensitivity.R MODE=null K=200 [TOL=2] ARMS=chm_vwf in each unsmoothed
 # job directory, beside the paper's own nulls; the shifts are per plot, so the
@@ -35,7 +39,8 @@ source(.find("sweep_lib.R")); source(.find("model_bench_lib.R")); source(.find("
 # the observed scores equal the pooled result rows, to 1e-9.
 #   CLAUDE_JOB_DIR=<paper_runs> Rscript scripts/baseline_smoothing_sensitivity.R
 #     NOSMOOTH=<job dir of the unsmoothed run> [QL2=<job dir>|none]
-#     [NOSMOOTH_QL2=<job dir>] [NULL_TOLS=4,2] [OUT=<dir>]
+#     [NOSMOOTH_QL2=<job dir>] [NULL_TOLS=4,2] [OUT=<dir>] [FROZEN_ROOT=<root>]
+#     [FROZEN_ROOT_QL2=<root>]
 # Writes <OUT>/baseline_smoothing_{pooled,contrasts,dominant}.csv (the QL2
 # rung's rows after the others) and, with the nulls,
 # <OUT>/baseline_smoothing_corrected.csv and _corrected_leads.csv; OUT defaults
@@ -116,6 +121,22 @@ bs_observed_rung <- function(x) {
   dom <- aggregate(cbind(tp = round(rec_dominant * n_dominant), n = n_dominant) ~ detector, b, sum)
   dom <- cbind(scope = "five sites", rung = r, dom); dom$recall <- dom$tp / dom$n
   list(est = est, con = con, dom = dom)
+}
+
+## ---- sealed roots ------------------------------------------------------------------
+# The paper's run (`job`) and the unsmoothed run (`nosmooth`) are made on the
+# sealed root `root`: for every site with unsmoothed results, the persisted
+# CHM-VWF detections of both job directories (<job>/neon/<site>/
+# chm_vwf_detections, written by the runs whose results are read) must carry
+# that root's stamp (frozen_stamp_check), which stops otherwise, also when a
+# directory is absent. Returns the root's id.
+bs_check_root <- function(job, nosmooth, root, sites = SITES) {
+  if (!frozen_sealed(root)) stop("No sealed frozen root at ", root)
+  for (s in sites) {
+    if (!file.exists(file.path(nosmooth, "neon", s, "lidrplugins_results.csv"))) next
+    for (j in c(job, nosmooth)) frozen_stamp_check(file.path(j, "neon", s, "chm_vwf_detections"), root)
+  }
+  invisible(frozen_root_id(root))
 }
 
 ## ---- chance agreement --------------------------------------------------------------
@@ -237,7 +258,11 @@ if (sys.nframe() == 0L) {
   QL2 <- if (is.null(A[["QL2"]])) file.path(dirname(d), "paper_runs_ql2") else A[["QL2"]]
   NSQ <- if (is.null(A[["NOSMOOTH_QL2"]])) paste0(sub("/+$", "", NS), "_ql2") else A[["NOSMOOTH_QL2"]]
   NULL_TOLS <- as.numeric(strsplit(if (is.null(A[["NULL_TOLS"]])) "4,2" else A[["NULL_TOLS"]], ",")[[1]])
+  ROOT <- frozen_root(d, A[["FROZEN_ROOT"]])
+  ROOT_QL2 <- if (is.null(A[["FROZEN_ROOT_QL2"]])) file.path(QL2, "neon", "frozen_2021_ql2") else
+    A[["FROZEN_ROOT_QL2"]]
 
+  bs_check_root(d, NS, ROOT)
   rows <- bs_read_rows(d, NS)
   if (!any(rows$detector == UNSMOOTHED)) stop("No unsmoothed CHM-VWF results under ", NS)
   rows$tp_core <- round(rows$precision * rows$n_det)
@@ -252,6 +277,7 @@ if (sys.nframe() == 0L) {
     if (is.null(q) || !any(q$detector == UNSMOOTHED) || !any(q$detector == "chm_vwf")) {
       message("No CHM-VWF results under ", QL2, " and ", NSQ, "; the QL2 rung is left out")
     } else {
+      bs_check_root(QL2, NSQ, ROOT_QL2)
       bad <- bs_native_mismatch(rows, q)
       if (nrow(bad)) {
         print(utils::head(bad, 20), row.names = FALSE)

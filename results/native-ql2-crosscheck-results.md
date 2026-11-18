@@ -25,7 +25,8 @@ the cached 3DEP clouds after dropping their noise-class and withheld points
 (see the
 [correction](#correction-of-17-november-2026-noise-in-the-cached-3dep-clouds));
 the NEON side is the paper runs' frozen 2 points/m² rung (1.3 first-return
-pulses/m² median over five sites, about 1.5 on these California plots),
+pulses/m² median over five sites, about 1.5 on these California plots over
+the whole clip and 1.25 in their cores),
 CHM-VWF at `a` = 0.10 and 0.5 m, and `multichm`.
 
 ```sh
@@ -231,8 +232,10 @@ Native clips:
   12 (SOAP) and 2 (TEAK) noise points, five of them left after
   normalization.
 
-At SOAP and TEAK the NEON noise is three to four orders of magnitude below
-what the cached 3DEP clouds held; at SJER both are a handful of points. No
+At SOAP and TEAK the NEON noise classes are about 160 and 1,800 times rarer
+than in the cached 3DEP clouds (0.0035% against 0.56% and 0.0005% against
+0.89% of the points), which also held 4.1% and 4.3% withheld points of class
+1; at SJER both are a handful of points. No
 native NEON clip holds more than 20 noise points 2 m or more above ground.
 The noise is recorded rather than removed, because the frozen clips are
 sealed.

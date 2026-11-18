@@ -23,17 +23,20 @@
 # Detector inference is not repeated: the archive holds every arm's per-cell
 # results and persisted detections, which these steps re-score; that includes
 # the two runs of the baseline without its smoothing. The classical CHM
-# detectors do re-run inside the treetop export, coverage-gap ladder and crown
-# steps, and on the archived native 3DEP clouds in the QL2 cross-check.
+# detectors do re-run inside the treetop export, coverage-gap ladder, fusion
+# and crown steps, and on the archived native 3DEP clouds in the QL2
+# cross-check.
 #
 #   bash scripts/reproduce_paper_tables.sh ARCHIVE=<archive dir> OUT=<new dir> \
 #     [CORES=8] [VERIFY=1]
 #
-# Run from a clone at the archive's CODE_COMMIT: core_density_contract.json and
-# routing_contract.json record checksums of the code that wrote them, so a later
-# commit works only if it leaves that code unchanged. Needs R 4.3.3 with the
-# packages of reproduce/Dockerfile; runs in two to three hours on 8 cores (the
-# chance null inside censused subplots takes about one of them).
+# Run from a clone at the archive's CODE_COMMIT: core_density_contract.json,
+# routing_contract.json and the master tables' master_contract.json record
+# checksums of the code that wrote them, so a later commit works only if it
+# leaves that code unchanged. Needs R 4.3.3 with the packages of
+# reproduce/Dockerfile; runs in about three hours on 8 cores (about 50 minutes
+# each for the chance null inside censused subplots and the chance-correction
+# simulation).
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 ARCHIVE=""; OUT=""; CORES=8; VERIFY=1
@@ -231,7 +234,8 @@ done
 # The chance-correction simulation (post hoc): synthetic plots scored with the
 # paper's matcher and null; it reads nothing from the archive. Then how
 # clustered the reference stems of the distributed plots are beside the
-# simulated stands (reads the sealed root's population and stems).
+# simulated stands (reads the sealed root's population and stems, and the
+# archived census-support bundles for the plots with admitted support).
 run "$P" chance_simulation scripts/simulate_chance_correction.R N=200 K=200 SEED=0 CORES=6
 run "$P" reference_clustering scripts/reference_stem_clustering.R N=200 SEED=0
 # The split-crown diagnostic (post hoc): close pairs of every ladder arm's

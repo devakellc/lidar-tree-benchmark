@@ -101,11 +101,12 @@ therefore stays; `relaxed` is frozen so that any arm can report it with
 The root holds 775 cells for 155 plots, 0.68 GB. All 773 decimated and native
 cells are usable; the 8 points/m² rung of SJER_022 and SJER_054 (native 7.3
 and 6.6 all returns per m²) is recorded as upsampled and not written.
-Decimated cells keep 5–15% more than the target density, because a 5 m cell
-holding fewer points than the target keeps them all. Eighteen of the 106
-adopted plots fall below 8 first returns per m² at native density and take
-the sub-8 smoothing branch there; seven of them are WREF distributed plots,
-whose density the preflight could not measure from its header tiles.
+Decimated cells keep 5–15% more than the target density, because the 5 m
+thinning cells cut by the clip boundary are smaller than 25 m² but may keep as
+many points as a full cell (see the core-density paragraph below). Eighteen
+of the 106 adopted plots fall below 8 first returns per m² at native density
+and take the sub-8 smoothing branch there; seven of them are WREF distributed
+plots, whose density the preflight could not measure from its header tiles.
 
 **Added on 17 November 2026: density of the scored cores.** The densities
 above and in `clip_manifest.csv` are measured over the whole clip, core plus

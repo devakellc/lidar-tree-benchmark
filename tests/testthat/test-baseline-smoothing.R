@@ -173,3 +173,29 @@ test_that("the observed rung tables pool the six arms and the dominant stems", {
   expect_equal(u$estimate, f1(UNSMOOTHED) - f1("chm_vwf"))
   expect_equal(o$dom$tp, c(12, 12)); expect_equal(o$dom$recall, c(0.5, 0.5))
 })
+
+test_that("the unsmoothed run must be made on the paper's sealed root", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  root <- function(name, text) {
+    r <- file.path(d, name); dir.create(r); writeLines(text, file.path(r, "clip_manifest.csv")); r
+  }
+  paper <- root("paper_root", "manifest of the paper's freeze")
+  other <- root("other_root", "manifest of another freeze")
+  job <- file.path(d, "job"); ns <- file.path(d, "nosmooth")
+  dets <- function(j, s) file.path(j, "neon", s, "chm_vwf_detections")
+  for (s in c("A", "B")) {
+    frozen_stamp(dets(job, s), paper); frozen_stamp(dets(ns, s), paper)
+    writeLines("detector", file.path(ns, "neon", s, "lidrplugins_results.csv"))
+  }
+  expect_identical(bs_check_root(job, ns, paper, sites = c("A", "B", "C")), frozen_root_id(paper))
+  # an unsmoothed run made on another freeze stops, at any site
+  writeLines(frozen_root_id(other), file.path(dets(ns, "B"), FROZEN_STAMP))
+  expect_error(bs_check_root(job, ns, paper, sites = c("A", "B")), "was not made on the frozen root",
+               class = "frozen_integrity_error")
+  # both runs are checked: the paper's is not on the other freeze either
+  expect_error(bs_check_root(job, ns, other, sites = "B"), "job.*was not made on the frozen root")
+  # unverifiable: the unsmoothed detections or the root are missing
+  unlink(dets(ns, "B"), recursive = TRUE)
+  expect_error(bs_check_root(job, ns, paper, sites = "B"), "was not made on the frozen root")
+  expect_error(bs_check_root(job, ns, file.path(d, "absent"), sites = "A"), "No sealed frozen root")
+})

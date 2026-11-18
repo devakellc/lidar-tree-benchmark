@@ -67,9 +67,11 @@ recall by up to +0.13 in the loose clusters and +0.19 in the tight ones
 (Tables 7 and 9). A corrected recall lead is therefore not by itself evidence
 of skill. Where half of each core holds no reference, an F1 lead falls to
 about half or less, observed, corrected and in the oracle alike (Tables 2 and
-9). The benchmark's reference stems, on the distributed plots where the
-mapped area is known, are about as clustered as the loose clusters (Table
-10). Whether the benchmark's corrected scores and leads understate or
+9). The benchmark's reference stems on the 54 distributed plots, which
+NEON's design censuses whole, are about as clustered as the loose clusters; on
+the 24 of them with admitted event-specific census support they cannot be told
+apart from random and lie between the unclustered stand and the loose clusters
+(Table 10). Whether the benchmark's corrected scores and leads understate or
 overstate skill is not established. A later
 [split-crown diagnostic](split-crown-diagnostic-results.md) counts such
 detections in the benchmark: the segmenters place them at about half the rate
@@ -78,8 +80,9 @@ simulated here or less, enough for part of their corrected recall lead.
 **(i) Whether corrected recall falls short of the true skilled share or
 exceeds it depends on stand structure and reference completeness** (Tables 1
 and 6). In the unclustered stand of scenarios 1 to 3 it is below the truth in
-every setting: at 4 m it recovers 61–89% of the truth (0.06–0.14 below it),
-at 2 m 86–92% (0.02–0.05 below). The cause is the correction's assumption
+every setting: at 4 m it recovers 61–92% of the truth (0.05–0.16 below it;
+61–89% and 0.06–0.14 at 240 trees/ha), at 2 m 86–92% (0.02–0.05 below). The
+cause is the correction's assumption
 that a stem the detector truly missed matches at the null's rate. In this
 stand the detections near reference stems are taken by their own stems, so
 the missed stems find fewer chance partners than the shifted copies offer: at
@@ -126,8 +129,9 @@ skill (c) gives negative ones in every setting (−0.069 to −0.165 on complete
 references, −0.045 to −0.108 on half ones), about as large as the oracle
 leads or larger: by up to 0.025 in the unclustered stand, and in the
 clustered stands at 4 m −0.119 to −0.165 against an oracle −0.092 to −0.106.
-That extra uniform commission never gives a positive corrected F1 lead is
-guaranteed by the null, in expectation: uniform points match as often after
+That extra uniform commission gives a positive corrected F1 lead in no
+simulated setting is what the null leads one to expect, though it does not
+guarantee it: uniform points match as often after
 a shift as before, and fewer stems are free for them before it, because the
 skilled detections have taken theirs, so they add at least as much to the
 null's counts as to the observed ones, while each of them enlarges F1's
@@ -198,7 +202,8 @@ corrected recall by 0.108 and 0.112 at 4 m, with 35–39% more core detections a
 no lead in corrected precision ([chance
 agreement](matcher-robustness-results.md#chance-agreement)). Split crowns at
 rate 0.8, with about that surplus and no skill, give +0.094 to +0.126 in the
-loose clusters, the pattern nearest to the benchmark's stems: split crowns alone
+loose clusters, the simulated pattern nearest to the benchmark's stems within
+4 m: split crowns alone
 could produce the segmenters' corrected recall lead in such a stand, although
 they do not produce a positive corrected F1 lead there ((iii)). A corrected
 recall lead therefore credits a detector that places more detections, most of
@@ -250,9 +255,11 @@ the true difference at every density (within 0.014).
 without skill whose detections follow the trees do not** (Tables 4, 7 and 8). In
 the first version the uniform detector (s 0, f 1) has corrected recall −0.010 to
 +0.008 and corrected F1 −0.008 to +0.007, every interval covering zero. In
-scenario 4 its corrected recall is −0.025 to +0.027; 4 of 30 intervals exclude
-zero, three of them narrowly, all in the clustered stands, whose rows share
-plots and commission points. Uniform commission keeps its distribution under a
+scenario 4 its corrected recall is −0.025 to +0.027 on complete references,
+where 4 of 30 intervals exclude zero, three of them narrowly, and −0.015 to
++0.040 on half ones, where 3 of 30 do; all seven are in the clustered stands,
+whose rows share plots and commission points. Uniform commission keeps its
+distribution under a
 toroidal shift, so its expected corrected score is zero in any stand: this check
 validates the code and shows the variation of one set of 200 plots, not the
 null's behaviour when detections follow the trees. The two detectors built to
@@ -277,42 +284,53 @@ mapped or not: a corrected score above zero shows that a detector's detections
 follow the stand, not that it finds the reference stems, and how much of it is
 skill on the reference depends on the structure.
 
-**(vii) The benchmark's reference stems are slightly clustered, about as much
-as the loose clusters** (Table 10). On the 54 distributed plots of the
-population, which NEON censuses whole (SJER has none), a reference stem has on
-average 3.05 other reference stems within 4 m, against 2.68 for as many stems
-placed at random in the same 20 m box: a ratio of 1.14 [1.06, 1.21] and an
-excess of +0.37 [+0.13, +0.63] stems. Within 2 m the ratio is 1.11 [0.86,
-1.34] and the excess +0.08 [−0.08, +0.30]. By site the ratio within 4 m is
-1.10 (WREF) to 1.30 (TEAK); within 2 m ABBY's stems are spaced out (0.66
-[0.31, 0.96]), and SOAP's and TEAK's stand closer than at random (1.51 and
-1.56). The ratio falls as density rises for clusters of a fixed size, while
-the excess, observed minus random, does not, so the excess compares the
-benchmark with the simulated stands without matching their densities. Within
-4 m the loose clusters' excess is +0.41 and +0.38 at 240 and 400 trees/ha,
-the tight clusters' +2.53 at both and the unclustered stand's −0.12 and
-−0.22; within 2 m it is +0.14 and +0.12, +0.96 and +0.95, and −0.15 and
-−0.25. The benchmark's +0.37 within 4 m matches the loose clusters, lies far
-below the tight ones and excludes the unclustered stand. Within 2 m it cannot
-be told apart from random or from the loose clusters, but it excludes both
-the unclustered stand and the tight clusters. Mapping a random 60% of the
-simulated trees leaves the ratios within 0.03 but scales the excess by about
-0.6, since a cluster then holds fewer mapped trees (the loose clusters'
-+0.41 within 4 m becomes +0.25, the tight clusters' +2.53 becomes +1.48), so
-the tight clusters stay far above the benchmark either way. In ratios, at the
+**(vii) The benchmark's reference stems are at most slightly clustered: about as
+much as the loose clusters on all 54 distributed plots, less on the 24 with
+admitted census support** (Table 10). On the 54 distributed plots of the
+population, which NEON's design censuses whole (SJER has none), a reference stem
+has on average 3.05 other reference stems within 4 m, against 2.68 for as many
+stems placed at random in the same 20 m box: a ratio of 1.14 [1.06, 1.21] and an
+excess of +0.37 [+0.13, +0.63] stems. Within 2 m the ratio is 1.11 [0.86, 1.34]
+and the excess +0.08 [−0.08, +0.30]. By site the ratio within 4 m is 1.10 (WREF)
+to 1.30 (TEAK); within 2 m ABBY's stems are spaced out (0.66 [0.31, 0.96]), and
+SOAP's and TEAK's stand closer than at random (1.51 and 1.56). Event-specific
+census support is admitted for 24 of the 54 plots (ABBY 7, TEAK 7, WREF 10; 447
+stems, 466 stems/ha). On them a stem has 2.82 other stems within 4 m against
+2.66 at random, a ratio of 1.06 [0.97, 1.14] and an excess of +0.16 [−0.07,
++0.38]; within 2 m the ratio is 0.92 [0.72, 1.09] and the excess −0.06 [−0.17,
++0.06]. The ratio falls as density rises for clusters of a fixed size, while the
+excess, observed minus random, does not, so the excess compares the benchmark
+with the simulated stands without matching their densities. Within 4 m the loose
+clusters' excess is +0.41 and +0.38 at 240 and 400 trees/ha, the tight clusters'
++2.53 at both and the unclustered stand's −0.12 and −0.22; within 2 m it is
++0.14 and +0.12, +0.96 and +0.95, and −0.15 and −0.25. On all 54 plots the
+benchmark's +0.37 within 4 m matches the loose clusters, lies far below the
+tight ones and excludes the unclustered stand. Within 2 m it cannot be told
+apart from random or from the loose clusters, but it excludes both the
+unclustered stand and the tight clusters. On the 24 plots with admitted support
+neither radius can be told apart from random, and every interval, ratio and
+excess, lies between the unclustered stand's values and the loose clusters' at
+240 and 400 trees/ha (the 4 m excess ends at +0.378, against the loose clusters'
++0.382 at 400 trees/ha), except that the 2 m excess includes the unclustered
+stand's −0.15 at 240 trees/ha, though not its −0.25 at 400. Mapping a random 60%
+of the simulated trees leaves the ratios within 0.03 but scales the excess by
+about 0.6, since a cluster then holds fewer mapped trees (the loose clusters'
++0.41 within 4 m becomes +0.25, the tight clusters' +2.53 becomes +1.48), so the
+tight clusters stay far above the benchmark either way. In ratios, at the
 benchmark's density of about 400 stems/ha the loose clusters give 1.20 within
-4 m and 1.24 within 2 m, the tight clusters 2.20 and 2.65, and the
-unclustered stand 0.87 and 0.45. The benchmark's stems are thus far from the
-tight clusters, close to the loose ones and more clustered than the
-unclustered stand. This describes the mapped stems' own clustering only; it
+4 m and 1.24 within 2 m, the tight clusters 2.20 and 2.65, and the unclustered
+stand 0.87 and 0.45. The benchmark's stems are thus far from the tight clusters
+on either set of plots; on all 54 they are close to the loose clusters and more
+clustered than the unclustered stand, and on the 24 with admitted support they
+lie between the two. This describes the mapped stems' own clustering only; it
 says nothing about where the trees that the reference leaves out, or a
-detector's commission, stand relative to them. Tower plots are left out,
-because which of their quadrants were sampled cannot be read from the stems.
+detector's commission, stand relative to them. Tower plots are left out, because
+which of their quadrants were sampled cannot be read from the stems.
 
 **What this means for the benchmark: the direction of its bias is not
-established.** The simulated pattern closest to the benchmark's stems, the
-loose clusters, gives a shortfall with every tree mapped (about 0.07 at 4 m)
-that shrinks as the reference thins, to about zero at 240 trees/ha with 60%
+established.** The simulated pattern closest to the benchmark's stems within
+4 m, the loose clusters, gives a shortfall with every tree mapped (about 0.07 at
+4 m) that shrinks as the reference thins, to about zero at 240 trees/ha with 60%
 mapped. The tight clusters, which give an excess, are unlike the benchmark
 both in clustering and in their null shares (44–60% of the baseline's F1 at
 4 m, against the benchmark's 70–79%; Table 5). But the sign depends on where
@@ -353,11 +371,12 @@ the unclustered stand, 62–75% in the loose clusters and 44–60% in the tight
 ones: the unclustered stand matches the benchmark's 70–79% best, the loose
 clusters fall mostly below it and the tight clusters well below. By null
 share the benchmark resembles the unclustered stand, by the clustering of its
-stems the loose clusters (Table 10); neither measure alone places it. The
+stems the loose clusters, or on the plots with admitted census support a stand
+between the two (Table 10); neither measure alone places it. The
 benchmark's 240 reference stems/ha, and so its 1.2 stems in a 4 m
 circle, are averages over the nominal cores (2,525 stems over 10.48 ha, about
-two-fifths of it unsampled tower area); on the distributed plots, censused
-whole, the density is 406 stems/ha (Table 10).
+two-fifths of it unsampled tower area); on the distributed plots, which
+NEON's design censuses whole, the density is 406 stems/ha (Table 10).
 
 ## What is simulated
 
@@ -491,11 +510,11 @@ are particular ones (stems below 10 cm DBH, dead trees, census targets
 without a usable position, and the trees of unsampled quadrants), and how
 they stand relative to the reference stems is not known. The clustered
 patterns have no minimum spacing. All
-plots are tower plots; the distributed 20 m plots, which NEON censuses whole,
-are not modelled. No setting reaches the reference density of the
-benchmark's censused area, about 400 stems/ha (Table 10). The study therefore
-shows the direction and rough size of the statistic's behaviour under each
-structure; it does not reproduce the benchmark's numbers, and it cannot by
+plots are tower plots; the distributed 20 m plots, which NEON's design
+censuses whole, are not modelled. No setting reaches the reference density of
+the benchmark's censused area, about 400 stems/ha (Table 10). The study
+therefore shows the direction and rough size of the statistic's behaviour under
+each structure; it does not reproduce the benchmark's numbers, and it cannot by
 itself give the sign of the benchmark's bias.
 
 ## Tables
@@ -959,8 +978,10 @@ the baseline with split crowns at rate 0.5 and 0.8, over the baseline.
 ### Table 10. Clustering of reference stems: benchmark and simulation
 
 `reference_stem_clustering.R`. Benchmark: the 54 distributed plots of the
-population (SJER has none), each in its 20 m core box, which NEON censuses
-whole; the 52 tower plots are left out because which of their quadrants were
+population (SJER has none), each in its 20 m core box, which NEON's design
+censuses whole, and again the 24 of them whose event-specific census support
+the headline declaration admits; the 52 tower plots are left out because which
+of their quadrants were
 sampled cannot be read from the stems. Simulation: the four 20 m quadrants of
 each core of scenario 4's plots, every tree mapped. Observed is the mean
 number of other reference stems within d of a reference stem; random is the
@@ -982,6 +1003,7 @@ and by 0.03 or less for the others.
 | WREF | 18 | 378 | 525 | 1.20 | 1.01 | 1.19 [0.81, 1.48] | +0.19 [-0.12, +0.61] | 4.05 | 3.68 | 1.10 [0.95, 1.19] | +0.37 [-0.11, +0.85] |
 | ABBY | 12 | 234 | 488 | 0.46 | 0.69 | 0.66 [0.31, 0.96] | -0.23 [-0.39, -0.03] | 2.93 | 2.53 | 1.16 [0.98, 1.37] | +0.40 [-0.03, +0.78] |
 | Four sites | 54 | 876 | 406 | 0.82 | 0.73 | 1.11 [0.86, 1.34] | +0.08 [-0.08, +0.30] | 3.05 | 2.68 | 1.14 [1.06, 1.21] | +0.37 [+0.13, +0.63] |
+| Admitted census support | 24 | 447 | 466 | 0.67 | 0.73 | 0.92 [0.72, 1.09] | -0.06 [-0.17, +0.06] | 2.82 | 2.66 | 1.06 [0.97, 1.14] | +0.16 [-0.07, +0.38] |
 | Inhibited, 240 trees/ha | 200 | 7562 | 236 | 0.12 | 0.27 | 0.46 [0.42, 0.50] | -0.15 [-0.16, -0.13] | 0.86 | 0.98 | 0.87 [0.85, 0.90] | -0.12 [-0.15, -0.10] |
 | Inhibited, 400 trees/ha | 200 | 12811 | 400 | 0.21 | 0.46 | 0.45 [0.43, 0.47] | -0.25 [-0.26, -0.24] | 1.44 | 1.66 | 0.87 [0.85, 0.88] | -0.22 [-0.25, -0.19] |
 | Loose clusters, 240 trees/ha | 200 | 7975 | 249 | 0.50 | 0.35 | 1.41 [1.34, 1.47] | +0.14 [+0.12, +0.17] | 1.71 | 1.30 | 1.32 [1.28, 1.36] | +0.41 [+0.36, +0.46] |
@@ -1026,5 +1048,8 @@ identical files; the extension left the files of scenarios 1 to 3
 byte-identical. The clustering script writes `reference_clustering_plots.csv`
 (one row per plot or simulated window and distance),
 `reference_clustering_summary.csv` and `reference_clustering_tables.md` to the
-same directory, reading only the sealed root's `population.csv` and
-`population_stems.csv`.
+same directory, reading the sealed root's `population.csv` and
+`population_stems.csv`, the headline census-support declaration
+(`docs/census-support-declaration-nearest.json`) and the archived
+census-support bundles under `reference_support_census_event/` of the job
+directory, which decide the 24 admitted plots.

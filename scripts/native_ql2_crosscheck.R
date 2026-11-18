@@ -198,10 +198,17 @@ write_manifest <- function(out_laz, ept_url, pad, outcrs) {
 # point flagged Withheld, whatever the age of the cached cloud. Returns the
 # filtered cloud and one row of counts: points read, points in class 7, in
 # class 18 and flagged withheld (whether dropped or not), and points dropped.
-# With nothing to drop the cloud is returned untouched.
+# With nothing to drop the cloud is returned untouched. A cloud read without
+# the withheld flag (readLAS select without "w") stops the run (an error of
+# class ql2_read_error, which the per-site handler re-raises), since its
+# withheld points could be neither dropped nor counted.
 ql2_noise_filter <- function(las, classes = QL2_NOISE_CLASSES, withheld = TRUE) {
   cl <- las$Classification
-  wh <- if (is.null(las$Withheld_flag)) logical(length(cl)) else las$Withheld_flag %in% TRUE
+  if (is.null(las$Withheld_flag))
+    stop(structure(class = c("ql2_read_error", "error", "condition"), list(
+      message = "The cloud was read without the withheld flag; read it with readLAS select including \"w\"",
+      call = sys.call())))
+  wh <- las$Withheld_flag %in% TRUE
   drop <- (cl %in% classes) | (withheld & wh)
   counts <- data.frame(n_read = length(cl), n_class7 = sum(cl == 7L),
                        n_class18 = sum(cl == 18L), n_withheld = sum(wh),
@@ -596,7 +603,7 @@ pool_decimated_multichm <- function(site, plots) {
 ## ---- main -----------------------------------------------------------------
 all_native <- list(); all_cmp <- list()
 for (site in SITES) {
-  nv <- tryCatch(run_site(site), error = function(e) {
+  nv <- tryCatch(run_site(site), ql2_read_error = function(e) stop(e), error = function(e) {
     cat("  ", site, " errored: ", conditionMessage(e), "\n"); NULL })
   if (is.null(nv) || !nrow(nv)) next
   all_native[[site]] <- nv

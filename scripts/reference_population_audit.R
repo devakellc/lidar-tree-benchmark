@@ -42,9 +42,10 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #     onto the other's centroid (a displaced copy shows as a large mismatch
 #     that a translation removes).
 #   fire_field_remarks.csv  for each fire with a hit or near plot, every plot
-#     of the site (any population) with NEON records after the fire's start:
-#     records whose remarks or status mention fire, burning or scorch, and
-#     the plot's position against each source's copy of the perimeter.
+#     of the site (any population) with NEON individual measurement records
+#     (vst_apparentindividual) after the fire's start: those records whose
+#     remarks or status mention fire, burning or scorch, and the plot's
+#     position against each source's copy of the perimeter.
 #   fire_status_transitions.csv (+ fire_status_individuals.csv)  for each fire
 #     with a hit, every population plot of the site with records on both
 #     sides of the fire's start: of the individuals (NEON individualIDs) live

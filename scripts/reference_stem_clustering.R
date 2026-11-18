@@ -8,18 +8,25 @@ source(bs[1]); rm(bs, .bs_file)
 source(.find("model_bench_lib.R"))
 source(.find("master_tables_lib.R"))
 source(.find("chance_simulation_lib.R"))
+source(.find("census_support_lib.R"))      # census_admitted_plots
 
 # How clustered the benchmark's reference stems are, beside the stand
 # structures of the chance-correction simulation (simulate_chance_correction.R,
 # scenario 4; post hoc). Reads the sealed root's population and stems; writes
 # nothing there.
 #
-# Mapped area: NEON censuses a distributed plot whole, a 20 m square, which is
-# the population's core box for that plot. A tower plot's 40 m box holds the
-# stems of the sampled 20 m quadrants, and which quadrants were sampled cannot
-# be read from the stems (an empty sampled quadrant looks unsampled, and some
-# tower references mix censuses), so tower plots are left out: the statistic
-# covers the distributed plots of the population only.
+# Mapped area: NEON's design censuses a distributed plot whole, a 20 m square,
+# which is the population's core box for that plot. A tower plot's 40 m box
+# holds the stems of the sampled 20 m quadrants, and which quadrants were
+# sampled cannot be read from the stems (an empty sampled quadrant looks
+# unsampled, and some tower references mix censuses), so tower plots are left
+# out: the statistic covers the distributed plots of the population only. The
+# distributed plots whose event-specific census support the headline census
+# declaration admits (census_admitted_plots: the archived support bundles
+# under SUPPORT, as score_census_support.R reads them) are pooled again as a
+# second group, "all sites, admitted census support", beside the rows of every
+# distributed plot; the script stops when the bundles are missing or admit
+# none of them.
 #
 # Statistic: per plot, the pairs of reference stems at most d apart (d = 2 and
 # 4 m) and the pairs that the same number of stems placed at random in the
@@ -39,6 +46,8 @@ source(.find("chance_simulation_lib.R"))
 # population's six-stem gate).
 #   Rscript scripts/reference_stem_clustering.R [POP=adopted] [FROZEN_ROOT=...]
 #     [N=200] [SEED=0] [MIN_STEMS=6] [OUT=$CLAUDE_JOB_DIR/sensitivity/chance_simulation]
+#     [DECLARATION=docs/census-support-declaration-nearest.json]
+#     [SUPPORT=$CLAUDE_JOB_DIR/reference_support_census_event] [YEARS=2019,...,2024]
 # Writes OUT/reference_clustering_{plots,summary}.csv and
 # reference_clustering_tables.md; the outputs hold nothing that varies between
 # runs with the same arguments.
@@ -50,6 +59,14 @@ N    <- as.integer(if (is.null(A$N)) 200 else A$N)
 SEED <- as.integer(if (is.null(A$SEED)) 0 else A$SEED)
 MIN_STEMS <- as.integer(if (is.null(A$MIN_STEMS)) 6 else A$MIN_STEMS)
 OUT  <- if (is.null(A$OUT)) file.path(d, "sensitivity", "chance_simulation") else A$OUT
+DECLARATION <- if (is.null(A$DECLARATION))
+  file.path(.ROOT, "docs", "census-support-declaration-nearest.json") else A$DECLARATION
+declaration <- jsonlite::read_json(DECLARATION, simplifyVector = TRUE)
+if (grepl("DRAFT", declaration$name)) stop("Refusing a draft declaration; review and rename it first")
+SUPPORT <- if (is.null(A$SUPPORT)) file.path(d, "reference_support_census_event") else A$SUPPORT
+YEARS <- as.integer(strsplit(if (is.null(A$YEARS)) paste(2019:2024, collapse = ",") else A$YEARS,
+                             ",")[[1]])
+ADMITTED <- "all sites, admitted census support"
 DIST <- c(2, 4)
 dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 
@@ -74,6 +91,7 @@ bench <- do.call(rbind, lapply(seq_len(nrow(dist_plots)), function(i) {
              stringsAsFactors = FALSE)
 }))
 n_tower <- sum(pop$plotType == "tower")
+dist_plots$admitted <- census_admitted_plots(dist_plots, SUPPORT, declaration, YEARS)
 
 ## ---- simulated patterns: 20 m quadrants of the simulated cores ----------------------
 sim <- do.call(rbind, lapply(names(CS_PATTERNS), function(pt) do.call(rbind, lapply(c(240, 400), function(D)
@@ -96,9 +114,10 @@ write.csv(rows, file.path(OUT, "reference_clustering_plots.csv"), row.names = FA
 ## ---- pooled -------------------------------------------------------------------------
 sites <- unique(bench$group)
 all_sites <- transform(bench, group = "all sites")
+admitted <- transform(bench[bench$unit %in% dist_plots$plotID[dist_plots$admitted], ], group = ADMITTED)
 gated <- transform(sim[sim$n >= MIN_STEMS, ], group = paste0(group, " gated"))
-summ <- cs_pool_pairs(rbind(bench, all_sites, sim, gated))
-summ$area_ha <- ifelse(summ$group %in% c(sites, "all sites"), 0.04, (CS_PH / 1e2)^2)
+summ <- cs_pool_pairs(rbind(bench, all_sites, admitted, sim, gated))
+summ$area_ha <- ifelse(summ$group %in% c(sites, "all sites", ADMITTED), 0.04, (CS_PH / 1e2)^2)
 summ$stems_per_ha <- summ$n / (summ$windows * summ$area_ha)
 write.csv(summ, file.path(OUT, "reference_clustering_summary.csv"), row.names = FALSE)
 
@@ -116,10 +135,12 @@ md_rows <- lapply(unique(summ$group), function(g) {
 })
 md <- c("# Reference-stem clustering", "",
         sprintf(paste("Generated by reference_stem_clustering.R: population %s, %d distributed plots",
-                      "(%d tower plots left out); simulated: N = %d plots per pattern and density,",
+                      "(%d tower plots left out), %d of them with event-specific census support",
+                      "admitted by the declaration %s (the group \"%s\"); simulated: N = %d plots per pattern and density,",
                       "SEED = %d, four 20 m quadrants per core; gated = windows with at least %d stems;",
                       "excess = observed minus random mean; %d bootstrap resamples (seed %d)."),
-                POP, nrow(dist_plots), n_tower, N, SEED, MIN_STEMS, MT_N_BOOT, MT_SEED), "",
+                POP, nrow(dist_plots), n_tower, sum(dist_plots$admitted), declaration$name, ADMITTED,
+                N, SEED, MIN_STEMS, MT_N_BOOT, MT_SEED), "",
         paste("| Group | Plots | Windows | Stems | Stems/ha | Within 2 m: observed | Within 2 m: random |",
               "Within 2 m: ratio [95% CI] | Within 2 m: excess [95% CI] | Within 4 m: observed |",
               "Within 4 m: random | Within 4 m: ratio [95% CI] | Within 4 m: excess [95% CI] |"),
