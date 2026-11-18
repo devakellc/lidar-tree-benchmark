@@ -367,6 +367,32 @@ test_that("known-truth plots are counted by signal stems", {
   expect_true("| rank | 4 | 3 | 1 | 1 |" %in% k)
 })
 
+test_that("held-out catalogue plots are listed per plot, signal and method", {
+  rc <- data.frame(plot_id = c("0300", "0100", "0100", "0200"),
+                   project_name = c("P3", "P1", "P1", "P2"),
+                   set = c("heldout", "heldout", "heldout", "candidate"),
+                   signal = c("rank", "rank", "rank", "height"),
+                   method = c("amendment1", "declared", "amendment1", "amendment1"),
+                   screen = c("no_status", "nested_hyperplot", "nested_hyperplot", "none"),
+                   n_signal = c(40, 25, 25, 90), dx = c(12, -1.26, 0.5, 1), dy = c(0.5, 2, -0.25, 1),
+                   shift_m = c(12.01, 2.36, 0.56, 1.41), residual_m = c(3.2, 1.1, 0.4, 0.2),
+                   on_edge = c(TRUE, FALSE, FALSE, FALSE), accepted = c(FALSE, TRUE, TRUE, TRUE),
+                   reject_reason = c("on_edge", "", "", ""),
+                   flight_admitted = c(FALSE, TRUE, TRUE, TRUE), stringsAsFactors = FALSE)
+  out <- rep_sec_heldout(list(registration_catalog.csv = rc))
+  expect_identical(out[1], "### Registration: held-out catalogue plots")
+  rows <- grep("^\\| 0", out, value = TRUE)
+  # The candidate plot is left out; rows sort by plot, signal and method.
+  expect_length(rows, 3)
+  expect_match(rows[1], "^\\| 0100 \\| P1 \\| nested_hyperplot \\| rank \\| amendment1 \\| 25 \\| 0.5 \\|")
+  expect_match(rows[2], "\\| declared \\| 25 \\| -1.3 \\| 2.0 \\| 2.4 \\| 1.1 \\| no \\| yes \\|")
+  expect_match(rows[3], "^\\| 0300 .* \\| 12.0 \\| 0.5 \\| 12.0 \\| 3.2 \\| yes \\| no \\| on_edge \\| no \\|$")
+  # Older tables without the optional columns still give a table.
+  old <- rc[, setdiff(names(rc), c("method", "screen", "on_edge", "flight_admitted"))]
+  expect_length(grep("^\\| 0", rep_sec_heldout(list(registration_catalog.csv = old))), 3)
+  expect_match(paste(rep_sec_heldout(list()), collapse = " "), "is missing")
+})
+
 test_that("OUT may not reach the job directory outside OFO by any path", {
   job <- tempfile("rep-job-")
   scratch <- tempfile("rep-out-")

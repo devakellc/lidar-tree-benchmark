@@ -37,11 +37,13 @@ What the evidence shows, short of a completed test:
   stem map and its canopy. `ABBY_063` belongs to the benchmark's headline
   NEON population, which is matched at 4 m; how a 3 m offset of its stem
   map affects the NEON results at Abby Road was not examined.
-- **Twelve catalogue plots fail only on unmade checks**: 3 in group A and 9
-  in group B. Three more have Forest Service harvest or burning records
-  inside their interval. Four fail the guard against a competing alignment:
-  the three `JLHZ2019` plots and `MNPK2018` plot 0200, which is also on the
-  edge of the search window.
+- **Of the 19 plots with an admitted flight, twelve fail only on unmade
+  checks**: 3 in group A and 9 in group B. Three more have Forest Service
+  harvest or burning records inside their interval. Four fail the guard
+  against a competing alignment: the three `JLHZ2019` plots and `MNPK2018`
+  plot 0200, which is also on the edge of the search window. Of the 26
+  plots without an admitted flight, two more have such records and one more
+  fails the guard.
 
 ## Decision
 
@@ -141,12 +143,14 @@ Five truths are credible. Of the other 26, 23 fail the stability rule: the
 90th percentile of the bootstrap distances exceeds 1 m, usually by far.
 `NIWO_042` has no truth stem to resample and fails it too. On the unstable
 plots, resampling the stems moves the answer between shifts that score
-alike. The likely reasons differ by site. On the benchmark plots, with
-few and large boxes, many stems lie far from any box centre: at the truth,
-the median distance to the nearest centre exceeds 1.5 m on 7 of the 19
-plots. At NIWO the stems lie close to box centres, at medians of 0.6 to
-1.1 m, but the boxes are small and dense, more than 100 per image, so other
-shifts also put most stems near some box.
+alike. Why is not established. Distance from the box centres explains only
+part of it. On the 15 benchmark plots that fail the stability rule, the
+median distance from a stem to the nearest box centre, at the truth,
+exceeds 1.5 m on 6 and lies between 0.52 and 1.46 m on the other 9. On the
+two credible benchmark plots it is 0.69 and 0.75 m, and two unstable plots
+lie closer than that. At NIWO the stems lie close to box centres, at
+medians of 0.6 to 1.1 m, but the boxes are small and dense, more than 100
+per image, which may let other shifts put most stems near some box.
 
 Seven plots have fewer than 8 truth stems; for `SJER_051` and `SJER_052`,
 with one stem each, that is the only failure besides the window's edge at
@@ -163,7 +167,14 @@ them, so this test says nothing about those two plots.
 
 The benchmark units reuse the frozen method's estimates from the first
 protocol, unchanged. The NIWO units were run once, on clips built with the
-benchmark's own provider from the site's 2020 flight. The code path that
+benchmark's own provider from the site's 2020 flight. Their stems were
+built with a copy of `neon_ground_truth.R` that adds one guard, which the
+protocol does not mention. The unchanged script stops on NIWO data: its
+fallback that assigns a crown class from height quantiles meets tied
+quantiles at `NIWO_061`, a plot without annotations. The guard leaves that
+plot's fallback class empty. Neither the crown truth nor the method reads
+the crown class, so the stems of every test unit are as the unchanged
+script would build them. The code path that
 ran them reproduces the first protocol's rows for three benchmark plots
 exactly. Ten of the twelve NIWO plots were accepted by the frozen gate under
 each signal.
@@ -343,6 +354,8 @@ the two new checks were still applied to every candidate.
   within 0.12 m.
 - `MNPK2018` plot 0200 is still on the edge of the search window, and its
   second alignment, at 0.812, fails the first check too.
+- The plot table lists the candidates with an admitted flight. Among those
+  without one, `OHDS2024` plot 0270 also fails the first check, at 0.942.
 
 ## Disturbance between survey and flight
 
@@ -397,12 +410,15 @@ the two new checks were still applied to every candidate.
 - **Fire.** No fire perimeter lies within 50 m of any of the 19 plots with
   an admitted flight inside its interval. The nearest inside an interval is
   the Dexter fire of 2021, 97 m from `MNPK2018` plot 0198.
-- **Forest Service activities.** `STEF2018` plots 0077, 0078 and 0080 have
-  completed activities inside their interval: pile burning in January 2018,
-  a salvage cut in June 2018 and, at 0077, a commercial thin in November
-  2020. They are held on evidence. The survey is dated only by its year, so
-  the 2018 activities may predate it; the declared interval starts on
-  1 January and counts them.
+- **Forest Service activities.** Of the plots with an admitted flight,
+  `STEF2018` plots 0077, 0078 and 0080 have completed activities inside
+  their interval: pile burning in January 2018, a salvage cut in June 2018
+  and, at 0077, a commercial thin in November 2020. They are held on
+  evidence. The survey is dated only by its year, so the 2018 activities
+  may predate it; the declared interval starts on 1 January and counts
+  them. `STEF2018` plot 0079 and `STEF2007` plot 0072 have the same 2018
+  records inside their interval, and 0072 a pile burning in November 2008,
+  but neither has an admitted flight.
 - **Record coverage.** The activity records cover National Forest land.
   `EP2018`, the two northern `JLHZ2019` plots and the two `SSMT2024` plots
   lie outside it and pass that check for lack of a record source.

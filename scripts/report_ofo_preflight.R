@@ -1158,6 +1158,34 @@ rep_sec_candidates <- function(tabs) {
   rep_block("Registration: candidate plots of groups A, B and D", body)
 }
 
+# Test 2 of the protocol: held-out catalogue plots, one row per plot, signal
+# and method (shift, residual and acceptance per plot).
+rep_sec_heldout <- function(tabs) {
+  req <- list(registration_catalog.csv = c("plot_id", "project_name", "set", "signal",
+                                           "n_signal", "dx", "dy", "shift_m", "residual_m",
+                                           "accepted", "reject_reason"))
+  msg <- rep_need(tabs, req)
+  body <- if (!is.null(msg)) msg else {
+    r <- tabs$registration_catalog.csv
+    r <- r[r$set %in% "heldout", , drop = FALSE]
+    opt <- function(k) if (k %in% names(r)) r[[k]] else rep(NA, nrow(r))
+    method <- opt("method")
+    r <- r[rep_order(r$plot_id, r$signal, as.character(method)), , drop = FALSE]
+    tab <- rep_df(Plot = r$plot_id, Project = r$project_name, Screen = opt("screen"),
+                  Signal = r$signal, Method = opt("method"), Stems = rep_int(r$n_signal),
+                  "dx, m" = rep_num(r$dx), "dy, m" = rep_num(r$dy),
+                  "Shift, m" = rep_num(r$shift_m), "Residual, m" = rep_num(r$residual_m),
+                  "On edge" = rep_yes(opt("on_edge")), Accepted = rep_yes(r$accepted),
+                  Reason = r$reject_reason, "Flight admitted" = rep_yes(opt("flight_admitted")))
+    c(rep_md_table(tab, "No held-out catalogue plots."), "",
+      rep_note("Source: `registration_catalog.csv`, set `heldout`: catalogue plots that fail ",
+               "the population rules (Screen) and are never scored, registered on their ",
+               "best available flight, admitted or not. One row per plot, signal and ",
+               "method; `declared` is the first method, kept for the record."))
+  }
+  rep_block("Registration: held-out catalogue plots", body)
+}
+
 ## ---- 6. conditions ----------------------------------------------------------------
 
 rep_sec_conditions <- function(tabs) {
@@ -1364,7 +1392,9 @@ rep_sec_cells <- function(tabs) {
                  " Provisionally placed: plots whose registration failed only because ",
                  "the test of their signal could not be made, placed at the method's ",
                  "estimate so that the hold rule can count them. They are not ",
-                 "registered and their cells are no reference.")))
+                 "registered and their cells are no reference. Plots among them ",
+                 "that also fail a gate on evidence are counted here but not by ",
+                 "the hold rule (`unchecked_only` in `plot_admission.csv`).")))
   }
   rep_block("Scoring cells and reference stems by group and project", body)
 }
@@ -1617,6 +1647,7 @@ rep_document <- function(tabs, info = NULL) {
     rep_sec_known_truth_sites(tabs), rep_sec_known_truth_stems(tabs), rep_sec_amendment(tabs),
     rep_sec_dev_variants(tabs), rep_sec_dev_frozen(tabs), rep_sec_confirmation(tabs),
     rep_sec_catalog_registration(tabs), rep_sec_agreement(tabs), rep_sec_candidates(tabs),
+    rep_sec_heldout(tabs),
     "## 6. Disturbance, snow and leaf-off", "", rep_sec_conditions(tabs),
     rep_sec_conditions_held(tabs), rep_sec_disturbance_order(tabs),
     "## 7. Scoring cells", "", rep_sec_cells_possible(tabs), rep_sec_cells(tabs),

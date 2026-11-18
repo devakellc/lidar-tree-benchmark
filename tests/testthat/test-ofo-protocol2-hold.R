@@ -116,3 +116,35 @@ test_that("catalogue rows are unchecked only when the inconclusive signal is the
   r3 <- ofo_p2_registration(plots, flights, cat, c(height = TRUE, rank = TRUE), groups = "A")
   expect_identical(r3$registration_check, c("registered", "evidence", "evidence"))
 })
+
+test_that("a frozen-gate rejection, a disagreement or too few stems is evidence", {
+  ids <- c("0001", "0002", "0003", "0004")
+  plots <- data.frame(plot_id = ids, project_name = "P", group = "A", screen = "none",
+                      stringsAsFactors = FALSE)
+  flights <- data.frame(plot_id = ids, flight_admitted = TRUE, cloud_status = "ok",
+                        stringsAsFactors = FALSE)
+  cat <- data.frame(plot_id = rep(ids, each = 2), signal = c("height", "rank"),
+                    method = "amendment1", set = "candidate",
+                    n_signal = c(100, 100, 100, 100, 100, 100, 5, 100),
+                    dx = c(1, 1, 1, 1, 1, 4, 1, 1), dy = 0, shift_m = 1, residual_m = 0.5,
+                    contrast = 0.3,
+                    accepted = c(TRUE, TRUE, FALSE, TRUE, TRUE, TRUE, TRUE, TRUE),
+                    reject_reason = c("", "", "on_edge", "", "", "", "", ""),
+                    sub_p90_m = 0.2, on_edge = c(FALSE, FALSE, TRUE, rep(FALSE, 5)),
+                    second_peak = 0.5, stringsAsFactors = FALSE)
+  r <- ofo_p2_registration(plots, flights, cat, c(height = FALSE, rank = FALSE),
+                           groups = "A", inconclusive = c(height = TRUE, rank = TRUE))
+  # 0001 clean; 0002 rejected on edge; 0003 signals 3 m apart; 0004 five stems
+  expect_identical(r$registration_check, c("unchecked", "evidence", "evidence", "evidence"))
+})
+
+test_that("an unchecked registration with a screen, flight or geometry failure is not eligible", {
+  f <- adm_fixture(registered = c(FALSE, FALSE, FALSE),
+                   reg_check = c("unchecked", "unchecked", "unchecked"),
+                   cond_admitted = c(TRUE, TRUE, FALSE),
+                   cond_check = c("admitted", "admitted", "unchecked"))
+  f$geometry$geometry_consistent <- c(TRUE, FALSE, TRUE)
+  f$flights$flight_admitted <- c(TRUE, TRUE, FALSE)
+  a <- ofo_plot_admission(f$plots, f$flights, f$geometry, f$conditions, f$registration)
+  expect_identical(a$unchecked_only, c(TRUE, FALSE, FALSE))
+})

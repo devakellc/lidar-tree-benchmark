@@ -305,8 +305,10 @@ ofo_dist_check <- function(det, failed = character(), interval_problem = "") {
     if (!any(k)) return("")
     y <- ifelse(is.na(det$event_date[k]) | det$event_date[k] %in% "NA",
                 as.character(det$event_year[k]), det$event_date[k])
+    # Only dated records within the interval are labelled; records with an
+    # unknown date are counted in n_unknown.
     s <- sprintf("%s (%s, %s)", ifelse(is.na(det$name[k]), "unnamed", det$name[k]),
-                 ifelse(is.na(y), "date unknown", y), det$source[k])
+                 y, det$source[k])
     paste(sort(unique(s), method = "radix"), collapse = "; ")
   }
   clear <- if (!has_interval) NA else if (any(inn)) FALSE

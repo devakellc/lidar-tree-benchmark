@@ -19,7 +19,7 @@
  },
  "niwo": {
   "site": "NIWO (Niwot Ridge), used for the registration test only",
-  "stems": "NEON vegetation structure DP1.10098.001, built with neon_ground_truth.R at YEAR=2020",
+  "stems": "NEON vegetation structure DP1.10098.001, built at YEAR=2020 with a copy of neon_ground_truth.R (SHA-256 d5864a3b02ef77cfb4b7c5cc4852f0825826277b88fd490021574b9ad21bd3b0) with one guard added (copy SHA-256 4727aedcf899a735e6abe11653804f8e427ab62d6a6ab0c4f85cce98de6ec35f): the crown-class height-quantile fallback is skipped for a plot whose quantiles tie (NIWO_061, not annotated); the registration and the crown truth do not read crown class",
   "lidar": "NEON discrete-return LiDAR DP1.30003.001, flight 2020_NIWO_4",
   "tiles": [
    {

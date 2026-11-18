@@ -842,3 +842,42 @@ test_that("records, presence, assembly, decision and reference run on a syntheti
   expect_match(r16$out, "plot_admission.csv differs from the one it wrote")
   expect_false(dir.exists(file.path(job, "neon")))
 })
+
+test_that("an inconclusive crown-frame test places unchecked plots and holds the group", {
+  skip_if_not_installed("lidR")
+  job <- tempfile("ofo-p2-inc-")
+  on.exit(unlink(job, recursive = TRUE), add = TRUE)
+  W <- p2_world(job)
+  ct <- file.path(W$p2, "crowntruth_test.json")
+  jsonlite::write_json(list(admitted = list(height = FALSE, rank = FALSE),
+                            signals = list(height = list(inconclusive = TRUE),
+                                           rank = list(inconclusive = TRUE)),
+                            rule = "fixture"), ct, auto_unbox = TRUE)
+  expect_equal(run_driver("preflight_ofo_disturbance.R", job,
+                          c("STAGE=records", "OFFLINE=TRUE"))$status, 0L)
+  r <- run_driver("preflight_ofo_disturbance.R", job, "STAGE=presence")
+  expect_equal(r$status, 0L, info = r$out)
+  r <- run_driver("preflight_ofo2_assemble.R", job)
+  expect_equal(r$status, 0L, info = r$out)
+  reg <- rd(file.path(W$p2, "registration.csv"))
+  expect_equal(reg$registration_check[reg$plot_id %in% c("0201", "0202", "0204", "0205")],
+               rep("unchecked", 4))
+  expect_equal(reg$registration_check[reg$plot_id %in% c("0103", "0203")],
+               c("evidence", "evidence"))
+  r <- run_driver("preflight_ofo_decision.R", job,
+                  c(paste0("IN2=", W$p2), paste0("OUT=", W$p2), "GROUPS=A,B"))
+  expect_equal(r$status, 0L, info = r$out)
+  cells <- rd(file.path(W$p2, "cells.csv"))
+  expect_true(all(cells$provisional[cells$group == "B"]))
+  expect_gt(sum(cells$group == "B"), 0)
+  pa <- rd(file.path(W$p2, "plot_admission.csv"))
+  expect_true(all(pa$n_ref_headline_hold[pa$group == "B" & pa$unchecked_only] > 0))
+  dec <- rd(file.path(W$p2, "group_decision.csv"))
+  expect_equal(dec$decision[dec$group == "B"], "hold")
+  expect_true(dec$signal_inconclusive[dec$group == "B"])
+  # A held group authorises nothing: no reference table is written for it.
+  r <- run_driver("prepare_ofo_reference.R", job, c(paste0("PRE=", W$p2), "GROUPS=B"))
+  expect_true(r$status != 0)
+  expect_match(r$out, "B=hold")
+  expect_false(dir.exists(file.path(W$p2, "reference")))
+})

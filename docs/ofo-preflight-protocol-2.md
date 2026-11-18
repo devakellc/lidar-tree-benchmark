@@ -193,3 +193,21 @@ signal fails, that group is no-go, and this protocol allows no redesign.
   method.
 - Fire and activity records miss events outside their coverage, and the
   canopy check sees the loss of large trees, not of small ones.
+
+## Corrections (18 November 2026)
+
+Recorded after the results. Neither changes a rule, and the text above is
+left as it was declared.
+
+- "Why a second protocol" calls the two signals independent. Under the
+  frozen method they share the canopy surface and most of the same stems,
+  as Amendment 1b of the first protocol says. Their agreement on the Abby
+  Road units, `SOAP_031` and `TEAK_046` is therefore not independent
+  evidence of an offset between a stem map and its canopy.
+- "Test units" says the NIWO stems are built with `neon_ground_truth.R`.
+  They were built with a copy of it that adds one guard, because the script
+  stops on tied height quantiles in its crown-class fallback at `NIWO_061`.
+  The guard leaves that plot's fallback class empty. The plot is not
+  annotated, and neither the crown truth nor the method reads the crown
+  class. Both digests are in the
+  [sources record](ofo-preflight-2-sources.json).

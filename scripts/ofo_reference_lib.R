@@ -761,6 +761,9 @@ ofo_check_site_tables <- function(gt, pc, site) {
 ofo_output_allowed <- function(path, job, ofo) {
   if (!ofo_path_ok(path)) return(FALSE)
   p <- ofo_path_resolve(path)
+  # Never in the NEON root, wherever <job>/neon resolves: it may be a symlink
+  # to another disk, and then lies outside the resolved job directory.
+  if (ofo_path_within(p, ofo_path_resolve(file.path(job, "neon")))) return(FALSE)
   ofo_path_within(p, ofo_path_resolve(ofo)) || !ofo_path_within(p, ofo_path_resolve(job))
 }
 

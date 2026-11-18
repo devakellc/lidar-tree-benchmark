@@ -726,6 +726,19 @@ test_that("outputs go under OFO or outside the job directory, never elsewhere in
   if (isTRUE(file.symlink(file.path(job, "neon"), link))) {
     expect_false(ok(file.path(link, "x")))
   }
+  # A NEON root kept elsewhere and linked into the job is still refused, by
+  # its name in the job and by the place it resolves to.
+  ext <- tempfile("ofo-ext-neon-")
+  job2 <- tempfile("ofo-job2-")
+  dir.create(file.path(ext, "frozen_2021"), recursive = TRUE)
+  dir.create(file.path(job2, "ofo"), recursive = TRUE)
+  on.exit(unlink(c(ext, job2), recursive = TRUE), add = TRUE)
+  if (isTRUE(file.symlink(ext, file.path(job2, "neon")))) {
+    ok2 <- function(p) ofo_output_allowed(p, job2, file.path(job2, "ofo"))
+    expect_false(ok2(file.path(job2, "neon", "frozen_2021", "out")))
+    expect_false(ok2(file.path(ext, "x")))
+    expect_true(ok2(file.path(job2, "ofo", "x")))
+  }
 })
 
 test_that("inputs: registration.csv needs a shift and an uncertainty where registered", {

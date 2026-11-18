@@ -226,8 +226,10 @@ jsonlite::write_json(record, file.path(out_dir, "decision_record.json"), auto_un
 cat(sprintf("\nnon-NEON plots %d; with a group %d; registered %d; admitted %d; ",
             nrow(adm), sum(adm$group %in% OFO_GROUPS), sum(adm$registered), sum(adm$admitted)))
 cat(sprintf("failing only unchecked conditions %d\n", sum(adm$unchecked_only)))
+prov <- if ("provisional" %in% names(cells)) cells$provisional %in% TRUE else
+  rep(FALSE, nrow(cells))
 cat(sprintf("cells of registered plots %d (headline %d); of admitted plots %d (headline %d)\n",
-            sum(!cells$provisional %in% TRUE), sum(cells$headline & !cells$provisional %in% TRUE),
+            sum(!prov), sum(cells$headline & !prov),
             sum(cells$plot_admitted), sum(cells$headline & cells$plot_admitted)))
 if ("provisional" %in% names(cells))
   cat(sprintf("provisional cells (unchecked registrations, hold count only) %d (headline %d)\n",

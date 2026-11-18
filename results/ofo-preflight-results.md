@@ -14,7 +14,8 @@ then amended to allow one redesign, and that redesign failed its
 confirmation. No reference table was written, no clip was frozen and no
 detector was run. The NEON results are untouched. A
 [second preflight](ofo-preflight-2-results.md) for groups A and B followed
-under a new protocol and ended in hold. The study was closed there on
+under a new protocol and ended in hold on that preflight's reading of its
+protocol, or no-go on a strict reading. The study was closed there on
 18 November 2026; the catalogue's stem maps are not part of the benchmark's
 reference.
 
@@ -501,7 +502,9 @@ no signal is admitted.
 | heldout | all | all projects | declared | height | 14 | 14 | 9 | 2.1 | 1.6 |
 | heldout | all | all projects | declared | rank | 46 | 34 | 12 | 2.1 | 4.4 |
 
-Rows of method `declared` are the first method, kept for the record.
+Rows of method `declared` are the first method, kept for the record. The
+shift, residual and acceptance of each held-out plot are in the
+[second appendix](#appendix-held-out-catalogue-plots).
 Under the frozen method the gate accepts 83 of 101 candidate plots on the
 height signal and 98 of 117 on the diameter signal, with a median shift of
 1.7 m. Shifts are near zero at `STEF2018` and about 5 to 7 m on three
@@ -813,8 +816,13 @@ archive at present.
 - Test offsets of up to 8 m put the truth off-centre in the search window,
   unlike catalogue plots, whose estimated shifts are mostly below 3 m.
 - The catalogue bounds plot positions only against its drone missions, not
-  against the 3DEP clouds. One plot, `MNPK2018` 0200, was estimated at the
-  edge of the ±12 m window.
+  against the 3DEP clouds. Under the frozen method nine catalogue plots
+  were estimated at the edge of the ±12 m window: `MNPK2018` 0200 in group
+  B, four in group C (`VP2022` 0002, `FOCAL2023` 0113, `Eshom2020` 0208 and
+  0232) and four held-out `Cambria2021` plots (0258, 0259, 0267 and 0268).
+  The declared method put four more group C plots there (`VP2022` 0017 and
+  0049, `SSI2023` 0052 and `TNC2023` 0097). Their shifts may exceed the
+  window.
 - The disturbance check was not validated against plots of known history.
 - Survey dates are approximate for 286 of 287 plots, so time gaps are whole
   years.
@@ -1070,3 +1078,133 @@ this study. The confirmation stage refuses to run a second time.
 | 0293 | FOCAL2025 | 201 | no_diameter_floor | 2025 | 0.50 | CA_SierraNevada_5_2022 | QL 1 | 2021-11-17 | 4 | 38.1 | 24.4 | CC BY SA 4.0 | — | — | no | screen_ok (no_diameter_floor); conditions_admitted (no_usable_drone_model); registered |
 | 0294 | FOCAL2025 | 204 | no_diameter_floor | 2025 | 0.50 | CA_SierraNevada_5_2022 | QL 1 | 2021-11-20 | 4 | 22.8 | 13.4 | CC BY SA 4.0 | — | — | no | screen_ok (no_diameter_floor); conditions_admitted (no_usable_drone_model); registered |
 | 0295 | FOCAL2025 | 200 | no_diameter_floor | 2025 | 0.50 | CA_SierraNevada_2_2022 | QL 1 | 2021-11-24 | 4 | 26.6 | 12.1 | CC BY SA 4.0 | — | — | no | screen_ok (no_diameter_floor); conditions_admitted (no_usable_drone_model); registered |
+
+## Appendix: held-out catalogue plots
+
+Catalogue plots that fail the population rules (Screen) and are never
+scored, registered on their best available flight, admitted or not. One row
+per plot, signal and method; `declared` is the first method, kept for the
+record.
+
+| Plot | Project | Screen | Signal | Method | Stems | dx, m | dy, m | Shift, m | Residual, m | On edge | Accepted | Reason | Flight admitted |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0058 | FOCAL2020 | no_diameter_floor | height | amendment1 | 301 | 0.8 | -1.2 | 1.4 | 0.3 | no | yes | — | yes |
+| 0058 | FOCAL2020 | no_diameter_floor | height | declared | 152 | 1.0 | -0.5 | 1.1 | 0.9 | no | yes | — | yes |
+| 0059 | FOCAL2020 | no_diameter_floor | height | amendment1 | 151 | 4.2 | 0.3 | 4.2 | 0.3 | no | yes | — | yes |
+| 0059 | FOCAL2020 | no_diameter_floor | height | declared | 76 | 5.0 | -2.0 | 5.4 | 3.2 | no | no | residual | yes |
+| 0060 | FOCAL2020 | no_diameter_floor | height | amendment1 | 106 | 0.6 | -0.8 | 1.0 | 0.5 | no | yes | — | no |
+| 0060 | FOCAL2020 | no_diameter_floor | height | declared | 53 | 0.0 | -0.5 | 0.5 | 1.1 | no | yes | — | no |
+| 0061 | FOCAL2020 | no_diameter_floor | height | amendment1 | 127 | 2.0 | 0.4 | 2.1 | 0.5 | no | yes | — | yes |
+| 0061 | FOCAL2020 | no_diameter_floor | height | declared | 64 | 2.0 | 1.5 | 2.5 | 1.6 | no | yes | — | yes |
+| 0062 | FOCAL2020 | no_diameter_floor | height | amendment1 | 155 | -0.6 | 0.3 | 0.7 | 0.3 | no | yes | — | no |
+| 0062 | FOCAL2020 | no_diameter_floor | height | declared | 79 | -1.5 | 1.5 | 2.1 | 1.8 | no | yes | — | no |
+| 0063 | FOCAL2020 | no_diameter_floor | height | amendment1 | 282 | 0.7 | -0.6 | 0.9 | 0.3 | no | yes | — | yes |
+| 0063 | FOCAL2020 | no_diameter_floor | height | declared | 141 | 2.0 | -1.0 | 2.2 | 2.4 | no | no | residual | yes |
+| 0064 | FOCAL2020 | no_diameter_floor | height | amendment1 | 103 | 0.8 | -0.5 | 1.0 | 0.4 | no | yes | — | yes |
+| 0064 | FOCAL2020 | no_diameter_floor | height | declared | 52 | 0.5 | -2.0 | 2.1 | 1.1 | no | yes | — | yes |
+| 0065 | FOCAL2020 | no_diameter_floor | height | amendment1 | 79 | 2.2 | 0.4 | 2.2 | 0.3 | no | yes | — | yes |
+| 0065 | FOCAL2020 | no_diameter_floor | height | declared | 42 | 1.0 | -1.5 | 1.8 | 1.1 | no | yes | — | yes |
+| 0066 | FOCAL2020 | no_diameter_floor | height | amendment1 | 377 | 2.4 | -1.7 | 2.9 | 0.3 | no | yes | — | yes |
+| 0066 | FOCAL2020 | no_diameter_floor | height | declared | 190 | 1.5 | -2.0 | 2.5 | 1.6 | no | yes | — | yes |
+| 0067 | FOCAL2020 | no_diameter_floor | height | amendment1 | 159 | 2.4 | -2.7 | 3.6 | 0.4 | no | yes | — | yes |
+| 0067 | FOCAL2020 | no_diameter_floor | height | declared | 81 | 2.0 | -2.5 | 3.2 | 2.1 | no | no | residual | yes |
+| 0069 | STEF2007 | none | rank | amendment1 | 1,530 | -0.2 | -1.4 | 1.4 | 0.3 | no | yes | — | no |
+| 0069 | STEF2007 | none | rank | declared | 1,530 | 0.5 | -1.0 | 1.1 | 1.0 | no | yes | — | no |
+| 0070 | STEF2007 | none | rank | amendment1 | 3,620 | -0.7 | -1.1 | 1.3 | 0.2 | no | yes | — | no |
+| 0070 | STEF2007 | none | rank | declared | 3,620 | -0.5 | -1.5 | 1.6 | 0.5 | no | yes | — | no |
+| 0071 | STEF2007 | none | rank | amendment1 | 2,767 | -0.9 | -0.4 | 1.0 | 0.2 | no | yes | — | no |
+| 0071 | STEF2007 | none | rank | declared | 2,767 | -1.0 | -0.5 | 1.1 | 1.0 | no | yes | — | no |
+| 0072 | STEF2007 | none | rank | amendment1 | 2,518 | 2.5 | 2.8 | 3.7 | 0.5 | no | yes | — | no |
+| 0072 | STEF2007 | none | rank | declared | 2,518 | 3.0 | 1.0 | 3.2 | 3.5 | no | no | contrast;residual | no |
+| 0079 | STEF2018 | none | rank | amendment1 | 407 | -4.0 | -0.4 | 4.0 | 0.5 | no | yes | — | no |
+| 0079 | STEF2018 | none | rank | declared | 407 | -4.0 | -0.5 | 4.0 | 1.9 | no | yes | — | no |
+| 0081 | SJGEO2018 | none | rank | amendment1 | 1,137 | -1.3 | -0.4 | 1.4 | 0.6 | no | yes | — | no |
+| 0081 | SJGEO2018 | none | rank | declared | 1,137 | -1.5 | 0.5 | 1.6 | 1.5 | no | yes | — | no |
+| 0186 | WADNR2023 | no_status | rank | amendment1 | 22 | 3.8 | -0.3 | 3.8 | 1.3 | no | yes | — | yes |
+| 0186 | WADNR2023 | no_status | rank | declared | 22 | 5.0 | -2.5 | 5.6 | 1.3 | no | yes | — | yes |
+| 0187 | WADNR2023 | no_status | rank | amendment1 | 61 | 3.0 | -2.0 | 3.6 | 1.4 | no | yes | — | yes |
+| 0187 | WADNR2023 | no_status | rank | declared | 61 | 1.0 | 11.0 | 11.0 | 10.7 | no | no | residual | yes |
+| 0188 | WADNR2023 | no_status | rank | amendment1 | 35 | 2.6 | -2.1 | 3.3 | 0.9 | no | yes | — | yes |
+| 0188 | WADNR2023 | no_status | rank | declared | 35 | 0.5 | 0.5 | 0.7 | 7.7 | no | no | residual | yes |
+| 0189 | WADNR2023 | no_status | rank | amendment1 | 15 | 4.0 | -0.1 | 4.0 | 1.4 | no | yes | — | yes |
+| 0189 | WADNR2023 | no_status | rank | declared | 15 | 7.0 | -1.0 | 7.1 | 10.0 | no | no | residual | yes |
+| 0190 | WADNR2023 | no_status | rank | amendment1 | 79 | 2.3 | 0.4 | 2.3 | 1.0 | no | yes | — | yes |
+| 0190 | WADNR2023 | no_status | rank | declared | 79 | 3.0 | 1.5 | 3.4 | 4.2 | no | no | residual | yes |
+| 0191 | WADNR2023 | no_status | rank | amendment1 | 9 | 3.0 | -0.5 | 3.0 | 7.4 | no | no | n | yes |
+| 0191 | WADNR2023 | no_status | rank | declared | 9 | — | — | — | — | — | no | n | yes |
+| 0192 | WADNR2023 | no_status | rank | amendment1 | 19 | 4.1 | -1.6 | 4.4 | 1.0 | no | yes | — | yes |
+| 0192 | WADNR2023 | no_status | rank | declared | 19 | 3.0 | -1.0 | 3.2 | 4.7 | no | no | residual | yes |
+| 0193 | WADNR2023 | no_status | rank | amendment1 | 45 | 2.6 | -0.8 | 2.7 | 2.0 | no | no | sub_p90_m | yes |
+| 0193 | WADNR2023 | no_status | rank | declared | 45 | 3.5 | -2.5 | 4.3 | 1.8 | no | yes | — | yes |
+| 0194 | WADNR2023 | no_status | rank | amendment1 | 8 | -8.1 | 8.6 | 11.8 | 13.4 | no | no | n;sub_p90_m | yes |
+| 0194 | WADNR2023 | no_status | rank | declared | 8 | — | — | — | — | — | no | n | yes |
+| 0195 | WADNR2023 | no_status | rank | amendment1 | 116 | 3.9 | -0.1 | 3.9 | 0.4 | no | yes | — | yes |
+| 0195 | WADNR2023 | no_status | rank | declared | 116 | 4.5 | -0.5 | 4.5 | 1.7 | no | yes | — | yes |
+| 0196 | WADNR2023 | no_status | rank | amendment1 | 80 | 3.1 | -0.3 | 3.1 | 0.4 | no | yes | — | yes |
+| 0196 | WADNR2023 | no_status | rank | declared | 80 | 5.0 | 0.5 | 5.0 | 4.7 | no | no | residual | yes |
+| 0243 | Cambria2021 | nested_hyperplot | rank | amendment1 | 1 | — | — | — | — | — | no | n | no |
+| 0243 | Cambria2021 | nested_hyperplot | rank | declared | 1 | — | — | — | — | — | no | n | no |
+| 0247 | Cambria2021 | nested_hyperplot | rank | amendment1 | 1 | — | — | — | — | — | no | n | no |
+| 0247 | Cambria2021 | nested_hyperplot | rank | declared | 1 | — | — | — | — | — | no | n | no |
+| 0248 | Cambria2021 | nested_hyperplot | rank | amendment1 | 6 | -0.3 | -6.4 | 6.4 | 6.5 | no | no | n;sub_p90_m | no |
+| 0248 | Cambria2021 | nested_hyperplot | rank | declared | 6 | — | — | — | — | — | no | n | no |
+| 0249 | Cambria2021 | nested_hyperplot | rank | amendment1 | 1 | — | — | — | — | — | no | n | no |
+| 0249 | Cambria2021 | nested_hyperplot | rank | declared | 1 | — | — | — | — | — | no | n | no |
+| 0250 | Cambria2021 | nested_hyperplot | rank | amendment1 | 9 | -11.6 | 11.4 | 16.3 | 9.9 | no | no | n;sub_p90_m | no |
+| 0250 | Cambria2021 | nested_hyperplot | rank | declared | 9 | — | — | — | — | — | no | n | no |
+| 0253 | Cambria2021 | nested_hyperplot | rank | amendment1 | 2 | — | — | — | — | — | no | n | no |
+| 0253 | Cambria2021 | nested_hyperplot | rank | declared | 2 | — | — | — | — | — | no | n | no |
+| 0254 | Cambria2021 | nested_hyperplot | rank | amendment1 | 1 | — | — | — | — | — | no | n | no |
+| 0254 | Cambria2021 | nested_hyperplot | rank | declared | 1 | — | — | — | — | — | no | n | no |
+| 0256 | Cambria2021 | nested_hyperplot | rank | amendment1 | 1 | — | — | — | — | — | no | n | no |
+| 0256 | Cambria2021 | nested_hyperplot | rank | declared | 1 | — | — | — | — | — | no | n | no |
+| 0257 | Cambria2021 | nested_hyperplot | rank | amendment1 | 17 | -6.0 | 11.4 | 12.9 | 15.8 | no | yes | — | no |
+| 0257 | Cambria2021 | nested_hyperplot | rank | declared | 17 | -3.0 | -5.0 | 5.8 | 7.1 | no | no | residual | no |
+| 0258 | Cambria2021 | nested_hyperplot | rank | amendment1 | 24 | 12.0 | 1.5 | 12.1 | 14.5 | yes | no | on_edge;sub_p90_m | no |
+| 0258 | Cambria2021 | nested_hyperplot | rank | declared | 24 | 11.0 | 6.0 | 12.5 | 10.8 | no | no | residual | no |
+| 0259 | Cambria2021 | nested_hyperplot | rank | amendment1 | 12 | 12.0 | -7.9 | 14.4 | 19.7 | yes | no | on_edge;sub_p90_m | no |
+| 0259 | Cambria2021 | nested_hyperplot | rank | declared | 12 | — | — | — | — | — | no | n | no |
+| 0260 | Cambria2021 | nested_hyperplot | rank | amendment1 | 32 | -2.7 | -9.8 | 10.2 | 9.6 | no | yes | — | no |
+| 0260 | Cambria2021 | nested_hyperplot | rank | declared | 32 | -9.5 | -1.0 | 9.6 | 13.9 | no | no | residual | no |
+| 0261 | Cambria2021 | nested_hyperplot | rank | amendment1 | 17 | 0.8 | 0.9 | 1.2 | 0.9 | no | yes | — | no |
+| 0261 | Cambria2021 | nested_hyperplot | rank | declared | 17 | 0.5 | 1.0 | 1.1 | 3.0 | no | no | residual | no |
+| 0262 | Cambria2021 | nested_hyperplot | rank | amendment1 | 52 | 2.2 | 9.5 | 9.8 | 10.3 | no | no | sub_p90_m | no |
+| 0262 | Cambria2021 | nested_hyperplot | rank | declared | 52 | -11.5 | 2.5 | 11.8 | 14.8 | no | no | residual | no |
+| 0263 | Cambria2021 | nested_hyperplot | rank | amendment1 | 18 | 1.6 | 0.1 | 1.6 | 2.7 | no | yes | — | no |
+| 0263 | Cambria2021 | nested_hyperplot | rank | declared | 18 | 2.0 | 2.0 | 2.8 | 13.2 | no | no | residual | no |
+| 0264 | Cambria2021 | nested_hyperplot | rank | amendment1 | 54 | 2.0 | 4.3 | 4.7 | 1.9 | no | yes | — | no |
+| 0264 | Cambria2021 | nested_hyperplot | rank | declared | 54 | -4.0 | -2.0 | 4.5 | 4.8 | no | no | residual | no |
+| 0265 | Cambria2021 | nested_hyperplot | rank | amendment1 | 36 | 6.1 | -9.8 | 11.5 | 13.1 | no | no | sub_p90_m | no |
+| 0265 | Cambria2021 | nested_hyperplot | rank | declared | 36 | 5.5 | -10.5 | 11.9 | 17.1 | no | no | residual | no |
+| 0266 | Cambria2021 | nested_hyperplot | rank | amendment1 | 26 | -3.2 | -7.1 | 7.8 | 8.0 | no | no | sub_p90_m | no |
+| 0266 | Cambria2021 | nested_hyperplot | rank | declared | 26 | -3.5 | -5.0 | 6.1 | 15.7 | no | no | residual | no |
+| 0267 | Cambria2021 | nested_hyperplot | rank | amendment1 | 42 | -1.5 | -12.0 | 12.1 | 11.9 | yes | no | on_edge;sub_p90_m | no |
+| 0267 | Cambria2021 | nested_hyperplot | rank | declared | 42 | -12.0 | 4.0 | 12.6 | 14.5 | yes | no | on_edge;residual | no |
+| 0268 | Cambria2021 | nested_hyperplot | rank | amendment1 | 47 | -1.1 | 12.0 | 12.0 | 9.3 | yes | no | on_edge;sub_p90_m | no |
+| 0268 | Cambria2021 | nested_hyperplot | rank | declared | 47 | -7.5 | 4.0 | 8.5 | 5.9 | no | no | residual | no |
+| 0269 | Cambria2021 | nested_hyperplot | rank | amendment1 | 2 | — | — | — | — | — | no | n | no |
+| 0269 | Cambria2021 | nested_hyperplot | rank | declared | 2 | — | — | — | — | — | no | n | no |
+| 0270 | OHDS2024 | none | rank | amendment1 | 633 | -0.6 | -3.7 | 3.8 | 8.4 | no | yes | — | no |
+| 0270 | OHDS2024 | none | rank | declared | 633 | 7.0 | -1.0 | 7.1 | 8.1 | no | no | residual | no |
+| 0287 | DS2024 | none | rank | amendment1 | 439 | 1.4 | -0.1 | 1.4 | 0.1 | no | yes | — | no |
+| 0287 | DS2024 | none | rank | declared | 439 | 0.5 | -1.0 | 1.1 | 0.7 | no | yes | — | no |
+| 0288 | DS2024 | none | rank | amendment1 | 469 | 1.4 | -0.7 | 1.6 | 0.2 | no | yes | — | no |
+| 0288 | DS2024 | none | rank | declared | 469 | 2.0 | -0.5 | 2.1 | 0.5 | no | yes | — | no |
+| 0290 | DS2024 | none | rank | amendment1 | 435 | 1.1 | -1.0 | 1.5 | 0.1 | no | yes | — | no |
+| 0290 | DS2024 | none | rank | declared | 435 | 1.5 | -1.5 | 2.1 | 0.7 | no | yes | — | no |
+| 0292 | FOCAL2025 | no_diameter_floor | height | amendment1 | 137 | 2.7 | -1.9 | 3.3 | 0.4 | no | yes | — | yes |
+| 0292 | FOCAL2025 | no_diameter_floor | height | declared | 70 | 1.0 | -2.5 | 2.7 | 1.0 | no | yes | — | yes |
+| 0292 | FOCAL2025 | no_diameter_floor | rank | amendment1 | 137 | 2.9 | -1.4 | 3.2 | 0.5 | no | yes | — | yes |
+| 0292 | FOCAL2025 | no_diameter_floor | rank | declared | 137 | 3.5 | 0.0 | 3.5 | 1.5 | no | yes | — | yes |
+| 0293 | FOCAL2025 | no_diameter_floor | height | amendment1 | 47 | -2.8 | -3.9 | 4.8 | 1.3 | no | yes | — | yes |
+| 0293 | FOCAL2025 | no_diameter_floor | height | declared | 24 | -4.5 | -3.5 | 5.7 | 2.7 | no | no | residual | yes |
+| 0293 | FOCAL2025 | no_diameter_floor | rank | amendment1 | 46 | -3.2 | -3.6 | 4.8 | 0.7 | no | yes | — | yes |
+| 0293 | FOCAL2025 | no_diameter_floor | rank | declared | 46 | -2.5 | -2.5 | 3.5 | 2.6 | no | no | residual | yes |
+| 0294 | FOCAL2025 | no_diameter_floor | height | amendment1 | 58 | 5.0 | -3.1 | 5.9 | 1.5 | no | yes | — | yes |
+| 0294 | FOCAL2025 | no_diameter_floor | height | declared | 29 | 3.0 | -3.5 | 4.6 | 1.7 | no | yes | — | yes |
+| 0294 | FOCAL2025 | no_diameter_floor | rank | amendment1 | 57 | 5.2 | -3.6 | 6.4 | 2.9 | no | no | sub_p90_m | yes |
+| 0294 | FOCAL2025 | no_diameter_floor | rank | declared | 57 | 2.5 | -4.0 | 4.7 | 6.0 | no | no | residual | yes |
+| 0295 | FOCAL2025 | no_diameter_floor | height | amendment1 | 80 | -2.9 | -8.1 | 8.7 | 1.3 | no | yes | — | yes |
+| 0295 | FOCAL2025 | no_diameter_floor | height | declared | 40 | -1.5 | -9.0 | 9.1 | 3.5 | no | no | residual | yes |
+| 0295 | FOCAL2025 | no_diameter_floor | rank | amendment1 | 80 | -3.0 | -8.3 | 8.9 | 1.4 | no | yes | — | yes |
+| 0295 | FOCAL2025 | no_diameter_floor | rank | declared | 80 | -2.5 | -8.0 | 8.4 | 3.2 | no | no | residual | yes |
