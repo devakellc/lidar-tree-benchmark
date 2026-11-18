@@ -26,8 +26,9 @@ pre-submission plan below was done except the archive deposit, every number
 the paper needed sat in a committed report with a plot-bootstrap interval, and
 the tables rebuilt from the staged archive in a clean container. The
 pre-submission review of November 2026 added analyses that this archive does
-not hold; the archive's re-staging and its clean-container rebuild are in
-progress, and the [rebuild record](reproduction-rebuilds.md) records them.
+not hold; the archive was staged again with them and rebuilt in the clean
+container on 18 November 2026, as the [rebuild
+record](reproduction-rebuilds.md) reports.
 
 The results changed the expected story twice. The first version of this
 proposal expected deep segmenters to win at native density and collapse when
