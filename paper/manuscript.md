@@ -3,8 +3,8 @@
 Full title: Choosing tree detectors by point density: a field-stem benchmark for
 national-mapping airborne LiDAR.
 
-Alex Grigoryev. Co-authors, affiliations and the corresponding address are to be
-completed.
+Alexey Grigoryev. Co-authors, affiliations and the corresponding address are to
+be completed.
 
 ORCID: [0009-0008-1571-4774](https://orcid.org/0009-0008-1571-4774).
 
@@ -644,22 +644,22 @@ The classical detectors run in R (Table 2) and the learned detectors in
 containers built from the published code, with checkpoint hashes and image
 identifiers recorded per run (Table S15). One script rebuilds every NEON table,
 the density routing included, from the archived clips and persisted detections.
-A clean-container run against an earlier staging of the archive rebuilt 1,221
-files, none differing from the archived copies beyond declared tolerances for
-canopy-model noise. The chance-agreement null and its variants, the leave-out
-rank correlations, the unsmoothed-baseline sensitivity, the audit of the learned
-detectors' instances and the density routing were added to the script after that
-run, in response to internal review and after all five sites had been scored. A
-second internal review added the null inside censused subplots and by plot type,
-the density of the plot cores, by which the decision table is now banded, the
-null and the QL2 level of the unsmoothed baseline, an audit of the reference
-population, a simulation of the chance correction and a count of split crowns in
-the detections (Sections S12, S14, S16, S26, S27 and S28). The regional pattern
-of corrected leads (Section 5.3) and the decision table (Section S25) are
-therefore descriptions within the split of Section 4.5, whose replication claim
-covers the detector settings, the population, the matching rule and the observed
-scores. The FGI-EMIT tables are rebuilt from the dataset, which its licence does
-not let us redistribute.
+A clean-container run against the archive rebuilt 1,503 files, none differing
+from the archived copies beyond declared tolerances for canopy-model noise. The
+chance-agreement null and its variants, the leave-out rank correlations, the
+unsmoothed-baseline sensitivity, the audit of the learned detectors' instances
+and the density routing were added to the script after a first such run in
+October 2026, in response to internal review and after all five sites had been
+scored. A second internal review added the null inside censused subplots and by
+plot type, the density of the plot cores, by which the decision table is now
+banded, the null and the QL2 level of the unsmoothed baseline, an audit of the
+reference population, a simulation of the chance correction and a count of split
+crowns in the detections (Sections S12, S14, S16, S26, S27 and S28). The
+regional pattern of corrected leads (Section 5.3) and the decision table
+(Section S25) are therefore descriptions within the split of Section 4.5, whose
+replication claim covers the detector settings, the population, the matching
+rule and the observed scores. The FGI-EMIT tables are rebuilt from the dataset,
+which its licence does not let us redistribute.
 
 **AI-assisted code.** The repository's code and tests were written with Claude
 Code (Anthropic) as an AI coding assistant, under the author's specification and

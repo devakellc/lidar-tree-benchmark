@@ -63,7 +63,7 @@ Acknowledgment. Before submission:
   was drafted with Claude Code and revised by the author.
 - Check the length. JSTARS's information for authors, read on 17 November 2026,
   states no page limit and no overlength charge, and asks for an abstract of 150
-  to 250 words (the abstract has 237). If a shorter paper is wanted, cut Section
+  to 250 words (the abstract has 246). If a shorter paper is wanted, cut Section
   4, the section most over its budget. Confirm the limits and the six Index
   Terms at submission.
 - Re-run the repository checks of Section 2.3 and Section S24 on submission day
@@ -72,17 +72,13 @@ Acknowledgment. Before submission:
   2026, and a public repository of code and results that overlaps the paper's
   design, whose only commit is dated 11 November 2026, came to notice then
   (Section S24).
-- Re-stage the archive from this branch and rebuild it in the clean container:
-  the [rebuild record](../docs/reproduction-rebuilds.md) lists the analyses
-  added since the clean-container rebuild of October and records the
-  re-staging and its rebuild once run. A test rebuild of a staged copy
-  on the development machine (17 November 2026) found six differing files; after
-  they were put right, a second test the same evening rebuilt 1,483 files with
-  none differing. The rebuild in the clean container is still to run. Run
-  `scripts/paper_figures.R` with its default output folder first, which removes
-  the old Figure 2's data file from `paper_runs/figures`. Then deposit the
-  archive and replace "DOI to be assigned at deposit" in the availability
-  statement.
+- Deposit the archive. It was staged from this branch on 18 November 2026 and
+  rebuilt in the clean container: 1,503 files compared, none differing (see
+  the [rebuild record](../docs/reproduction-rebuilds.md)).
+  `scripts/package_deposit.sh` has packed it with a source snapshot of its
+  commit and the rebuild's report. After the deposit, replace "DOI to be
+  assigned at deposit" in the availability statement. If any archived output
+  is re-run before the deposit, stage and rebuild again.
 
 Two analyses that the pre-submission review suggested were not run: a repeat run
 of ForestFormer3D at native density, which would measure the run-to-run spread

@@ -82,10 +82,12 @@ rebuilds. `scripts/reproduce_paper_tables.sh`
 rebuilds every table of the frozen-clip benchmark from it on CPU and checks
 each rebuilt file against the archived copy; `reproduce/Dockerfile` gives the
 clean-machine environment. [model-provenance.json](model-provenance.json)
-records the checkpoint hashes, image IDs and source commits taken from the
-final runs' manifests and weight files. The GPU images were built locally
-from the files under `gpu/` and are identified by image ID, as they are not
-in a registry.
+records the checkpoint hashes, image IDs and source commits of every learned
+arm. Those of ForestFormer3D and TreeisoNet come from the final runs'
+manifests; the other arms wrote no run manifest, and theirs come from the
+local images and weight files the runs used. The GPU images were built
+locally from the files under `gpu/` and are identified by image ID, as they
+are not in a registry.
 
 ## Before the deposit
 

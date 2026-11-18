@@ -196,6 +196,7 @@ decimated rungs.
 | Crown diameter RMSE, 790 common stems: stop-rule random walker / SegmentAnyTree | 1.71 m / 1.74 m | [crown benchmark](../results/crown-segmentation-results.md) |
 | Wall time per plot, native density: classical arms / ForestFormer3D / SegmentAnyTree | seconds / 64 to 104 s / 251 to 445 s | [compute cost](../results/compute-cost-results.md) |
 | Clean-container rebuilds of the archive, 5 and 6 October 2026 | 1,207 and 1,204 of 1,221 files byte-identical, none differing; the second run's report is kept | [rebuild record](reproduction-rebuilds.md) |
+| Clean-container rebuild of the archive staged for deposit, 18 November 2026 | 1,475 of 1,503 files byte-identical, none differing; the report goes into the deposit | [rebuild record](reproduction-rebuilds.md) |
 
 Every report the paper cites now opens with its five-site section; the
 historical three-site sections are marked as such and stay for the record.
@@ -406,7 +407,7 @@ The plan of 2026-09-30 had ten steps. Their outcomes:
 | 6. Native sparse validation | Done for CHM-VWF, `multichm` and SegmentAnyTree, then for the other learned arms in step 11. Hand-annotated canopy boxes stay a supplementary reference | [native sparse epochs](../results/native-sparse-epoch-results.md) |
 | 7. Fill or drop pending items | Done: crown and fusion results on the frozen population | [crown benchmark](../results/crown-segmentation-results.md), [fusion study](../results/detector-fusion-results.md) |
 | 8. Master tables and bootstrap intervals | Done, and extended in step 14 | [master tables](../results/master-tables-results.md) |
-| 9. Publication hygiene | Licence, bibliography, availability statement, pulse-density units, archive staging and a clean-container rebuild done as of 6 October 2026; the re-staging after the November revision and its clean-container rebuild are in progress. The deposit remains | [availability](data-code-availability.md), [rebuild record](reproduction-rebuilds.md) |
+| 9. Publication hygiene | Licence, bibliography, availability statement, pulse-density units, archive staging and a clean-container rebuild done as of 6 October 2026; the archive was staged again after the November revision and rebuilt in the clean container with no differing file on 18 November 2026. The deposit remains | [availability](data-code-availability.md), [rebuild record](reproduction-rebuilds.md) |
 | 10. Optional fine-tuning of SegmentAnyTree | Not pursued. Zero-shot use of published checkpoints is the stated scope | — |
 
 ### Outcome of the remaining steps
@@ -421,15 +422,14 @@ The seven steps added on 2026-10-05, numbered on from the first plan:
 | 14. Extend the master tables | Done: crown-class and height-band strata, regional tables and leads, rank stability with intervals, and the configuration provenance record | [master tables](../results/master-tables-results.md), [configuration provenance](configuration-provenance.md) |
 | 15. Settle mask scoring and bridge the dense control | Done. SegmentAnyTree is on the five-site mask board and the TreeisoNet mask voxel is declared; the proxy costs about a third of mask F1 on FGI-EMIT, so mask scores go to the supplement; thinning matches the NEON lead at 11 pulses/m² and keeps 0.17 to 0.21 below it, so the datasets are a contrast | [proxy validation](../results/fgiemit-proxy-validation-results.md), [FGI-EMIT thinning](../results/fgiemit-thinning-results.md) |
 | 16. Figures, detector table and compute cost | Done: nine figures with their numbers (seven in the manuscript, two in the supplement, redrawn for JSTARS), the detector table with verified training data, and timed runs of every arm | [detector table](../results/detector-table.md), [compute cost](../results/compute-cost-results.md) |
-| 17. Archive and reproduction | Staged (5.5 GB) and rebuilt in a clean container with no differing file, as of 6 October 2026; the re-staging after the November revision and its clean-container rebuild are in progress; the deposit remains | [archive guide](reproduction-archive.md), [rebuild record](reproduction-rebuilds.md) |
+| 17. Archive and reproduction | Staged (5.5 GB) and rebuilt in a clean container with no differing file, as of 6 October 2026; staged again after the November revision (5.6 GB) and rebuilt in the clean container on 18 November 2026, 1,503 files compared and none differing; the deposit remains | [archive guide](reproduction-archive.md), [rebuild record](reproduction-rebuilds.md) |
 
 ### Before submission
 
 1. Deposit the staged archive on Zenodo and record the DOI in the
    availability statement and the README.
-2. Replace the frozen-clip study's reference to the commit the canonical root
-   was frozen at, which is not in the public history, with the archive's
-   recorded code commit.
+2. Done: the frozen-clip study cites the commit of the public history that
+   the canonical root was frozen at.
 3. Check once more for released SegmentAnyTreeV2 weights.
 4. Write the paper.
 
@@ -494,9 +494,9 @@ censused subplots stays necessary.
 
 As of 6 October 2026 every pre-submission step was complete except the
 Zenodo deposit, which takes a day once the final archive is approved, and
-writing needed four to six weeks. The archive's re-staging after the November
-revision and its clean-container rebuild are in progress (see the [rebuild
-record](reproduction-rebuilds.md)).
+writing needed four to six weeks. The archive was staged again after the
+November revision and rebuilt in the clean container on 18 November 2026 (see
+the [rebuild record](reproduction-rebuilds.md)); the deposit remains.
 
 ## Spin-offs
 
