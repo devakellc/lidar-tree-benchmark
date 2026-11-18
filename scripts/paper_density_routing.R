@@ -13,7 +13,15 @@ source(.find("density_routing_lib.R"))
 # were known, so it is a post hoc analysis of the paper runs; no detector is
 # re-run. Each cell (one plot at one density level) falls in a band of its
 # measured first-return density: A at 8 pulses/m² or more (QL1 or denser), B
-# from 2 to below 8 (QL2 to QL1), C below 2 (below QL2). In each band a route
+# from 2 to below 8 (QL2 to QL1), C below 2 (below QL2). DENSITY=core (the
+# default) measures it inside the nominal plot core, the scored area, from
+# core_density.R's table (CORE_DENSITY=, default
+# <job dir>/core_density/core_density.csv); DENSITY=clip uses the clip
+# manifest's whole-clip figure (core plus the 25 m buffer), as before the
+# core measurement was added: thinning leaves the clip's edge denser, so it
+# overstates the core's density by about 10%. The level medians shown in the
+# tables are those of the banding density; the check against the master
+# tables' rung_density.csv stays on the manifest's figure. In each band a route
 # runs the candidate with the highest pooled F1 on the California
 # (development) cells: the GPU route chooses among the eight detectors run at
 # every density level, the CPU route among the five classical ones. The
@@ -31,6 +39,7 @@ source(.find("density_routing_lib.R"))
 # run stops unless every detector's per-level F1 equals the master tables and
 # its corrected F1 equals the null re-score, estimate and interval, to 1e-9.
 #   CLAUDE_JOB_DIR=<paper_runs> Rscript scripts/paper_density_routing.R
+#     [DENSITY=core|clip] [CORE_DENSITY=<core_density.csv>]
 #     [POP=adopted] [FROZEN_ROOT=...] [RUNG_JOBS=<job dir>:<root>,...]
 #     [MASTER=<master_tables dir>] [N_BOOT=1000] [SEED=20261002] [OUT=<dir>]
 # RUNG_JOBS adds the levels frozen in their own root (the QL2 level), as for
@@ -41,14 +50,22 @@ source(.find("density_routing_lib.R"))
 # Writes to OUT (default $CLAUDE_JOB_DIR/density_routing): routing_cells.csv,
 # routing_bands.csv, routing_picks.csv, routing_scores.csv,
 # routing_contrasts.csv, routing_check.csv, density_routing.md and
-# routing_contract.json.
+# routing_contract.json. With DENSITY=core, routing_cells.csv adds each
+# cell's core densities and routing_bands.csv the definition and the bands'
+# median whole-clip density; with DENSITY=clip the CSVs are as before.
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
-KNOWN <- c("POP", "FROZEN_ROOT", "RUNG_JOBS", "MASTER", "N_BOOT", "SEED", "OUT")
+KNOWN <- c("DENSITY", "CORE_DENSITY", "POP", "FROZEN_ROOT", "RUNG_JOBS", "MASTER", "N_BOOT", "SEED",
+           "OUT")
 if (length(setdiff(names(A), KNOWN)))
   stop("Unknown arguments: ", paste(setdiff(names(A), KNOWN), collapse = ", "))
 arg <- function(k, default) if (is.null(A[[k]]) || !nzchar(A[[k]])) default else A[[k]]
 d       <- .job_dir()
+DENSITY <- arg("DENSITY", "core")
+if (!DENSITY %in% names(DR_DENSITY)) stop("DENSITY must be one of ", paste(names(DR_DENSITY), collapse = ", "))
+CORE_DENSITY <- arg("CORE_DENSITY", file.path(d, "core_density", "core_density.csv"))
+if (DENSITY == "core" && !file.exists(CORE_DENSITY))
+  stop("No core-density table at ", CORE_DENSITY, "; run scripts/core_density.R first")
 POP     <- arg("POP", "adopted")
 ROOT    <- frozen_root(d, A[["FROZEN_ROOT"]])
 MASTER  <- arg("MASTER", file.path(d, "master_tables"))
@@ -93,6 +110,7 @@ read_part <- function(part) {
   x <- x[x$rung %in% part$rungs & x$detector %in% GPU, , drop = FALSE]
   cm <- frozen_clip_manifest(part$root)
   cm <- cm[cm$rung %in% part$rungs, c("site", "plot", "rung", "status", "pdens", "frdens")]
+  cm$root_id <- rep(frozen_root_id(part$root), nrow(cm))
   list(cells = x, manifest = cm)
 }
 raw <- lapply(parts, read_part)
@@ -142,7 +160,12 @@ dens <- merge(unique(cells[c("site", "plot", "level")]), manifest, by = c("site"
               all.x = TRUE)
 if (anyNA(dens$status) || any(dens$status != "ok"))
   stop("A scored cell is not an ok cell of its root's clip manifest")
-dens$band <- dr_band(dens$frdens)
+# The density each cell is banded by: the core's (from core_density.R, made
+# from the same sealed clips) or the clip manifest's.
+core_tab <- if (DENSITY == "core")
+  read.csv(CORE_DENSITY, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
+dens <- dr_cell_density(dens, DENSITY, core_tab)
+dens$band <- dr_band(dens$band_frdens)
 dens$region <- ifelse(dens$site %in% MT_REGIONS$California, "California",
                       ifelse(dens$site %in% MT_REGIONS$Washington, "Washington", NA))
 if (anyNA(dens$region)) stop("A site belongs to no region")
@@ -150,14 +173,17 @@ cells <- merge(cells, dens[c("site", "plot", "level", "frdens", "band")],
                by = c("site", "plot", "level"))
 cells <- cells[c("variant", "site", "plot", "level", "detector", "frdens", "band", DR_COUNTS)]
 
-# Five-site median density of each level, as rung_density.csv of the master tables.
-level_pulses <- tapply(dens$frdens, dens$level, median)[LEVELS]
+# Five-site median whole-clip density of each level must equal rung_density.csv
+# of the master tables; the levels are labelled by the median of the banding
+# density (the same figure with DENSITY=clip).
+level_clip <- tapply(dens$frdens, dens$level, median)[LEVELS]
 rd <- read.csv(file.path(MASTER, "rung_density.csv"), stringsAsFactors = FALSE,
                colClasses = c(rung = "character"))
 rd <- rd[rd$scope == "five sites", , drop = FALSE]
 rd_pulses <- rd$pulses_median[match(LEVELS, rd$rung)]
-if (anyNA(rd_pulses) || any(abs(rd_pulses - level_pulses) > TOL))
+if (anyNA(rd_pulses) || any(abs(rd_pulses - level_clip) > TOL))
   stop("Level densities differ from the master tables' rung_density.csv")
+level_pulses <- tapply(dens$band_frdens, dens$level, median)[LEVELS]
 level_label <- function(l) sprintf("%.1f", level_pulses[l])
 
 ## ---- scoring ------------------------------------------------------------------------------
@@ -258,8 +284,11 @@ if (nrow(bad_master) || nrow(bad_null)) {
 }
 
 ## ---- outputs: cells and bands --------------------------------------------------------------
+# pdens and frdens are the clip manifest's whole-clip densities; with
+# DENSITY=core the core's follow, and band and level_pulses use them.
 cell_out <- dens[order(dens$site, dens$plot, match(dens$level, LEVELS)),
-                 c("site", "plot", "region", "level", "pdens", "frdens", "band")]
+                 c("site", "plot", "region", "level", "pdens", "frdens",
+                   if (DENSITY == "core") c("core_pdens", "core_frdens"), "band")]
 cell_out$level_pulses <- as.numeric(level_pulses[cell_out$level])
 for (p in names(POLICIES)) cell_out[[p]] <- POLICIES[[p]]$pick[match(cell_out$band, POLICIES[[p]]$band)]
 write.csv(cell_out, file.path(OUT, "routing_cells.csv"), row.names = FALSE)
@@ -269,12 +298,18 @@ band_rows <- do.call(rbind, lapply(names(SCOPES), function(sc) do.call(rbind, la
     x <- dens[dens$site %in% SCOPES[[sc]] & dens$band == b, , drop = FALSE]
     r <- nref_cell[paste(nref_cell$site, nref_cell$plot, nref_cell$level) %in%
                      paste(x$site, x$plot, x$level), , drop = FALSE]
+    # frdens_* summarize the banding density.
     out <- data.frame(scope = sc, band = b, label = DR_BANDS$label[DR_BANDS$band == b],
                       lower = DR_BANDS$lower[DR_BANDS$band == b], upper = DR_BANDS$upper[DR_BANDS$band == b],
                       cells = nrow(x), plots = length(unique(paste(x$site, x$plot))),
-                      stems = sum(r$n_ref), frdens_median = median(x$frdens),
-                      frdens_min = min(x$frdens), frdens_max = max(x$frdens), stringsAsFactors = FALSE)
+                      stems = sum(r$n_ref), frdens_median = median(x$band_frdens),
+                      frdens_min = min(x$band_frdens), frdens_max = max(x$band_frdens),
+                      stringsAsFactors = FALSE)
     for (l in LEVELS) out[[paste0("cells_level_", l)]] <- sum(x$level == l)
+    if (DENSITY == "core") {
+      out$density <- DENSITY
+      out$clip_frdens_median <- median(x$frdens)
+    }
     out
   }))))
 write.csv(band_rows, file.path(OUT, "routing_bands.csv"), row.names = FALSE)
@@ -380,7 +415,10 @@ num <- function(v, signed = FALSE) gsub("-", "−", sprintf(if (signed) "%+.3f" 
                                         fixed = TRUE)
 md <- c("<!-- generated by scripts/paper_density_routing.R -->", "",
         "Post hoc: designed after the five-site results were known. Selection uses the",
-        "California (development) cells only; Washington is the held-out check.", "")
+        "California (development) cells only; Washington is the held-out check.", "",
+        sprintf("Density (DENSITY=%s): %s.", DENSITY, DR_DENSITY[[DENSITY]]),
+        sprintf("Levels are labelled by its five-site median; the whole-clip medians are %s.",
+                paste(sprintf("%.2f", level_clip), collapse = ", ")), "")
 bt <- band_rows
 md <- c(md, "### Bands of measured first-return density", "",
         paste0("| Band | Pulses/m² | Scope | Cells | Plots | Stems | Median pulses/m² [range] | ",
@@ -487,9 +525,15 @@ mt_files <- c("master_long.csv", "master_contract.json", "rung_density.csv")
 inputs <- rbind(part_inputs, data.frame(input = paste("master tables,", mt_files),
   sha256 = vapply(file.path(MASTER, mt_files), frozen_sha256, character(1)), row.names = NULL,
   stringsAsFactors = FALSE), data.frame(input = "population.csv",
-  sha256 = frozen_sha256(file.path(ROOT, "population.csv")), stringsAsFactors = FALSE))
+  sha256 = frozen_sha256(file.path(ROOT, "population.csv")), stringsAsFactors = FALSE),
+  if (DENSITY == "core") data.frame(input = "core_density.csv", sha256 = frozen_sha256(CORE_DENSITY),
+                                    stringsAsFactors = FALSE))
+if (DENSITY == "core") code <- c(code, .find("core_density.R"), .find("core_density_lib.R"))
 jsonlite::write_json(list(
   post_hoc = TRUE, population = POP, n_boot = N_BOOT, seed = SEED, levels = LEVELS,
+  density = DENSITY, density_definition = DR_DENSITY[[DENSITY]],
+  level_pulses = as.list(setNames(as.numeric(level_pulses), LEVELS)),
+  level_pulses_clip = as.list(setNames(as.numeric(level_clip), LEVELS)),
   bands = DR_BANDS, candidates = DR_CANDIDATES, selection = "highest pooled F1 on the California cells",
   picks = lapply(POLICIES, function(p) setNames(as.list(p$pick), p$band)),
   check = list(rows = nrow(here), intervals = interval_check, tolerance = TOL),

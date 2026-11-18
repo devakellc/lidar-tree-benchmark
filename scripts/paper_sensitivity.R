@@ -23,6 +23,8 @@ source(.find("master_tables_lib.R"))
 #              crown-scaled tolerance, Hungarian, Hungarian scaled, soft 3-D)
 #              and the greedy tol_xy x tol_z_up grid
 #   exact2021  only the core stems measured in 2021 (baseline matcher)
+#              and, post hoc, variant exact2021_ignore: the other core stems
+#              are "don't care", their baseline-matched detections dropped
 #   jitter     K draws of stem positions, sigma = pos_unc (baseline matcher);
 #              draw k uses seed seed_for(site, plot, "native") + k
 #   null       chance agreement: K random toroidal shifts of each cell's
@@ -184,6 +186,26 @@ run_plot <- function(site, pid, ctx) {
         rows[[length(rows) + 1]] <- score(stems, BASELINE, "baseline")
         st21 <- stems[!is.na(stems$meas_year) & stems$meas_year == 2021, , drop = FALSE]
         if (nrow(st21)) rows[[length(rows) + 1]] <- score(st21, BASELINE, "exact2021")
+        # Post hoc ignore-region variant: the core stems not measured in 2021
+        # are "don't care". The detections the baseline matching pairs with
+        # them are neither true nor false positives and are dropped; the 2021
+        # stems are scored against the rest. The counts expected if that
+        # matching is the baseline's restricted to the 2021 stems ride along
+        # (chk_*) for the check after the run.
+        if (nrow(st21)) {
+          ign <- is.na(stems$meas_year) | stems$meas_year != 2021
+          dti <- drop_ignored_detections(stems, det, ign,
+                                         tol_xy = if (BASELINE$scaled) tol_vec else BASELINE$tx,
+                                         core_cx = cx, core_cy = cy, core_half = ph,
+                                         method = BASELINE$method, tol_z_up = BASELINE$tz,
+                                         lambda = BASELINE$lambda)
+          pr <- attr(dti, "pairs")
+          ri <- score(st21, BASELINE, "exact2021_ignore", dti)
+          ri$chk_pairs <- nrow(pr); ri$chk_pairs_core <- sum(pr$core)
+          ri$chk_TP <- sum(!pr$ignored); ri$chk_tp_core <- sum(pr$core & !pr$ignored)
+          ri$chk_drop <- sum(pr$ignored); ri$chk_drop_core <- sum(pr$core & pr$ignored)
+          rows[[length(rows) + 1]] <- ri
+        }
       } else if (MODE == "null") {
         rows[[length(rows) + 1]] <- score(stems, BASELINE, "baseline")
         # At another radius the observed score is a variant of its own; the
@@ -253,6 +275,34 @@ cat(sprintf("baseline check: %d cells, %d differ from the arms' own results\n", 
 if (nrow(bad)) {
   print(utils::head(bad, 20), row.names = FALSE)
   stop("The re-scored baseline differs from the arms' own results; see ", MODE, "_baseline_mismatch.csv")
+}
+
+## ---- the ignore-region variant is the baseline matching restricted to 2021 stems -------
+# Per cell: the pairs behind the variant are the baseline row's matches (as
+# many as its TP, as many in the core as its tp_core); the variant's TP is the
+# number of those pairs whose stem was measured in 2021, its n_ref that of
+# exact2021, its n_det the baseline's minus the core detections paired with
+# ignored stems, and its core false positives the baseline's. Stops on any
+# difference; the chk_* columns are dropped before anything is written.
+if (MODE == "exact2021") {
+  ig_key <- c("site", "plot", "rung", "detector")
+  ig <- merge(cells[cells$variant == "exact2021_ignore", , drop = FALSE],
+              cells[cells$variant == "baseline", c(ig_key, "n_ref", "n_det", "TP", "tp_core")],
+              by = ig_key, suffixes = c("", "_base"))
+  ig <- merge(ig, setNames(cells[cells$variant == "exact2021", c(ig_key, "n_ref")], c(ig_key, "n_ref_21")),
+              by = ig_key)
+  n21 <- sum(cells$variant == "exact2021")
+  ig_bad <- ig[ig$chk_pairs != ig$TP_base | ig$chk_pairs_core != ig$tp_core_base |
+                 ig$TP != ig$chk_TP | ig$tp_core != ig$chk_tp_core | ig$n_ref != ig$n_ref_21 |
+                 ig$n_det != ig$n_det_base - ig$chk_drop_core |
+                 ig$n_det - ig$tp_core != ig$n_det_base - ig$tp_core_base, , drop = FALSE]
+  cat(sprintf("ignore-region check: %d cells (exact2021: %d), %d differ from the baseline matching restricted to the 2021 stems\n",
+              nrow(ig), n21, nrow(ig_bad)))
+  if (nrow(ig_bad) || nrow(ig) != n21 || sum(cells$variant == "exact2021_ignore") != n21) {
+    print(utils::head(ig_bad, 20), row.names = FALSE)
+    stop("The ignore-region variant is not the baseline matching restricted to the 2021 stems")
+  }
+  cells <- cells[, !startsWith(names(cells), "chk_"), drop = FALSE]
 }
 
 ## ---- pooling --------------------------------------------------------------------------------

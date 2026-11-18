@@ -1327,7 +1327,7 @@ class EndToEndTests(unittest.TestCase):
 
     def test_floats_highlights_and_index_terms(self):
         self.assertEqual(len(re.findall(r"\\begin\{figure\*\}", self.main_tex)), 7)
-        self.assertEqual(len(re.findall(r"\\begin\{table\*?\}", self.main_tex)), 8)
+        self.assertEqual(len(re.findall(r"\\begin\{table\*?\}", self.main_tex)), 7)
         self.assertNotRegex(self.main_tex, r"(?i)\bthe\s+highlights\b|section\*?\{highlights\}")
         self.assertIn("\\begin{IEEEkeywords}", self.main_tex)
         self.assertNotIn("longtable", self.main_tex)  # longtable fails in two-column mode
@@ -1368,6 +1368,8 @@ Full title: {title}.
 
 Jane Doe. Co-authors, affiliations and the corresponding address are to be
 completed.
+
+ORCID: [0000-0002-1825-009X](https://orcid.org/0000-0002-1825-009X).
 
 ## Highlights
 
@@ -1540,6 +1542,10 @@ class SyntheticPaperTests(unittest.TestCase):
         self.assertIn("\\caption{Density response; panel (b) is in Fig.~S1.}", self.main_tex)
         self.assertIn("Without the period: Fig~S1, Fig~\\ref{fig:1} and Figs~\\ref{fig:1} and S1.", self.main_tex)
 
+    def test_author_block_carries_the_orcid(self):
+        self.assertIn("\\thanks{J.~Doe (ORCID: 0000-0002-1825-009X) is with TODO affiliation", self.main_tex)
+        self.assertIn("{Doe: ", self.main_tex)
+
     def test_math(self):
         self.assertIn("between the null and a perfect score:\n\\begin{equation}\n"
                       "F_1^{c} = \\frac{F_1 - F_1^{0}}{1 - F_1^{0}}\n\\end{equation}\n"
@@ -1615,9 +1621,16 @@ class BibtexTests(unittest.TestCase):
         for text in ("mIT", " r package", "3-d ", "mill.)", "Undated page", "------"):
             self.assertNotIn(text, bbl)
         self.assertNotRegex(bbl, r"[,.] accessed:")
-        dated = [k for _, k, f, _ in p2i.parse_bib(self.source) if "urldate" in dict(f)]
-        for key in dated:
-            self.assertRegex(self.items[key], r"(?:\{A\}|A)ccessed: Oct\. 2, 2026", key)
+        # Each entry prints its own access date, in IEEE's form ("Oct. 2, 2026").
+        months = ["Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.", "Jul.", "Aug.", "Sep.",
+                  "Oct.", "Nov.", "Dec."]
+        dated = {k: dict(f)["urldate"] for _, k, f, _ in p2i.parse_bib(self.source)
+                 if "urldate" in dict(f)}
+        self.assertIn("2026-10-02", dated.values())
+        for key, iso in dated.items():
+            y, m, d = (int(x) for x in iso.strip("{} ").split("-"))
+            want = "%s %d, %d" % (months[m - 1], d, y)
+            self.assertRegex(self.items[key], r"(?:\{A\}|A)ccessed: " + re.escape(want), key)
         # IEEE cites the version of record: the DOI, not the arXiv identifier.
         self.assertIn("doi:", self.items["hamraz2016robust"])
         self.assertNotIn("1701.00198", self.items["hamraz2016robust"])

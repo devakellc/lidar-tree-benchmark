@@ -122,6 +122,16 @@ pulses per point than D17), so a rung's pulse density varies by site: 4.4 to
 5.6 pulses/m² at rung 8. The USGS 3DEP QL2 floor of 2 pulses/m² falls between
 rungs 4 and 2; the [QL2 rung](#the-ql2-rung) sits on it.
 
+**Added on 17 November 2026.** The Pulses/m² column here and in every table
+below is the five-site median first-return density over the whole evaluation
+clip (plot core plus 25 m), as the clip manifest records it. A measurement
+added after an internal review found the scored plot cores sparser, because
+thinning leaves the clip's edge denser ([core density](core-density-results.md)):
+the core medians are 9.8, 4.4, 2.2, 1.8, 1.1 and 0.6 pulses/m² at native
+density and the targets 8, 4, 3.2, 2 and 1. In the cores the QL2 rung holds
+1.77 pulses/m², and 79 of its 106 cores lie below the QL2 floor. No score in
+these tables changes.
+
 ## Headline tables
 
 Nominal plot box, adopted population, five sites pooled (106 plots, 2,525

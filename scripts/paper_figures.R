@@ -19,8 +19,9 @@ source(.find("model_bench_lib.R"))
 # writes the numbers it plots (figure_<id>.csv), which the reproduction
 # compares like any table.
 #   1   sites: (a) map of the five sites, (b) stems by crown class, (c) native
-#       pulse density with the QL1 and QL2 floors, (d) stem heights
-#   2   schematic: the evaluation protocol and the density-routed pipeline
+#       pulse density in the plot cores with the QL1 and QL2 floors, (d) stem
+#       heights
+#   2   schematic: the evaluation protocol
 #   3   F1, recall, precision and chance-corrected F1 against pulse density,
 #       the eight detectors run at every density
 #   4   each detector's rank across the density series, with the rank
@@ -35,17 +36,21 @@ source(.find("model_bench_lib.R"))
 #   Rscript scripts/paper_figures.R [FIGURES=1,2,3,4,5,6,7,s1,s2] [OUT=<dir>]
 #     [FROZEN_ROOT=...] [SPARSE_REPORT=<dir>] [MASTER=<master_tables dir>]
 #     [QL2_JOB=<dir>] [QL2_ROOT=<dir>] [QL2_SENSITIVITY=<dir>]
-#     [EXAMPLE_PLOT=<plotID>] [NE_COUNTRIES=<ne_10m_admin_0_countries.shp>]
+#     [CORE_DENSITY=<dir>] [EXAMPLE_PLOT=<plotID>]
+#     [NE_COUNTRIES=<ne_10m_admin_0_countries.shp>]
 # CLAUDE_JOB_DIR is the paper-run job directory (master_tables/, sensitivity/,
 # neon/<SITE>/ with coverage_gap.csv, plot_centroids.csv and the persisted
 # detections). The QL2 level is frozen in its own root and scored in its own
 # job directory: QL2_JOB defaults to <job dir>/../paper_runs_ql2, QL2_ROOT to
 # <QL2_JOB>/neon/frozen_2021_ql2 and QL2_SENSITIVITY, its null and matcher
 # re-scores, to <QL2_JOB>/sensitivity. SPARSE_REPORT defaults to
-# <job dir>/../sparse_2018/compare_report. The map reads the Natural Earth
-# extract committed under paper/figures/data (README there);
-# NE_COUNTRIES=<path> rebuilds that extract from the Natural Earth shapefile
-# before drawing.
+# <job dir>/../sparse_2018/compare_report. CORE_DENSITY, the first-return
+# densities measured inside the scored plot cores (core_density.R), defaults
+# to <job dir>/core_density; every density the figures print or plot against
+# is a core density, and the script stops if those files are missing. The map
+# reads the Natural Earth extract committed under paper/figures/data (README
+# there); NE_COUNTRIES=<path> rebuilds that extract from the Natural Earth
+# shapefile before drawing.
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
 d <- .job_dir()
@@ -59,6 +64,7 @@ SPARSE <- if (is.null(A$SPARSE_REPORT)) file.path(dirname(d), "sparse_2018", "co
 QL2_JOB <- if (is.null(A$QL2_JOB)) file.path(dirname(d), "paper_runs_ql2") else A$QL2_JOB
 QL2_ROOT <- if (is.null(A$QL2_ROOT)) file.path(QL2_JOB, "neon", "frozen_2021_ql2") else A$QL2_ROOT
 QL2S <- if (is.null(A$QL2_SENSITIVITY)) file.path(QL2_JOB, "sensitivity") else A$QL2_SENSITIVITY
+CORE <- if (is.null(A$CORE_DENSITY)) file.path(d, "core_density") else A$CORE_DENSITY
 dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 SITES <- c("SJER", "SOAP", "TEAK", "WREF", "ABBY")
 
@@ -80,8 +86,33 @@ read_mt <- function(f) read.csv(file.path(MT, f), stringsAsFactors = FALSE,
                                 colClasses = c(rung = "character"))
 long <- read_mt("master_long.csv")
 long <- long[long$status == "included", , drop = FALSE]
+# The outputs of core_density.R: first-return density counted inside the
+# nominal plot core, the area detections are scored on
+# (results/core-density-results.md). There is no fallback to the whole-clip
+# densities of the clip manifests and the master tables, which run about 10%
+# higher at every thinned level.
+read_core <- function(f, ...) {
+  p <- file.path(CORE, f)
+  if (!file.exists(p))
+    stop("core-density output missing: ", p, "\n  run scripts/core_density.R (or pass CORE_DENSITY=<dir>);",
+         " the figures label the density levels by the plot cores' density and have no fallback", call. = FALSE)
+  read.csv(p, stringsAsFactors = FALSE, ...)
+}
+# Each level's position on the density axes: its five-site median first-return
+# density inside the plot cores (9.8, 4.4, 2.2, 1.8, 1.1 and 0.6 pulses/m²).
+# The summary must cover the levels of the master tables' rung_density.csv
+# with the same number of cells, so both describe the same population.
+cds <- read_core("core_density_summary.csv", colClasses = c(rung = "character"))
+if (!all(c("rung", "scope", "cells", "core_frdens_median") %in% names(cds)))
+  stop("core_density_summary.csv lacks rung, scope, cells or core_frdens_median", call. = FALSE)
+cds <- cds[cds$scope == "five sites", ]
 dens <- read_mt("rung_density.csv")
-pulses <- setNames(dens$pulses_median[dens$scope == "five sites"], dens$rung[dens$scope == "five sites"])
+dens <- dens[dens$scope == "five sites", ]
+if (anyDuplicated(cds$rung) || !setequal(cds$rung, dens$rung) ||
+    any(cds$cells[match(dens$rung, cds$rung)] != dens$cells))
+  stop(sprintf("core_density_summary.csv (levels %s) does not cover the master tables' levels (%s) cell for cell",
+               paste(cds$rung, collapse = ", "), paste(dens$rung, collapse = ", ")), call. = FALSE)
+pulses <- setNames(cds$core_frdens_median, cds$rung)[dens$rung]
 
 ## ---- devices -------------------------------------------------------------------------
 PT <- 8                    # device point size: text at cex 1 prints at 8 pt
@@ -107,11 +138,12 @@ ql_lines <- function() {
   abline(v = QL, lty = 3, col = "grey40")
   text(QL, par("usr")[4], names(QL), pos = 1, cex = LEG_CEX, col = "grey30")
 }
-# Density axis with a tick at each level's five-site median, labelled as the
-# text labels the levels (9.8, 4.7, 2.5, 2.0, 1.3, 0.6 pulses/m²). No label is
-# thinned. 2.5 and 2.0 sit close: where two neighbouring labels would stand
-# less than an em apart, each is moved away from the other along the axis by
-# half the shortfall, still over its own tick; ticks and data keep their places.
+# Density axis with a tick at each level's five-site median first-return
+# density inside the plot cores, labelled as the text labels the levels (9.8,
+# 4.4, 2.2, 1.8, 1.1, 0.6 pulses/m²). No label is thinned. 2.2 and 1.8 sit
+# close: where two neighbouring labels would stand less than an em apart,
+# each is moved away from the other along the axis by half the shortfall,
+# still over its own tick; ticks and data keep their places.
 dens_axis <- function() {
   lab <- formatC(pulses, format = "f", digits = 1)
   axis(1, at = pulses, labels = FALSE)
@@ -161,8 +193,9 @@ read_null <- function(f) {
 # extract (public domain) committed with the paper; there are no state
 # outlines, so the regions are labelled. A site is placed at the mean of its
 # population plots' centroids (plot_centroids.csv, UTM in the population's
-# EPSG). (b) to (d): stems by crown class, native pulse density with the QL1
-# and QL2 floors, stem heights.
+# EPSG). (b) to (d): stems by crown class, native first-return density per
+# plot inside the plot core (core_density.csv), with the QL1 and QL2 floors,
+# stem heights.
 MAP_DATA <- file.path(.ROOT, "paper", "figures", "data", "ne_10m_admin_0_countries_pacific.geojson")
 MAP_CRS <- "+proj=aea +lat_0=40 +lon_0=-120 +lat_1=34 +lat_2=46 +datum=WGS84 +units=m +no_defs"
 # The area the frame must hold. The frame drawn is larger, about 128.8 to
@@ -371,12 +404,23 @@ fig1 <- function() {
   pop <- read.csv(file.path(ROOT, "population.csv"), stringsAsFactors = FALSE)
   nat <- cm[cm$rung == "native" & cm$status == "ok" &
               paste(cm$site, cm$plot) %in% paste(pop$site, pop$plotID)[pop$in_adopted], ]
+  # (c) plots each plot's native first-return density inside its core. The
+  # core-density row must describe the same cell: its manifest density is the
+  # clip manifest's.
+  cd <- read_core("core_density.csv", colClasses = c(rung = "character"))
+  cd <- cd[cd$rung == "native", ]
+  i <- match(paste(nat$site, nat$plot), paste(cd$site, cd$plot))
+  if (anyNA(i)) stop("figure 1(c): no native core density for ",
+                     paste(paste(nat$site, nat$plot)[is.na(i)], collapse = ", "), call. = FALSE)
+  if (any(abs(cd$manifest_frdens[i] - nat$frdens) > 1e-9 * nat$frdens))
+    stop("figure 1(c): core_density.csv and the clip manifest disagree on the native cells", call. = FALSE)
+  nat$core_frdens <- cd$core_frdens[i]
   cls <- c("dominant", "codominant", "intermediate", "suppressed")
   tab <- sapply(SITES, function(s) table(factor(st$crown_class[st$site == s], cls)))
   sp <- site_positions(pop)
   save_data("1", rbind(
     data.frame(panel = "stems", site = rep(SITES, each = 4), key = rep(cls, 5), value = as.vector(tab)),
-    data.frame(panel = "native_pulses", site = nat$site, key = nat$plot, value = nat$frdens),
+    data.frame(panel = "native_pulses", site = nat$site, key = nat$plot, value = nat$core_frdens),
     data.frame(panel = "height", site = st$site, key = st$individualID, value = st$height),
     data.frame(panel = "map", site = rep(sp$site, 3),
                key = rep(c("longitude", "latitude", "plots"), each = nrow(sp)),
@@ -391,9 +435,9 @@ fig1 <- function() {
     legend("topleft", legend = cls, fill = ccol, bty = "n", cex = LEG_CEX)
     # Site names drawn without thinning (five fit the panel width).
     sites_axis <- function() axis(1, at = seq_along(SITES), labels = SITES, gap.axis = 0)
-    ylim <- range(c(nat$frdens, QL)) * c(0.85, 1.1)
+    ylim <- range(c(nat$core_frdens, QL)) * c(0.85, 1.1)
     par(mar = c(2.2, 3.2, 1.6, 1.8))
-    boxplot(frdens ~ factor(site, SITES), data = nat, log = "y", ylim = ylim, xlab = "", xaxt = "n",
+    boxplot(core_frdens ~ factor(site, SITES), data = nat, log = "y", ylim = ylim, xlab = "", xaxt = "n",
             ylab = "First-return pulses/m²", main = "(c) Native pulse density",
             outcex = 0.6)
     sites_axis()
@@ -406,10 +450,9 @@ fig1 <- function() {
   })
 }
 
-## ---- 2: the evaluation protocol and the density-routed pipeline -----------------------
-# A schematic (no data file): the protocol every detector is scored by, and the
-# pipeline that routes a new tile to a detector by its measured density. The
-# detector boxes stay generic; the caption cites the decision table.
+## ---- 2: the evaluation protocol -------------------------------------------------------
+# A schematic (no data file): the protocol every detector is scored by, as one
+# row of five steps from the field-mapped tiles to the pooled scores.
 fig2 <- function() {
   # The schematic plots no numbers: remove the old Figure 2's data file (now
   # Figure 3's), so that a figures folder never pairs it with the schematic.
@@ -417,117 +460,51 @@ fig2 <- function() {
   W <- TEXT_W
   bw <- 1.25; gap <- (W - 0.08 - 5 * bw) / 4
   cx <- 0.04 + bw / 2 + (0:4) * (bw + gap)
-  # Bottom up: a margin, row (b), the space between the rows (the title of (b)
-  # and the dashed connector with its label), row (a) and the title of (a).
-  # Each title stands about 0.1 in above its row.
-  bh <- 0.97; mb <- 0.05; between <- 0.54; mt <- 0.27
-  H <- mb + 2 * bh + between + mt               # 2.8 in
-  yb <- mb + bh / 2; ya <- yb + bh + between
-  pa <- list(fill = "#E8F1FA", col = "#0072B2"); pb <- list(fill = "#FDEFE3", col = "#D55E00")
-  a_txt <- c("NEON 2021 tiles\nat five sites,\nfield-mapped stems",
+  # One row of boxes with a margin of 0.05 in above and below it.
+  bh <- 0.97; m <- 0.05
+  H <- 2 * m + bh                               # 1.07 in
+  y <- m + bh / 2
+  steps <- c("NEON 2021 tiles\nat five sites,\nfield-mapped stems",
              "Fixed evaluation clips:\nnative density and\nfive thinned levels\n(hashed)",
              "Eleven detectors:\nthree zero-shot\nlearned, six classical,\ntwo RGB",
              "One-to-one matching\nto field stems\n(4 m, height gate);\n200 random\ntoroidal shifts",
              "Pooled F1,\nchance-corrected F1,\nplot bootstrap")
-  b_txt <- c("New airborne\nLiDAR tile",
-             "Measure\nfirst-return\ndensity",
-             NA,
-             "Detector chosen\nfor the band and\nthe compute budget\n(GPU or CPU only)",
-             "Detections\n(tree tops)")
-  bands <- c("≥ 8: QL1 or denser", "2–8: QL2 to QL1", "< 2: below QL2")
-  # The band box: its heading, then three bands 0.19 in high, 0.245 in apart.
-  band_head <- yb + bh / 2 - 0.125
-  band_y <- yb + bh / 2 - 0.31 - (0:2) * 0.245; band_h <- 0.19; band_w <- bw - 0.14
-  title_a <- c(x = 0.04, y = H - 0.1); title_b <- c(x = 0.04, y = yb + bh / 2 + 0.17)
-  # The protocol's scores select the decision table (development region) and
-  # check it (replication region): a dashed connector from the last box of (a)
-  # to the detector box of (b), its label above its level part.
-  yl <- yb + bh / 2 + 0.2
-  conn_lab <- "Selected on the development region,\nchecked on the replication region"
-  lab_at <- c(x = cx[5] - 0.1, y = yl + 0.05)
   library(grid, warn.conflicts = FALSE)
   render("2", W, H, function() {
     grid.newpage()
     pushViewport(viewport(xscale = c(0, W), yscale = c(0, H)))
     nat <- function(v) unit(v, "native")
-    box <- function(x, y, w, h, p, lwd = 0.9)
-      grid.roundrect(nat(x), nat(y), unit(w, "native"), unit(h, "native"), r = unit(0.06, "in"),
-                     gp = gpar(fill = p$fill, col = p$col, lwd = lwd))
-    label <- function(s, x, y, size = PT, face = 1, just = "centre", col = "black")
-      grid.text(s, nat(x), nat(y), just = just, gp = gpar(fontsize = size, fontface = face,
-                                                          lineheight = 1.0, col = col))
-    arrow_h <- function(x0, x1, y, col = "grey25", lty = 1)
-      grid.lines(nat(c(x0, x1)), nat(c(y, y)), arrow = arrow(length = unit(0.065, "in"), type = "closed"),
-                 gp = gpar(col = col, fill = col, lwd = 1, lty = lty))
+    gp_text <- gpar(fontsize = PT, lineheight = 1.0)
     # Layout check, in inches: every text inside its box with a margin, across
-    # and down, and the titles, the boxes, the connector and its label clear of
-    # each other. A text's ink box (x0, y0, x1, y1) follows grid's placement:
-    # the box from the last baseline to the first line's ascent is justified,
-    # and descenders hang below it.
-    ink <- function(s, x, y, size = PT, face = 1, just = "centre") {
-      pushViewport(viewport(gp = gpar(fontsize = size, fontface = face, lineheight = 1.0)))
+    # and down, and every box inside the figure. A text's ink box (x0, y0, x1,
+    # y1) follows grid's placement: the box from the last baseline to the first
+    # line's ascent is centred, and descenders hang below it.
+    ink <- function(s, x, y) {
+      pushViewport(viewport(gp = gp_text))
       on.exit(popViewport())
       g <- textGrob(s)
       w <- convertWidth(grobWidth(g), "in", valueOnly = TRUE)
       h <- convertHeight(grobHeight(g), "in", valueOnly = TRUE)
       d <- convertHeight(grobDescent(g), "in", valueOnly = TRUE)
-      hj <- c(left = 0, centre = 0.5, right = 1)[[if (just[1] %in% c("bottom", "top")) "centre" else just[1]]]
-      v <- if (length(just) > 1) just[2] else if (just[1] %in% c("bottom", "top")) just[1] else "centre"
-      vj <- c(bottom = 0, centre = 0.5, top = 1)[[v]]
-      c(x - hj * w, y - vj * h - d, x + (1 - hj) * w, y + (1 - vj) * h)
+      c(x - w / 2, y - h / 2 - d, x + w / 2, y + h / 2)
     }
-    rect_at <- function(x, y, w, h) c(x - w / 2, y - h / 2, x + w / 2, y + h / 2)
     inside <- function(r, b, m) all(r[1:2] >= b[1:2] + m, r[3:4] <= b[3:4] - m)
-    apart <- function(r, s, m = 0.02) r[3] + m <= s[1] || s[3] + m <= r[1] || r[4] + m <= s[2] || s[4] + m <= r[2]
     issues <- character()
-    boxes <- c(lapply(cx, rect_at, y = ya, w = bw, h = bh), lapply(cx, rect_at, y = yb, w = bw, h = bh))
-    texts <- c(a_txt, b_txt)
-    for (i in seq_along(boxes)) if (!is.na(texts[i]) && !inside(ink(texts[i], mean(boxes[[i]][c(1, 3)]),
-                                                                    mean(boxes[[i]][c(2, 4)])), boxes[[i]], 0.05))
-      issues <- c(issues, paste("text outside its box:", gsub("\n", " ", texts[i])))
-    head_ink <- ink("Band (pulses/m²)", cx[3], band_head, face = 2)
-    band_r <- lapply(band_y, rect_at, x = cx[3], w = band_w, h = band_h)
-    if (!inside(head_ink, boxes[[8]], 0.04) || !apart(head_ink, band_r[[1]]))
-      issues <- c(issues, "band heading outside its box or on the first band")
-    for (k in 1:3) if (!inside(band_r[[k]], boxes[[8]], 0.04) ||
-                       !inside(ink(bands[k], cx[3], band_y[k], size = PT - 0.5), band_r[[k]], 0.03))
-      issues <- c(issues, paste("band outside the box, or its text outside the band:", bands[k]))
-    conn <- list(c(cx[5], yl, cx[5], ya - bh / 2), c(cx[4], yl, cx[5], yl), c(cx[4], yb + bh / 2, cx[4], yl))
-    lab_ink <- ink(conn_lab, lab_at[["x"]], lab_at[["y"]], size = PT - 0.5, just = c("right", "bottom"))
-    ta <- ink("(a) Evaluation protocol", title_a[["x"]], title_a[["y"]], size = PT + 1, face = 2, just = "left")
-    tb <- ink("(b) Density-routed pipeline", title_b[["x"]], title_b[["y"]], size = PT + 1, face = 2, just = "left")
-    for (r in list(ta, tb, lab_ink)) {
-      if (!all(vapply(boxes, apart, TRUE, r = r))) issues <- c(issues, "a title or the connector's label touches a box")
-      if (!all(vapply(conn, apart, TRUE, r = r))) issues <- c(issues, "the connector crosses a title or its label")
-    }
-    if (!apart(tb, lab_ink)) issues <- c(issues, "the connector's label touches the title of (b)")
-    if (ta[4] > H || min(vapply(boxes, `[`, 0, 2)) < 0) issues <- c(issues, "the schematic leaves the figure")
+    boxes <- lapply(cx, function(x) c(x - bw / 2, y - bh / 2, x + bw / 2, y + bh / 2))
+    for (i in seq_along(boxes)) if (!inside(ink(steps[i], cx[i], y), boxes[[i]], 0.05))
+      issues <- c(issues, paste("text outside its box:", gsub("\n", " ", steps[i])))
+    if (!all(vapply(boxes, inside, TRUE, b = c(0, 0, W, H), m = 0)))
+      issues <- c(issues, "the schematic leaves the figure")
     if (length(issues)) warning("schematic layout: ", paste(unique(issues), collapse = " | "))
-    label("(a) Evaluation protocol", title_a[["x"]], title_a[["y"]], size = PT + 1, face = 2, just = "left")
-    label("(b) Density-routed pipeline", title_b[["x"]], title_b[["y"]], size = PT + 1, face = 2, just = "left")
     for (i in 1:5) {
-      box(cx[i], ya, bw, bh, pa)
-      label(a_txt[i], cx[i], ya)
-      if (i < 5) arrow_h(cx[i] + bw / 2, cx[i + 1] - bw / 2, ya)
+      grid.roundrect(nat(cx[i]), nat(y), nat(bw), nat(bh), r = unit(0.06, "in"),
+                     gp = gpar(fill = "#E8F1FA", col = "#0072B2", lwd = 0.9))
+      grid.text(steps[i], nat(cx[i]), nat(y), gp = gp_text)
+      if (i < 5)
+        grid.lines(nat(c(cx[i] + bw / 2, cx[i + 1] - bw / 2)), nat(c(y, y)),
+                   arrow = arrow(length = unit(0.065, "in"), type = "closed"),
+                   gp = gpar(col = "grey25", fill = "grey25", lwd = 1))
     }
-    for (i in 1:5) {
-      box(cx[i], yb, bw, bh, pb)
-      if (i == 3) {
-        label("Band (pulses/m²)", cx[i], band_head, face = 2)
-        for (k in 1:3) {
-          grid.rect(nat(cx[i]), nat(band_y[k]), unit(band_w, "native"), unit(band_h, "native"),
-                    gp = gpar(fill = "white", col = pb$col, lwd = 0.6))
-          label(bands[k], cx[i], band_y[k], size = PT - 0.5)
-        }
-      } else {
-        label(b_txt[i], cx[i], yb)
-      }
-      if (i < 5) arrow_h(cx[i] + bw / 2, cx[i + 1] - bw / 2, yb)
-    }
-    grid.lines(nat(c(cx[5], cx[5], cx[4], cx[4])), nat(c(ya - bh / 2, yl, yl, yb + bh / 2)),
-               arrow = arrow(length = unit(0.065, "in"), type = "closed"),
-               gp = gpar(col = "grey25", fill = "grey25", lwd = 1, lty = 2))
-    label(conn_lab, lab_at[["x"]], lab_at[["y"]], size = PT - 0.5, just = c("right", "bottom"), col = "grey15")
     popViewport()
   })
 }
@@ -544,10 +521,27 @@ fig3 <- function() {
                    metric = "F1_corrected", estimate = nd$estimate, lower = nd$lower, upper = nd$upper,
                    pulses = unname(pulses[nd$rung]), stringsAsFactors = FALSE)
   x <- rbind(x[, names(cf)], cf)
+  # The baseline without its sub-8 pulses/m² smoothing (a sensitivity run,
+  # baseline_smoothing_sensitivity.R), where that output exists: F1, recall
+  # and precision from its pooled scores and, in (d), its chance-corrected F1
+  # (4 m, five sites) from the same study's null re-scores. Where it exists it
+  # must hold every level, the QL2 level included, in both files.
   nsf <- file.path(d, "sensitivity", "baseline_smoothing_pooled.csv")
+  ncf <- file.path(d, "sensitivity", "baseline_smoothing_corrected.csv")
   ns <- if (file.exists(nsf)) {
+    if (!file.exists(ncf)) stop("figure 3: ", nsf, " exists but ", ncf, " does not", call. = FALSE)
     b <- read.csv(nsf, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
-    b <- b[b$detector == "chm_vwf_unsmoothed" & b$rung %in% names(pulses), ]
+    b <- b[b$scope == "five sites" & b$detector == "chm_vwf_unsmoothed" & b$rung %in% names(pulses), ]
+    k <- read.csv(ncf, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
+    k <- k[k$scope == "five sites" & k$radius_m == 4 & k$detector == "chm_vwf_unsmoothed" &
+             k$metric == "F1_corrected" & k$rung %in% names(pulses), ]
+    b <- rbind(b[, c("rung", "metric", "estimate", "lower", "upper")], k[, c("rung", "metric", "estimate", "lower", "upper")])
+    for (m in c("F1", "recall", "precision", "F1_corrected")) {
+      r <- b$rung[b$metric == m]
+      if (anyDuplicated(r) || !setequal(r, names(pulses)))
+        stop(sprintf("figure 3: the unsmoothed baseline's %s holds levels %s, not %s", m,
+                     paste(sort(r), collapse = ", "), paste(sort(names(pulses)), collapse = ", ")), call. = FALSE)
+    }
     data.frame(detector = "chm_vwf_unsmoothed", rung = b$rung, pulses = unname(pulses[b$rung]), metric = b$metric,
                estimate = b$estimate, lower = b$lower, upper = b$upper, stringsAsFactors = FALSE)
   } else NULL
@@ -559,8 +553,11 @@ fig3 <- function() {
     fig_par(mar = c(2.8, 2.9, 1.5, 0.5))
     for (m in names(mains)) {
       y <- x[x$metric == m, ]
-      # Headroom above the intervals keeps the QL1 and QL2 labels clear of the data.
-      plot(NA, xlim = rev(range(y$pulses)) * c(1.1, 0.9), ylim = c(0, 1.1 * max(y$upper, na.rm = TRUE)),
+      # Headroom above the intervals keeps the QL1 and QL2 labels clear of the
+      # data, the unsmoothed baseline's included (its intervals drawn in (d)).
+      top <- max(c(y$upper, if (!is.null(ns)) ns[ns$metric == m, if (m == "F1_corrected") "upper" else "estimate"]),
+                 na.rm = TRUE)
+      plot(NA, xlim = rev(range(y$pulses)) * c(1.1, 0.9), ylim = c(0, 1.1 * top),
            log = "x", xaxt = "n", xlab = "First-return pulses/m²",
            ylab = if (m == "F1_corrected") "Corrected F1" else c(F1 = "F1", recall = "Recall", precision = "Precision")[[m]],
            main = mains[[m]])
@@ -570,10 +567,12 @@ fig3 <- function() {
         ci_lines(z$pulses, z$estimate, z$lower, z$upper, COL[a])
         lines(z$pulses, z$estimate, col = COL[a], type = "o", pch = PCH[a], cex = 0.8)
       }
-      # The baseline without its sub-8 pulses/m² smoothing (a sensitivity run,
-      # baseline_smoothing_sensitivity.R), dashed, where that output exists.
-      if (!is.null(ns) && m != "F1_corrected") {
+      # The baseline without its smoothing, dashed with open circles, where
+      # that output exists; in (d) with its interval, dashed too.
+      if (!is.null(ns)) {
         z <- ns[ns$metric == m, ]; z <- z[order(-z$pulses), ]
+        if (m == "F1_corrected")
+          segments(z$pulses, z$lower, z$pulses, z$upper, col = adjustcolor(COL[["chm_vwf"]], 0.6), lty = 2)
         lines(z$pulses, z$estimate, col = COL["chm_vwf"], lty = 2, type = "o", pch = 1, cex = 0.8)
       }
     }
@@ -664,12 +663,41 @@ fig5 <- function() {
 fig6 <- function() {
   f <- file.path(SPARSE, "sparse_vs_2021.csv")
   if (!file.exists(f)) { message("no sparse report at ", SPARSE); return(invisible()) }
-  x <- read.csv(f, stringsAsFactors = FALSE)
-  x <- x[x$stratum == "shared" & x$site == "D17", ]
+  sv <- read.csv(f, stringsAsFactors = FALSE)
+  x <- sv[sv$stratum == "shared" & sv$site == "D17", ]
   x$cell <- factor(paste(x$side, x$rung), c("2021 4", "sparse native", "2021 8", "2021 native"))
   arms <- intersect(c("chm_vwf", "multichm", "forestformer3d", "treeisonet", "segmentanytree"), x$arm)
+  # The clouds' first-return density inside the plot cores
+  # (core_density_sparse_epoch_summary.csv): the medians over the compared
+  # plots of the 2021 cloud thinned to the all-return targets 4 and 8, and the
+  # range of the three sites' medians of the natively sparse flights. The
+  # summary must hold the plots this figure scores, site by site.
+  sm <- read_core("core_density_sparse_epoch_summary.csv")
+  need <- c("scope", "plots", "core_sparse_native", "core_2021_native", "core_2021_8", "core_2021_4")
+  if (!all(need %in% names(sm))) stop("core_density_sparse_epoch_summary.csv lacks ",
+                                      paste(setdiff(need, names(sm)), collapse = ", "), call. = FALSE)
+  sh <- sv[sv$stratum == "shared" & sv$side == "sparse" & sv$arm == arms[1], ]   # plots per site
+  ss <- sm[sm$scope %in% setdiff(sh$site, "D17"), ]
+  pooled <- sm[sm$scope == "all compared plots", ]
+  if (nrow(pooled) != 1L || pooled$plots != sh$plots[sh$site == "D17"] ||
+      !setequal(ss$scope, setdiff(sh$site, "D17")) ||
+      any(ss$plots != sh$plots[match(ss$scope, sh$site)]))
+    stop("figure 6: core_density_sparse_epoch_summary.csv does not hold the compared plots of ", f, call. = FALSE)
+  core <- data.frame(cell = levels(x$cell),
+                     core_frdens_median = unlist(pooled[c("core_2021_4", "core_sparse_native", "core_2021_8",
+                                                          "core_2021_native")]),
+                     core_frdens_site_min = sapply(ss[c("core_2021_4", "core_sparse_native", "core_2021_8",
+                                                        "core_2021_native")], min),
+                     core_frdens_site_max = sapply(ss[c("core_2021_4", "core_sparse_native", "core_2021_8",
+                                                        "core_2021_native")], max),
+                     row.names = NULL, stringsAsFactors = FALSE)
+  f1 <- function(v) formatC(v, format = "f", digits = 1)
+  ticks <- c(paste0("2021,\n", f1(core$core_frdens_median[1])),
+             paste0("sparse\nflight,\n", f1(core$core_frdens_site_min[2]), "–", f1(core$core_frdens_site_max[2])),
+             paste0("2021,\n", f1(core$core_frdens_median[3])), "2021,\nnative")
   keep <- c("arm", "cell", "frdens_median", "recall", "rec_overstory", "rec_understory", "F1")
-  save_data("6", x[x$arm %in% arms, keep])
+  out <- x[x$arm %in% arms, keep]
+  save_data("6", cbind(out, core[match(as.character(out$cell), core$cell), -1]))
   render("6", TEXT_W, 2.9, function() {
     par(mfrow = c(1, 3))
     fig_par(mar = c(4.7, 2.9, 1.5, 0.5))
@@ -677,11 +705,15 @@ fig6 <- function() {
       plot(NA, xlim = c(0.5, 4.5), ylim = c(0, 1), xaxt = "n", xlab = "", ylab = "Recall",
            main = c(recall = "(a) All stems", rec_overstory = "(b) Overstory",
                     rec_understory = "(c) Understory")[m])
-      # Cloud and its first-return pulse density: the 2021 cloud thinned to
-      # about 2.9 and 5.4 pulses/m² on these plots, the natively sparse flights
-      # (3.9 to 5.0) and the 2021 cloud at native density.
-      axis(1, at = 1:4, labels = c("2021,\n2.9", "sparse\nflight,\n3.9–5.0", "2021,\n5.4", "2021,\nnative"),
-           padj = 0.5, gap.axis = 0, mgp = c(1.8, 0.35, 0))
+      # Cloud and its first-return pulse density inside the plot cores: the
+      # 2021 cloud thinned to about 2.5 and 4.9 pulses/m² on these plots, the
+      # natively sparse flights (3.1 to 5.0, by site) and the 2021 cloud at
+      # native density. Every label hangs from the same height just below the
+      # ticks (padj = 1 puts the top of its first line about one line outside
+      # `line`), so the three-line label grows downwards, clear of the axis
+      # and of the axis title.
+      axis(1, at = 1:4, labels = FALSE)
+      mtext(ticks, side = 1, at = 1:4, line = -0.35, padj = 1, cex = par("cex") * par("cex.axis"))
       mtext("Cloud, first-return pulses/m²", side = 1, line = 3.6, cex = 1)
       for (a in arms) {
         z <- x[x$arm == a, ]; z <- z[order(z$cell), ]
@@ -710,7 +742,12 @@ fig6 <- function() {
 # percentile), repeated by nearest neighbour so the embedded image has at
 # least 600 dpi at its printed size; the key, in a column at the right of the
 # panels with the legend, is one image of the same grey scale at the same
-# resolution.
+# resolution. The column headings give the plot's first-return density inside
+# its core at each level (core_density.csv). NEON maps the stems of a tower
+# plot in two of its four 20 m subplots; the part of the core it did not
+# census is hatched (thin white lines under the symbols, so the canopy model
+# and the detections there stay visible), and its detections still count as
+# unmatched, as in every nominal-box score.
 EX_ARMS <- c("chm_vwf", "forestformer3d", "segmentanytree")
 EX_LEVELS <- c(native = "native", ql2 = "3.2", sparsest = "1")
 EX_LEVEL_NAME <- c(native = "Native density", ql2 = "QL2 level", sparsest = "Sparsest level")
@@ -718,6 +755,36 @@ EX_TOL <- 4; EX_TZ <- 8; EX_MIN_STEMS <- 10
 EX_CHM_RES <- 0.5
 EX_DPI <- 600
 EX_COL <- c(matched = "#56B4E9", error = "#E69F00")
+EX_HATCH_STEP <- 2.5                 # m between the hatch lines, along an axis
+EX_HATCH <- list(col = "white", lwd = 0.6)
+
+# Lines at 45 degrees, `step` apart along x, inside the rectangle (x0, y0) to
+# (x1, y1). They lie on one grid through the origin, so the hatches of two
+# neighbouring rectangles continue each other's lines.
+hatch <- function(x0, y0, x1, y1, step, ...) {
+  b <- step * seq(ceiling((y0 - x1) / step), floor((y1 - x0) / step))   # lines y = x + b
+  xa <- pmax(x0, y0 - b); xb <- pmin(x1, y1 - b)
+  k <- xb > xa
+  segments(xa[k], xa[k] + b[k], xb[k], xb[k] + b[k], lend = 1, ...)
+}
+
+# The 20 m quadrants of a tower plot's 40 m core and the reference stems in
+# each. The ground truth does not carry NEON's subplot of a stem, so the
+# subplots NEON censused are the quadrants that hold reference stems; there
+# must be exactly two, holding every stem, or the function stops. A
+# distributed plot is one 20 m subplot, censused whole: no quadrants.
+ex_quadrants <- function(stems, ph) {
+  if (ph <= 10) return(NULL)
+  q <- data.frame(quadrant = c("SW", "SE", "NW", "NE"), sx = c(-1, 1, -1, 1), sy = c(-1, -1, 1, 1))
+  q$n_ref <- mapply(function(a, b) sum(sign(stems$x) == a & sign(stems$y) == b), q$sx, q$sy)
+  if (sum(q$n_ref > 0) != 2L || sum(q$n_ref) != nrow(stems))
+    stop(sprintf("figure 7: the %d reference stems lie in quadrants %s, not in exactly two of them",
+                 nrow(stems), paste(sprintf("%s %d", q$quadrant, q$n_ref), collapse = ", ")), call. = FALSE)
+  q$censused <- q$n_ref > 0
+  q$x0 <- pmin(0, q$sx * ph); q$x1 <- pmax(0, q$sx * ph)
+  q$y0 <- pmin(0, q$sy * ph); q$y1 <- pmax(0, q$sy * ph)
+  q
+}
 
 # Field stems are circles and detections triangles. Matched ones are filled
 # (blue); missed stems and unmatched detections in the core are open (an orange
@@ -846,20 +913,54 @@ fig7 <- function() {
   cat(sprintf("figure 7: %s (distance to the pooled F1 %.3f; next %s)\n", pid, rk[pid],
               paste(sprintf("%s %.3f", names(rk)[2:4], rk[2:4]), collapse = ", ")))
   P <- example_panels(site, pid, cells)
+  # The plot's first-return density inside its core at each level, for the
+  # headings; the core-density row must be the panel's cell (the same
+  # manifest density).
+  cd <- read_core("core_density.csv", colClasses = c(rung = "character"))
+  for (k in names(P)) {
+    r <- cd[cd$site == site & cd$plot == pid & cd$rung == P[[k]]$rung, ]
+    if (nrow(r) != 1L || abs(r$manifest_frdens - P[[k]]$frdens) > 1e-9 * P[[k]]$frdens)
+      stop("figure 7: no core density for the cell of ", pid, " at ", P[[k]]$rung, call. = FALSE)
+    P[[k]]$core_frdens <- r$core_frdens
+  }
+  # Every panel scores the same reference stems; their quadrants give the
+  # subplots NEON censused.
+  st <- P[[1]]$stems[, c("x", "y")]
+  if (!all(vapply(P, function(p) isTRUE(all.equal(p$stems[, c("x", "y")], st)), TRUE)))
+    stop("figure 7: the panels of ", pid, " do not score the same reference stems", call. = FALSE)
+  Q <- ex_quadrants(st, P[[1]]$ph)
+  if (!is.null(Q))
+    cat(sprintf("figure 7: reference stems by 20 m quadrant %s; hatched (not censused): %s\n",
+                paste(sprintf("%s %d", Q$quadrant, Q$n_ref), collapse = ", "),
+                paste(Q$quadrant[!Q$censused], collapse = ", ")))
   key <- function(p) data.frame(site = site, plot = pid, detector = p$arm, level = p$level, rung = p$rung,
                                 stringsAsFactors = FALSE)
-  save_data("7", do.call(rbind, lapply(P, function(p) {
+  rows <- do.call(rbind, lapply(P, function(p) {
     pan <- cbind(key(p), row_type = "panel", x = NA, y = NA, height = NA, status = NA,
-                 frdens = p$frdens, n_ref = p$cnt[["n_ref"]], n_det = p$cnt[["n_det"]], TP = p$cnt[["TP"]],
+                 frdens = p$frdens, core_frdens = p$core_frdens, n_ref = p$cnt[["n_ref"]],
+                 n_det = p$cnt[["n_det"]], TP = p$cnt[["TP"]],
                  tp_core = p$cnt[["tp_core"]], recall = p$recall, precision = p$precision,
                  centre_easting = p$cx, centre_northing = p$cy, epsg = p$epsg,
                  distance_to_pooled_F1 = unname(rk[pid]))
     pts <- rbind(cbind(row_type = "stem", p$stems), cbind(row_type = "detection", p$dets))
-    pts <- cbind(key(p)[rep(1, nrow(pts)), ], pts, frdens = NA, n_ref = NA, n_det = NA, TP = NA,
+    pts <- cbind(key(p)[rep(1, nrow(pts)), ], pts, frdens = NA, core_frdens = NA, n_ref = NA, n_det = NA, TP = NA,
                  tp_core = NA, recall = NA, precision = NA, centre_easting = NA, centre_northing = NA,
                  epsg = NA, distance_to_pooled_F1 = NA)
     rbind(pan, pts[, names(pan)])
-  })))
+  }))
+  # One row per 20 m quadrant of the core: its centre (x, y, metres from the
+  # plot centre), whether NEON censused it (status) and its reference stems
+  # (n_ref); the quadrants not censused are the hatched ones.
+  if (!is.null(Q)) {
+    qr <- rows[rep(1, nrow(Q)), ]
+    qr[] <- NA
+    qr$site <- site; qr$plot <- pid; qr$row_type <- "quadrant"
+    qr$x <- (Q$x0 + Q$x1) / 2; qr$y <- (Q$y0 + Q$y1) / 2
+    qr$status <- ifelse(Q$censused, "censused", "not_censused"); qr$n_ref <- Q$n_ref
+    qr$centre_easting <- P[[1]]$cx; qr$centre_northing <- P[[1]]$cy; qr$epsg <- P[[1]]$epsg
+    rows <- rbind(rows, qr)
+  }
+  save_data("7", rows)
   # One grey scale for all panels, capped at the 99.5th percentile of the
   # canopy heights (rounded up to 5 m); the few taller cells show as the cap.
   zall <- unlist(lapply(P, function(p) terra::values(p$chm)))
@@ -898,6 +999,10 @@ fig7 <- function() {
       par(xpd = FALSE)                  # the canopy image is clipped to the panel
       draw_chm(p$chm)
       par(xpd = NA)
+      # The quadrants NEON did not census, hatched under the core's outline
+      # and the symbols.
+      for (i in which(!Q$censused))
+        do.call(hatch, c(list(Q$x0[i], Q$y0[i], Q$x1[i], Q$y1[i], EX_HATCH_STEP), EX_HATCH))
       rect(-p$ph, -p$ph, p$ph, p$ph, border = "white", lty = 2, lwd = 0.8)
       if (nrow(p$pairs)) {
         segments(p$pairs$x0, p$pairs$y0, p$pairs$x1, p$pairs$y1, col = "white", lwd = 2.2)
@@ -909,7 +1014,7 @@ fig7 <- function() {
       mtext(sprintf("Recall %.2f, precision %.2f", p$recall, p$precision), side = 1, line = 0.15,
             cex = LEG_CEX)
       if (lv == "native") mtext(ARMS[[arm]], side = 2, line = 0.35, font = 2)
-      if (arm == EX_ARMS[1]) mtext(sprintf("%s, %.1f pulses/m²", EX_LEVEL_NAME[[lv]], p$frdens),
+      if (arm == EX_ARMS[1]) mtext(sprintf("%s, %.1f pulses/m²", EX_LEVEL_NAME[[lv]], p$core_frdens),
                                    side = 3, line = 0.3, font = 2)
     }
     # The column at the right, in inches: the legend beside the first row of
@@ -921,21 +1026,32 @@ fig7 <- function() {
     xs <- xl + 0.12; xt <- xs + 0.15              # symbols, texts
     top <- H - (oma[3] + mar[3]) * ln             # the top of the first row of panels
     row <- 1.2 * LEG_CEX * ln; grp <- 0.06        # rows, and the space between groups
-    yk <- top - row / 2 - c(0:2 * row, 3:5 * row + grp, 6:7 * row + 2 * grp)
+    # The third group: the core, the hatch of the subplots NEON did not
+    # census (when the plot has any) and the scale bar.
+    hq <- any(!Q$censused)
+    nk <- 8L + hq
+    yk <- top - row / 2 - c(0:2 * row, 3:5 * row + grp, 6:(nk - 1L) * row + 2 * grp)
     t1 <- c("Field stem, matched", "Field stem, missed", "Match (4 m, height gate)")
     t2 <- c("Detection, matched", "Detection in the core, unmatched", "Detection outside the core, unmatched")
     core_lab <- sprintf("Plot core, %g m × %g m", 2 * P[[1]]$ph, 2 * P[[1]]$ph)
-    if (xt + max(strwidth(c(t1, t2, core_lab), cex = LEG_CEX)) > W - 0.02)
+    labs <- c(t1, t2, core_lab, if (hq) "Subplots not censused by NEON")
+    if (xt + max(strwidth(labs, cex = LEG_CEX)) > W - 0.02)
       warning("figure 7 legend wider than its column")
     ex_points(rep(xs, 2), yk[1:2], "stem", c("matched", "missed"))
     segments(xs - 0.07, yk[3], xs + 0.07, yk[3], col = "black", lwd = 0.8)
     ex_points(rep(xs, 3), yk[4:6], "detection", c("matched", "false_positive", "outside_core"))
     rect(xs - 0.1, yk[7] - 0.045, xs + 0.1, yk[7] + 0.045, border = "black", lty = 2, lwd = 0.8)
-    text(xt, yk[1:7], c(t1, t2, core_lab), adj = c(0, 0.5), cex = LEG_CEX)
+    if (hq) {
+      # The hatch as in the panels, at their scale, on a dark canopy grey.
+      sw <- c(xs - 0.1, yk[8] - 0.045, xs + 0.1, yk[8] + 0.045)
+      rect(sw[1], sw[2], sw[3], sw[4], col = pal[40], border = NA)
+      do.call(hatch, c(list(sw[1], sw[2], sw[3], sw[4], EX_HATCH_STEP * side / (2 * R)), EX_HATCH))
+    }
+    text(xt, yk[seq_along(labs)], labs, adj = c(0, 0.5), cex = LEG_CEX)
     bar <- 10 * side / (2 * R)        # 10 m at the panels' scale
-    segments(xs - 0.1, yk[8], xs - 0.1 + bar, yk[8], lwd = 1.5, lend = 1)
-    segments(c(xs - 0.1, xs - 0.1 + bar), yk[8] - 0.025, c(xs - 0.1, xs - 0.1 + bar), yk[8] + 0.025, lwd = 0.8)
-    text(xs - 0.1 + bar + 0.05, yk[8], "10 m", adj = c(0, 0.5), cex = LEG_CEX)
+    segments(xs - 0.1, yk[nk], xs - 0.1 + bar, yk[nk], lwd = 1.5, lend = 1)
+    segments(c(xs - 0.1, xs - 0.1 + bar), yk[nk] - 0.025, c(xs - 0.1, xs - 0.1 + bar), yk[nk] + 0.025, lwd = 0.8)
+    text(xs - 0.1 + bar + 0.05, yk[nk], "10 m", adj = c(0, 0.5), cex = LEG_CEX)
     # Canopy-height key: its title at the top of the second row of panels,
     # then one image of the grey scale, highest at the top (adjacent
     # rectangles would show seams in PDF viewers), each value repeated by

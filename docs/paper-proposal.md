@@ -199,79 +199,119 @@ historical three-site sections are marked as such and stay for the record.
 ## Literature positioning
 
 Open 3D instance benchmarks are all dense. FOR-instance collections range from
-about 500 to 9,500 pts/m²
-([Puliti et al. 2023](https://arxiv.org/abs/2309.01279)), FGI-EMIT exceeds
-1,000 pts/m² ([Ruoppa et al. 2026](https://doi.org/10.1016/j.isprsjprs.2026.04.021)),
-and FOR-instance v3, introduced with SegmentAnyTreeV2, spans 10 to 50,000
-pts/m² and includes airborne sources, without stating how its sparsest clouds
-were obtained ([Wielgosz et al. 2026](https://arxiv.org/abs/2606.08206)).
-NeonTreeEvaluation
+about 500 to 9,500 pts/m² ([Puliti et al.
+2023](https://arxiv.org/abs/2309.01279)), FGI-EMIT exceeds 1,000 pts/m² ([Ruoppa
+et al. 2026](https://doi.org/10.1016/j.isprsjprs.2026.04.021)), and FOR-instance
+v3, introduced with SegmentAnyTreeV2, spans 10 to 50,000 pts/m² and includes
+airborne sources, without stating how its sparsest clouds were obtained
+([Wielgosz et al. 2026](https://arxiv.org/abs/2606.08206)). NeonTreeEvaluation
 is the only sparse-ALS benchmark and uses field stems for recall only
-([Weinstein et al. 2021](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1009180)).
+([Weinstein et al.
+2021](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1009180)).
 
 Density studies split by community. Classical work lives at 1 to 25 pulses/m²
-([Jakubowski et al. 2013](https://www.sciencedirect.com/science/article/abs/pii/S0034425712004567),
-[Kaartinen et al. 2012](https://www.mdpi.com/2072-4292/4/4/950),
-[Sparks et al. 2022](https://doi.org/10.3390/rs14143480)). Deep-model studies
-live at 10 to 10,000 pts/m², with the sparsest levels subsampled from dense
-acquisitions ([Wielgosz et al. 2024](https://arxiv.org/abs/2401.15739),
-[Xiang et al. 2025](https://arxiv.org/abs/2506.16991),
-ITS-Net, [Li et al. 2026](https://doi.org/10.1016/j.isprsjprs.2025.11.019)). No paper
-found evaluates a pretrained 3D segmenter on native 1 to 2 pulses/m² ALS, and
-none checks decimation against a native sparse acquisition for a detector's
-precision and recall against field stems or with learned detectors; Yu et al.
-2004 (below) compared thinned and native flights by detected-tree counts and
-height error.
+([Jakubowski et al.
+2013](https://www.sciencedirect.com/science/article/abs/pii/S0034425712004567),
+[Kaartinen et al. 2012](https://www.mdpi.com/2072-4292/4/4/950), [Sparks et al.
+2022](https://doi.org/10.3390/rs14143480)). Deep-model studies live at 10 to
+10,000 pts/m², with the sparsest levels subsampled from dense acquisitions
+([Wielgosz et al. 2024](https://arxiv.org/abs/2401.15739), [Xiang et al.
+2025](https://arxiv.org/abs/2506.16991), ITS-Net, [Li et al.
+2026](https://doi.org/10.1016/j.isprsjprs.2025.11.019)). No paper found
+evaluates a pretrained 3D segmenter on native 1 to 2 pulses/m² ALS, and none
+checks decimation against a native sparse acquisition for a detector's precision
+and recall against field stems or with learned detectors; Yu et al. 2004 (below)
+compared thinned and native flights by detected-tree counts and height error.
 
 Understory recall by crown class is reported mainly for classical methods on
-dense ALS ([Hamraz et al. 2017](https://www.nature.com/articles/s41598-017-07200-0),
-[Cao et al. 2023](https://doi.org/10.1016/j.jag.2023.103490)) and for no deep
-model below 50 pts/m². Matching rules are rarely compared: the dense-cloud
-community uses IoU 0.5 one-to-one matching, stem benchmarks use restricted
-nearest neighbours ([Eysn et al. 2015](https://www.mdpi.com/1999-4907/6/5/1721)),
-and no forestry paper found scores the same detections under greedy and
-optimal assignment and across radii; optimal assignment itself has been used
-at least since [Hamraz et al. 2016](https://doi.org/10.1016/j.jag.2016.07.006).
-No checkpoint leakage audit exists; overlap handling is self-reported. The
-nearest prior art for combining detectors is RGB plus LiDAR voting
-([Pleşoianu et al. 2020](https://www.mdpi.com/2072-4292/12/15/2426)); no
-density-gated routing or calibration study of tree detectors was found.
+dense ALS ([Hamraz et al.
+2017](https://www.nature.com/articles/s41598-017-07200-0), [Cao et al.
+2023](https://doi.org/10.1016/j.jag.2023.103490)) and for no deep model below 50
+pts/m². Matching rules are rarely compared: the dense-cloud community uses IoU
+0.5 one-to-one matching, stem benchmarks use restricted nearest neighbours
+([Eysn et al. 2015](https://www.mdpi.com/1999-4907/6/5/1721)), and no forestry
+paper found scores the same detections under greedy and optimal assignment and
+across radii; optimal assignment itself has been used at least since [Hamraz et
+al. 2016](https://doi.org/10.1016/j.jag.2016.07.006). No checkpoint leakage
+audit exists; overlap handling is self-reported. The nearest prior art for
+combining detectors is RGB plus LiDAR voting ([Pleşoianu et al.
+2020](https://www.mdpi.com/2072-4292/12/15/2426)); no density-gated routing or
+calibration study of tree detectors was found.
 
-Current state of the art to cite: SegmentAnyTreeV2
-([Wielgosz et al. 2026](https://arxiv.org/abs/2606.08206)) and SelectAnyTree
-([Nguyen et al. 2026](https://arxiv.org/abs/2606.27491)) from June 2026, ForPT
-([Yue et al. 2026](https://arxiv.org/abs/2609.24787)) and ITS-Net
-([Li et al. 2026](https://doi.org/10.1016/j.isprsjprs.2025.11.019)).
-None reports 1 to 8 pulses/m² performance. SegmentAnyTreeV2 is not evaluated
-here: its preprint promises the weights on acceptance, and none were public
-on 2026-10-01. Repository check of 2026-10-21: SegmentAnyTreeV2 still has no
-public repository or weights; SelectAnyTree
+Current state of the art to cite: SegmentAnyTreeV2 ([Wielgosz et al.
+2026](https://arxiv.org/abs/2606.08206)) and SelectAnyTree ([Nguyen et al.
+2026](https://arxiv.org/abs/2606.27491)) from June 2026, ForPT ([Yue et al.
+2026](https://arxiv.org/abs/2609.24787)) and ITS-Net ([Li et al.
+2026](https://doi.org/10.1016/j.isprsjprs.2025.11.019)). None reports 1 to 8
+pulses/m² performance. SegmentAnyTreeV2 is not evaluated here: its preprint
+promises the weights on acceptance, and none were public on 2026-10-01.
+Repository check of 2026-10-21: SegmentAnyTreeV2 still has no public repository
+or weights; SelectAnyTree
 ([thanhhff/SelectAnyTree](https://github.com/thanhhff/SelectAnyTree)) holds a
 README only, and ForestQuery
-([zhan994/ForestQuery](https://github.com/zhan994/ForestQuery),
-[arXiv 2610.03403](https://arxiv.org/abs/2610.03403)) a README, licence and
-teaser image; neither holds code or a checkpoint. ForPT
+([zhan994/ForestQuery](https://github.com/zhan994/ForestQuery), [arXiv
+2610.03403](https://arxiv.org/abs/2610.03403)) a README, licence and teaser
+image; neither holds code or a checkpoint. ForPT
 ([prs-eth/ForPT](https://github.com/prs-eth/ForPT), created 2026-10-09) holds
 code and links eleven Hugging Face checkpoints for pretraining, semantic
 segmentation, species and age, none for instance segmentation; ITS-Net
 ([A8366233/ITS-Net](https://github.com/A8366233/ITS-Net), created 2025-11-17)
-holds code without a checkpoint. The paper's Section 2.1 also cites
-[Yu et al. 2004](https://www.isprs.org/proceedings/XXXVI/8-W2/YU.pdf), who
-thinned a 400 m flight to the densities of native 800 m and 1,500 m flights of
-the same 100 ha test area; their tables give 1,416 thinned against 1,400 native
-trees at 5 points/m² but 1,331 thinned against 532 native at 2.5 points/m², a
-loss they attribute to missing canopy returns at 1,500 m, not to density alone.
-The paper cites this as the precedent for checking decimation against native
-sparse flights and states, as its own reading rather than theirs, that thinning
-was strongly optimistic at the sparsest density. ForestMamba
-([Nguyen et al. 2026](https://arxiv.org/abs/2606.01549), BMVC 2026), a
-ForestFormer3D fork with public code and weights, was not in the scan of
-2026-09-30; it was run in October 2026, after the paper's tables were fixed,
-and is reported beside them
-([ForestMamba benchmark](../results/forestmamba-results.md)). USGS 3DEP
-quality levels frame the target regime: QL2 requires at least 2 pulses/m² and
-QL1 at least 8
+holds code without a checkpoint. The paper's Section 2.1 also cites [Yu et al.
+2004](https://www.isprs.org/proceedings/XXXVI/8-W2/YU.pdf), who thinned a 400 m
+flight to the densities of native 800 m and 1,500 m flights of the same 100 ha
+test area; their tables give 1,416 thinned against 1,400 native trees at 5
+points/m² but 1,331 thinned against 532 native at 2.5 points/m², a loss they
+attribute to missing canopy returns at 1,500 m, not to density alone. The paper
+cites this as the precedent for checking decimation against native sparse
+flights and states, as its own reading rather than theirs, that thinning was
+strongly optimistic at the sparsest density. ForestMamba ([Nguyen et al.
+2026](https://arxiv.org/abs/2606.01549), BMVC 2026), a ForestFormer3D fork with
+public code and weights, was not in the scan of 2026-09-30; it was run in
+October 2026, after the paper's tables were fixed, and is reported beside them
+([ForestMamba benchmark](../results/forestmamba-results.md)). USGS 3DEP quality
+levels frame the target regime: QL2 requires at least 2 pulses/m² and QL1 at
+least 8
 ([USGS](https://www.usgs.gov/3d-elevation-program/topographic-data-quality-levels-qls)).
+
+Repository check of 2026-11-16, before submission: the state of the six
+models is unchanged. SegmentAnyTreeV2 still promises its weights on
+acceptance; SelectAnyTree and ForestQuery hold no code or checkpoint; ForPT's
+model card still lists instance segmentation as coming; ITS-Net holds code
+without a checkpoint; ForestMamba's code and weights are public at the commit
+the benchmark ran. Three things found in that check change the paper's
+wording:
+
+- **A concurrent public evaluation.** The repository
+  [jossuema/treelearn-density-transfer](https://github.com/jossuema/treelearn-density-transfer)
+  (created 2026-10-05, one commit, d6082bb68511, of 2026-11-11; authors Malla
+  Campoverde, Osorio Tinitana and Tusa, Universidad Técnica de Machala; code and
+  aggregated results, no paper) scores the released SegmentAnyTree,
+  ForestFormer3D and TreeLite3D weights, AMS3D and a watershed against a field
+  inventory of 1,437 trees on 22 alpine ALS plots in France and Italy, matched
+  one to one within 3.5 m with plot-bootstrap intervals. It reports crown
+  strata, greedy against optimal matching, the score of a uniform random
+  detector with the same number of detections, and thinning by pulse of its
+  denser site to 60, 40 and 25% of the pulses: median densities of 118.1, 70.8,
+  47.1 and 29.5 points/m², the sparsest plot at 22.7. The paper's statements of
+  absence are therefore limited to published work, its floor for understory
+  recall of a deep model is stated as 20 points/m², and Sections 2.1 and 2.2
+  cite the repository as concurrent work.
+- **Two models with public weights that the scan missed.** TreeLite3D ([Rizaldy
+  et al. 2026](https://doi.org/10.1016/j.rse.2026.115564),
+  [aldinorizaldy/TreeLite3D](https://github.com/aldinorizaldy/TreeLite3D)) and
+  ForestSeg3D ([Zhang et al.
+  2026](https://doi.org/10.1016/j.plaphe.2026.100261)). Neither was run; the
+  paper names both in Section 2.3.
+- **The source of TreeisoNet's training density.** The 1,160 points/m² of the
+  detector table is the average density of the unmanned wellsite scans of
+  [Movchan et al. 2025](https://doi.org/10.3390/rs17203440) (1,159 points/m²,
+  DJI Zenmuse L1), which describes the TreeAIBox wellsite models; the paper now
+  cites it.
+
+The same check corrected one citation: the density series of deep-model
+studies is in the ForestFormer3D paper, whose supplement downsamples to 10 to
+1,000 points/m² and reports a variant retrained with multi-density copies,
+not in Xiang et al. 2024.
 
 The paper's own native acquisitions are the 2021 flights at about 10
 pulses/m² and the 2017 and 2018 flights at 4 to 5. Below that, including the
@@ -283,7 +323,7 @@ plots, which replicate SegmentAnyTree's collapse against true labels.
 
 1. Introduction: national-mapping ALS as the deployment regime, the density
    gap between the classical and deep literatures, four research questions
-   and four contributions.
+   and three contributions.
 2. Related work: benchmarks and point density, evaluation conventions, recent
    models.
 3. Data: five sites with a site map; the field reference; fixed evaluation
@@ -292,23 +332,29 @@ plots, which replicate SegmentAnyTree's collapse against true labels.
 4. Methods: detectors with compute cost; scoring and chance agreement;
    reference completeness; uncertainty and rank stability; development and
    replication regions; decimation checks, dense-domain control and
-   sensitivity analyses; the density-routed pipeline; implementation.
+   sensitivity analyses; implementation.
 5. Results: accuracy at native density, density response and rank stability,
    regions, understory trees, reference completeness, decimation against
-   native sparse flights, dense-domain control, the density-routed pipeline.
-6. Discussion: choosing a detector by USGS quality level, why one learned
+   native sparse flights, dense-domain control.
+6. Discussion: choosing a detector by USGS quality level (guidance, with a
+   post hoc decision table in the supplement), why one learned
    detector collapses, the dense benchmark and integration defects, threats to
    validity.
 7. Conclusion, data and code availability.
 
+On 18 November 2026 the density-routed pipeline was demoted from a contribution
+to guidance in the discussion: its picks do not separate from their runners-up
+and ForestFormer3D run at every density does as well. Its decision table and
+results moved to the supplement.
+
 Figures and tables of the paper as restructured for IEEE JSTARS on 22 October
-2026, drawn by `paper_figures.R` from the master tables, the study outputs and
-the persisted detections, each figure but the schematic with the numbers it
-plots in a CSV:
+2026 and revised on 18 November 2026, drawn by `paper_figures.R` from the master
+tables, the study outputs and the persisted detections, each figure but the
+schematic with the numbers it plots in a CSV:
 
 - Figure 1: a map of the five sites, stems by crown class, native pulse
   density and stem heights.
-- Figure 2: the evaluation protocol and the density-routed pipeline.
+- Figure 2: the evaluation protocol.
 - Figure 3: F1, recall, precision and chance-corrected F1 versus pulse
   density, with the QL1 and QL2 floors marked.
 - Figure 4: rank of each detector across the density series, with the rank
@@ -331,14 +377,14 @@ Tables:
 - Table 5: censused subplots beside the nominal plot core.
 - Table 6: the same checkpoints on the FGI-EMIT reserve, on FGI-EMIT thinned
   to the NEON densities, and on NEON.
-- Table 7: the density-routed pipeline, a decision table by USGS quality level
-  and compute budget with its held-out check (the
-  [density-routing report](../results/density-routing-results.md)).
-- Table 8: threats to validity.
+- Table 7: threats to validity.
 
 The regional comparison, compute cost per plot, the sensitivity analyses,
 fusion, calibration, crown diameters, mask scoring with its proxy validation,
-ForestMamba and the per-band routing tables go to the supplement.
+ForestMamba and the density routing go to the supplement: the decision table
+by USGS quality level and compute budget with its held-out check, and the
+per-band tables (the
+[density-routing report](../results/density-routing-results.md)).
 
 ## Work before submission
 

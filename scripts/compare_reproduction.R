@@ -11,7 +11,10 @@
 #              diameters and their errors) within LENGTH_TOL (default
 #              0.01 m): lasR's canopy-model maxima vary by about a millimetre
 #              from run to run, single-threaded too, which moves apex heights
-#              and height errors but has not changed a detection or a match.
+#              and height errors. In repeats of the baseline it also changed
+#              one tree top in a few cells (12 of 1,184 configurations, a
+#              scored count in one), so the steps whose tables are compared
+#              strictly re-score persisted detections and do not re-detect.
 #              Counts and rates never get this allowance. Summed crown
 #              overlaps measured on that canopy model (iou_sum_*) inherit
 #              the same noise and are allowed OVERLAP_TOL (default 0.01).

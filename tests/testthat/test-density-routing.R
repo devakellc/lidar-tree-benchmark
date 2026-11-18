@@ -30,6 +30,39 @@ test_that("bands follow the QL1 and QL2 floors of measured first-return density"
   expect_error(dr_band(numeric()), "finite")
 })
 
+test_that("cells are banded by core density by default and by the manifest's with clip", {
+  dens <- data.frame(site = c("S", "S", "T"), plot = c("p1", "p1", "p3"),
+                     level = c("native", "4", "4"), frdens = c(8.4, 2.3, 2.1),
+                     root_id = c("r0", "r0", "r1"), stringsAsFactors = FALSE)
+  core <- data.frame(site = c("T", "S", "S", "S"), plot = c("p3", "p1", "p1", "p9"),
+                     rung = c("4", "native", "4", "4"), manifest_frdens = c(2.1, 8.4, 2.3, 3),
+                     clip_frdens = c(2.1, 8.4, 2.3, 3), core_pdens = c(4, 16, 4, 4),
+                     core_frdens = c(1.9, 7.9, 2.05, 2.5),
+                     clip_manifest_sha256 = c("r1", "r0", "r0", "r0"), stringsAsFactors = FALSE)
+  clip <- dr_cell_density(dens, "clip")
+  expect_identical(clip$band_frdens, dens$frdens)
+  expect_identical(dr_band(clip$band_frdens), c("A", "B", "B"))
+  expect_null(clip$core_frdens)
+  k <- dr_cell_density(dens, "core", core)                  # joined by site, plot and level
+  expect_identical(k$band_frdens, c(7.9, 2.05, 1.9))
+  expect_identical(k$core_pdens, c(16, 4, 4))
+  expect_identical(k$frdens, dens$frdens)                    # the manifest's figure is kept
+  expect_identical(dr_band(k$band_frdens), c("B", "B", "C"))
+  expect_identical(dr_cell_density(dens, core = core)$band_frdens, k$band_frdens)  # core is the default
+  expect_error(dr_cell_density(dens, "core"), "core-density table")
+  expect_error(dr_cell_density(dens, "core", core[-1, ]), "No core density for 1 scored cells")
+  expect_error(dr_cell_density(dens, "core", rbind(core, core[1, ])), "Duplicate")
+  expect_error(dr_cell_density(dens, "core", transform(core, clip_frdens = c(2.2, 8.4, 2.3, 3))),
+               "differs from the clip manifest")
+  expect_error(dr_cell_density(dens, "core", transform(core, manifest_frdens = c(2.1, 8.5, 2.3, 3))),
+               "differs from the clip manifest")
+  expect_error(dr_cell_density(dens, "core", transform(core, clip_manifest_sha256 = "r0")),
+               "another sealed root")
+  expect_error(dr_cell_density(dens, "core", core[setdiff(names(core), "core_frdens")]), "lacks core_frdens")
+  expect_error(dr_cell_density(dens, "tile"), "should be one of")
+  expect_setequal(names(DR_DENSITY), c("core", "clip"))
+})
+
 test_that("the pick is the highest score among the candidates, with no tie-break", {
   sc <- data.frame(band = rep(c("A", "B"), each = 3), detector = rep(c("x", "y", "z"), 2),
                    F1 = c(0.40, 0.45, 0.50, 0.30, 0.20, 0.10), stringsAsFactors = FALSE)

@@ -1,5 +1,6 @@
 # Density-routed detection: each cell (one plot at one density level) is
-# routed to a detector by its measured first-return density, each band's
+# routed to a detector by its measured first-return density (by default inside
+# the scored plot core; see dr_cell_density()), each band's
 # detector is chosen on the development region, and the routes are scored
 # with the master tables' paired plot resamples. Pure functions; sourced after
 # master_tables_lib.R (mt_boot_scores, mt_interval). Driver:
@@ -27,6 +28,56 @@ dr_band <- function(frdens) {
   if (!length(frdens) || anyNA(frdens) || any(!is.finite(frdens)) || any(frdens < 0))
     stop("Every cell needs a finite, non-negative measured first-return density")
   DR_BANDS$band[match(findInterval(frdens, c(0, 2, 8)), 3:1)]
+}
+
+## ---- the density a cell is banded by ----------------------------------------------
+# Two definitions of a cell's measured first-return density. "core" counts
+# first returns inside the nominal plot core, the area that is scored
+# (core_density.R); "clip" is the clip manifest's figure over the whole
+# evaluation clip (core plus the 25 m buffer), whose thinned edge is denser
+# than its interior.
+DR_DENSITY <- c(
+  core = paste("first returns per m² inside the nominal plot core, the scored area",
+               "(core_density.R; same clips and height filter as the clip manifest)"),
+  clip = paste("first returns per m² over the whole evaluation clip (plot core plus",
+               "the 25 m buffer), as recorded in the clip manifest"))
+
+# Adds band_frdens, the density each scored cell is banded by. `dens` holds
+# one row per scored cell (site, plot, level) with the clip manifest's frdens
+# and, optionally, root_id (the SHA-256 of its root's clip manifest). With
+# "clip" band_frdens is frdens. With "core" it is core_frdens of `core` (rows
+# of core_density.csv: site, plot, rung, manifest_frdens, clip_frdens,
+# core_pdens, core_frdens and clip_manifest_sha256): every scored cell needs
+# exactly one row, made from the same sealed clip (same root, and recorded and
+# recomputed whole-clip densities equal to the cell's manifest density).
+dr_cell_density <- function(dens, density = c("core", "clip"), core = NULL, tol = 1e-9) {
+  density <- match.arg(density)
+  dens <- as.data.frame(dens)
+  if (density == "clip") {
+    dens$band_frdens <- dens$frdens
+    return(dens)
+  }
+  if (is.null(core) || !nrow(core)) stop("Banding by core density needs the core-density table")
+  core <- as.data.frame(core)
+  need <- c("site", "plot", "rung", "manifest_frdens", "clip_frdens", "core_pdens", "core_frdens")
+  if (length(setdiff(need, names(core))))
+    stop("The core-density table lacks ", paste(setdiff(need, names(core)), collapse = ", "))
+  key <- paste(core$site, core$plot, as.character(core$rung), sep = "/")
+  if (anyDuplicated(key)) stop("Duplicate cells in the core-density table")
+  want <- paste(dens$site, dens$plot, dens$level, sep = "/")
+  i <- match(want, key)
+  if (anyNA(i)) stop("No core density for ", sum(is.na(i)), " scored cells, e.g. ",
+                     paste(utils::head(want[is.na(i)], 3), collapse = ", "))
+  if (!is.null(dens$root_id) && !is.null(core$clip_manifest_sha256) &&
+      any(core$clip_manifest_sha256[i] != dens$root_id))
+    stop("The core-density table was made from another sealed root")
+  if (any(abs(core$manifest_frdens[i] - dens$frdens) > tol) ||
+      any(abs(core$clip_frdens[i] - dens$frdens) > tol))
+    stop("The core-density table's whole-clip density differs from the clip manifest")
+  dens$core_pdens <- core$core_pdens[i]
+  dens$core_frdens <- core$core_frdens[i]
+  dens$band_frdens <- dens$core_frdens
+  dens
 }
 
 ## ---- selection -----------------------------------------------------------------
