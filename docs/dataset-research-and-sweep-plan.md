@@ -301,7 +301,10 @@ density axis.
 - **TreeScope, FOR-instance** — >50 pts/m² ULS/MLS built for 3D instance
   segmentation, the method family the airborne CHM pipeline explicitly avoids at
   airborne densities. Including them confounds sensor/platform with density.
-- **OFO Emerald Point** — photogrammetry, not LiDAR.
+- **OFO Emerald Point** — photogrammetry, not LiDAR. A public 3DEP flight of
+  June 2022 now covers the plot; see the later
+  [catalogue preflight](../results/ofo-preflight-results.md), which found the
+  plot unusable for a different reason (no validated registration).
 - **FIA** — coordinates unusable for co-location.
 
 ### Branch on deployment target

@@ -1,0 +1,558 @@
+{
+ "schema_version": 1,
+ "study": "Open Forest Observatory stem maps: preflight",
+ "scope": "Score-blind: catalogue tables, public LiDAR indexes and clouds, drone canopy models, snow grids and collection metadata. No detector was run and nothing was scored.",
+ "written_utc": "2026-11-17T14:21:15Z",
+ "catalogue_record": {
+  "record": "23402904",
+  "url": "https://zenodo.org/api/records/23402904"
+ },
+ "files": [
+  {
+   "path": "lidar-index/ept/CA_CarrHirzDeltaFires_1_2019.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_CarrHirzDeltaFires_1_2019/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:34Z",
+   "obtained": "download",
+   "bytes": 2532,
+   "sha256": "2f7f7226f7b59ddd033201f0c56f90da48b71904f4d5dc8d6fa6312df67eb51e"
+  },
+  {
+   "path": "lidar-index/ept/CA_FEMA_Z4_B2_2018.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_FEMA_Z4_B2_2018/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:37Z",
+   "obtained": "download",
+   "bytes": 2518,
+   "sha256": "0ddde0eca1b5f71499efb9949286ef5a38b16354182ce60989dcc1c7bb7a9875"
+  },
+  {
+   "path": "lidar-index/ept/CA_FEMAR9Fresno_2_2019.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_FEMAR9Fresno_2_2019/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:35Z",
+   "obtained": "download",
+   "bytes": 2544,
+   "sha256": "2b0e9755cfb3e45ec978e9e910b6022edb20c2f9f821df4e77a1da1bf09b4804"
+  },
+  {
+   "path": "lidar-index/ept/CA_NoCAL_Wildfires_PlumasNF_B2_2018.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_NoCAL_Wildfires_PlumasNF_B2_2018/ept.json",
+   "retrieved_utc": "2026-11-17T11:35:28Z",
+   "obtained": "download",
+   "bytes": 2532,
+   "sha256": "fa12ce844738edef33a551ec710b62adceb930c3b06db977c08f7e1fb45d260f"
+  },
+  {
+   "path": "lidar-index/ept/CA_NorthCoastRanges_2_B23.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_NorthCoastRanges_2_B23/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:33Z",
+   "obtained": "download",
+   "bytes": 2532,
+   "sha256": "86e420d7f0b804cde97db24210365e261813efe5910e7130ff69d1e5be5d6a64"
+  },
+  {
+   "path": "lidar-index/ept/CA_NorthernCA_5_B22.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_NorthernCA_5_B22/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:35Z",
+   "obtained": "download",
+   "bytes": 2533,
+   "sha256": "d42303c7f06d1fdcea6861485f4b4843c9f579342e05be5e652d831bc2b49b73"
+  },
+  {
+   "path": "lidar-index/ept/CA_SierraNevada_1_2022.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_SierraNevada_1_2022/ept.json",
+   "retrieved_utc": "2026-11-17T11:35:28Z",
+   "obtained": "download",
+   "bytes": 2530,
+   "sha256": "6540a954f037aaae39a75b4b25ae2208314ca8b9d5eb6da5be2dd77918d1af61"
+  },
+  {
+   "path": "lidar-index/ept/CA_SierraNevada_11_B22.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_SierraNevada_11_B22/ept.json",
+   "retrieved_utc": "2026-11-17T11:35:29Z",
+   "obtained": "download",
+   "bytes": 2532,
+   "sha256": "8ba539c98efda7bcb227f49c17840cac36f9103fcd3234ad9c5348f0cfc13b50"
+  },
+  {
+   "path": "lidar-index/ept/CA_SierraNevada_12_B22.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_SierraNevada_12_B22/ept.json",
+   "retrieved_utc": "2026-11-17T11:35:28Z",
+   "obtained": "download",
+   "bytes": 2531,
+   "sha256": "93ab44d6b3ef869206f3e89febb5c02325544150ad92723061991a3411d6d19b"
+  },
+  {
+   "path": "lidar-index/ept/CA_SierraNevada_13_B22.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_SierraNevada_13_B22/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:36Z",
+   "obtained": "download",
+   "bytes": 2538,
+   "sha256": "bb93fcc93e71b8dc36808a9d3c2300f002cb272c923b97beba6d0e0d870272e0"
+  },
+  {
+   "path": "lidar-index/ept/CA_SierraNevada_14_B22.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_SierraNevada_14_B22/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:37Z",
+   "obtained": "download",
+   "bytes": 2533,
+   "sha256": "b5603654de240d3acac79be3cdc643ec50dc10e91957f7738d99a2ff826c41e0"
+  },
+  {
+   "path": "lidar-index/ept/CA_SierraNevada_2_2022.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_SierraNevada_2_2022/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:33Z",
+   "obtained": "download",
+   "bytes": 2531,
+   "sha256": "bb343104a34d003cbdef08da84c7e4f19f918a8de2ee23c223b26dd358bce7be"
+  },
+  {
+   "path": "lidar-index/ept/CA_SierraNevada_4_2022.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_SierraNevada_4_2022/ept.json",
+   "retrieved_utc": "2026-11-17T11:35:27Z",
+   "obtained": "download",
+   "bytes": 2533,
+   "sha256": "e0acf4479b3169f44e6d0b75626d7ec2f59fc4bd54e46dd0b37c259c7f663f4c"
+  },
+  {
+   "path": "lidar-index/ept/CA_SierraNevada_5_2022.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_SierraNevada_5_2022/ept.json",
+   "retrieved_utc": "2026-11-17T11:35:29Z",
+   "obtained": "download",
+   "bytes": 2532,
+   "sha256": "da511772a91f82340cb323e2e25054e583755ffc235a7180ff278660bfd1588a"
+  },
+  {
+   "path": "lidar-index/ept/CA_SierraNevada_6_2022.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_SierraNevada_6_2022/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:32Z",
+   "obtained": "download",
+   "bytes": 2531,
+   "sha256": "e90fde5aac76362a28e12de225a97da6c4cd3b00001baee847425e4b212ee06d"
+  },
+  {
+   "path": "lidar-index/ept/CA_SierraNevada_8_2022.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_SierraNevada_8_2022/ept.json",
+   "retrieved_utc": "2026-11-17T11:35:29Z",
+   "obtained": "download",
+   "bytes": 2534,
+   "sha256": "5efdc4fc78cf5aef6c109d2161c91c2458f814f07081093f414f4fa1ac4a9b91"
+  },
+  {
+   "path": "lidar-index/ept/CA_UpperSouthAmerican_Eldorado_2019.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/CA_UpperSouthAmerican_Eldorado_2019/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:32Z",
+   "obtained": "download",
+   "bytes": 2537,
+   "sha256": "b52f8b0ac53cedbf3747dc27ee5cce3be1f80a11539c1b420624ab5d808819f2"
+  },
+  {
+   "path": "lidar-index/ept/OR_McKenzieRiver_1_2021.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/OR_McKenzieRiver_1_2021/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:38Z",
+   "obtained": "download",
+   "bytes": 2530,
+   "sha256": "e5feccbfc7f4f5017306084cdd2a1cbc9a2f7580316955a3f2034e368f98b9f6"
+  },
+  {
+   "path": "lidar-index/ept/OR_WWildfires_1_A22.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/OR_WWildfires_1_A22/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:38Z",
+   "obtained": "download",
+   "bytes": 2767,
+   "sha256": "12a7c9dd27fd7f314e2da3de4ff17ad8ade5adff1b7201cf6b3e55ae868db5d0"
+  },
+  {
+   "path": "lidar-index/ept/USGS_LPC_CA_LakeCounty_2015_LAS_2017.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/USGS_LPC_CA_LakeCounty_2015_LAS_2017/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:34Z",
+   "obtained": "download",
+   "bytes": 2519,
+   "sha256": "0a2428262bba8cf54715393bc6e6d140a6b0c570dadd4ab8d388ce97337108cb"
+  },
+  {
+   "path": "lidar-index/ept/USGS_LPC_CA_LongValleyCaldera_2017_LAS_2018.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/USGS_LPC_CA_LongValleyCaldera_2017_LAS_2018/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:36Z",
+   "obtained": "download",
+   "bytes": 2599,
+   "sha256": "f313e40eae0965d19ce05065eab5892200e73a9316ae55f57da4eac9363dfbb6"
+  },
+  {
+   "path": "lidar-index/ept/USGS_LPC_CA_NoCAL_Wildfires_B1_2018.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/USGS_LPC_CA_NoCAL_Wildfires_B1_2018/ept.json",
+   "retrieved_utc": "2026-11-17T11:35:28Z",
+   "obtained": "download",
+   "bytes": 2519,
+   "sha256": "8496769e1b271313e68f6333d23366d0fee014b5082218945fe42cce0ab35c91"
+  },
+  {
+   "path": "lidar-index/ept/USGS_LPC_CA_NoCAL_Wildfires_B4_2018.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/USGS_LPC_CA_NoCAL_Wildfires_B4_2018/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:34Z",
+   "obtained": "download",
+   "bytes": 2521,
+   "sha256": "9760feaa35dd85b58f16f7a805b27cd34a2fcf789729548020fa3756e6182fb7"
+  },
+  {
+   "path": "lidar-index/ept/USGS_LPC_CA_NoCAL_Wildfires_PlumasNF_B1_2018.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/USGS_LPC_CA_NoCAL_Wildfires_PlumasNF_B1_2018/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:33Z",
+   "obtained": "download",
+   "bytes": 2519,
+   "sha256": "d3f6d3322a8ef7a22ed676bb1af224064f816732e6dd74a1d6e12bcda65c0a5b"
+  },
+  {
+   "path": "lidar-index/ept/USGS_LPC_CA_SoCal_Wildfires_B1_2018_LAS_2019.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/USGS_LPC_CA_SoCal_Wildfires_B1_2018_LAS_2019/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:34Z",
+   "obtained": "download",
+   "bytes": 2600,
+   "sha256": "a479e0294a5472a12e5f12e660ee3e1df93d5dcfc0ecd3d9aa89e485abbcab8c"
+  },
+  {
+   "path": "lidar-index/ept/USGS_LPC_CA_WestCoastElNinoUTM10_2016_LAS_2017.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/USGS_LPC_CA_WestCoastElNinoUTM10_2016_LAS_2017/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:37Z",
+   "obtained": "download",
+   "bytes": 2602,
+   "sha256": "0b096d40dbabf7375640b12cc97fd79832f658d389f3ce394f3d1caa76a07995"
+  },
+  {
+   "path": "lidar-index/ept/USGS_LPC_WA_Olympic_Peninsula_2013_LAS_2015.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/USGS_LPC_WA_Olympic_Peninsula_2013_LAS_2015/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:38Z",
+   "obtained": "download",
+   "bytes": 2432,
+   "sha256": "e1e679f66fb15aef798bf0f67b3f8beb1930faa0051d731c1ed394ad0d814391"
+  },
+  {
+   "path": "lidar-index/ept/WA_CentralWildfire_1_D22.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/WA_CentralWildfire_1_D22/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:35Z",
+   "obtained": "download",
+   "bytes": 2532,
+   "sha256": "8fbed9aa26ce22d007fe726d11a9048af1401dd1b4ff3d4f5b08398a89e731f1"
+  },
+  {
+   "path": "lidar-index/ept/WA_CentralWildfire_2_D22.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/WA_CentralWildfire_2_D22/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:36Z",
+   "obtained": "download",
+   "bytes": 2534,
+   "sha256": "cf475effd89f55a8fee8d6870f5fdf3493360ac42d5d7059b3bea7cdefe42f2f"
+  },
+  {
+   "path": "lidar-index/ept/WA_NorthCentral_2_2021.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/WA_NorthCentral_2_2021/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:36Z",
+   "obtained": "download",
+   "bytes": 2534,
+   "sha256": "e195c04dc90932f599a543ac578436f370b5a7af336a55d54bcb3c7bdc3362af"
+  },
+  {
+   "path": "lidar-index/ept/WA_ThurstonCo_1_2021.json",
+   "url": "https://s3-us-west-2.amazonaws.com/usgs-lidar-public/WA_ThurstonCo_1_2021/ept.json",
+   "retrieved_utc": "2026-11-17T11:38:38Z",
+   "obtained": "download",
+   "bytes": 2530,
+   "sha256": "3a0631646f106fb59c401a208dd9148432815cf0926bbd67a0a42a8beff66519"
+  },
+  {
+   "path": "lidar-index/resources.geojson",
+   "url": "https://raw.githubusercontent.com/hobuinc/usgs-lidar/master/boundaries/resources.geojson",
+   "retrieved_utc": "2026-11-17T11:34:29Z",
+   "obtained": "download",
+   "bytes": 8787277,
+   "sha256": "56eea9688043478bc35d02a1dc88386f9355a15f888220087272d80193301ea6"
+  },
+  {
+   "path": "lidar-index/WESM.csv",
+   "url": "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/metadata/WESM.csv",
+   "retrieved_utc": "2026-11-17T11:34:40Z",
+   "obtained": "download",
+   "bytes": 2267051,
+   "sha256": "a5f56b54f26767311156116b4721d477bf5d7b6069056117127898852d2d1b83"
+  },
+  {
+   "path": "sources/ofo_drone-missions_metadata.md",
+   "url": "https://zenodo.org/api/records/23402904/files/ofo_drone-missions_metadata.md/content",
+   "retrieved_utc": "2026-11-17T11:34:28Z",
+   "obtained": "copy",
+   "bytes": 17646,
+   "sha256": "3e7a85abb7ad69246a7cd8f9d14c911a5ca3960819fe7d4bf04070f7d8249f3b",
+   "md5": "1f49f0587bf26412b6b029e59719aa38",
+   "md5_record": "1f49f0587bf26412b6b029e59719aa38",
+   "md5_matches_record": true,
+   "copied_from": "<job>/ofo-preflight/sources"
+  },
+  {
+   "path": "sources/ofo_drone-missions.gpkg",
+   "url": "https://zenodo.org/api/records/23402904/files/ofo_drone-missions.gpkg/content",
+   "retrieved_utc": "2026-11-17T11:34:28Z",
+   "obtained": "copy",
+   "bytes": 987136,
+   "sha256": "0aa22cba583a019ad1730986688849cda927f6e18ad54fcc75622ca84e49517e",
+   "md5": "6a51f55f4234e0b9d48200b86e6b7110",
+   "md5_record": "6a51f55f4234e0b9d48200b86e6b7110",
+   "md5_matches_record": true,
+   "copied_from": "<job>/ofo-preflight/sources"
+  },
+  {
+   "path": "sources/ofo_ground-reference_plots_metadata.md",
+   "url": "https://zenodo.org/api/records/23402904/files/ofo_ground-reference_plots_metadata.md/content",
+   "retrieved_utc": "2026-11-17T11:34:28Z",
+   "obtained": "copy",
+   "bytes": 9894,
+   "sha256": "b4851bc0843251aae8e6003e649745710b4a54594f4229c22f479888bde74833",
+   "md5": "f7e772bb5cec2da26f6433d6c2afab51",
+   "md5_record": "f7e772bb5cec2da26f6433d6c2afab51",
+   "md5_matches_record": true,
+   "copied_from": "<job>/ofo-preflight/sources"
+  },
+  {
+   "path": "sources/ofo_ground-reference_plots.gpkg",
+   "url": "https://zenodo.org/api/records/23402904/files/ofo_ground-reference_plots.gpkg/content",
+   "retrieved_utc": "2026-11-17T11:34:28Z",
+   "obtained": "copy",
+   "bytes": 430080,
+   "sha256": "a08b55935cd392868eab79f4f782018ccf837ce5eea64e4ec137d42607db2740",
+   "md5": "945154835b57ce3c12ed415f0a1ec471",
+   "md5_record": "945154835b57ce3c12ed415f0a1ec471",
+   "md5_matches_record": true,
+   "copied_from": "<job>/ofo-preflight/sources"
+  },
+  {
+   "path": "sources/ofo_ground-reference_trees_metadata.md",
+   "url": "https://zenodo.org/api/records/23402904/files/ofo_ground-reference_trees_metadata.md/content",
+   "retrieved_utc": "2026-11-17T11:34:28Z",
+   "obtained": "copy",
+   "bytes": 7779,
+   "sha256": "a0177025f59f0c5727ead8dfdfe3196010ded1905ebf1736458f72a02a77a059",
+   "md5": "3c2e953c8fc1fc3ed59e2c38ecb19536",
+   "md5_record": "3c2e953c8fc1fc3ed59e2c38ecb19536",
+   "md5_matches_record": true,
+   "copied_from": "<job>/ofo-preflight/sources"
+  },
+  {
+   "path": "sources/ofo_ground-reference_trees.gpkg",
+   "url": "https://zenodo.org/api/records/23402904/files/ofo_ground-reference_trees.gpkg/content",
+   "retrieved_utc": "2026-11-17T11:34:28Z",
+   "obtained": "copy",
+   "bytes": 10903552,
+   "sha256": "ffdc2458b02c388a0307380b61d470c06163ce201d096cf5a62dd24e7e08977e",
+   "md5": "ad323fac28ad2d0b5589f334fd8dff23",
+   "md5_record": "ad323fac28ad2d0b5589f334fd8dff23",
+   "md5_matches_record": true,
+   "copied_from": "<job>/ofo-preflight/sources"
+  },
+  {
+   "path": "sources/zenodo-record.json",
+   "url": "https://zenodo.org/api/records/23402904",
+   "retrieved_utc": "2026-11-17T11:34:28Z",
+   "obtained": "download",
+   "bytes": 15760,
+   "sha256": "dfd69971aa601587240799257d0efe51b94aee0c0121afce3106c24290465557"
+  }
+ ],
+ "snodas": {
+  "dataset": "NSIDC G02158 SNODAS, masked, daily; product 1036 (snow depth)",
+  "base_url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked",
+  "sanity_check": {
+   "date": "2023-03-15",
+   "points": [
+    {
+     "place": "Central Sierra Snow Lab, Donner Pass",
+     "lon": -120.3676,
+     "lat": 39.3256,
+     "expect": "depth > 1 m",
+     "depth_m": 4.504
+    },
+    {
+     "place": "Sacramento",
+     "lon": -121.4944,
+     "lat": 38.5816,
+     "expect": "depth 0",
+     "depth_m": 0
+    }
+   ],
+   "passed": true
+  },
+  "files": [
+   {
+    "date": "2013-11-27",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2013/11_Nov/SNODAS_20131127.tar",
+    "bytes": 23285760,
+    "sha256": "b5c14a2d52d42e582edddfb195285f0f090190739350a54a00e54cab1f818845",
+    "status": "ok"
+   },
+   {
+    "date": "2013-11-28",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2013/11_Nov/SNODAS_20131128.tar",
+    "bytes": 21934080,
+    "sha256": "e78740eebea9a11cf741573ef3cd19b4001f52ca4ec5944f0dafeab01f8383b9",
+    "status": "ok"
+   },
+   {
+    "date": "2018-01-27",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2018/01_Jan/SNODAS_20180127.tar",
+    "bytes": 21821440,
+    "sha256": "64b5985f5f92db20de82b4d718860631ecf76f9df46398cbbb19f5fc10686990",
+    "status": "ok"
+   },
+   {
+    "date": "2019-04-28",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2019/04_Apr/SNODAS_20190428.tar",
+    "bytes": 11376640,
+    "sha256": "8226b20cc07bfc1eac6802bc519bb8cd7af9b79d3d404b9e24222fe0a9b159df",
+    "status": "ok"
+   },
+   {
+    "date": "2021-03-31",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2021/03_Mar/SNODAS_20210331.tar",
+    "bytes": 11438080,
+    "sha256": "1f210873a697e3b40168cdfa1fd0fc99250a16fa071494b8b1f74018089afcef",
+    "status": "ok"
+   },
+   {
+    "date": "2021-11-03",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2021/11_Nov/SNODAS_20211103.tar",
+    "bytes": 7280640,
+    "sha256": "329457f047d8d2bce9b47bdb909c53ca5c5d2a00f2376127b0b22ad1280af130",
+    "status": "ok"
+   },
+   {
+    "date": "2021-11-05",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2021/11_Nov/SNODAS_20211105.tar",
+    "bytes": 6236160,
+    "sha256": "5e5dc86ced9dbfa99a3faefed3ef6159dfba9d72bead95262ed1a9949ea38209",
+    "status": "ok"
+   },
+   {
+    "date": "2021-11-08",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2021/11_Nov/SNODAS_20211108.tar",
+    "bytes": 5068800,
+    "sha256": "be98762f2eaff70294116d4088ca497f02b08e76cfce16555c068514c7b24c3b",
+    "status": "ok"
+   },
+   {
+    "date": "2021-11-12",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2021/11_Nov/SNODAS_20211112.tar",
+    "bytes": 9840640,
+    "sha256": "d563e1c100284826ac825711c5ceed7b1db40d1ee2aaef26772425c064e951c4",
+    "status": "ok"
+   },
+   {
+    "date": "2021-11-16",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2021/11_Nov/SNODAS_20211116.tar",
+    "bytes": 11284480,
+    "sha256": "6b0ffa932b7d370a9236483318d1008c796ee63af1146c5bdf5c9bab82a3e074",
+    "status": "ok"
+   },
+   {
+    "date": "2021-11-17",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2021/11_Nov/SNODAS_20211117.tar",
+    "bytes": 9236480,
+    "sha256": "93414d4d1441997a287fdc1af9d2e6d0f1583ad39e3adceb4867d8b586e785c1",
+    "status": "ok"
+   },
+   {
+    "date": "2021-11-20",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2021/11_Nov/SNODAS_20211120.tar",
+    "bytes": 8386560,
+    "sha256": "c442b7050e7f5565ebb0d3dd92aa2e8b0df0250adfb2a604eb27419619db5193",
+    "status": "ok"
+   },
+   {
+    "date": "2021-11-21",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2021/11_Nov/SNODAS_20211121.tar",
+    "bytes": 6932480,
+    "sha256": "2bcae39e5fd106ccfa7a4cab39c209a39749bbb7734bc244615d187d14dadbfb",
+    "status": "ok"
+   },
+   {
+    "date": "2021-11-23",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2021/11_Nov/SNODAS_20211123.tar",
+    "bytes": 8468480,
+    "sha256": "0daacad46557c7c34f097afa9da5640a959de2859f57142cbe75ab1867be76a4",
+    "status": "ok"
+   },
+   {
+    "date": "2021-11-24",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2021/11_Nov/SNODAS_20211124.tar",
+    "bytes": 9379840,
+    "sha256": "111e3ee397cec7e81254bbcb1c8aba92afc89eecc3129c1884ca0ff8e4f54ee6",
+    "status": "ok"
+   },
+   {
+    "date": "2021-11-25",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2021/11_Nov/SNODAS_20211125.tar",
+    "bytes": 8652800,
+    "sha256": "e64b5ad256d46ff277f40bb48c47a1523118a2cf72eb449a2cd155eb2d6b3d77",
+    "status": "ok"
+   },
+   {
+    "date": "2022-11-03",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2022/11_Nov/SNODAS_20221103.tar",
+    "bytes": 9431040,
+    "sha256": "87400ad9daf6c5665ad1039d3a09334b9bd01e78e5d4aef70ed56cffb1ee0706",
+    "status": "ok"
+   },
+   {
+    "date": "2023-03-15",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2023/03_Mar/SNODAS_20230315.tar",
+    "bytes": 27617280,
+    "sha256": "1942a4ae7c2c5c6862f0906e983c4dd8124b33486147b321295cd358f446f0d4",
+    "status": "ok"
+   },
+   {
+    "date": "2023-11-20",
+    "url": "https://noaadata.apps.nsidc.org/NOAA/G02158/masked/2023/11_Nov/SNODAS_20231120.tar",
+    "bytes": 10618880,
+    "sha256": "5b03c1a1177e11866038b1c82c82d8ee9b0d60d5dccae08bda792d168c1ca8b8",
+    "status": "ok"
+   }
+  ]
+ },
+ "collection_metadata_search": {
+  "note": "Metadata only: footprints, tile indexes, raster identify and metadata records.",
+  "projects": [
+   "SSMT2024",
+   "OHDS2024"
+  ],
+  "plots": [
+   "0270",
+   "0271",
+   "0272",
+   "0273",
+   "0274",
+   "0275",
+   "0276",
+   "0277",
+   "0278",
+   "0279",
+   "0280",
+   "0281",
+   "0284",
+   "0285"
+  ],
+  "services": {
+   "usgs": [
+    "https://index.nationalmap.gov/arcgis/rest/services/3DEPElevationIndex/MapServer/8",
+    "https://tnmaccess.nationalmap.gov/api/v1/products"
+   ],
+   "wa_dnr": [
+    "https://lidarportal.dnr.wa.gov/project",
+    "https://lidarportal.dnr.wa.gov/query",
+    "https://lidarportal.dnr.wa.gov/arcgis/rest/services/lidar/wadnr_hillshade/MapServer",
+    "https://dnr.wa.gov/node/118"
+   ],
+   "or_dogami": "https://gis.dogami.oregon.gov/arcgis/rest/services/lidar/DOGAMI_Lidar_Project_Status/MapServer",
+   "noaa_dc": [
+    "https://coast.noaa.gov/arcgis/rest/services/DAV/DAV_footprints/MapServer/0",
+    "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com",
+    "https://www.fisheries.noaa.gov/inport"
+   ]
+  },
+  "request_log": "state_lidar_sources.json under <job>/ofo/preflight holds every request with its time, size and SHA-256",
+  "request_log_sha256": "a39cf0196efd134123aaa947516cb14d5ca118cfe9a7bca824c402b81f53c0cf"
+ }
+}
