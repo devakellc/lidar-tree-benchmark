@@ -139,12 +139,13 @@ test_that("a frozen-gate rejection, a disagreement or too few stems is evidence"
 })
 
 test_that("an unchecked registration with a screen, flight or geometry failure is not eligible", {
-  f <- adm_fixture(registered = c(FALSE, FALSE, FALSE),
-                   reg_check = c("unchecked", "unchecked", "unchecked"),
-                   cond_admitted = c(TRUE, TRUE, FALSE),
-                   cond_check = c("admitted", "admitted", "unchecked"))
-  f$geometry$geometry_consistent <- c(TRUE, FALSE, TRUE)
-  f$flights$flight_admitted <- c(TRUE, TRUE, FALSE)
+  f <- adm_fixture(registered = rep(FALSE, 4), reg_check = rep("unchecked", 4),
+                   cond_admitted = c(TRUE, TRUE, FALSE, TRUE),
+                   cond_check = c("admitted", "admitted", "unchecked", "admitted"))
+  f$geometry$geometry_consistent <- c(TRUE, FALSE, TRUE, TRUE)
+  f$flights$flight_admitted <- c(TRUE, TRUE, FALSE, TRUE)
+  f$plots$screen[4] <- "nested_hyperplot"
   a <- ofo_plot_admission(f$plots, f$flights, f$geometry, f$conditions, f$registration)
-  expect_identical(a$unchecked_only, c(TRUE, FALSE, FALSE))
+  # 1 clean; 2 geometry; 3 no admitted flight; 4 screened out
+  expect_identical(a$unchecked_only, c(TRUE, FALSE, FALSE, FALSE))
 })

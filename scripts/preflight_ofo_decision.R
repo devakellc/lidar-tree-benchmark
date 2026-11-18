@@ -53,7 +53,8 @@ pre <- file.path(OFO, "preflight")
 out_dir <- if (is.null(A$OUT) || !nzchar(A$OUT)) pre else A$OUT
 # Nothing of this study is written under the job directory outside OFO.
 if (!ofo_output_allowed(out_dir, job, OFO))
-  stop("OUT must lie under ", OFO, " or outside the job directory (no `..`): ", out_dir)
+  stop("OUT must lie under ", OFO, " or outside the job directory, never in the NEON ",
+       "root (no `..`): ", out_dir)
 in2 <- if (is.null(A$IN2) || !nzchar(A$IN2)) NULL else A$IN2
 if (!is.null(in2)) {
   if (!dir.exists(in2)) stop("IN2 is not a directory: ", in2)

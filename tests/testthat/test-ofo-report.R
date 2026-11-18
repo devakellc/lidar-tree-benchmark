@@ -378,7 +378,7 @@ test_that("held-out catalogue plots are listed per plot, signal and method", {
                    shift_m = c(12.01, 2.36, 0.56, 1.41), residual_m = c(3.2, 1.1, 0.4, 0.2),
                    on_edge = c(TRUE, FALSE, FALSE, FALSE), accepted = c(FALSE, TRUE, TRUE, TRUE),
                    reject_reason = c("on_edge", "", "", ""),
-                   flight_admitted = c(FALSE, TRUE, TRUE, TRUE), stringsAsFactors = FALSE)
+                   flight_admitted = c(FALSE, FALSE, FALSE, TRUE), stringsAsFactors = FALSE)
   out <- rep_sec_heldout(list(registration_catalog.csv = rc))
   expect_identical(out[1], "### Registration: held-out catalogue plots")
   rows <- grep("^\\| 0", out, value = TRUE)
@@ -386,6 +386,8 @@ test_that("held-out catalogue plots are listed per plot, signal and method", {
   expect_length(rows, 3)
   expect_match(rows[1], "^\\| 0100 \\| P1 \\| nested_hyperplot \\| rank \\| amendment1 \\| 25 \\| 0.5 \\|")
   expect_match(rows[2], "\\| declared \\| 25 \\| -1.3 \\| 2.0 \\| 2.4 \\| 1.1 \\| no \\| yes \\|")
+  # On edge no, accepted yes, no reason, flight not admitted.
+  expect_match(rows[1], "\\| no \\| yes \\| — \\| no \\|$")
   expect_match(rows[3], "^\\| 0300 .* \\| 12.0 \\| 0.5 \\| 12.0 \\| 3.2 \\| yes \\| no \\| on_edge \\| no \\|$")
   # Older tables without the optional columns still give a table.
   old <- rc[, setdiff(names(rc), c("method", "screen", "on_edge", "flight_admitted"))]

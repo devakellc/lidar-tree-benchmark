@@ -169,7 +169,9 @@ The benchmark units reuse the frozen method's estimates from the first
 protocol, unchanged. The NIWO units were run once, on clips built with the
 benchmark's own provider from the site's 2020 flight. Their stems were
 built with a copy of `neon_ground_truth.R` that adds one guard, which the
-protocol does not mention. The unchanged script stops on NIWO data: its
+declared protocol did not mention; its
+[corrections](../docs/ofo-preflight-protocol-2.md#corrections-18-november-2026)
+record it. The unchanged script stops on NIWO data: its
 fallback that assigns a crown class from height quantiles meets tied
 quantiles at `NIWO_061`, a plot without annotations. The guard leaves that
 plot's fallback class empty. Neither the crown truth nor the method reads

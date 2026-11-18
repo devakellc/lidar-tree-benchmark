@@ -24,7 +24,7 @@ source(.find("report_ofo_preflight.R"), local = TRUE)
 #   cells.csv, plot_admission.csv, group_summary.csv, group_decision.csv,
 #   registration_tests.json.
 # Output: P2/report_tables.md (or OUT=, a .md file under OFO or outside the job
-#   directory) and the headline numbers on stdout.
+#   directory, never in the NEON root) and the headline numbers on stdout.
 #   Rscript scripts/report_ofo_preflight2.R [OUT=<file>]
 
 REP2_CSV <- c("crown_truth.csv", "crowntruth_units.csv", "registration.csv", "conditions.csv",

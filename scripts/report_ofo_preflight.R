@@ -25,9 +25,9 @@ source(.find("ofo_registration_lib.R"))
 #   and, when present, the Amendment 1 tables registration_units.csv,
 #   registration_dev*.csv and registration_confirm.csv.
 # Output: OFO/preflight/report_tables.md (or OUT=, a .md file under OFO or
-#   outside the job directory: relative paths, `..` and symlinked ancestors
-#   are resolved as ofo_output_allowed() does) and the headline numbers on
-#   stdout.
+#   outside the job directory, never in the NEON root: relative paths, `..`
+#   and symlinked ancestors are resolved as ofo_output_allowed() does) and the
+#   headline numbers on stdout.
 #   Rscript scripts/report_ofo_preflight.R [OUT=<file>]
 
 REP_DASH <- "—"
@@ -1159,7 +1159,8 @@ rep_sec_candidates <- function(tabs) {
 }
 
 # Test 2 of the protocol: held-out catalogue plots, one row per plot, signal
-# and method (shift, residual and acceptance per plot).
+# and method (shift, residual and acceptance per plot). The set is wider than
+# the protocol's: it also holds screened-in plots without an admitted flight.
 rep_sec_heldout <- function(tabs) {
   req <- list(registration_catalog.csv = c("plot_id", "project_name", "set", "signal",
                                            "n_signal", "dx", "dy", "shift_m", "residual_m",
@@ -1178,10 +1179,11 @@ rep_sec_heldout <- function(tabs) {
                   "On edge" = rep_yes(opt("on_edge")), Accepted = rep_yes(r$accepted),
                   Reason = r$reject_reason, "Flight admitted" = rep_yes(opt("flight_admitted")))
     c(rep_md_table(tab, "No held-out catalogue plots."), "",
-      rep_note("Source: `registration_catalog.csv`, set `heldout`: catalogue plots that fail ",
-               "the population rules (Screen) and are never scored, registered on their ",
-               "best available flight, admitted or not. One row per plot, signal and ",
-               "method; `declared` is the first method, kept for the record."))
+      rep_note("Source: `registration_catalog.csv`, set `heldout`: catalogue plots with a ",
+               "cloud that are screened out (Screen) or have no admitted flight, and so ",
+               "are never scored, registered on their best available flight, admitted ",
+               "or not. One row per plot, signal and method; `declared` is the first ",
+               "method, kept for the record."))
   }
   rep_block("Registration: held-out catalogue plots", body)
 }
@@ -1735,8 +1737,8 @@ rep_check_out <- function(out, job, ofo) {
   if (length(out) != 1L || is.na(out) || !grepl("\\.md$", out))
     stop("OUT must be a .md file: ", out, call. = FALSE)
   if (!ofo_output_allowed(out, job, ofo))
-    stop("OUT must lie under ", ofo, " or outside the job directory (no `..`): ", out,
-         call. = FALSE)
+    stop("OUT must lie under ", ofo, " or outside the job directory, never in the NEON ",
+         "root (no `..`): ", out, call. = FALSE)
   invisible(TRUE)
 }
 

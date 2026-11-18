@@ -1081,10 +1081,13 @@ this study. The confirmation stage refuses to run a second time.
 
 ## Appendix: held-out catalogue plots
 
-Catalogue plots that fail the population rules (Screen) and are never
-scored, registered on their best available flight, admitted or not. One row
-per plot, signal and method; `declared` is the first method, kept for the
-record.
+Catalogue plots with a cloud that are screened out (Screen) or have no
+admitted flight, and so are never scored, registered on their best
+available flight, admitted or not: 46 screened-out plots and 10 group B
+plots without an admitted flight (`STEF2007` 0069 to 0072, `STEF2018` 0079,
+`SJGEO2018` 0081, `OHDS2024` 0270 and `DS2024` 0287, 0288 and 0290). The
+protocol's test 2 names only the first kind. One row per plot, signal and
+method; `declared` is the first method, kept for the record.
 
 | Plot | Project | Screen | Signal | Method | Stems | dx, m | dy, m | Shift, m | Residual, m | On edge | Accepted | Reason | Flight admitted |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

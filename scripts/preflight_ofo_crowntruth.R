@@ -66,7 +66,7 @@ P2 <- if (is.null(A$P2) || !nzchar(A$P2)) file.path(OFO, "preflight2") else A$P2
 if (!ofo_output_allowed(P2, d, OFO) || ofo_path_within(ofo_path_resolve(P2),
                                                         ofo_path_resolve(PRE)))
   stop("P2 must lie under <job>/ofo (not in its preflight directory) or outside the job ",
-       "directory: ", P2)
+       "directory, never in the NEON root: ", P2)
 NTE <- file.path(P2, "nte")
 REPO <- "weecology/NeonTreeEvaluation"
 CACHES <- file.path(d, c("sparse_2018/nte", "teak-canopy-reference/sources/nte"))

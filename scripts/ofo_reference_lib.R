@@ -755,7 +755,8 @@ ofo_check_site_tables <- function(gt, pc, site) {
 
 # Whether `path` may receive this study's outputs: anywhere under `ofo`, or
 # outside `job` altogether (a scratch directory), never elsewhere in the job
-# directory (the sealed NEON root lives there). The path need not exist: its
+# directory and never in the sealed NEON root, wherever `<job>/neon` resolves
+# (it may be a symlink to another disk). The path need not exist: its
 # deepest existing ancestor is resolved (symlinks included) and the rest
 # appended; a `..` component is refused, since it is resolved only on creation.
 ofo_output_allowed <- function(path, job, ofo) {
