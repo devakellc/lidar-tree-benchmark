@@ -331,6 +331,28 @@ four closed plots outside the benchmark that have no field reference. The
 held-out score therefore tests only the selection within that grid: 434 of its
 446 non-stock configurations beat stock on the held-out plots.
 
+The [confirmation tests](results/multichm-gated-confirmation-results.md) then
+ran five frozen configurations of the arm on data it had not been run on,
+under a [protocol](docs/multichm-gated-confirmation-protocol.md) written
+beforehand. At the QL2 level the declared configuration gains +0.025 [+0.012,
++0.037] in corrected F1 over `multichm` on the five sites: +0.035 [+0.019,
++0.052] in Washington and +0.006 [−0.007, +0.020] in California. On a July
+2019 flight of the Washington sites with another instrument it gains +0.023
+[+0.000, +0.045], about half of its gain on the 2021 clips of the same stems,
+and other bootstrap draws put that lower bound on either side of zero. On the
+native sparse California flights and on 3DEP clouds over the California plots
+it is not worse, with lower recall. By the protocol's rules the arm is
+supported as better than `multichm` in closed conifer stands and not worse in
+open ones, at the margin. The share gate adds corrected F1 at the QL2 level
+and nothing on the 2019 flight, and the floor with the exemption passes the
+same conditions without it. Against the complete labels of FGI-EMIT the arm
+is 0.016 F1 below `multichm` at the two dense levels, where the 5 m floor
+removes labelled small trees. Added to the paper's density routing with its
+thresholds selected on California alone, the arm is the best Washington
+candidate below the QL2 floor, while the routing's California rule cannot
+tell it from `multichm`. No public 3DEP tile set covers the Washington plots,
+and no stand outside the benchmark was tested.
+
 ### Crown delineation
 
 The [crown benchmark](results/crown-segmentation-results.md) compares growing
@@ -516,7 +538,7 @@ comparison and larger-area experiments.
 | Precision inside censused subplots | [Censused-subplot study](results/census-support-results.md) and its reviewed declarations under `docs/` |
 | NEON field-stem density ladder | [Density-ladder study](results/density-ladder-sweep-results.md) and [cross-model comparison](results/model-benchmark-results.md) |
 | ForestMamba arm, outside the paper's twelve | [ForestMamba benchmark](results/forestmamba-results.md) and its [Blackwell runtime](gpu/forestmamba-sm120/README.md) |
-| Gated multichm arm, outside the paper's twelve | [Gated multichm study](results/multichm-gated-results.md) |
+| Gated multichm arm, outside the paper's twelve | [Gated multichm study](results/multichm-gated-results.md) and its [confirmation tests](results/multichm-gated-confirmation-results.md) under a [protocol written beforehand](docs/multichm-gated-confirmation-protocol.md) |
 | Crown diameters and segmentation | [Crown benchmark](results/crown-segmentation-results.md) |
 | Paired optical/LiDAR fusion | [RGB-LiDAR comparison](results/rgb-lidar-fusion-results.md) and [confidence calibration](results/confidence-calibration-results.md) |
 | Native FGI-EMIT products | [Current execution guide](docs/final-ensemble-pipeline-v2.md) and [development/reserve results](results/final-ensemble-pipeline-results.md) |
@@ -560,12 +582,13 @@ scripts and configuration.
 | Native 3DEP cross-check | [native_ql2_crosscheck.R](scripts/native_ql2_crosscheck.R), [native_ql2_paired.R](scripts/native_ql2_paired.R), [ept_discovery.R](scripts/ept_discovery.R) |
 | Reproduction archive and table rebuild | [stage_archive.sh](scripts/stage_archive.sh), [reproduce_paper_tables.sh](scripts/reproduce_paper_tables.sh), [compare_reproduction.R](scripts/compare_reproduction.R), [reproduce/Dockerfile](reproduce/Dockerfile) |
 | NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
-| Native sparse epochs | [prepare_sparse_epoch.R](scripts/prepare_sparse_epoch.R), [audit_sparse_epoch.R](scripts/audit_sparse_epoch.R), [compare_sparse_epoch.R](scripts/compare_sparse_epoch.R) |
+| Native sparse epochs and flights of another year | [prepare_sparse_epoch.R](scripts/prepare_sparse_epoch.R), [audit_sparse_epoch.R](scripts/audit_sparse_epoch.R), [compare_sparse_epoch.R](scripts/compare_sparse_epoch.R), [epoch_stand_measures.R](scripts/epoch_stand_measures.R), [sparse_epoch_lib.R](scripts/sparse_epoch_lib.R) |
 | NEON density ladder | [run_sweep.R](scripts/run_sweep.R), [analyze_sweep.R](scripts/analyze_sweep.R), [compare_sites.R](scripts/compare_sites.R) |
 | Point-cloud understory detection | [detect_pc_sweep.R](scripts/detect_pc_sweep.R), [detect_pc_ladder.R](scripts/detect_pc_ladder.R) |
 | Cross-model detection analysis | [analyze_model_benchmark.R](scripts/analyze_model_benchmark.R), [compare_model_sites.R](scripts/compare_model_sites.R) |
 | ForestMamba arm | [detect_forestmamba_sweep.R](scripts/detect_forestmamba_sweep.R), [analyze_forestmamba.R](scripts/analyze_forestmamba.R), [gpu/forestmamba-sm120](gpu/forestmamba-sm120/README.md) |
 | Gated multichm arm | [detect_multichm_gated_sweep.R](scripts/detect_multichm_gated_sweep.R), [calval_multichm_gated.R](scripts/calval_multichm_gated.R), [multichm_gated_lib.R](scripts/multichm_gated_lib.R) |
+| Gated multichm confirmation tests | [confirm_multichm_gated.R](scripts/confirm_multichm_gated.R), [multichm_gated_confirm_lib.R](scripts/multichm_gated_confirm_lib.R), [confirm_gated_3dep.R](scripts/confirm_gated_3dep.R), [confirm_gated_fgiemit.R](scripts/confirm_gated_fgiemit.R), [confirm_gated_scoring_variants.R](scripts/confirm_gated_scoring_variants.R), [confirm_gated_removed_peaks.R](scripts/confirm_gated_removed_peaks.R), [confirm_gated_routing.R](scripts/confirm_gated_routing.R) |
 | Crown-diameter evaluation | [crown_metrics_sweep.R](scripts/crown_metrics_sweep.R), [crown_metrics_3d.R](scripts/crown_metrics_3d.R), [crown_metrics_deepmodel.R](scripts/crown_metrics_deepmodel.R), [analyze_crown_metrics.R](scripts/analyze_crown_metrics.R) |
 | Instance masks, credited F1 and re-scoring | [score_instances_iou.R](scripts/score_instances_iou.R), [compare_matching_rules.R](scripts/compare_matching_rules.R), [coverage_gap.R](scripts/coverage_gap.R), [export_best_treetops_geojson.R](scripts/export_best_treetops_geojson.R), [rescore_population.R](scripts/rescore_population.R), [compare_adapter_reruns.R](scripts/compare_adapter_reruns.R) |
 | Calibration/validation and the historical sensitivity studies | [calval_split.R](scripts/calval_split.R), [matcher_robustness.R](scripts/matcher_robustness.R), [mc_positional_uncertainty.R](scripts/mc_positional_uncertainty.R), [temporal_sensitivity.R](scripts/temporal_sensitivity.R) |

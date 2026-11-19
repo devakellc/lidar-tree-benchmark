@@ -68,10 +68,16 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #               detection set), plus, with BASE, the paper's persisted CHM-VWF
 #               detections as config "chm_vwf"; every row carries the cell's
 #               cover, top height and crown spacing and the configuration's five
-#               values (NA on the chm_vwf rows). -> OUT/cells.csv, OUT/grid.csv,
-#               OUT/cells.config.json (what the cells were scored with: K, TOL,
-#               population, the root's clip manifest, a digest of the grid, the
-#               sites and rungs, and whether chm_vwf was scored).
+#               values (NA on the chm_vwf rows). Then the checks of the analyze
+#               stage's step a (cv_checks): the parity with the package and, with
+#               BASE, the paper runs' multichm detections and their null cells at
+#               the cells' TOL (when the paper runs hold them); a failed check
+#               stops the stage before the record is written. -> OUT/cells.csv,
+#               OUT/grid.csv, OUT/cells.config.json (what the cells were scored
+#               with: K, TOL, population, the root's clip manifest, a digest of
+#               the grid, the sites and rungs, whether chm_vwf was scored, BASE
+#               (null without it), the candidates directory read and the checks'
+#               outcomes).
 #   analyze     checks against the paper runs, the headline split and
 #               selection, held-out contrasts (by scope and by site), with
 #               REFERENCE the selection against that grid configuration
@@ -98,7 +104,9 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #               with REFERENCE_CENSUS, against the reference configuration's).
 #               K and TOL come from OUT/cells.config.json; an explicit K= or
 #               TOL= must equal the recorded value, and cells scored on another
-#               grid, population or root stop the stage.
+#               grid, population or root stop the stage. The candidates are read
+#               from the directory the record names when the cells were scored
+#               from another run's (CANDIDATES=), otherwise from OUT.
 #               -> OUT/selection.csv, OUT/validation.csv,
 #               OUT/grid_contrasts.csv (every grid configuration against stock,
 #               validation and calibration plots), OUT/region_differences.csv
@@ -120,12 +128,25 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #     [CENSUS=$CLAUDE_JOB_DIR/census_support_scores/nearest_ladder/
 #     census_support_scores.csv] [BASE_CENSUS=the same under BASE]
 #     [REFERENCE=<grid label>] [REFERENCE_CENSUS=<csv>]
-#     [OUT=$CLAUDE_JOB_DIR/neon/multichm_gated]
+#     [OUT=$CLAUDE_JOB_DIR/neon/multichm_gated] [CANDIDATES=<dir>]
 # K is the number of null shifts and must be at least 1: the chance-corrected
 # scores (and the default criterion cF1) are undefined without the null.
+# RUNGS must be among the rungs FROZEN_ROOT holds: native and the decimated
+# rungs of its freeze contract (frozen_root_rungs; native,8,4,2,1 for the
+# default root, native,3.2 for the QL2 root), which are also the default.
 # BASE is a job directory of the paper runs (read only): its
 # neon/<SITE>/multichm_detections and chm_vwf_detections, and its
-# sensitivity/null_cells.csv.
+# sensitivity/null_cells.csv (null_tol<TOL>_cells.csv at another TOL, as
+# paper_sensitivity.R MODE=null names them). BASE is optional: without it the
+# cells have no chm_vwf rows and nothing is checked against the paper runs, and
+# cells.config.json records base null.
+# CANDIDATES names the OUT of an earlier STAGE=candidates run (its
+# candidates.csv, candidates_skipped.csv and candidates/) for the score and
+# analyze stages to read in place of OUT's, so that another TOL (or K) is scored
+# without repeating the candidate search; STAGE=all and STAGE=candidates write
+# their candidates to OUT and refuse another CANDIDATES. Its plots must be this
+# job directory's plots of SITES (less any whose every cell was skipped), or the
+# score stage stops.
 # CENSUS holds the arm's censused-subplot scores (score_census_support.R run on
 # the arm's persisted detections, ARMS=multichm_gated), BASE_CENSUS the paper
 # runs' (with multichm); without BASE there is no default for BASE_CENSUS, and
@@ -178,6 +199,26 @@ CV_REGION_DIFFERENCE <- c("Washington", "California")
 cv_census_csv <- function(dir)
   file.path(dir, "census_support_scores", "nearest_ladder", "census_support_scores.csv")
 
+# The rungs a frozen root holds, as the study labels them: native, then the
+# decimated rungs of its freeze contract (frozen_root_rungs(): FROZEN_RUNGS for
+# the canonical root and for a path without a contract, so CV_RUNGS there).
+cv_root_rungs <- function(root) c("native", as.character(frozen_root_rungs(root)))
+
+# TRUE when two paths name the same directory. It need not exist: normalizePath()
+# leaves such a path as given, so "." segments, repeated and trailing slashes are
+# dropped here as well.
+cv_same_dir <- function(a, b) {
+  canon <- function(p) {
+    p <- gsub("/(\\./)+", "/", paste0(normalizePath(p, mustWork = FALSE), "/"))
+    sub("/+$", "", gsub("/+", "/", p))
+  }
+  identical(canon(a), canon(b))
+}
+
+# The directory of the candidates the score and analyze stages read: S$CANDIDATES
+# (cv_settings() sets it to OUT unless CANDIDATES= is given).
+cv_cand_dir <- function(S) if (is.null(S[["CANDIDATES"]])) S$OUT else S[["CANDIDATES"]]
+
 # KEY=VALUE positional arguments -> the run's settings.
 cv_settings <- function(args = commandArgs(TRUE), d = .job_dir()) {
   a <- strsplit(args, "=")
@@ -185,11 +226,12 @@ cv_settings <- function(args = commandArgs(TRUE), d = .job_dir()) {
   A <- stats::setNames(lapply(a, `[`, 2), vapply(a, `[`, character(1), 1))
   split <- function(x, default) if (is.null(x)) default else strsplit(x, ",")[[1]]
   num <- function(x, default) if (is.null(x)) default else as.numeric(x)
+  root <- frozen_root(d, A[["FROZEN_ROOT"]])
   S <- list(
     A = A, d = d,
     STAGE = if (is.null(A[["STAGE"]])) "all" else A[["STAGE"]],
     SITES = split(A[["SITES"]], CV_FIVE),
-    RUNGS = split(A[["RUNGS"]], CV_RUNGS),
+    RUNGS = split(A[["RUNGS"]], cv_root_rungs(root)),
     POP = if (is.null(A[["POP"]])) "adopted" else A[["POP"]],
     SEED = as.integer(num(A[["SEED"]], 1)),
     FRAC = num(A[["FRAC"]], 0.5),
@@ -215,11 +257,21 @@ cv_settings <- function(args = commandArgs(TRUE), d = .job_dir()) {
   if (!is.null(S[["REFERENCE_CENSUS"]]) && is.null(S[["REFERENCE"]]))
     stop("REFERENCE_CENSUS= needs REFERENCE= (the grid configuration it was scored with)",
          call. = FALSE)
-  S$root <- frozen_root(d, A[["FROZEN_ROOT"]])
+  S$root <- root
+  # the candidates the score and analyze stages read: OUT's own, or those of an
+  # earlier candidates run (CANDIDATES=)
+  S$CANDIDATES <- if (given("CANDIDATES")) A[["CANDIDATES"]] else S$OUT
+  S$CANDIDATES_given <- given("CANDIDATES")
   if (!S$STAGE %in% c("all", "candidates", "score", "analyze"))
     stop("STAGE must be all, candidates, score or analyze", call. = FALSE)
-  if (!all(S$RUNGS %in% CV_RUNGS))
-    stop("RUNGS must be among ", paste(CV_RUNGS, collapse = ","), call. = FALSE)
+  if (S$STAGE %in% c("all", "candidates") && !cv_same_dir(S$CANDIDATES, S$OUT))
+    stop(sprintf(paste("CANDIDATES= names an earlier candidates run to score from; STAGE=%s",
+                       "writes its candidates to OUT, so run STAGE=score and STAGE=analyze",
+                       "with CANDIDATES="), S$STAGE), call. = FALSE)
+  held <- cv_root_rungs(root)
+  if (!all(S$RUNGS %in% held))
+    stop("RUNGS must be among ", paste(held, collapse = ","), " (the rungs of the frozen root ",
+         root, ")", call. = FALSE)
   if (!S$CRITERION %in% c("cF1", "F1")) stop("CRITERION must be cF1 or F1", call. = FALSE)
   if (anyNA(c(S$SEED, S$FRAC, S$SEEDS, S$K, S$TOL, S$N_BOOT, S$CORES)) ||
       S$FRAC <= 0 || S$FRAC >= 1 || S$K < 1 || S$TOL <= 0 || S$N_BOOT < 1 || S$CORES < 1)
@@ -399,9 +451,9 @@ cv_stage_candidates <- function(S) {
 }
 
 # The skipped cells of the requested sites and rungs, as the candidates stage
-# recorded them.
+# recorded them (in the candidates directory, cv_cand_dir()).
 cv_read_skipped <- function(S) {
-  f <- file.path(S$OUT, "candidates_skipped.csv")
+  f <- file.path(cv_cand_dir(S), "candidates_skipped.csv")
   if (!file.exists(f))
     stop("no record of the skipped candidate cells at ", f, "; re-run STAGE=candidates",
          call. = FALSE)
@@ -414,9 +466,9 @@ cv_read_skipped <- function(S) {
 }
 
 cv_read_index <- function(S) {
-  f <- file.path(S$OUT, "candidates.csv")
+  f <- file.path(cv_cand_dir(S), "candidates.csv")
   if (!file.exists(f)) stop("no candidate index at ", f, "; run STAGE=candidates", call. = FALSE)
-  frozen_stamp_check(file.path(S$OUT, "candidates"), S$root)
+  frozen_stamp_check(file.path(cv_cand_dir(S), "candidates"), S$root)
   idx <- read.csv(f, stringsAsFactors = FALSE, colClasses = c(rung = "character"))
   if (any(idx$population != S$POP))
     stop("the candidates were made for population ", paste(unique(idx$population), collapse = ","),
@@ -516,12 +568,23 @@ cv_grid_digest <- function(grid = mcg_grid()) {
                  algo = "sha256", serialize = FALSE)
 }
 
-# The record the score stage writes next to cells.csv (OUT/cells.config.json).
-cv_cells_config <- function(S, sites, rungs, chm_vwf)
-  list(K = as.integer(S$K), tol = S$TOL, population = S$POP,
-       clip_manifest_sha256 = frozen_root_id(S$root), grid_sha256 = cv_grid_digest(),
-       sites = I(as.character(sites)), rungs = I(as.character(rungs)),
-       chm_vwf = isTRUE(chm_vwf))
+# The record the score stage writes next to cells.csv (OUT/cells.config.json):
+# what the cells were scored with, then BASE (null without it: no chm_vwf rows
+# and no check against the paper runs), the candidates directory read (null
+# when it is OUT itself, so a copied OUT stays whole) and, when given, the
+# outcomes of the checks (cv_checks()).
+cv_cells_config <- function(S, sites, rungs, chm_vwf, checks = NULL) {
+  cand <- cv_cand_dir(S)
+  rec <- list(K = as.integer(S$K), tol = S$TOL, population = S$POP,
+              clip_manifest_sha256 = frozen_root_id(S$root), grid_sha256 = cv_grid_digest(),
+              sites = I(as.character(sites)), rungs = I(as.character(rungs)),
+              chm_vwf = isTRUE(chm_vwf),
+              base = if (is.null(S$BASE)) NA else normalizePath(S$BASE, mustWork = FALSE),
+              candidates = if (cv_same_dir(cand, S$OUT)) NA else
+                normalizePath(cand, mustWork = FALSE))
+  if (!is.null(checks)) rec$checks <- checks
+  rec
+}
 
 cv_write_cells_config <- function(rec, out)
   jsonlite::write_json(rec, file.path(out, CV_CELLS_CONFIG), auto_unbox = TRUE, pretty = TRUE,
@@ -530,8 +593,11 @@ cv_write_cells_config <- function(rec, out)
 # The analyze stage's K and TOL, read from OUT/cells.config.json. Stops when the
 # record is missing, when an explicit K= or TOL= differs from it, when the grid
 # has changed since the cells were scored, or when they were scored for another
-# population or frozen root. Returns S with K and TOL from the record (and the
-# record as S$cells_config).
+# population or frozen root. A record that names another candidates directory
+# the cells were scored from sets S$CANDIDATES to it when CANDIDATES= is not
+# given, and stops when CANDIDATES= names a third; a record without one (null
+# or absent: OUT's own candidates) leaves S$CANDIDATES as given. Returns S with
+# K and TOL from the record (and the record as S$cells_config).
 cv_read_cells_config <- function(S) {
   f <- file.path(S$OUT, CV_CELLS_CONFIG)
   if (!file.exists(f))
@@ -561,15 +627,54 @@ cv_read_cells_config <- function(S) {
     stop("the cells in ", S$OUT, " were scored on the frozen root with clip manifest ",
          r$clip_manifest_sha256, ", not on ", S$root, " (", root_id, "); re-run STAGE=score",
          call. = FALSE)
+  if ("candidates" %in% names(r)) {
+    rc <- r[["candidates"]]
+    rc <- if (is.character(rc) && length(rc) == 1L) rc else S$OUT
+    if (isTRUE(S$CANDIDATES_given) && !cv_same_dir(S$CANDIDATES, rc))
+      stop(sprintf(paste("the cells in %s were scored from the candidates in %s, not CANDIDATES=%s;",
+                         "omit CANDIDATES= to use the recorded directory"),
+                   S$OUT, rc, S$CANDIDATES), call. = FALSE)
+    S$CANDIDATES <- rc
+  }
   S$K <- K; S$TOL <- tol; S$cells_config <- r
   S
+}
+
+# Candidates read from another directory (CANDIDATES=) were made for that run's
+# plots. Their plots of the requested sites, at any rung, must be the plots this
+# job directory's ground truth and the population give there (cv_jobs()), less
+# those whose every cell the candidates stage skipped; stops otherwise, since
+# cells would be scored on plots outside the population or a plot would be left
+# out silently.
+cv_check_candidate_plots <- function(S) {
+  want <- unique(vapply(cv_jobs(S), function(j) paste(j$site, j$plot, sep = "::"), ""))
+  rd <- function(f) {
+    x <- read.csv(file.path(cv_cand_dir(S), f), stringsAsFactors = FALSE,
+                  colClasses = c(rung = "character"))
+    x[x$site %in% S$SITES, , drop = FALSE]
+  }
+  have <- unique(cv_ids(rd("candidates.csv")))
+  gone <- setdiff(want, c(have, cv_ids(rd("candidates_skipped.csv"))))
+  extra <- setdiff(have, want)
+  if (length(gone) || length(extra))
+    stop(sprintf(paste("the candidates in %s are not this job directory's plots of %s:",
+                       "%d plots lack candidates (%s) and %d have candidates but no core stem",
+                       "of the population here (%s); run STAGE=candidates for this job directory"),
+                 cv_cand_dir(S), paste(S$SITES, collapse = ","), length(gone),
+                 paste(utils::head(gone, 5), collapse = ", "), length(extra),
+                 paste(utils::head(extra, 5), collapse = ", ")), call. = FALSE)
+  invisible(TRUE)
 }
 
 cv_stage_score <- function(S) {
   idx <- cv_read_index(S)
   # cells.csv and its record are written together; a failed run leaves no record
   unlink(file.path(S$OUT, CV_CELLS_CONFIG))
-  cdir <- file.path(S$OUT, "candidates")
+  cdir <- file.path(cv_cand_dir(S), "candidates")
+  if (!cv_same_dir(cv_cand_dir(S), S$OUT)) {
+    cv_read_skipped(S)                  # the candidates run's record of skipped cells
+    cv_check_candidate_plots(S)
+  }
   if (!is.null(S$BASE)) for (site in unique(idx$site))
     frozen_stamp_check(file.path(S$BASE, "neon", site, "chm_vwf_detections"), S$root)
   stems <- list()
@@ -597,14 +702,18 @@ cv_stage_score <- function(S) {
   write.csv(cells, file.path(S$OUT, "cells.csv"), row.names = FALSE)
   write.csv(grid, file.path(S$OUT, "grid.csv"), row.names = FALSE)
   n_ref <- sum(cells$config == "chm_vwf")
-  cv_write_cells_config(cv_cells_config(S, sites = intersect(S$SITES, unique(idx$site)),
-                                        rungs = intersect(S$RUNGS, unique(idx$rung)),
-                                        chm_vwf = n_ref > 0), S$OUT)
-  cat(sprintf("[score] %d rows in %.1f min -> %s (scored with K = %d, TOL = %g: %s)\n", nrow(cells),
+  cat(sprintf("[score] %d rows in %.1f min -> %s (scored with K = %d, TOL = %g)\n", nrow(cells),
               as.numeric(difftime(Sys.time(), t0, units = "mins")), file.path(S$OUT, "cells.csv"),
-              as.integer(S$K), S$TOL, CV_CELLS_CONFIG))
+              as.integer(S$K), S$TOL))
   if (!is.null(S$BASE))
     cat(sprintf("[score] chm_vwf scored in %d of %d cells\n", n_ref, nrow(idx)))
+  # the cells as read back by the analyze stage (rung as character)
+  back <- cv_read_cells(S)
+  checks <- cv_checks(S, idx, back, unique(idx$population), cdir)
+  cv_write_cells_config(cv_cells_config(S, sites = intersect(S$SITES, unique(idx$site)),
+                                        rungs = intersect(S$RUNGS, unique(idx$rung)),
+                                        chm_vwf = n_ref > 0, checks = checks), S$OUT)
+  cat(sprintf("[score] recorded in %s\n", file.path(S$OUT, CV_CELLS_CONFIG)))
   invisible(cells)
 }
 
@@ -678,18 +787,65 @@ cv_null_compare <- function(cells, null_cells, config, detector, tol = 1e-9) {
        max_null_diff = suppressWarnings(max(dif[, 5:7], na.rm = TRUE)))
 }
 
-cv_check_null <- function(cells, base, config = "stock", detector = "multichm") {
-  f <- file.path(base, "sensitivity", "null_cells.csv")
+# The paper runs' null cells at match radius `tol`, as paper_sensitivity.R
+# MODE=null names them: null_cells.csv at its baseline 4 m, null_tol<TOL>_cells.csv
+# at another radius (whose "baseline" variant is the observed score at that
+# radius). Both use the shifts of mcg_null_offsets() at that radius.
+cv_paper_null_file <- function(base, tol)
+  file.path(base, "sensitivity", if (tol == 4) "null_cells.csv" else
+    sprintf("null_tol%g_cells.csv", tol))
+
+cv_check_null <- function(cells, base, config = "stock", detector = "multichm", tol = 4) {
+  f <- cv_paper_null_file(base, tol)
   if (!file.exists(f)) stop("no null cells at ", f, call. = FALSE)
   r <- cv_null_compare(cells, read.csv(f, stringsAsFactors = FALSE,
                                        colClasses = c(rung = "character")), config, detector)
+  at <- if (tol == 4) "" else sprintf(" at TOL = %g", tol)
   if (nrow(r$bad))
-    stop(sprintf("null cells: %d of %d %s cells differ from the paper's %s null cells: %s",
-                 nrow(r$bad), r$n, config, detector,
+    stop(sprintf("null cells: %d of %d %s cells differ from the paper's %s null cells%s: %s",
+                 nrow(r$bad), r$n, config, detector, at,
                  paste(head(paste(r$bad$site, r$bad$plot, r$bad$rung, sep = "/"), 10),
                        collapse = ", ")), call. = FALSE)
-  cv_pass("null cells: %s observed and null means equal the paper's %s null cells in all %d cells (max |null diff| %.3g)",
-          config, detector, r$n, r$max_null_diff)
+  cv_pass("null cells: %s observed and null means equal the paper's %s null cells%s in all %d cells (max |null diff| %.3g)",
+          config, detector, at, r$n, r$max_null_diff)
+  invisible(r)
+}
+
+# The checks of the scored cells (the score stage's last step and the analyze
+# stage's first): the stock configuration's parity with lidRplugins::multichm on
+# every clip of the index; with BASE, its detections against the paper runs'
+# multichm detections and, with K = 200 and population adopted, the observed
+# counts and null means of stock and chm_vwf against the paper runs' null cells
+# at the cells' TOL (cv_paper_null_file()), which must exist at TOL 4 and are
+# skipped with a note at another TOL the paper runs lack. Stops on any
+# difference. Returns the outcomes as a record (cells.config.json "checks").
+cv_checks <- function(S, idx, cells, pop, cdir) {
+  cv_check_parity(idx)
+  rec <- list(package_parity = sprintf("pass: %d cells", nrow(idx)),
+              paper_detections = "not run: no BASE", paper_null = "not run: no BASE")
+  if (is.null(S$BASE)) return(rec)
+  cv_check_detections(idx, cdir, S$BASE, S$root)
+  rec$paper_detections <- sprintf("pass: %d cells", nrow(idx))
+  nf <- cv_paper_null_file(S$BASE, S$TOL)
+  skip <- if (S$K != 200L || !identical(pop, "adopted"))
+    sprintf("the paper's null cells use K = 200%s and population adopted",
+            if (S$TOL == 4) ", TOL = 4" else "")
+  else if (S$TOL != 4 && !file.exists(nf))
+    sprintf("the paper runs hold no null cells at TOL = %g (%s)", S$TOL, nf)
+  if (!is.null(skip)) {
+    cat(sprintf("SKIP null cells: %s\n", skip))
+    rec$paper_null <- paste("skipped:", skip)
+    return(rec)
+  }
+  n <- cv_check_null(cells, S$BASE, "stock", "multichm", tol = S$TOL)$n
+  checked <- "stock"
+  if ("chm_vwf" %in% cells$config) {
+    cv_check_null(cells, S$BASE, "chm_vwf", "chm_vwf", tol = S$TOL)
+    checked <- c(checked, "chm_vwf")
+  }
+  rec$paper_null <- sprintf("pass: %s in %d cells against %s", paste(checked, collapse = " and "),
+                            n, normalizePath(nf, mustWork = FALSE))
+  rec
 }
 
 ## ---- analysis helpers (pure data-frame logic) ---------------------------------------------
@@ -1702,14 +1858,7 @@ cv_stage_analyze <- function(S) {
               file.path(S$OUT, CV_CELLS_CONFIG)))
   cv_report_skipped(skipped, "[analyze]")
   ## a. checks
-  cv_check_parity(idx)
-  if (!is.null(S$BASE)) {
-    cv_check_detections(idx, file.path(S$OUT, "candidates"), S$BASE, S$root)
-    if (S$K == 200L && S$TOL == 4 && identical(pop, "adopted")) {
-      cv_check_null(cells, S$BASE, "stock", "multichm")
-      if ("chm_vwf" %in% cells$config) cv_check_null(cells, S$BASE, "chm_vwf", "chm_vwf")
-    } else cat("SKIP null cells: the paper's null cells use K = 200, TOL = 4 and population adopted\n")
-  }
+  cv_checks(S, idx, cells, pop, file.path(cv_cand_dir(S), "candidates"))
   stock_cells <- unique(paste(cells$site, cells$plot, cells$rung)[cells$config == "stock"])
   if (!setequal(stock_cells, paste(idx$site, idx$plot, idx$rung)))
     stop("cells.csv and the candidate index hold different cells; re-run STAGE=score",

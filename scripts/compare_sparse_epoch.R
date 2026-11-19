@@ -5,6 +5,7 @@ bs <- Find(file.exists, c(
   file.path("scripts", "bootstrap.R"), file.path("..", "..", "scripts", "bootstrap.R")))
 if (!length(bs)) stop("bootstrap.R not found")
 source(bs[1]); rm(bs, .bs_file)
+source(.find("sparse_epoch_lib.R"))
 
 # Native sparse versus decimated 2021 on one reference. MODE=prepare writes,
 # per site, job directories whose ground truth holds only the comparison
@@ -19,10 +20,21 @@ source(bs[1]); rm(bs, .bs_file)
 # Plot centroids are each side's own (they must match its root); the cores
 # coincide on every common plot. CHM-VWF (run_sweep.R) and multichm then run
 # in each directory (see the results document). MODE=report pools them by
-# crown class on the plots every compared cell shares.
+# crown class on the plots every compared cell shares, the sites together
+# under the label POOLED (D17 by default).
+# Options of MODE=prepare whose defaults keep the D17 study's outputs:
+# CLIPPED=TRUE keeps only common plots whose native clip is "ok" in both
+# sealed roots (a flight that misses a plot leaves it without a clip);
+# MIN_CORE_COVER=<share> (with CLIPPED=TRUE) also drops common plots whose
+# native clip covers less than that share of the scoring core's 2 m cells
+# with a first return, in either root (a plot at the edge of a flight), and
+# writes the coverage to core_cover.csv beside each side's ground truth;
+# STRATA=FALSE writes the shared-stem directories only, without the 2015-only
+# and whole-reference strata, which belong to the D17 2015 census.
 #   Rscript scripts/compare_sparse_epoch.R MODE=prepare|report \
 #     EPOCHS=SJER:<sparse job>:2017,SOAP:<sparse job>:2018,TEAK:<sparse job>:2018 \
 #     C21=<2021 comparison job dir> [ROOT2021=<work>/neon/frozen_2021] [OUT=<dir>]
+#     [CLIPPED=FALSE] [MIN_CORE_COVER=] [STRATA=TRUE] [POOLED=D17]
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
 mode <- match.arg(A$MODE, c("prepare", "report"))
@@ -32,6 +44,33 @@ c21 <- A$C21
 root21 <- if (is.null(A$ROOT2021)) file.path(.job_dir(), "neon", "frozen_2021") else A$ROOT2021
 nd21 <- file.path(dirname(root21))                      # <work>/neon
 sroot <- function(i) file.path(ep$job[i], "neon", sprintf("frozen_%d", ep$year[i]))
+flag <- function(x, default) {
+  v <- as.logical(if (is.null(x)) default else x)
+  if (length(v) != 1L || is.na(v)) stop("Expected TRUE or FALSE, got ", x)
+  v
+}
+clipped <- flag(A$CLIPPED, FALSE)
+strata <- flag(A$STRATA, TRUE)
+pooled <- if (is.null(A$POOLED)) "D17" else A$POOLED
+min_cover <- if (is.null(A$MIN_CORE_COVER)) NA_real_ else as.numeric(A$MIN_CORE_COVER)
+if (!is.null(A$MIN_CORE_COVER) && (!is.finite(min_cover) || min_cover < 0 || min_cover > 1))
+  stop("MIN_CORE_COVER must be a share in [0, 1]")
+if (is.finite(min_cover)) {
+  if (!clipped) stop("MIN_CORE_COVER needs CLIPPED=TRUE")
+  source(.find("model_bench_lib.R"))                    # frozen_read
+  options(lidR.progress = FALSE)
+}
+# Core coverage of each plot's native clip in one sealed root (se_core_cover).
+core_cover <- function(root, site, plots) {
+  cm <- frozen_clip_manifest(root)
+  vapply(plots, function(p) {
+    r <- cm[cm$site == site & cm$plot == p & cm$rung == "native", ]
+    clip <- frozen_read(root, site, p, "native", r$cx, r$cy, r$core_half, r$buffer, cm)
+    las <- lidR::readLAS(clip$normalized, select = "r")
+    f <- las$ReturnNumber == 1L
+    se_core_cover(las$X[f], las$Y[f], r$cx, r$cy, r$core_half)
+  }, numeric(1))
+}
 
 write_job <- function(dir, site, gt, pc) {
   d <- file.path(dir, "neon", site); dir.create(d, recursive = TRUE, showWarnings = FALSE)
@@ -42,12 +81,26 @@ write_job <- function(dir, site, gt, pc) {
 if (mode == "prepare") {
   pop21 <- read.csv(file.path(root21, "population.csv"))
   st21 <- read.csv(file.path(root21, "population_stems.csv"))
+  manifest <- function(root) read.csv(file.path(root, "clip_manifest.csv"),
+                                      colClasses = c(rung = "character"), stringsAsFactors = FALSE)
   for (i in seq_len(nrow(ep))) {
     s <- ep$site[i]
     popS <- read.csv(file.path(sroot(i), "population.csv"))
     stS <- read.csv(file.path(sroot(i), "population_stems.csv"))
-    common <- intersect(pop21$plotID[pop21$site == s & pop21$in_adopted],
-                        popS$plotID[popS$site == s & popS$in_adopted])
+    common <- if (clipped) se_common_plots(pop21, popS, s, manifest(root21), manifest(sroot(i)))
+              else se_common_plots(pop21, popS, s)
+    if (is.finite(min_cover)) {
+      cov <- data.frame(site = s, plotID = common, core_cover_2021 = core_cover(root21, s, common),
+                        core_cover_epoch = core_cover(sroot(i), s, common), min_core_cover = min_cover)
+      cov$kept <- cov$core_cover_2021 >= min_cover & cov$core_cover_epoch >= min_cover
+      for (dir in c(file.path(ep$job[i], "compare_shared"), file.path(c21, "shared"))) {
+        dir.create(file.path(dir, "neon", s), recursive = TRUE, showWarnings = FALSE)
+        write.csv(cov, file.path(dir, "neon", s, "core_cover.csv"), row.names = FALSE)
+      }
+      if (!all(cov$kept)) cat(sprintf("%s: core coverage below %g drops %s\n", s, min_cover,
+                                      paste(cov$plotID[!cov$kept], collapse = ",")))
+      common <- cov$plotID[cov$kept]
+    }
     a21 <- st21[st21$site == s & st21$population == "adopted" & st21$plotID %in% common, ]
     aS <- stS[stS$site == s & stS$population == "adopted" & stS$plotID %in% common, ]
     shared <- intersect(a21$individualID, aS$individualID)
@@ -62,6 +115,13 @@ if (mode == "prepare") {
     key21 <- paste(gt21$plotID, gt21$individualID); keyS <- paste(gtS$plotID, gtS$individualID)
     sh <- gt21[key21 %in% paste(a21$plotID, a21$individualID) & gt21$individualID %in% shared &
                gt21$live & gt21$is_tree, ]
+    write_job(file.path(ep$job[i], "compare_shared"), s, sh, pcS)
+    write_job(file.path(c21, "shared"), s, sh, pc21)
+    if (!strata) {
+      cat(sprintf("%s: common adopted plots %d, shared stems %d (on %d plots)\n",
+                  s, length(common), nrow(sh), length(unique(sh$plotID))))
+      next
+    }
     # 2015-only: sparse-epoch adopted stems with no record after 2015.
     vst <- readRDS(file.path(ep$job[i], "neon", s, "vst", sprintf("%s_vst_allyears.rds", tolower(s))))
     ai <- vst$vst_apparentindividual
@@ -69,8 +129,6 @@ if (mode == "prepare") {
     only <- aS$individualID[as.integer(last[aS$individualID]) <= 2015]
     o15 <- gtS[keyS %in% paste(aS$plotID, aS$individualID) & gtS$individualID %in% only &
                gtS$live & gtS$is_tree, ]
-    write_job(file.path(ep$job[i], "compare_shared"), s, sh, pcS)
-    write_job(file.path(c21, "shared"), s, sh, pc21)
     if (nrow(o15)) {
       write_job(file.path(ep$job[i], "compare_2015only"), s, o15, pcS)
       write_job(file.path(c21, "only2015"), s, o15, pc21)
@@ -172,7 +230,7 @@ for (i in seq_len(nrow(ep))) for (st in c("strata_2015only", "strata_remeasured_
 tab <- do.call(rbind, res)
 # D17 rows: pool the per-site counts again.
 d17 <- do.call(rbind, lapply(split(tab, paste(tab$stratum, tab$arm, tab$side, tab$rung)), function(t) {
-  r <- t[1, ]; r$site <- "D17"; r$frdens_median <- NA
+  r <- t[1, ]; r$site <- pooled; r$frdens_median <- NA
   tp <- t$recall * t$n_ref; tpc <- t$precision * t$n_det
   r$plots <- sum(t$plots); r$n_ref <- sum(t$n_ref); r$n_det <- sum(t$n_det)
   r$recall <- sum(tp) / sum(t$n_ref); r$precision <- sum(tpc) / sum(t$n_det)
@@ -184,7 +242,8 @@ d17 <- do.call(rbind, lapply(split(tab, paste(tab$stratum, tab$arm, tab$side, ta
   r
 }))
 tab <- rbind(tab, d17)
-tab <- tab[order(tab$stratum, tab$arm, match(tab$site, c("SJER", "SOAP", "TEAK", "D17")),
+site_order <- unique(c("SJER", "SOAP", "TEAK", ep$site, pooled))
+tab <- tab[order(tab$stratum, tab$arm, match(tab$site, site_order),
                  match(paste(tab$side, tab$rung), c("sparse native", "2021 native", "2021 8", "2021 4"))), ]
 write.csv(tab, file.path(out, "sparse_vs_2021.csv"), row.names = FALSE)
 
@@ -228,7 +287,7 @@ bt <- do.call(rbind, boot); rownames(bt) <- NULL
 write.csv(bt, file.path(out, "sparse_minus_2021_bootstrap.csv"), row.names = FALSE)
 # The markdown tables go to <OUT>/report.md as well as the console.
 sink(file.path(out, "report.md"), split = TRUE)
-cat("## Sparse native minus 2021, shared stems, D17 (paired plot bootstrap, 95%)\n\n")
+cat(sprintf("## Sparse native minus 2021, shared stems, %s (paired plot bootstrap, 95%%)\n\n", pooled))
 cat("| Arm | Versus | Metric | Delta | 95% interval |\n| --- | --- | --- | ---: | --- |\n")
 cat(sprintf("| %s | %s | %s | %+.3f | %+.3f to %+.3f |\n", bt$arm, bt$versus, bt$metric, bt$delta,
             bt$lo, bt$hi), sep = "")
