@@ -18,7 +18,8 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # documents the two places where the protocol's text admits two readings and
 # reports both.
 #
-# Stages (STAGES=, comma-separated, default contrasts,r1,r4):
+# Stages (STAGES=, comma-separated, default contrasts,r1,r4; tables only
+# rewrites tables.md):
 #   contrasts  for each dataset of the manifest, each level, scope and plot
 #              subset: the five configurations' contrasts (declared minus
 #              stock; declared minus floor and exemption; floor and exemption
@@ -58,21 +59,48 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #              -> OUT/r4_crown_spacing.csv (+ .json, reused when it matches),
 #              OUT/r4_checks.csv, OUT/r4_spread.csv, OUT/r4_state.csv,
 #              OUT/r4_scores.csv, OUT/r4_ranges.csv
-# Every run then writes OUT/tables.md from the CSVs present in OUT.
+#   c3_share   the stand measures the protocol asks for on C3: per native clip
+#              of the C3 candidate stages of the other flight (C3_EPOCH) and of
+#              the 2021 clips of the same plots (C3_SHARED), the cover and
+#              crown spacing of the stored candidates and the first-return
+#              share of the deeper-layer peaks (mcgc_deep_shares, the
+#              definition of confirm_gated_3dep.R), then per site and both
+#              sites the medians on each side and the closed, widely spaced and
+#              gated plots (mcgc_stand_transfer).
+#              -> OUT/c3_deeper_share_plots.csv, OUT/c3_deeper_share.csv
+#   c4_transfer  the same on C4 from confirm_gated_3dep.R's clips.csv in C4_DIR
+#              (mcgc_c4_transfer: own density against the 2021 native clip,
+#              thinned against the 2021 clip thinned to 2 points/m2), its
+#              counts checked against that directory's transfer.csv.
+#              -> OUT/c4_transfer.csv
+#   c3_seeds   the bootstrap's own variation on C3: declared minus stock and
+#              floor and exemption minus stock on the Washington scope of the
+#              manifest's C3 dataset, redrawn with seeds BOOT_SEED + 1 to
+#              BOOT_SEED + N_SEEDS (N_BOOT draws each), beside the reported
+#              seed (offset 0). -> OUT/c3_seed_bounds.csv
+# Every run then writes OUT/tables.md from the CSVs of the contrasts, r1 and
+# r4 stages present in OUT.
 #
-# The manifest (MANIFEST=, JSON; format in multichm_gated_confirm_lib.R):
+# The manifest (MANIFEST=, JSON; format in multichm_gated_confirm_lib.R; the
+# one the results use is docs/multichm-gated-confirmation-manifest.json):
 #   {"datasets": [{"name": "calibration levels", "test": "baseline",
 #     "cells": "multichm_gated_runs/neon/multichm_gated/cells.csv",
 #     "levels": ["native", "8", "4", "2", "1"], "null": true,
+#     "scoring": {"record": "cells.config.json", "tol": 4, "K": 200,
+#                 "population": "adopted"},
 #     "scopes": {"Five sites": ["SJER", "SOAP", "TEAK", "WREF", "ABBY"],
 #                "California": ["SJER", "SOAP", "TEAK"],
 #                "Washington": ["WREF", "ABBY"], "WREF": ["WREF"]},
 #     "subsets": [{"name": "all plots"},
 #                 {"name": "validation plots (seed 1)",
 #                  "split": {"seed": 1, "frac": 0.5, "side": "valid"}}]}]}
-# Relative cell paths resolve against CLAUDE_JOB_DIR. The decision reads the
-# scopes named "Five sites", "California" and "Washington" of the tests C1, C2,
-# C3 and R2 on each dataset's decision subset (its first subset by default).
+# Relative cell paths resolve against CLAUDE_JOB_DIR. Before any contrast,
+# each dataset's scoring record (of each of its parts, for a pooled file) is
+# checked against the manifest's tol, K and population, and a pooled file
+# against its parts; a missing record or a mismatch stops the run. The
+# decision reads the scopes named "Five sites", "California" and
+# "Washington" of the tests C1, C2, C3 and R2 on each dataset's decision
+# subset (its first subset by default).
 #
 # Usage:
 #   Rscript scripts/confirm_multichm_gated.R [STAGES=contrasts,r1,r4]
@@ -81,11 +109,15 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #     [STUDY=$CLAUDE_JOB_DIR/multichm_gated_runs/neon/multichm_gated]
 #     [FROZEN_ROOT=$CLAUDE_JOB_DIR/neon/frozen_2021] [N_BOOT=1000]
 #     [BOOT_SEED=20261002] [SPLIT_SEED=1] [FRAC=0.5] [LEFT_OUT=C4,C5]
-#     [R4_RUNGS=native,8,4,2,1] [R4_RECOMPUTE=FALSE] [CORES=8]
+#     [R4_RUNGS=native,8,4,2,1] [R4_RECOMPUTE=FALSE] [N_SEEDS=40]
+#     [C3_EPOCH=$CLAUDE_JOB_DIR/multichm_gated_confirmation/epoch_wa/epoch_2019]
+#     [C3_EPOCH_LABEL=2019]
+#     [C3_SHARED=$CLAUDE_JOB_DIR/multichm_gated_confirmation/epoch_wa/shared_2021]
+#     [C4_DIR=$CLAUDE_JOB_DIR/multichm_gated_confirmation/3dep] [CORES=8]
 # LEFT_OUT names tests (C4, C5) the protocol allows to be left out because
 # their data could not be brought into the scorer; the decision then says so
-# instead of keeping them pending. STUDY, FROZEN_ROOT and the cells are only
-# read; OUT may not lie inside them.
+# instead of keeping them pending. STUDY, FROZEN_ROOT, C3_EPOCH, C3_SHARED,
+# C4_DIR and the cells are only read; OUT may not lie inside them.
 suppressMessages({ library(data.table); library(lidR); library(sf) })
 options(lidR.progress = FALSE)
 source(.find("sweep_lib.R"))          # plot_lapply
@@ -100,6 +132,7 @@ CF_WA <- c("WREF", "ABBY")
 CF_FIVE <- c(CF_CA, CF_WA)
 CF_R4_SCOPES <- list(`Five sites` = list(sites = CF_FIVE), Washington = list(sites = CF_WA),
                      WREF = list(sites = "WREF"), ABBY = list(sites = "ABBY"))
+CF_STAGES <- c("contrasts", "r1", "r4", "c3_share", "c4_transfer", "c3_seeds", "tables")
 
 ## ---- arguments ----------------------------------------------------------------------------
 cf_settings <- function(args = commandArgs(TRUE), d = .job_dir()) {
@@ -123,10 +156,20 @@ cf_settings <- function(args = commandArgs(TRUE), d = .job_dir()) {
                        else split(A[["LEFT_OUT"]]),
             R4_RUNGS = split(get("R4_RUNGS", "native,8,4,2,1")),
             R4_RECOMPUTE = toupper(get("R4_RECOMPUTE", "FALSE")) %in% c("TRUE", "1", "YES"),
+            N_SEEDS = suppressWarnings(as.integer(get("N_SEEDS", 40L))),
+            C3_EPOCH = get("C3_EPOCH", file.path(d, "multichm_gated_confirmation", "epoch_wa",
+                                                 "epoch_2019")),
+            C3_EPOCH_LABEL = get("C3_EPOCH_LABEL", "2019"),
+            C3_SHARED = get("C3_SHARED", file.path(d, "multichm_gated_confirmation", "epoch_wa",
+                                                   "shared_2021")),
+            C4_DIR = get("C4_DIR", file.path(d, "multichm_gated_confirmation", "3dep")),
             CORES = suppressWarnings(as.integer(get("CORES", 8L))))
   S$MANIFEST <- get("MANIFEST", file.path(S$OUT, "manifest.json"))
-  if (!all(S$STAGES %in% c("contrasts", "r1", "r4", "tables")))
-    stop("STAGES are among contrasts, r1, r4, tables", call. = FALSE)
+  if (!all(S$STAGES %in% CF_STAGES))
+    stop("STAGES are among ", paste(CF_STAGES, collapse = ", "), call. = FALSE)
+  if (is.na(S$N_SEEDS) || S$N_SEEDS < 1) stop("N_SEEDS is a positive integer", call. = FALSE)
+  if (identical(S$C3_EPOCH_LABEL, "2021"))
+    stop("C3_EPOCH_LABEL names the other flight, not 2021", call. = FALSE)
   if (!all(S$LEFT_OUT %in% MCGC_QUALIFY))
     stop("LEFT_OUT may name only C4 and C5, the tests the protocol allows to leave out",
          call. = FALSE)
@@ -140,7 +183,8 @@ cf_settings <- function(args = commandArgs(TRUE), d = .job_dir()) {
     p <- normalizePath(p, mustWork = FALSE)
     identical(o, p) || startsWith(o, paste0(p, "/"))
   }
-  if (inside(S$STUDY) || inside(S$FROZEN_ROOT) ||
+  if (inside(S$STUDY) || inside(S$FROZEN_ROOT) || inside(S$C3_EPOCH) || inside(S$C3_SHARED) ||
+      inside(S$C4_DIR) ||
       grepl("/(multichm_gated_runs[^/]*|paper_runs[^/]*|neon/frozen_[^/]*)(/|$)", o))
     stop("OUT=", S$OUT, " lies inside read-only inputs", call. = FALSE)
   S
@@ -169,9 +213,25 @@ cf_dataset_row <- function(x, cells)
              decision_subset = x$decision_subset, n_rows = nrow(cells),
              n_plots = length(unique(mcgc_ids(cells))), stringsAsFactors = FALSE)
 
+# How each dataset was scored, checked before any contrast: its record (or
+# the record of each of its parts) against the manifest's scoring.
+cf_check_scoring <- function(ds, tag = "contrasts") {
+  for (x in ds) {
+    rec <- mcgc_check_scoring(x)
+    for (r in rec) cat(if (is.na(r$record))
+      sprintf("[%s] %s: no scoring record (%s)\n", tag, x$name, r$why) else
+        sprintf("[%s] %s: scored with K %s, tol %s, population %s (%s)\n", tag, x$name,
+                format(r$K), format(r$tol), r$population, r$record))
+    if (length(x$parts)) cat(sprintf("[%s] %s: the cells are the concatenation of %d parts\n",
+                                     tag, x$name, length(x$parts)))
+  }
+  invisible(TRUE)
+}
+
 cf_stage_contrasts <- function(S) {
   ds <- mcgc_read_manifest(S$MANIFEST, base = S$d)
   cat(sprintf("[contrasts] %d dataset(s) from %s\n", length(ds), S$MANIFEST))
+  cf_check_scoring(ds)
   con <- list(); info <- list()
   for (i in seq_along(ds)) {
     x <- ds[[i]]
@@ -398,6 +458,97 @@ cf_stage_r4 <- function(S) {
                   d_F1_min = min(d_F1), d_F1_max = max(d_F1), d_F1_0 = d_F1[dx == 0 & dy == 0]),
            by = c("level", "subset", "scope")]
   cf_write(as.data.frame(rg), S, "r4_ranges.csv")
+}
+
+## ---- stage: c3_share ------------------------------------------------------------------------
+# The first-return share of deeper-layer peaks on the C3 clips of the other
+# flight and on the 2021 clips of the same plots, from the candidates the C3
+# scoring stored, beside the cover and crown spacing of those candidates.
+cf_stage_c3_share <- function(S) {
+  sides <- c(S$C3_EPOCH, S$C3_SHARED)
+  names(sides) <- c(S$C3_EPOCH_LABEL, "2021")
+  plots <- do.call(rbind, lapply(names(sides), function(sd) {
+    dir <- sides[[sd]]
+    idx <- read.csv(file.path(dir, "candidates.csv"), stringsAsFactors = FALSE,
+                    colClasses = c(rung = "character", plot = "character"))
+    idx <- idx[idx$rung == "native", , drop = FALSE]
+    cat(sprintf("[c3_share] %s: %d native clips from %s\n", sd, nrow(idx), dir))
+    mcgc_clip_shares(idx, function(f) readRDS(file.path(dir, "candidates", f))$prep, sd)
+  }))
+  a <- plots[plots$side == S$C3_EPOCH_LABEL, , drop = FALSE]
+  b <- plots[plots$side == "2021", , drop = FALSE]
+  if (!setequal(paste(a$site, a$plot), paste(b$site, b$plot)))
+    stop("C3: the two candidate sets hold different plots", call. = FALSE)
+  tr <- mcgc_stand_transfer(a, b, c(stats::setNames(as.list(CF_WA), CF_WA),
+                                    list(Washington = CF_WA)),
+                            labels = c(S$C3_EPOCH_LABEL, "2021"))
+  cf_write(plots, S, "c3_deeper_share_plots.csv")
+  cf_write(tr, S, "c3_deeper_share.csv")
+}
+
+## ---- stage: c4_transfer ---------------------------------------------------------------------
+# The stand measures of the 3DEP clips beside the 2021 values of the same
+# plots, from the clip record of confirm_gated_3dep.R; the closed, widely
+# spaced and gated counts must equal its transfer.csv.
+cf_stage_c4_transfer <- function(S) {
+  clips <- read.csv(file.path(S$C4_DIR, "clips.csv"), stringsAsFactors = FALSE,
+                    colClasses = c(plot = "character", rung = "character"))
+  scopes <- c(stats::setNames(as.list(CF_CA), CF_CA), list(California = CF_CA))
+  tr <- mcgc_c4_transfer(clips, scopes)
+  ref <- read.csv(file.path(S$C4_DIR, "transfer.csv"), stringsAsFactors = FALSE)
+  m <- merge(tr, ref, by.x = c("variant", "scope"), by.y = c("variant", "scope"),
+             suffixes = c("", ".ref"))
+  cols <- c("plots", paste0(rep(c("closed", "spaced", "gated"), each = 3),
+                            c("_3dep", "_2021", "_changed")))
+  if (nrow(m) != nrow(tr) || nrow(m) != nrow(ref) ||
+      !all(vapply(cols, function(k) all(m[[k]] == m[[paste0(k, ".ref")]]), NA)))
+    stop("C4: the closed and gated counts differ from ", file.path(S$C4_DIR, "transfer.csv"),
+         call. = FALSE)
+  cat(sprintf("[c4_transfer] the counts of %d rows equal transfer.csv\n", nrow(tr)))
+  cf_write(tr, S, "c4_transfer.csv")
+}
+
+## ---- stage: c3_seeds ------------------------------------------------------------------------
+# The C3 primary contrast and floor and exemption against stock, both
+# Washington sites, redrawn with the bootstrap seeds BOOT_SEED + 1 to BOOT_SEED
+# + N_SEEDS (N_BOOT draws each), beside the reported seed (offset 0).
+cf_stage_c3_seeds <- function(S) {
+  ds <- Filter(function(d) identical(d$test, "C3"), mcgc_read_manifest(S$MANIFEST, base = S$d))
+  if (length(ds) != 1L) stop("c3_seeds: the manifest needs exactly one C3 dataset", call. = FALSE)
+  x <- ds[[1]]
+  cf_check_scoring(list(x), "c3_seeds")
+  if (is.null(x$scopes[["Washington"]])) stop("c3_seeds: the C3 dataset has no Washington scope",
+                                              call. = FALSE)
+  keep <- MCGC_CONFIGS[c("stock", "floor_exemption", "declared")]
+  cells <- mcgc_read_cells(x$cells, null = x$null, levels = x$levels)
+  cells <- cells[cells$config %in% keep, , drop = FALSE]
+  sel <- mcgc_subset_ids(Filter(function(s) identical(s$name, x$decision_subset), x$subsets)[[1]],
+                         cells)
+  measure <- if (isTRUE(x$null)) "cF1" else "F1"
+  pairs <- list(declared_stock = MCGC_CONFIGS[c("declared", "stock")],
+                floor_exemption_stock = MCGC_CONFIGS[c("floor_exemption", "stock")])
+  out <- list()
+  for (lv in unique(cells$rung)) {
+    L <- cells[cells$rung == lv, , drop = FALSE]; Lid <- mcgc_ids(L)
+    plots <- mcgc_scope_ids(unique(Lid), x$scopes[["Washington"]])
+    if (!is.null(sel)) plots <- intersect(plots, sel)
+    r <- mcgc_seed_bounds(L, Lid, plots, pairs, S$BOOT_SEED + 0:S$N_SEEDS, S$N_BOOT, measure)
+    out[[length(out) + 1L]] <- cbind(data.frame(dataset = x$name, test = x$test, level = lv,
+                                                scope = "Washington", stringsAsFactors = FALSE),
+                                     r)
+  }
+  out <- do.call(rbind, out)
+  out$seed_offset <- out$seed - S$BOOT_SEED
+  out$reported <- out$seed_offset == 0L
+  for (k in names(pairs)) {
+    v <- out[out$contrast == k & !out$reported, , drop = FALSE]
+    cat(sprintf("[c3_seeds] %s, seeds +1 to +%d: lower bound %+.4f to %+.4f, above zero in %d\n",
+                k, S$N_SEEDS, min(v$lo_measure), max(v$lo_measure), sum(v$lo_measure > 0)))
+  }
+  cf_write(out[c("dataset", "test", "level", "scope", "contrast", "config_a", "config_b",
+                 "seed", "seed_offset", "reported", "n_boot", "n_plots", "measure", "d_measure",
+                 "lo_measure", "hi_measure", "reading", "better", "not_worse", "worse")],
+           S, "c3_seed_bounds.csv")
 }
 
 ## ---- tables.md --------------------------------------------------------------------------------
@@ -634,6 +785,9 @@ run_main <- function() {
   if ("contrasts" %in% S$STAGES) cf_stage_contrasts(S)
   if ("r1" %in% S$STAGES) cf_stage_r1(S)
   if ("r4" %in% S$STAGES) cf_stage_r4(S)
+  if ("c3_share" %in% S$STAGES) cf_stage_c3_share(S)
+  if ("c4_transfer" %in% S$STAGES) cf_stage_c4_transfer(S)
+  if ("c3_seeds" %in% S$STAGES) cf_stage_c3_seeds(S)
   cf_md(S)
 }
 

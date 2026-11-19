@@ -124,6 +124,85 @@ test_that("the headline split is the gated run's record, never an argument (A1)"
   expect_error(cd_settings(character(), d = syn_job_dir(frac = 1)), "frac in \\(0, 1\\)")
 })
 
+test_that("every key the driver reads is accepted; any other stops with the list of keys", {
+  d <- normalizePath(syn_job_dir())
+  expect_identical(CD_KEYS, c("STAGE", "UNBLIND", "CORES", "SITES", "RUNGS", "POP", "FROZEN_ROOT",
+                              "SEEDS", "N_BOOT", "GATED", "OUT", "SEED", "FRAC", "K", "TOL"))
+  out <- tempfile("cd_out_")
+  every <- c("STAGE=score", "UNBLIND=0", "CORES=2", "SITES=SJER", "RUNGS=native", "POP=adopted",
+             paste0("FROZEN_ROOT=", file.path(d, "neon", "frozen_2021")), "SEEDS=1,2",
+             "N_BOOT=10", paste0("GATED=", file.path(d, "neon", "multichm_gated")),
+             paste0("OUT=", out), "SEED=1", "FRAC=0.5", "K=200", "TOL=4")
+  expect_identical(sub("=.*", "", every), CD_KEYS)
+  S <- cd_settings(every, d = d)
+  expect_identical(S[c("STAGE", "CORES", "SITES", "RUNGS", "SEEDS", "N_BOOT", "K_arg", "TOL_arg")],
+                   list(STAGE = "score", CORES = 2L, SITES = "SJER", RUNGS = "native",
+                        SEEDS = 1:2, N_BOOT = 10L, K_arg = 200L, TOL_arg = 4))
+  expect_identical(S$OUT, file.path(normalizePath(dirname(out)), basename(out)))
+  expect_false(dir.exists(out))
+  # a mistyped key no longer falls back to the run of record
+  keys <- paste(CD_KEYS, collapse = ", ")
+  expect_error(cd_settings("OUTDIR=/tmp/x", d = d),
+               paste0("unknown argument OUTDIR; the keys are ", keys), fixed = TRUE)
+  for (k in c("OUTPUT=x", "SEEDZ=1", "UNBLINDED=1", "CANDIDATES=x", "WORK=work", "stage=all"))
+    expect_error(cd_settings(c("STAGE=analyze", k), d = d),
+                 paste0("unknown argument ", sub("=.*", "", k), ";"), fixed = TRUE)
+  expect_error(cd_settings(c("A=1", "B=2"), d = d), "unknown argument A, B;", fixed = TRUE)
+  # nothing is read before the keys are checked: no gated record needed
+  expect_error(cd_settings("OUTDIR=x", d = tempfile("cd_none_")), "unknown argument OUTDIR")
+})
+
+test_that("OUT stays out of the gated run, the job directory and the frozen root", {
+  skip_on_os("windows")
+  d <- normalizePath(syn_job_dir())
+  gated <- file.path(d, "neon", "multichm_gated")
+  root <- file.path(d, "neon", "frozen_2021")
+  dir.create(root)
+  ro <- "overlaps a read-only input"
+  # equal to, inside or around the gated run (cells.csv, cells.config.json,
+  # grid.csv), the job directory or the frozen root
+  expect_error(cd_settings(paste0("OUT=", gated), d = d), paste(ro, "(the gated run"),
+               fixed = TRUE)
+  expect_error(cd_settings(paste0("OUT=", file.path(gated, "x")), d = d),
+               paste(ro, "(the gated run"), fixed = TRUE)
+  expect_error(cd_settings(paste0("OUT=", root), d = d), paste(ro, "(the frozen root"),
+               fixed = TRUE)
+  expect_error(cd_settings(paste0("OUT=", file.path(d, "elsewhere")), d = d),
+               paste(ro, "(the job directory"), fixed = TRUE)
+  for (o in c(d, file.path(d, "neon"), dirname(d)))
+    expect_error(cd_settings(paste0("OUT=", o), d = d), ro, fixed = TRUE)
+  # GATED= and FROZEN_ROOT= elsewhere: the given ones and the default gated run
+  # are all read-only
+  d2 <- normalizePath(syn_job_dir(seed = 1, frac = 0.5))
+  g2 <- file.path(d2, "neon", "multichm_gated")
+  fr <- normalizePath(tempfile("cd_root_"), mustWork = FALSE)
+  dir.create(fr)
+  for (o in c(g2, file.path(g2, "x"), gated, file.path(gated, "x")))
+    expect_error(cd_settings(c(paste0("GATED=", g2), paste0("OUT=", o)), d = d),
+                 paste(ro, "(the gated run"), fixed = TRUE)
+  expect_error(cd_settings(c(paste0("FROZEN_ROOT=", fr), paste0("OUT=", file.path(fr, "x"))),
+                           d = d), paste(ro, "(the frozen root"), fixed = TRUE)
+  # relative, through a symbolic link, or with `..`
+  base <- normalizePath(tempfile("cd_tree_"), mustWork = FALSE)
+  dir.create(base)
+  withr::local_dir(base)
+  file.symlink(d, file.path(base, "job_link"))
+  expect_error(cd_settings("OUT=job_link/neon/multichm_gated/x", d = d),
+               paste(ro, "(the gated run"), fixed = TRUE)
+  expect_error(cd_settings("OUT=job_link", d = d), ro, fixed = TRUE)
+  expect_error(cd_settings(paste0("OUT=", file.path(base, "zz", "..", "fresh")), d = d),
+               "has a `..` component", fixed = TRUE)
+  expect_error(cd_settings("OUT=zz/../fresh", d = d), "has a `..` component", fixed = TRUE)
+  # the job directory reached through a link is the same job directory
+  expect_error(cd_settings(paste0("OUT=", file.path(d, "neon", "x")),
+                           d = file.path(base, "job_link")), ro, fixed = TRUE)
+  # a new OUT elsewhere and the default pass, canonical, and nothing is written
+  S <- cd_settings("OUT=fresh/out", d = d)
+  expect_identical(S$OUT, file.path(base, "fresh", "out"))
+  expect_false(dir.exists(file.path(base, "fresh")))
+  expect_identical(cd_settings(character(), d = d)$OUT, CD_DEFAULT_OUT)
+})
+
 test_that("a cells record of another split is refused (A1)", {
   S <- list(SEED = 1L, FRAC = 0.5)
   sp <- list(calib = c("SJER::SJER_001", "SJER::SJER_003", "WREF::WREF_002"),

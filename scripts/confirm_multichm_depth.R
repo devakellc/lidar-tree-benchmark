@@ -92,10 +92,12 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #     [STUDY=$WORK/multichm_depth_runs/neon/multichm_depth]
 #     [CAMPAIGN=$WORK/multichm_gated_confirmation]
 #     [OUT=$WORK/multichm_depth_runs/confirm]
-# The contrasts stage reads every unit, so it needs every dataset scored. OUT
-# has no `..` component and does not equal, lie inside or contain the given
-# study, the study's run of record, the campaign or a frozen root (compared in
-# canonical absolute form, cfd_check_out).
+# The contrasts stage reads every unit, so it needs every dataset scored. Any
+# other key stops the run (CFD_KEYS). WORK is made canonical before the
+# defaults are derived from it. OUT, when given, has no `..` component, and it
+# does not equal, lie inside or contain the given study, the study's run of
+# record, the campaign or a frozen root (compared in canonical absolute form,
+# cfd_check_out).
 suppressMessages({ library(lidR); library(lidRplugins); library(sf)
                    library(data.table); library(parallel) })
 options(lidR.progress = FALSE)
@@ -165,84 +167,37 @@ CFD_A8_TEXT <- paste(
   "all-plots counterpart.")
 
 ## ---- paths --------------------------------------------------------------------------------
-# A path for messages: relative to the repository root when it lies under it,
-# else as given.
-cfd_rel <- function(p) {
-  p <- as.character(p)
-  r <- normalizePath(.ROOT, mustWork = FALSE)
-  q <- normalizePath(p, mustWork = FALSE)
-  ifelse(startsWith(q, paste0(r, "/")), substring(q, nchar(r) + 2L), ifelse(q == r, ".", p))
-}
-
-# The components of a path made absolute against the working directory ("."
-# and empty components dropped).
-cfd_path_parts <- function(p) {
-  p <- path.expand(p)
-  if (!startsWith(p, "/")) p <- file.path(getwd(), p)
-  x <- strsplit(p, "/", fixed = TRUE)[[1]]
-  x[nzchar(x) & x != "."]
-}
-
-# The canonical absolute form of a path, whether it exists or not: made
-# absolute against the working directory, its longest existing ancestor
-# resolved with normalizePath(mustWork = TRUE) (a symbolic link in it is
-# followed), the components that do not exist yet appended. A `..` among those
-# is applied to what precedes it (a component that does not exist is no link)
-# and the result is canonicalized again. A dangling symbolic link stops.
-cfd_canon_path <- function(p) {
-  if (!is.character(p) || length(p) != 1L || is.na(p) || !nzchar(p))
-    stop("a path must be one non-empty string", call. = FALSE)
-  parts <- cfd_path_parts(p)
-  path_of <- function(x) paste0("/", paste(x, collapse = "/"))
-  k <- length(parts)
-  while (k > 0L && !file.exists(path_of(parts[seq_len(k)]))) k <- k - 1L
-  if (k < length(parts)) {
-    lk <- Sys.readlink(path_of(parts[seq_len(k + 1L)]))   # "" or NA unless a link
-    if (!is.na(lk) && nzchar(lk))
-      stop(cfd_rel(p), " holds a symbolic link that points nowhere", call. = FALSE)
-  }
-  base <- cfd_path_parts(normalizePath(path_of(parts[seq_len(k)]), mustWork = TRUE))
-  rest <- parts[seq_len(length(parts) - k) + k]
-  if (!".." %in% rest) return(path_of(c(base, rest)))
-  for (x in rest) base <- if (x == "..") base[-length(base)] else c(base, x)
-  cfd_canon_path(path_of(base))
-}
-
-# TRUE when the canonical paths a and b are equal or one lies inside the other.
-cfd_path_overlap <- function(a, b) {
-  dir_of <- function(p) if (endsWith(p, "/")) p else paste0(p, "/")
-  identical(a, b) || startsWith(a, dir_of(b)) || startsWith(b, dir_of(a))
-}
-
-# OUT in canonical form (cfd_canon_path). Stops when OUT has a `..` component,
-# or when it equals, lies inside or contains one of the read-only directories
-# `ro` (a character vector named by what each is, canonicalized the same way).
-cfd_check_out <- function(out, ro) {
-  if (".." %in% strsplit(path.expand(out), "/", fixed = TRUE)[[1]])
-    stop("OUT=", cfd_rel(out), " has a `..` component; give the directory without one",
-         call. = FALSE)
-  o <- cfd_canon_path(out)
-  for (k in seq_along(ro))
-    if (cfd_path_overlap(o, cfd_canon_path(ro[[k]])))
-      stop("OUT=", cfd_rel(o), " overlaps a read-only input (", names(ro)[k], ", ",
-           cfd_rel(ro[[k]]), ")", call. = FALSE)
-  o
-}
-
-# Paths named by what they are, for cfd_check_out.
-cfd_named <- function(what, p) stats::setNames(as.character(p), rep(what, length(p)))
+# The path helpers live in the study's driver (calval_multichm_depth.R), whose
+# own OUT they guard too; this driver, the post hoc driver and their tests use
+# them under these names.
+cfd_rel         <- cd_rel            # a path for messages, relative to the repository
+cfd_path_parts  <- cd_path_parts     # absolute components of a path
+cfd_canon_path  <- cd_canon_path     # canonical absolute form, existing or not
+cfd_path_overlap <- cd_path_overlap  # equal, or one inside the other
+cfd_check_out   <- cd_check_out      # OUT kept out of the read-only inputs
+cfd_named       <- cd_named          # paths named by what they are
 
 ## ---- arguments ----------------------------------------------------------------------------
+# The keys cfd_settings reads (any other stops the run).
+CFD_KEYS <- c("STAGE", "DATASETS", "CORES", "N_BOOT", "WORK", "STUDY", "CAMPAIGN", "OUT")
+
 # KEY=VALUE positional arguments -> the run's settings. `work` is the work
-# directory the dataset roots and the default paths hang from. OUT is kept in
-# canonical absolute form (cfd_check_out).
+# directory the default WORK is; WORK (given or not) is made canonical
+# (cfd_canon_path) before the dataset roots and the default paths are derived
+# from it, so WORK=../work works from a subdirectory. A key outside CFD_KEYS
+# stops. OUT is kept in canonical absolute form (cfd_check_out); the refusal
+# of a `..` component applies to an OUT the user gave.
 cfd_settings <- function(args = commandArgs(TRUE), work = file.path(.ROOT, "work")) {
   a <- strsplit(args, "=")
   A <- stats::setNames(lapply(a, `[`, 2), vapply(a, `[`, character(1), 1))
+  bad <- setdiff(names(A), CFD_KEYS)
+  if (length(bad))
+    stop("unknown argument ", paste(bad, collapse = ", "), "; the keys are ",
+         paste(CFD_KEYS, collapse = ", "), call. = FALSE)
   given <- function(k) !is.null(A[[k]]) && !is.na(A[[k]]) && nzchar(A[[k]])
   get <- function(k, default) if (given(k)) A[[k]] else default
   num <- function(k, default) suppressWarnings(as.numeric(get(k, default)))
-  S <- list(A = A, WORK = get("WORK", work), STAGE = get("STAGE", "all"),
+  S <- list(A = A, WORK = cfd_canon_path(get("WORK", work)), STAGE = get("STAGE", "all"),
             DATASETS = strsplit(get("DATASETS", paste(CFD_DATASETS$name, collapse = ",")),
                                 ",")[[1]],
             CORES = num("CORES", CFD_DEFAULT_CORES), N_BOOT = num("N_BOOT", MT_N_BOOT))
@@ -268,7 +223,8 @@ cfd_settings <- function(args = commandArgs(TRUE), work = file.path(.ROOT, "work
     cfd_named("the study", S$STUDY),
     cfd_named("the study's run of record", unique(file.path(c(S$WORK, work), CFD_STUDY_DIR))),
     cfd_named("the campaign", S$CAMPAIGN),
-    cfd_named("a frozen root", file.path(S$WORK, unique(CFD_DATASETS$root)))))
+    cfd_named("a frozen root", file.path(S$WORK, unique(CFD_DATASETS$root)))),
+    given = given("OUT"))
   S
 }
 
@@ -715,7 +671,9 @@ cfd_pool_cells <- function(parts) {
 
 ## ---- stage: contrasts ---------------------------------------------------------------------
 # One dataset's scored cells, refused unless its record says S1 passed with
-# the current declared configurations and the dataset's cells.csv is unchanged.
+# the current declared configurations, it was scored with the current
+# constants and grids (the depth grid and the gated grid) and the dataset's
+# cells.csv and frozen root are unchanged.
 cfd_read_scored <- function(S, ds, D) {
   f <- file.path(ds$out, "cells.config.json")
   if (!file.exists(f))
@@ -730,6 +688,11 @@ cfd_read_scored <- function(S, ds, D) {
       !identical(na_null(as.integer(dc$S_low_id)), D$S_low_id))
     stop(ds$name, ": the scored cells were made with other declared configurations or without ",
          "a passed S1; re-run STAGE=score", call. = FALSE)
+  if (!identical(r$constants_sha256, cd_constants_digest()) ||
+      !identical(r$depth_grid_sha256, cd_grid_digest()) ||
+      !identical(r$gated_grid_sha256, cv_grid_digest()))
+    stop(ds$name, ": the cells were scored with other constants or grids; re-run STAGE=score",
+         call. = FALSE)
   if (!identical(r$dataset_cells_csv_sha256, cd_file_sha(file.path(ds$dir, "cells.csv"))) ||
       !identical(r$clip_manifest_sha256, frozen_root_id(ds$root)))
     stop(ds$name, ": the dataset's cells.csv or root changed since scoring; re-run STAGE=score",
@@ -874,8 +837,8 @@ cfd_tables_md <- function(S, D, con, chk, t1, a8rows, a8, ds_tab, valid) {
                           "validation plots of the study's headline split (%s, %d plots)."),
                     D$S, D$S_id, if (is.null(D$S_low)) ", no S_low" else
                       sprintf(", S_low = `%s` (config_id %d)", D$S_low, D$S_low_id),
-                    D$file, D$sha256, CD_DECLARED, S$N_BOOT, MT_SEED,
-                    file.path(S$STUDY, "split.csv"), length(valid))),
+                    cfd_rel(D$file), D$sha256, CD_DECLARED, S$N_BOOT, MT_SEED,
+                    cfd_rel(file.path(S$STUDY, "split.csv")), length(valid))),
     "## Reading rule", "",
     cd_para(CD_READING_TEXT),
     cd_para(CFD_A8_TEXT),

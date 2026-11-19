@@ -12,33 +12,51 @@ is not one of the paper's twelve arms and the master tables do not include it.
 declared configuration, at the margin. The arm is better than `multichm` at the
 QL2 level on the five sites, with a clear interval. On a Washington flight of
 another year and instrument it is better by an interval whose lower bound is
-+0.0002, which other bootstrap draws put on either side of zero. It is not
-worse in California on any dataset, and it is better at a 2 m match radius.
++0.0002, which 40 other seeds of the bootstrap put on either side of zero
+(−0.0013 to +0.0041). In California it is not worse on the QL2 level, on the
+native sparse flights and on the 3DEP clouds thinned to 2 points/m²; on the
+3DEP clouds at their own density the reading is inconclusive (+0.000 [−0.030,
++0.029]). It is better at a 2 m match radius.
 
 What the tests carry, part by part:
 
-- **Closed conifer stands.** The gain holds at every density level from 9.8 to
-  0.6 pulses/m², the QL2 level included, at 4 m and at 2 m, and under every
-  matcher tried.
-- **Open stands.** In California the arm is not worse and not better on every
-  dataset, and it lowers recall there.
+- **Closed conifer stands, new data.** At the QL2 level, which the
+  calibration had not run, the arm gains +0.035 [+0.019, +0.052] in corrected
+  F1 on the Washington plots, and +0.044 [+0.025, +0.061] when the same
+  detections are scored at 2 m. On the 2019 Washington flight it gains +0.023
+  [+0.000, +0.045].
+- **Closed conifer stands, checks on the calibration data.** On the
+  calibration study's own cells the Washington gain holds at every density
+  level from 9.8 to 0.6 pulses/m², at 4 m and at 2 m, and under every matcher
+  tried at native density. These checks re-score the plots and clips the arm
+  was built on and are not confirmation.
+- **Open stands.** In California the arm is better on no dataset. It is not
+  worse on the QL2 level, the native sparse flights and the 3DEP clouds
+  thinned to 2 points/m², and inconclusive on the 3DEP clouds at their own
+  density. It lowers recall on all four.
 - **Another instrument.** About half of the calibration flight's gain carries
   over to the 2019 Washington flight (+0.023 against +0.040 on the same
   stems).
 - **The share gate.** It adds corrected F1 at the QL2 level and nothing on the
   2019 flight, where it costs recall. Floor and exemption without it passes
-  the same four conditions, with a stable interval on the 2019 flight.
+  conditions 1, 2 and 4, and condition 3 only when C4 and C5 are read as
+  qualifications: as the protocol words condition 3, it fails on C5 at 11.3
+  pulses/m² (−0.016 [−0.029, −0.003]). Its lower bound on the 2019 flight
+  stays above zero under 40 other seeds of the bootstrap.
 - **The crown-spacing switch.** It adds nothing in corrected F1 on any new
   dataset. It raises plain F1 by keeping recall.
 - **The floor.** Its gain carries over to the 2019 flight. Against complete
-  labels it removes labelled small trees and is worse than `multichm`.
+  labels it removes labelled small trees and is worse than `multichm` at three
+  of the six density levels.
 - **In the paper's density routing.** With its thresholds selected on
-  California alone, the arm is the best Washington candidate below the QL2
-  floor and level with ForestFormer3D in corrected F1 at every density, but
-  the routing's California rule cannot tell it from `multichm`.
-- **Not tested.** Closed stands on 3DEP instruments, for want of public tiles
-  over the Washington plots, and any stand outside the benchmark with a field
-  count.
+  California alone, the arm has the highest F1 among the Washington
+  candidates below the QL2 floor and is level with ForestFormer3D in corrected
+  F1 over all cells pooled (+0.003 [−0.008, +0.015]), but the routing's
+  California rule cannot tell it from `multichm`.
+- **Not tested.** Closed conifer stands of the Washington kind on 3DEP
+  instruments, for want of public tiles over the Washington plots (the 3DEP
+  clouds hold eleven closed California plots), and any stand outside the
+  benchmark with a field count.
 
 ## Configurations and reading
 
@@ -98,7 +116,7 @@ What each part adds, as the change in corrected F1 and in F1:
   move. No scope is worse.
 - The share gate's own change is +0.013 [+0.005, +0.021] in corrected F1 and
   +0.002 [−0.006, +0.010] in F1. It comes from WREF (+0.027 [+0.011, +0.047]);
-  at ABBY it is −0.002 [−0.011, +0.006].
+  at ABBY it is −0.002 [−0.010, +0.006].
 - The exemption's own change in corrected F1, +0.008, has a lower bound of
   +0.0003, which is about the Monte Carlo error of a bound from 1,000 draws.
 - The crown-spacing switch changes corrected F1 by +0.001 [−0.005, +0.007].
@@ -129,8 +147,8 @@ same detections.
   declared configuration loses 0.051 [0.033, 0.072] recall and 0.013 [0.001,
   0.027] F1, with no change in precision.
 - Canopy cover reads higher on the 2018 flights. Of the 35 SOAP and TEAK
-  plots 15 count as closed, against 8 of the same 39 plots on the 2021
-  clips; median cover is 0.11 higher at SOAP and 0.06 higher at TEAK. The
+  plots 15 count as closed, against 8 of the same 35 plots on the 2021
+  clips; median cover is 0.09 higher at SOAP and 0.08 higher at TEAK. The
   gate therefore applies in more stands on the older, sparser instrument.
 - On the 2021 clips of the same stems the declared configuration changes
   corrected F1 by +0.013 [+0.000, +0.027] at native density and by +0.000 and
@@ -190,9 +208,10 @@ The same stems on the 2021 clips, which are calibration data:
 
 - The declared configuration gains 0.023 in corrected F1 on the 2019 flight
   with an interval of [+0.0002, +0.0448]. The Monte Carlo error of such a
-  bound is about 0.001. In 40 further sets of 1,000 draws, which the protocol
-  did not ask for, the lower bound ran from −0.002 to +0.004 and was above
-  zero in 33. The reading "better" therefore rests on the draw.
+  bound is about 0.001. Redrawn with the bootstrap seeds 20261003 to 20261042
+  (the reported seed plus 1 to 40, 1,000 draws each), which the protocol did
+  not ask for, the lower bound ran from −0.0013 to +0.0041 and was above zero
+  in 34 of 40. The reading "better" therefore rests on the draw.
 - Neither site alone separates from zero in corrected F1. At WREF the arm
   places 874 detections against 1,275: precision rises by 0.081 and recall
   falls by 0.090. At ABBY it places 884 against 747 and recall rises by
@@ -203,22 +222,28 @@ The same stems on the 2021 clips, which are calibration data:
   +0.017] in corrected F1 and −0.011 [−0.025, +0.004] in F1, with recall
   0.073 lower, against +0.016 [+0.005, +0.030] on the 2021 clips.
 - Floor and exemption gains 0.021 [0.005, 0.036] in corrected F1 and 0.040
-  [0.020, 0.059] in F1. Its lower bound stayed above zero in all 40 further
-  sets of draws (+0.003 to +0.006).
+  [0.020, 0.059] in F1. Under the same 40 seeds its lower bound stayed above
+  zero (+0.0027 to +0.0057).
 - The floor's own gain carries over: +0.016 [+0.009, +0.023].
 
-**Stand measures on the other flight.** Canopy cover and crown spacing were
-computed on both flights' clips of the 56 plots:
+**Stand measures on the other flight.** Canopy cover, crown spacing and the
+first-return share of deeper-layer peaks were computed on both flights' clips
+of the 56 plots. The share is the median over plots of each clip's median
+share among its deeper-layer peaks, from the peaks the scoring stored for
+each clip:
 
-| Site | Plots | Median cover, 2019 / 2021 | Median crown spacing, 2019 / 2021 (m) | Closed, 2019 / 2021 | Closed and widely spaced, 2019 / 2021 | Plots whose state differs |
-| --- | --- | --- | --- | --- | --- | --- |
-| WREF | 37 | 0.915 / 0.906 | 8.45 / 8.38 | 37 / 37 | 24 / 22 | Two become gated (crown spacing 8.00 and 8.11 m against 7.83 and 7.98 m) |
-| ABBY | 19 | 0.689 / 0.824 | 6.34 / 6.26 | 13 / 17 | 5 / 5 | Four are no longer closed (cover 0.50 to 0.59 against 0.63 to 0.74) |
+| Site | Plots | Median cover, 2019 / 2021 | Median crown spacing, 2019 / 2021 (m) | Median first-return share of deeper-layer peaks, 2019 / 2021 | Closed, 2019 / 2021 | Closed and widely spaced, 2019 / 2021 | Plots whose state differs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| WREF | 37 | 0.915 / 0.906 | 8.45 / 8.38 | 0.273 / 0.400 | 37 / 37 | 24 / 22 | Two become gated (crown spacing 8.00 and 8.11 m against 7.83 and 7.98 m) |
+| ABBY | 19 | 0.689 / 0.824 | 6.34 / 6.26 | 0.421 / 0.500 | 13 / 17 | 5 / 5 | Four are no longer closed (cover 0.50 to 0.59 against 0.63 to 0.74) |
 
 Crown spacing transfers closely. Cover does not at ABBY, where the RIEGL
-flight reads it 0.14 lower at the median, and it read higher on the older
+flight reads it 0.13 lower at the median, and it read higher on the older
 California flights of C2. The 0.6 threshold therefore selects different
-stands on different instruments.
+stands on different instruments. The first-return share of deeper-layer peaks
+is lower on the 2019 flight at both sites, which records more returns per
+pulse. Where the share gate applies, it keeps a deeper-layer peak only when
+that share is at least 0.75.
 
 ## C4. 3DEP clouds
 
@@ -247,7 +272,31 @@ reference is the 2021 stem population.
   by 0.082 [0.049, 0.111] and F1 by 0.019 [−0.010, +0.048]. Against floor and
   exemption the share gate loses 0.017 [0.002, 0.033] F1.
 - No scope is worse, so C4 does not limit the statement by the protocol's
-  rule. It leaves closed stands on 3DEP instruments untested.
+  rule. Eleven closed California plots were scored on the 3DEP clouds, but
+  closed conifer stands of the Washington kind on 3DEP instruments remain
+  untested.
+
+**Stand measures on the 3DEP clouds.** Beside the 2021 values of the same
+plots: the 2021 native clip for the clouds at their own density, and the 2021
+clip thinned to 2 points/m² for the thinned clouds. The first-return share of
+deeper-layer peaks is the median over plots of each clip's median, as in C3:
+
+| Cloud | Scope | Plots | Median cover, 3DEP / 2021 | Median crown spacing, 3DEP / 2021 (m) | Median first-return share of deeper-layer peaks, 3DEP / 2021 | Closed, 3DEP / 2021 | Closed and widely spaced, 3DEP / 2021 | Plots whose closed state differs | Plots whose gated state differs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Own density | SJER | 6 | 0.319 / 0.312 | 11.21 / 11.58 | 0.432 / 0.271 | 0 / 0 | 0 / 0 | 0 | 0 |
+| Own density | SOAP | 18 | 0.446 / 0.414 | 9.16 / 9.15 | 0.472 / 0.565 | 3 / 3 | 3 / 3 | 0 | 0 |
+| Own density | TEAK | 19 | 0.580 / 0.495 | 9.06 / 8.73 | 0.372 / 0.450 | 8 / 5 | 8 / 5 | 3 | 3 |
+| Own density | California | 43 | 0.491 / 0.468 | 9.23 / 9.23 | 0.444 / 0.475 | 11 / 8 | 11 / 8 | 3 | 3 |
+| Thinned to 2 points/m² | SJER | 6 | 0.204 / 0.181 | 11.33 / 11.69 | 0.225 / 0.250 | 0 / 0 | 0 / 0 | 0 | 0 |
+| Thinned to 2 points/m² | SOAP | 18 | 0.331 / 0.328 | 8.97 / 8.87 | 0.367 / 0.500 | 3 / 2 | 2 / 2 | 1 | 2 |
+| Thinned to 2 points/m² | TEAK | 19 | 0.428 / 0.395 | 8.75 / 8.64 | 0.400 / 0.400 | 2 / 1 | 2 / 1 | 1 | 1 |
+| Thinned to 2 points/m² | California | 43 | 0.354 / 0.357 | 8.90 / 8.82 | 0.333 / 0.500 | 5 / 3 | 4 / 3 | 2 | 3 |
+
+Crown spacing transfers closely here too. At their own density the 3DEP
+clouds read cover higher at TEAK (0.580 against 0.495), where three plots
+become closed and gated. Thinned to 2 points/m² the share of deeper-layer
+peaks is lower than on the 2021 thinned clips (0.333 against 0.500 over the
+California plots), and three plots change gated state.
 
 ## C5. Complete labels
 
@@ -274,9 +323,9 @@ native density and at 11.3 pulses/m², in one or none below.
 - The floor alone is worse than `multichm` at 11.3, 1.5 and 0.7 pulses/m²
   (−0.028 [−0.038, −0.016] at 11.3). At 11.3 pulses/m² it removes 44
   detections, about 30 of them matched to a labelled tree: recall falls by
-  0.036 [0.027, 0.047] and precision does not move. On the NEON plots the
-  floor costs nothing in corrected recall, because the reference there holds
-  no stem under 10 cm DBH.
+  0.036 [0.027, 0.047] and precision does not move. On the NEON plots, whose
+  reference holds no stem under 10 cm DBH, the floor lowers corrected recall
+  by 0.012 [0.006, 0.020] on the five sites at the QL2 level.
 - From 5.4 pulses/m² down the exemption adds recall, +0.030 to +0.070, with
   precision 0.004 to 0.075 lower.
 - The share gate changes F1 by −0.005 to +0.000.
@@ -314,7 +363,8 @@ clips are those the arm was built on.
   so the three variants with a switch tie with the selection on all 43 plots.
 - The reverse fails. Washington holds two open plots, so its selection has no
   cover threshold, applies the rules in every stand, and is worse than stock
-  in California. The protection of open stands rests on the cover threshold,
+  in California at four of the five levels and inconclusive at 4.7
+  pulses/m². The protection of open stands rests on the cover threshold,
   which only the California plots identify.
 
 ### R2. Match radius of 2 m
@@ -462,18 +512,20 @@ By density level on the five sites, the candidate minus ForestFormer3D:
   `multichm` in band C, each on a difference of 0.000 to 0.005. The GPU route
   does not change.
 - **In Washington it is ahead of `multichm` in every band** (+0.035 to +0.042
-  F1) and is the best candidate below the QL2 floor. Run at every density it
-  is ahead of the paper's GPU route there by 0.018 [0.003, 0.033] F1 and
-  0.017 [0.006, 0.029] corrected F1.
-- **Against ForestFormer3D at every density** it is ahead by 0.013 [0.002,
-  0.025] F1 on the five sites and level in corrected F1 (+0.003 [−0.008,
-  +0.015]). By level it is level at native density and ahead in F1 from the
-  QL2 level down; in corrected F1 it is level at every level but the
-  sparsest.
+  F1) and has the highest F1 among the candidates below the QL2 floor. In
+  corrected F1 TreeisoNet is higher there (0.175 against 0.171). Run at every
+  density it is ahead of the paper's GPU route in Washington by 0.018 [0.003,
+  0.033] F1 and 0.017 [0.006, 0.029] corrected F1.
+- **Against ForestFormer3D over all cells pooled** it is ahead by 0.013
+  [0.002, 0.025] F1 on the five sites and level in corrected F1 (+0.003
+  [−0.008, +0.015]). By level it is level at native density and ahead in F1
+  from the QL2 level down; in corrected F1 it is level at every level but the
+  sparsest, where it is ahead.
 - **The declared configuration** gives the same picture and is not held out.
   The CPU route takes it in band B only, `multichm` leading it by 0.001 on
-  the California cells of band A. In Washington it is the best candidate in
-  bands B and C for both routes, and the GPU route trails it by 0.026 [0.011,
+  the California cells of band A. In Washington it has the highest F1 in
+  bands B and C for both routes; in corrected F1 SegmentAnyTree is higher in
+  band B and TreeisoNet in band C. The GPU route trails it by 0.026 [0.011,
   0.041] F1 over all cells.
 - These rows set a detector calibrated on the benchmark's plots beside
   detectors run with published checkpoints and no calibration here. For the
@@ -499,9 +551,10 @@ which thins the calibration flight on the calibration plots; on the other
 flight it adds nothing.
 
 The protocol reads C4 and C5 as qualifications. C4 found nothing worse and
-tested no closed Washington stand. On C5 the declared configuration is not
-worse and is 0.016 below `multichm` at the two dense levels; floor and
-exemption is worse at one.
+tested no closed stand of the Washington kind. On C5 the declared
+configuration is inconclusive at the two dense levels, 0.016 below `multichm`
+with intervals that reach below −0.02, and not worse below them; floor and
+exemption is worse at 11.3 pulses/m².
 
 Two places where the protocol's text allows two readings were handled by
 reporting both: an interval wholly between −0.02 and zero is both worse and
@@ -520,13 +573,13 @@ of decide.
 - **A sparse instrument in closed canopy.** The 2019 Washington flight is as
   dense as 2021. The older, sparser California flights hold 15 closed plots.
   No natively sparse flight over a closed Washington stand was scored.
-- **Cover across instruments.** Cover reads 0.14 lower on the RIEGL flight at
+- **Cover across instruments.** Cover reads 0.13 lower on the RIEGL flight at
   ABBY and higher on the older California flights. The arm's switch from open
   to closed rules is a threshold on that reading.
 - **Stand-level stability.** Pooled scores are stable under grid shifts; a
   single stand near the 8 m threshold is not.
 - **Small trees.** The NEON reference holds stems of at least 10 cm DBH. The
-  floor's cost shows only against the complete labels of C5.
+  floor's cost in F1 shows only against the complete labels of C5.
 - **Stands outside the benchmark.** The four Douglas-fir plots that motivated
   the crown-spacing switch have no field count. In the benchmark's stands of
   their height, 30 to 45 m, some of the peaks the gate removes are trees.
@@ -548,9 +601,13 @@ numbers were not recomputed here.
 
 Under `work/multichm_gated_confirmation/`:
 
-- `analysis/` holds `manifest.json` (the datasets and scopes read),
-  `contrasts.csv` (every contrast of every dataset), `decision.csv`, the R1
-  and R4 files and `tables.md`.
+- `analysis/` holds `contrasts.csv` (every contrast of every dataset),
+  `datasets.csv`, `decision.csv`, the R1 and R4 files, `tables.md`, the stand
+  measures of C3 and C4 (`c3_deeper_share.csv`, `c3_deeper_share_plots.csv`,
+  `c4_transfer.csv`) and the C3 contrasts under 40 other bootstrap seeds
+  (`c3_seed_bounds.csv`). The analysis reads its datasets, scopes and
+  expected scoring from the committed manifest
+  [`docs/multichm-gated-confirmation-manifest.json`](../docs/multichm-gated-confirmation-manifest.json).
 - `ql2/`, `tol2/`, `sparse_ca/`, `epoch_wa/` and `3dep/` hold each dataset's
   `cells.csv` in the calibration study's layout, with the record of its
   checks; `fgiemit/` the complete-label cells; `variants/` and
@@ -640,8 +697,11 @@ CLAUDE_JOB_DIR=$C Rscript scripts/confirm_gated_removed_peaks.R $A \
   DECLARATION=docs/census-support-declaration-nearest.json \
   SUPPORT=$W/paper_runs/reference_support_census_event
 
-# Contrasts, the decision, R1 and R4
-CLAUDE_JOB_DIR=$W Rscript scripts/confirm_multichm_gated.R CORES=8
+# Contrasts, the decision, R1, R4, the stand measures of C3 and C4 and the
+# C3 seed bounds
+CLAUDE_JOB_DIR=$W Rscript scripts/confirm_multichm_gated.R CORES=8 \
+  MANIFEST=docs/multichm-gated-confirmation-manifest.json \
+  STAGES=contrasts,r1,r4,c3_share,c4_transfer,c3_seeds
 
 # R6: needs the routing library of the paper's density-routing study
 L=/path/to/scripts/density_routing_lib.R
@@ -651,8 +711,14 @@ Rscript scripts/confirm_gated_routing.R ROUTING_LIB=$L CONFIG=z5_s0.75_c0.6_e1_d
   NAME=declared HELD_OUT=no OUT=$C/routing/declared
 ```
 
-The last command reads `analysis/manifest.json`, which names each dataset's
-cells file, test, levels and scopes. The NEON download of C3 needs
+The analysis command `confirm_multichm_gated.R` reads the committed manifest,
+which names each dataset's cells file (relative to `CLAUDE_JOB_DIR`), test,
+levels and scopes, the parts of the pooled C2 file, and the match radius,
+null and population each dataset was scored with. Before any contrast it
+checks these against the record the scorer wrote beside each cells file and
+the pooled file against its parts, and stops on a mismatch or a missing
+record. The FGI-EMIT scorer records its matcher only as text, and the
+manifest says so instead of naming a record. The NEON download of C3 needs
 `NEON_TOKEN`; the tile sets of C4 are public. The grid of 447 configurations
 is scored on every NEON dataset so that selections can be repeated, although
 only the five frozen configurations are read here.

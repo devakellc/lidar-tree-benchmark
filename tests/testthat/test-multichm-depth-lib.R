@@ -4,8 +4,10 @@
 # the keep rule with its floors, depth rule and lit union, the distance filter's
 # three paths, the reported height, the two identities with the gated arm, the
 # arm's configuration (MCD_ARM) and the one-call detector (mcd_prepare,
-# detect_multichm_depth) against the long path. Synthetic data only
-# (synth_closed_stand() comes from helper-synth.R).
+# detect_multichm_depth) against the long path, with its signature (the
+# window slope third, frdens by name) and the lit union's stop on a clip
+# without ReturnNumber. Synthetic data only (synth_closed_stand() comes from
+# helper-synth.R).
 suppressMessages({ library(lidR); library(data.table); library(sf) })
 source(file.path("..", "..", "scripts", "sweep_lib.R"), local = TRUE)
 source(file.path("..", "..", "scripts", "model_bench_lib.R"), local = TRUE)
@@ -499,7 +501,7 @@ lit_cfg <- function() mcd_grid_config(mcd_grid(), 15)
 test_that("mcd_prepare() holds mcg_prepare's candidates and cover, and their features", {
   las <- synth_closed_stand(1)
   P <- mcg_prepare(las, 0.5)
-  Q <- mcd_prepare(las, 0.5, 5)
+  Q <- mcd_prepare(las, 0.5, frdens = 5)
   expect_identical(names(Q), c("cand", "cover", "feat", "res", "a", "frdens",
                                "has_return_number"))
   expect_identical(Q$cand, P$cand)
@@ -509,11 +511,11 @@ test_that("mcd_prepare() holds mcg_prepare's candidates and cover, and their fea
                    list(res = 0.5, a = 0.10, frdens = 5, has_return_number = TRUE))
   # another resolution, window slope and density reach the candidates and features
   P2 <- mcg_prepare(las, 0.25, 0.05)
-  Q2 <- mcd_prepare(las, 0.25, 16, a = 0.05)
+  Q2 <- mcd_prepare(las, 0.25, 0.05, frdens = 16)
   expect_identical(Q2$cand, P2$cand)
   expect_identical(Q2$feat, mcd_features(P2$cand, las, 16))
   # without the share: no share column, the same candidates otherwise
-  N <- mcd_prepare(las, 0.5, 5, share = FALSE)
+  N <- mcd_prepare(las, 0.5, frdens = 5, share = FALSE)
   expect_false("share" %in% names(N$cand))
   expect_false("share" %in% names(N$feat))
   expect_identical(N$cand, P$cand[, -"share"])
@@ -526,10 +528,10 @@ test_that("mcd_prepare() holds mcg_prepare's candidates and cover, and their fea
   expect_error(mcd_apply(N, N$feat, lit_cfg()),
                "multichm_depth: lit_union needs the candidates' first-return share", fixed = TRUE)
   # arguments
-  expect_error(mcd_prepare(las, 0.5, 5, share = NA), "share must be TRUE or FALSE")
-  expect_error(mcd_prepare(las, 0.5, 0), "frdens must be one finite number above 0")
-  expect_error(detect_multichm_depth(las, 0.5, 5, cfg = NULL), "no configuration")
-  expect_error(detect_multichm_depth(las, 0.5, 5, report = "Z"), "report must be")
+  expect_error(mcd_prepare(las, 0.5, frdens = 5, share = NA), "share must be TRUE or FALSE")
+  expect_error(mcd_prepare(las, 0.5, frdens = 0), "frdens must be one finite number above 0")
+  expect_error(detect_multichm_depth(las, 0.5, frdens = 5, cfg = NULL), "no configuration")
+  expect_error(detect_multichm_depth(las, 0.5, frdens = 5, report = "Z"), "report must be")
 })
 
 test_that("detect_multichm_depth() equals mcg_prepare + mcd_features + mcd_apply", {
@@ -546,14 +548,14 @@ test_that("detect_multichm_depth() equals mcg_prepare + mcd_features + mcd_apply
   for (cfg in list(MCD_ARM, lit, MCD_STOCK)) for (rep in c("z", "zrep")) {
     long <- mcd_apply(P, f, cfg, report = rep)
     expect_gt(nrow(long), 0L)
-    expect_identical(detect_multichm_depth(las, 0.5, 5, cfg = cfg, report = rep), long)
+    expect_identical(detect_multichm_depth(las, 0.5, cfg = cfg, report = rep, frdens = 5), long)
   }
   expect_false(identical(mcd_apply(P, f, MCD_ARM, "zrep")$z, mcd_apply(P, f, MCD_ARM)$z))
   # the default configuration is the arm's, the default report Z
-  expect_identical(detect_multichm_depth(las, 0.5, 5), mcd_apply(P, f, MCD_ARM))
+  expect_identical(detect_multichm_depth(las, 0.5, frdens = 5), mcd_apply(P, f, MCD_ARM))
   # another resolution, window slope and density
   P2 <- mcg_prepare(las, 0.25, 0.05)
-  expect_identical(detect_multichm_depth(las, 0.25, 16, a = 0.05),
+  expect_identical(detect_multichm_depth(las, 0.25, 0.05, frdens = 16),
                    mcd_apply(P2, mcd_features(P2$cand, las, 16), MCD_ARM))
 })
 
@@ -564,15 +566,85 @@ test_that("a clip without candidates gives 0 rows", {
   empty <- pts_las(data.frame(X = numeric(), Y = numeric(), Z = numeric(),
                               ReturnNumber = integer()))
   for (las in list(flat, empty)) {
-    Q <- mcd_prepare(las, 0.5, 5)
+    Q <- mcd_prepare(las, 0.5, frdens = 5)
     expect_identical(nrow(Q$cand), 0L)
     expect_identical(nrow(Q$feat), 0L)
     for (cfg in list(MCD_ARM, lit_cfg(), MCD_STOCK)) for (rep in c("z", "zrep")) {
-      det <- detect_multichm_depth(las, 0.5, 5, cfg = cfg, report = rep)
+      det <- detect_multichm_depth(las, 0.5, cfg = cfg, report = rep, frdens = 5)
       expect_true(assert_detection_contract(det))
       expect_identical(det, data.frame(x = numeric(), y = numeric(), z = numeric()))
     }
   }
   # the empty clip has no cover: the 0 rows come before the cover is asked for
-  expect_identical(mcd_prepare(empty, 0.5, 5)$cover, NA_real_)
+  expect_identical(mcd_prepare(empty, 0.5, frdens = 5)$cover, NA_real_)
+})
+
+test_that("the window slope is third as in the gated detector; frdens must be given by name", {
+  las <- synth_closed_stand(1)
+  # the signatures: a third, frdens without a default
+  expect_identical(names(formals(mcd_prepare)), c("las", "res", "a", "frdens", "share"))
+  expect_identical(names(formals(detect_multichm_depth)),
+                   c("las", "res", "a", "cfg", "report", "frdens"))
+  expect_identical(names(formals(detect_multichm_depth))[1:3],
+                   names(formals(detect_multichm_gated))[1:3])
+  expect_identical(formals(detect_multichm_depth)$a, 0.10)
+  expect_identical(formals(mcd_prepare)$a, 0.10)
+  # a call written like the gated detector's stops at once: 0.10 is the slope,
+  # never the density
+  msg <- "frdens is missing; it is the clip's first returns per m^2 and must be given by name"
+  expect_error(detect_multichm_depth(las, 0.5, 0.10), msg, fixed = TRUE)
+  expect_error(detect_multichm_depth(las, 0.5), msg, fixed = TRUE)
+  expect_error(detect_multichm_depth(las, 0.5, 0.10, MCD_ARM, "z"), msg, fixed = TRUE)
+  expect_error(mcd_prepare(las, 0.5, 0.10), msg, fixed = TRUE)
+  expect_error(mcd_prepare(las, 0.5), msg, fixed = TRUE)
+  # before anything else is read: no LAS, no configuration needed to stop
+  expect_error(detect_multichm_depth(NULL, 0.5, cfg = NULL), msg, fixed = TRUE)
+  expect_error(mcd_prepare(NULL, 0.5, share = NA), msg, fixed = TRUE)
+  # the slope given third, the density by name
+  P <- mcg_prepare(las, 0.25, 0.05)
+  expect_identical(detect_multichm_depth(las, 0.25, 0.05, frdens = 16),
+                   mcd_apply(P, mcd_features(P$cand, las, 16), MCD_ARM))
+  expect_identical(mcd_prepare(las, 0.25, 0.05, frdens = 16)[c("a", "frdens")],
+                   list(a = 0.05, frdens = 16))
+})
+
+test_that("lit_union stops on a closed clip without ReturnNumber that has deeper candidates", {
+  st <- synth_closed_stand(1)
+  las <- pts_las(as.data.frame(st@data[, c("X", "Y", "Z")]))       # no ReturnNumber
+  Q <- mcd_prepare(las, 0.5, frdens = 5)
+  expect_false(Q$has_return_number)
+  expect_identical(Q$cover, NA_real_)                               # no cover without it
+  expect_true(any(Q$cand$layer > 1L))
+  expect_true(all(is.na(Q$cand$share)))                             # every share NA
+  g <- mcd_grid()
+  lit0 <- mcd_grid_config(g, which(g$label == "k4_r0_z5_f0_l1_c0"))   # every stand closed
+  expect_true(lit0$lit_union)
+  expect_identical(lit0$cover_min, 0)
+  msg <- paste("multichm_depth: this configuration (lit_union) needs the first-return share of",
+               "the deeper candidates in a closed stand, but the clip has no ReturnNumber")
+  expect_error(mcd_apply(Q, Q$feat, lit0), msg, fixed = TRUE)
+  expect_error(detect_multichm_depth(las, 0.5, cfg = lit0, frdens = 5), msg, fixed = TRUE)
+  expect_error(detect_multichm_depth(las, 0.5, cfg = lit0, report = "zrep", frdens = 5), msg,
+               fixed = TRUE)
+  # a prepared clip without the element behaves as before: the lit branch
+  # reads the NA shares as not lit
+  Q0 <- Q[setdiff(names(Q), "has_return_number")]
+  nolit <- replace(lit0, "lit_union", list(FALSE))
+  expect_identical(mcd_apply(Q0, Q0$feat, lit0), mcd_apply(Q0, Q0$feat, nolit))
+  # without the lit union, or with no closed stand, the clip is served as before
+  expect_identical(mcd_apply(Q, Q$feat, nolit), mcd_apply(Q0, Q0$feat, nolit))
+  expect_gt(nrow(mcd_apply(Q, Q$feat, nolit)), 0L)
+  open <- replace(lit0, "cover_min", list(Inf))
+  expect_identical(mcd_apply(Q, Q$feat, open),
+                   mcd_apply(Q, Q$feat, replace(open, "lit_union", list(FALSE))))
+  # a cover threshold in (0, 1]: the unknown cover stops first, as before
+  expect_error(mcd_apply(Q, Q$feat, mcd_grid_config(g, 1)), "needs the canopy cover")
+  # surface candidates only: nothing for the lit branch to read, no stop
+  C <- dcands(X = c(0, 10), Y = 0, Z = c(20, 15), layer = c(1, 1))
+  P1 <- c(dprep(C, NA), list(has_return_number = FALSE))
+  expect_identical(mcd_apply(P1, C, lit0), data.frame(x = c(0, 10), y = 0, z = c(20, 15)))
+  # with ReturnNumber the same configuration runs (the study's clips all have it)
+  R <- mcd_prepare(st, 0.5, frdens = 5)
+  expect_true(R$has_return_number)
+  expect_true(assert_detection_contract(mcd_apply(R, R$feat, lit0)))
 })

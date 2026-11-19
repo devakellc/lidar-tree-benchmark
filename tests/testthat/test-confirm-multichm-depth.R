@@ -74,11 +74,12 @@ test_that("sourcing runs nothing; arguments parse as KEY=VALUE with at most 8 wo
   expect_identical(S$STAGE, "all")
   expect_identical(S$DATASETS, CFD_DATASETS$name)
   expect_identical(c(S$CORES, S$N_BOOT), c(4L, MT_N_BOOT))
-  # OUT in canonical absolute form
-  expect_identical(S$OUT, file.path(normalizePath(dirname(w)), basename(w), "multichm_depth_runs",
-                                    "confirm"))
-  expect_identical(S$STUDY, file.path(w, "multichm_depth_runs", "neon", "multichm_depth"))
-  expect_identical(S$CAMPAIGN, file.path(w, "multichm_gated_confirmation"))
+  # WORK and OUT in canonical absolute form; the defaults hang from WORK
+  wc <- file.path(normalizePath(dirname(w)), basename(w))
+  expect_identical(S$WORK, wc)
+  expect_identical(S$OUT, file.path(wc, "multichm_depth_runs", "confirm"))
+  expect_identical(S$STUDY, file.path(wc, "multichm_depth_runs", "neon", "multichm_depth"))
+  expect_identical(S$CAMPAIGN, file.path(wc, "multichm_gated_confirmation"))
   S2 <- cfd_settings(c("CORES=8", "DATASETS=ql2,ca2017", "STAGE=contrasts", "N_BOOT=50"), work = w)
   expect_identical(S2[c("CORES", "DATASETS", "STAGE", "N_BOOT")],
                    list(CORES = 8L, DATASETS = c("ql2", "ca2017"), STAGE = "contrasts",
@@ -163,6 +164,66 @@ test_that("paths are compared in canonical form: relative, `..` and symbolic lin
   # messages print paths under the repository relative to it
   expect_identical(cfd_rel(file.path(.ROOT, "work", "x")), file.path("work", "x"))
   expect_identical(cfd_rel(c("/elsewhere/x", .ROOT)), c("/elsewhere/x", "."))
+  # the helpers are the study driver's, under both names
+  expect_identical(cfd_canon_path, cd_canon_path)
+  expect_identical(cfd_check_out, cd_check_out)
+  expect_identical(cfd_rel, cd_rel)
+})
+
+test_that("every key the driver reads is accepted; any other stops with the list of keys", {
+  w <- tempfile("cfd_work_")
+  wc <- file.path(normalizePath(dirname(w)), basename(w))
+  expect_identical(CFD_KEYS, c("STAGE", "DATASETS", "CORES", "N_BOOT", "WORK", "STUDY",
+                               "CAMPAIGN", "OUT"))
+  every <- c("STAGE=contrasts", "DATASETS=ql2", "CORES=2", "N_BOOT=10", paste0("WORK=", w),
+             "STUDY=/s", "CAMPAIGN=/c", paste0("OUT=", file.path(w, "o")))
+  expect_identical(sub("=.*", "", every), CFD_KEYS)
+  S <- cfd_settings(every, work = "/elsewhere")
+  expect_identical(S[c("WORK", "STAGE", "DATASETS", "CORES", "N_BOOT", "STUDY", "CAMPAIGN", "OUT")],
+                   list(WORK = wc, STAGE = "contrasts", DATASETS = "ql2", CORES = 2L, N_BOOT = 10L,
+                        STUDY = "/s", CAMPAIGN = "/c", OUT = file.path(wc, "o")))
+  # a mistyped key no longer falls back to the run of record
+  keys <- paste(CFD_KEYS, collapse = ", ")
+  expect_error(cfd_settings("OUTDIR=/tmp/x", work = w),
+               paste0("unknown argument OUTDIR; the keys are ", keys), fixed = TRUE)
+  for (k in c("OUTPUT=x", "CONFIRM=x", "UNBLIND=1", "GATED=x", "work=x", "DATASET=ql2"))
+    expect_error(cfd_settings(c("STAGE=contrasts", k), work = w),
+                 paste0("unknown argument ", sub("=.*", "", k), ";"), fixed = TRUE)
+  expect_error(cfd_settings(c("A=1", "B=2"), work = w), "unknown argument A, B;", fixed = TRUE)
+})
+
+test_that("WORK is canonical before defaults are derived; `..` is refused in a given OUT only", {
+  skip_on_os("windows")
+  root <- normalizePath(tempfile("cfd_rel_"), mustWork = FALSE)
+  W <- file.path(root, "work")
+  dir.create(file.path(W, CFD_STUDY_DIR), recursive = TRUE)
+  dir.create(file.path(root, "scripts"))
+  withr::local_dir(file.path(root, "scripts"))
+  # WORK=../work from a subdirectory: every default from its canonical form
+  for (S in list(cfd_settings("WORK=../work", work = "/elsewhere"),
+                 cfd_settings(character(), work = "../work"),
+                 cfd_settings("WORK=../scripts/../work", work = "/elsewhere"))) {
+    expect_identical(S$WORK, W)
+    expect_identical(S$OUT, file.path(W, CFD_CONFIRM_DIR))
+    expect_identical(S$STUDY, file.path(W, CFD_STUDY_DIR))
+    expect_identical(S$CAMPAIGN, file.path(W, "multichm_gated_confirmation"))
+    expect_identical(cfd_dataset(S, "ql2")$root, file.path(W, "neon", "frozen_2021_ql2"))
+  }
+  # the run of record under the canonical WORK stays read-only
+  expect_error(cfd_settings(c("WORK=../work", paste0("OUT=", file.path(W, CFD_STUDY_DIR, "x")))),
+               "overlaps a read-only input (the study", fixed = TRUE)
+  # an OUT the user gave with `..` is refused, a relative one without is not
+  expect_error(cfd_settings(c("WORK=../work", "OUT=../work/multichm_depth_runs/x")),
+               "has a `..` component", fixed = TRUE)
+  expect_identical(cfd_settings(c("WORK=../work", "OUT=fresh"))$OUT,
+                   file.path(root, "scripts", "fresh"))
+  # the guard itself: `..` is tested only in an OUT given by the user
+  expect_identical(cfd_check_out(file.path(W, "zz", "..", "x"), character(), given = FALSE),
+                   file.path(W, "x"))
+  expect_error(cfd_check_out(file.path(W, "zz", "..", "x"), character()), "has a `..` component")
+  expect_error(cfd_check_out(file.path(W, "zz", "..", CFD_STUDY_DIR),
+                             cfd_named("the study", file.path(W, CFD_STUDY_DIR)), given = FALSE),
+               "overlaps a read-only input (the study", fixed = TRUE)
 })
 
 test_that("the datasets name the campaign's runs, roots, sites and rungs; T4 pools two", {
@@ -228,6 +289,52 @@ test_that("S and S_low are read from the study's record and must be its grid row
   expect_error(cfd_read_declared(syn_declared(constants = "x")), "other constants")
   expect_error(cfd_read_declared(syn_declared(grid = "x")), "another grid")
   expect_error(cfd_read_declared(tempfile("cfd_none_")), "no declared depth configuration")
+})
+
+test_that("the contrasts stage refuses cells scored under other constants, grids or inputs", {
+  root <- normalizePath(tempfile("cfd_scored_"), mustWork = FALSE)
+  S <- cfd_settings(character(), work = file.path(root, "work"))
+  D <- cfd_read_declared(syn_declared())
+  ds <- cfd_dataset(S, "ql2")
+  for (d in c(ds$root, ds$dir, ds$out)) dir.create(d, recursive = TRUE)
+  writeLines(c("file,sha256", "a.laz,0"), file.path(ds$root, "clip_manifest.csv"))
+  camp <- file.path(ds$dir, "cells.csv")
+  writeLines("site,plot", camp)
+  cells <- syn_cells(c(SJER = 2, WREF = 1))
+  write.csv(cells, file.path(ds$out, "cells.csv"), row.names = FALSE)
+  rec <- list(dataset = "ql2", clip_manifest_sha256 = frozen_root_id(ds$root),
+              dataset_cells_csv_sha256 = cd_file_sha(camp), gated_grid_sha256 = cv_grid_digest(),
+              depth_grid_sha256 = cd_grid_digest(), constants_sha256 = cd_constants_digest(),
+              declared_depth_config = list(sha256 = D$sha256, S = D$S, S_id = D$S_id,
+                                           S_low = D$S_low, S_low_id = D$S_low_id),
+              S1 = list(status = "pass", n = 24L))
+  put <- function(r) cd_write_json(r, file.path(ds$out, "cells.config.json"))
+  refused <- function(r, pattern) {
+    put(r)
+    expect_error(cfd_read_scored(S, ds, D), pattern, fixed = TRUE)
+    put(rec)
+  }
+  put(rec)
+  x <- cfd_read_scored(S, ds, D)
+  expect_identical(nrow(x$cells), nrow(cells))
+  expect_identical(unique(x$cells$rung), "3.2")
+  # another digest, or none, of the constants, the depth grid or the gated grid
+  msg <- "ql2: the cells were scored with other constants or grids; re-run STAGE=score"
+  for (k in c("constants_sha256", "depth_grid_sha256", "gated_grid_sha256")) {
+    refused(utils::modifyList(rec, stats::setNames(list("x"), k)), msg)
+    refused(rec[setdiff(names(rec), k)], msg)
+  }
+  # the declared configurations and S1, the dataset's cells.csv and root
+  refused(utils::modifyList(rec, list(S1 = list(status = "fail"))), "without a passed S1")
+  refused(utils::modifyList(rec, list(declared_depth_config = list(S = S_LOW))),
+          "other declared configurations")
+  refused(utils::modifyList(rec, list(clip_manifest_sha256 = "x")), "cells.csv or root changed")
+  cat("x\n", file = camp, append = TRUE)
+  expect_error(cfd_read_scored(S, ds, D), "cells.csv or root changed", fixed = TRUE)
+  writeLines("site,plot", camp)
+  expect_identical(nrow(cfd_read_scored(S, ds, D)$cells), nrow(cells))
+  unlink(file.path(ds$out, "cells.config.json"))
+  expect_error(cfd_read_scored(S, ds, D), "ql2: no scored cells record at")
 })
 
 test_that("the validation half is the side `valid` of the study's split.csv", {

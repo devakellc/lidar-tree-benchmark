@@ -96,11 +96,14 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #     [OUT=$WORK/multichm_depth_runs/posthoc]
 # The analyze stage reads every confirmation dataset, so it needs every dataset
 # scored. CHECK P2 compares with runs made with N_BOOT = 1000 (MT_N_BOOT);
-# another N_BOOT changes the intervals and stops it. OUT has no `..` component
-# and does not equal, lie inside or contain STUDY, CONFIRM, CAMPAIGN, the
-# study's job directory and frozen root, the frozen roots of the datasets, or
-# the two runs of record under WORK whatever STUDY= and CONFIRM= say (compared
-# in canonical absolute form, cfd_check_out).
+# another N_BOOT changes the intervals and stops it. WORK is made canonical
+# before the defaults are derived from it. OUT, when given, has no `..`
+# component, and it does not equal, lie inside or contain STUDY, CONFIRM,
+# CAMPAIGN, the study's job directory and frozen root, the frozen roots of the
+# datasets, the two runs of record under WORK whatever STUDY= and CONFIRM= say,
+# or the directories the stems and plot centroids of the job directories are
+# reached through by symbolic links (compared in canonical absolute form,
+# cfd_check_out).
 suppressMessages({ library(lidR); library(lidRplugins); library(sf)
                    library(data.table); library(parallel) })
 options(lidR.progress = FALSE)
@@ -129,10 +132,12 @@ PH_PROVENANCE <- paste(
   "Post hoc and descriptive. The arm's configuration was chosen after the",
   "held-out results of the study and of its confirmation on other densities and",
   "flights had been read, and with a referee-only check on plots outside the",
-  "benchmark that have no field reference. None of the contrasts below was",
-  "declared in the protocol (docs/multichm-depth-protocol.md), which reads the",
-  "calibration's selection and its low-floor sibling only. The validation-half",
-  "rows are therefore not held-out evidence for the arm's configuration.")
+  "benchmark that have no field reference. Apart from the selection against the",
+  "declared gated arm, which repeats the protocol's own rows as a check, none of",
+  "the contrasts below was declared in the protocol",
+  "(docs/multichm-depth-protocol.md), which reads the calibration's selection and",
+  "its low-floor sibling only. The validation-half rows are therefore not",
+  "held-out evidence for the arm's configuration.")
 
 # The configurations by name, in table order; S_low only when the study has one.
 PH_NAMES <- c("stock", "floor_exempt", "declared", "depth", "space", "S", "alt", "arm", "S_low")
@@ -216,14 +221,45 @@ PH_GRID_COLS  <- c("status", "subset", "family", "config_id", "label", MCD_FIELD
                    "rank")
 
 ## ---- arguments ----------------------------------------------------------------------------
+# The reference files of a job directory, under <job>/neon/<site>/.
+PH_REF_FILES <- c("ground_truth_stems.csv", "plot_centroids.csv")
+
+# The directories the reference files of `jobs` are reached through: for each
+# job (list(job, sites)) and each of its sites, every one of PH_REF_FILES under
+# <job>/neon/<site> that exists, and the directory of every hop of its chain of
+# symbolic links, from the job's own directory to the final target's (a link
+# may point to another link: the study's stems link into one run's directory,
+# whose files link into the reference directory); each in canonical form
+# (cfd_canon_path: a link among a directory's components is followed), unique.
+# A file that does not exist (a link that points nowhere included) is skipped.
+ph_reference_dirs <- function(jobs) {
+  f <- unlist(lapply(jobs, function(j)
+    file.path(j$job, "neon", rep(j$sites, each = length(PH_REF_FILES)), PH_REF_FILES)))
+  f <- f[file.exists(f)]                 # follows the links; a loop does not exist either
+  hops <- function(x) {
+    out <- character()
+    for (i in seq_len(40L)) {            # the kernel's own limit on a chain of links
+      out <- c(out, cfd_canon_path(dirname(x)))
+      lk <- Sys.readlink(x)              # "" unless x is a link
+      if (is.na(lk) || !nzchar(lk)) return(out)
+      x <- if (startsWith(lk, "/")) lk else file.path(dirname(x), lk)
+    }
+    stop(x, ": too many symbolic links", call. = FALSE)
+  }
+  unique(as.character(unlist(lapply(f, hops), use.names = FALSE)))
+}
+
 # KEY=VALUE positional arguments -> the run's settings (read with A[["KEY"]],
-# never A$KEY). Unknown keys stop. The shared keys are validated by
-# cfd_settings (DATASETS, CORES at most 8, N_BOOT, and OUT kept out of the
-# study, the campaign and the frozen roots). OUT must also stay out of CONFIRM,
-# of the study's job directory and frozen root, and of the two runs of record
-# under WORK (and under `work`, the repository's work directory by default)
-# whatever STUDY= and CONFIRM= say; it has no `..` component and is kept in
-# canonical absolute form (cfd_check_out).
+# never A$KEY). Unknown keys stop. WORK (given, or `work`) is made canonical
+# (cfd_canon_path) before the default paths are derived from it, so WORK=../work
+# works from a subdirectory. The shared keys are validated by cfd_settings
+# (DATASETS, CORES at most 8, N_BOOT, and OUT kept out of the study, the
+# campaign and the frozen roots). OUT must also stay out of CONFIRM, of the
+# study's job directory and frozen root, of the two runs of record under WORK
+# (and under `work`, the repository's work directory by default) whatever
+# STUDY= and CONFIRM= say, and of the directories the stems and plot centroids
+# are reached through (ph_reference_dirs); it is kept in canonical absolute
+# form, and an OUT the user gave has no `..` component (cfd_check_out).
 ph_settings <- function(args = commandArgs(TRUE), work = file.path(.ROOT, "work")) {
   a <- strsplit(args, "=")
   A <- stats::setNames(lapply(a, `[`, 2), vapply(a, `[`, character(1), 1))
@@ -236,7 +272,7 @@ ph_settings <- function(args = commandArgs(TRUE), work = file.path(.ROOT, "work"
   get <- function(k, default) if (given(k)) A[[k]] else default
   stage <- get("STAGE", "all")
   if (!stage %in% PH_STAGES) stop("STAGE must be all, score or analyze", call. = FALSE)
-  w <- get("WORK", work)
+  w <- cfd_canon_path(get("WORK", work))
   out <- get("OUT", file.path(w, "multichm_depth_runs", "posthoc"))
   shared <- c("WORK", "DATASETS", "CORES", "N_BOOT", "STUDY", "CAMPAIGN")
   pass <- unlist(lapply(shared, function(k) if (given(k)) paste0(k, "=", A[[k]])))
@@ -245,6 +281,18 @@ ph_settings <- function(args = commandArgs(TRUE), work = file.path(.ROOT, "work"
   S$STAGE <- stage
   S$CONFIRM <- get("CONFIRM", file.path(S$WORK, CFD_CONFIRM_DIR))
   works <- unique(c(S$WORK, work))
+  # The stems and plot centroids are read through job directories whose files
+  # are symbolic links into other directories: the study's job directory (the
+  # five sites) and, for the score stage, each dataset's job directory (its
+  # sites). Followed: every hop of each of those files' chains of links, whose
+  # directories are protected (ph_reference_dirs), and the links among the
+  # components of every path below (cfd_canon_path). Not followed: any other
+  # link inside a protected directory (a candidates cache, a features directory
+  # or a frozen root's files that link elsewhere), a reference file that does
+  # not exist (nothing is read through it) and a link made or changed after the
+  # settings were read.
+  refs <- ph_reference_dirs(c(list(list(job = file.path(S$WORK, PH_STUDY_JOB), sites = CV_FIVE)),
+                              lapply(S$DATASETS, function(nm) cfd_dataset(S, nm))))
   S$OUT <- cfd_check_out(S$OUT, c(
     cfd_named("the confirmation run", S$CONFIRM),
     cfd_named("the confirmation run of record", file.path(works, CFD_CONFIRM_DIR)),
@@ -252,7 +300,8 @@ ph_settings <- function(args = commandArgs(TRUE), work = file.path(.ROOT, "work"
     cfd_named("the study's run of record", file.path(works, CFD_STUDY_DIR)),
     cfd_named("the campaign", S$CAMPAIGN),
     cfd_named("the study's job directory", file.path(S$WORK, PH_STUDY_JOB)),
-    cfd_named("the study's frozen root", file.path(S$WORK, PH_STUDY_ROOT))))
+    cfd_named("the study's frozen root", file.path(S$WORK, PH_STUDY_ROOT)),
+    cfd_named("the stems and plot centroids", refs)), given = given("OUT"))
   S
 }
 

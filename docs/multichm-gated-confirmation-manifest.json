@@ -1,0 +1,173 @@
+{
+  "datasets": [
+    {
+      "name": "calibration levels",
+      "test": "baseline",
+      "cells": "multichm_gated_runs/neon/multichm_gated/cells.csv",
+      "levels": ["native", "8", "4", "2", "1"],
+      "null": true,
+      "scopes": {
+        "Five sites": ["SJER", "SOAP", "TEAK", "WREF", "ABBY"],
+        "California": ["SJER", "SOAP", "TEAK"],
+        "Washington": ["WREF", "ABBY"],
+        "SJER": ["SJER"],
+        "SOAP": ["SOAP"],
+        "TEAK": ["TEAK"],
+        "WREF": ["WREF"],
+        "ABBY": ["ABBY"]
+      },
+      "subsets": [
+        {"name": "all plots"},
+        {
+          "name": "validation plots (seed 1)",
+          "split": {
+            "seed": 1,
+            "frac": 0.5,
+            "side": "valid",
+            "cells": "multichm_gated_runs/neon/multichm_gated/cells.csv"
+          }
+        }
+      ],
+      "scoring": {"record": "cells.config.json", "tol": 4, "K": 200, "population": "adopted"},
+      "note": "The calibration study's cells: not confirmation data."
+    },
+    {
+      "name": "QL2 level",
+      "test": "C1",
+      "cells": "multichm_gated_confirmation/ql2/cells.csv",
+      "levels": ["3.2"],
+      "null": true,
+      "scopes": {
+        "Five sites": ["SJER", "SOAP", "TEAK", "WREF", "ABBY"],
+        "California": ["SJER", "SOAP", "TEAK"],
+        "Washington": ["WREF", "ABBY"],
+        "SJER": ["SJER"],
+        "SOAP": ["SOAP"],
+        "TEAK": ["TEAK"],
+        "WREF": ["WREF"],
+        "ABBY": ["ABBY"]
+      },
+      "scoring": {"record": "cells.config.json", "tol": 4, "K": 200, "population": "adopted"},
+      "note": "Frozen QL2 clips of the 106 plots, 4 m radius."
+    },
+    {
+      "name": "California native sparse flights",
+      "test": "C2",
+      "cells": "multichm_gated_confirmation/sparse_ca/pooled/cells.csv",
+      "levels": ["native"],
+      "null": true,
+      "scopes": {
+        "California": ["SJER", "SOAP", "TEAK"]
+      },
+      "scoring": {"record": "cells.config.json", "tol": 4, "K": 200, "population": "adopted"},
+      "parts": [
+        "multichm_gated_confirmation/sparse_ca/sparse_2018/cells.csv",
+        "multichm_gated_confirmation/sparse_ca/sparse_2017/cells.csv"
+      ],
+      "note": "2017 (SJER) and 2018 (SOAP, TEAK) NEON flights, stems live in both epochs."
+    },
+    {
+      "name": "Washington 2019 flight",
+      "test": "C3",
+      "cells": "multichm_gated_confirmation/epoch_wa/epoch_2019/cells.csv",
+      "levels": ["native"],
+      "null": true,
+      "scopes": {
+        "Washington": ["WREF", "ABBY"],
+        "WREF": ["WREF"],
+        "ABBY": ["ABBY"]
+      },
+      "scoring": {"record": "cells.config.json", "tol": 4, "K": 200, "population": "adopted"},
+      "note": "RIEGL Q780, July 2019, stems live in both epochs."
+    },
+    {
+      "name": "FGI-EMIT development plots",
+      "test": "C5",
+      "cells": "multichm_gated_confirmation/fgiemit/cells.csv",
+      "null": false,
+      "scopes": {
+        "FGI-EMIT": ["FGIEMIT"]
+      },
+      "scoring": {
+        "record": "none",
+        "tol": 4,
+        "population": "FGI-EMIT manual tree labels",
+        "why": "confirm_gated_fgiemit.R writes its cells.config.json with the matcher as text (audit_apex_match within 4 m horizontally and 5 m vertically against the complete manual labels) and no tol, K or population field"
+      },
+      "note": "Complete labels, no shift null."
+    },
+    {
+      "name": "2 m radius, calibration levels",
+      "test": "R2",
+      "cells": "multichm_gated_confirmation/tol2/cells.csv",
+      "levels": ["native", "8", "4", "2", "1"],
+      "null": true,
+      "scopes": {
+        "Five sites": ["SJER", "SOAP", "TEAK", "WREF", "ABBY"],
+        "California": ["SJER", "SOAP", "TEAK"],
+        "Washington": ["WREF", "ABBY"]
+      },
+      "scoring": {"record": "cells.config.json", "tol": 2, "K": 200, "population": "adopted"}
+    },
+    {
+      "name": "2 m radius, QL2 level",
+      "test": "R2",
+      "cells": "multichm_gated_confirmation/ql2/tol2/cells.csv",
+      "levels": ["3.2"],
+      "null": true,
+      "scopes": {
+        "Five sites": ["SJER", "SOAP", "TEAK", "WREF", "ABBY"],
+        "California": ["SJER", "SOAP", "TEAK"],
+        "Washington": ["WREF", "ABBY"]
+      },
+      "scoring": {"record": "cells.config.json", "tol": 2, "K": 200, "population": "adopted"}
+    },
+    {
+      "name": "Washington shared stems on the 2021 clips",
+      "test": "baseline",
+      "cells": "multichm_gated_confirmation/epoch_wa/shared_2021/cells.csv",
+      "levels": ["native"],
+      "null": true,
+      "scopes": {
+        "Washington": ["WREF", "ABBY"],
+        "WREF": ["WREF"],
+        "ABBY": ["ABBY"]
+      },
+      "scoring": {"record": "cells.config.json", "tol": 4, "K": 200, "population": "adopted"},
+      "note": "The C3 stems on the calibration flight: not confirmation data."
+    },
+    {
+      "name": "California shared stems on the 2021 clips",
+      "test": "baseline",
+      "cells": "multichm_gated_confirmation/sparse_ca/shared_2021/cells.csv",
+      "levels": ["native", "8", "4"],
+      "null": true,
+      "scopes": {
+        "California": ["SJER", "SOAP", "TEAK"]
+      },
+      "scoring": {"record": "cells.config.json", "tol": 4, "K": 200, "population": "adopted"},
+      "note": "The C2 stems on the calibration flight: not confirmation data."
+    },
+    {
+      "name": "3DEP clouds, own density",
+      "test": "C4",
+      "cells": "multichm_gated_confirmation/3dep/cells_native.csv",
+      "null": true,
+      "scopes": {
+        "California": ["SJER", "SOAP", "TEAK"]
+      },
+      "scoring": {"record": "cells.config.json", "tol": 4, "K": 200, "population": "adopted"},
+      "note": "USGS 3DEP over the 43 California plots; no public tile set covers the Washington plots."
+    },
+    {
+      "name": "3DEP clouds, thinned to 2 points/m2",
+      "test": "C4",
+      "cells": "multichm_gated_confirmation/3dep/cells_dec2.csv",
+      "null": true,
+      "scopes": {
+        "California": ["SJER", "SOAP", "TEAK"]
+      },
+      "scoring": {"record": "cells.config.json", "tol": 4, "K": 200, "population": "adopted"}
+    }
+  ]
+}

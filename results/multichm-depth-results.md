@@ -5,11 +5,14 @@ plots, 2,525 stems). `multichm_depth` is a post hoc arm that follows
 [`multichm_gated`](multichm-gated-results.md). It is not one of the paper's
 twelve arms, the master tables do not include it, and the declared `multichm`
 and `multichm_gated` arms are unchanged. The study follows a
-[protocol](../docs/multichm-depth-protocol.md) fixed before its runs.
+[protocol](../docs/multichm-depth-protocol.md): a specification fixed before
+any run, and an addendum fixed after the calibration results had been read and
+before the validation plots were scored.
 
-`multichm_gated` keeps a deeper-layer peak of `multichm` when enough of the
-returns around its top are first returns, and only in closed stands whose
-crowns are at least 8 m apart. Its
+In closed stands whose crowns are at least 8 m apart, `multichm_gated` keeps a
+deeper-layer peak of `multichm` only when enough of the returns around its top
+are first returns. Elsewhere it keeps every deeper-layer peak of at least 5 m
+that passes the package's distance filter. Its
 [confirmation tests](multichm-gated-confirmation-results.md) left three
 weaknesses. The 8 m switch is a step on a noisy per-clip number. The
 first-return share depends on the flight. And the exemption admits surface
@@ -27,50 +30,58 @@ standing.
   protocol's rule the selection is better than the declared gated arm. Against
   stock `multichm` it gains +0.068 [+0.044, +0.092]. The gain holds in
   California and in Washington, in closed and in open stands, and at the QL2
-  level. On a 2019 flight of the Washington sites and on the sparse California
-  flights the selection is not worse.
+  level, where the clips are thinned to about 2 pulses/m². On a 2019 flight of
+  the Washington sites and on the 2017 and 2018 flights of the California
+  sites the selection is not worse. The held-out plots are the gated study's
+  own, and its results on them had been read before this family was designed,
+  so the test is of the selection within the grid.
 - **The arm's configuration, chosen afterwards.** The arm does not run that
   selection. It keeps the selection's depth rule, leaves out its spacing rule
   and sets both height floors to 3 m (`k4_r0_z3_f3_l0_c0.6`). The choice was
   made after every result below had been read, so its scores are descriptive.
-  Against the declared gated arm it is better or not worse on all eight
-  datasets tried, and better over all plots at the QL2 level (+0.013 [+0.004,
-  +0.022]) and at 2.5 and 0.6 pulses/m². At native density it is level with
-  that arm (+0.006 [−0.004, +0.017] over all plots) and 0.021 below the
-  selection. What it offers over the gated arm is not a higher score on these
-  plots: it drops the crown-spacing switch and the first-return share with no
-  loss measured on any dataset.
+  Against the declared gated arm its corrected F1 reads better or not worse
+  on all eight datasets tried, and better over all plots at the QL2 level
+  (+0.013 [+0.004, +0.022]) and at 2.5 and 0.6 pulses/m². At native density it
+  is level with that arm (+0.006 [−0.004, +0.017] over all plots) and 0.021
+  below the selection. What it offers over the gated arm is not a higher score
+  on these plots: it drops the crown-spacing switch and the first-return
+  share. It pays with fewer stems of 20 m and more, and in the open stands of
+  the validation plots its 3 m floors read worse (−0.010 [−0.024, −0.001]).
 
 What the study carries, part by part:
 
-- **The depth rule.** It replaces the share gate and the crown-spacing switch
-  and needs neither return numbers nor a per-clip crown count.
-  On the held-out plots it adds +0.011 [−0.006, +0.028] over what it
-  replaces. Over all plots it is better at 2.5 and 0.6 pulses/m² and level
-  elsewhere, except on the sparse California flights, where its interval is
-  too wide to read (−0.010 [−0.025, +0.002]). It finds fewer of the stems of
-  20 m and more than the gated arm does.
+- **The depth rule.** It replaces the share gate and the crown-spacing
+  switch. The depth reads heights only. The arm still needs return numbers to
+  tell a closed stand and to size the column.
+  In a post hoc walk it adds +0.011 [−0.006, +0.028] on the held-out plots
+  over what it replaces. Over all plots its interval lies above zero at 0.6
+  pulses/m², and narrowly at 2.5 pulses/m² and the QL2 level, where the lower
+  bounds are within 0.001 of zero. It is level elsewhere, except on the
+  earlier California flights, where its interval is too wide to read (−0.010
+  [−0.025, +0.002]). It finds fewer of the stems of 20 m and more than the
+  gated arm does.
 - **The floor on surface peaks.** A 5 m floor in place of none is the one
   change that is established on its own: +0.015 [+0.009, +0.022] on the
-  held-out plots, and positive with an interval above zero on every other
-  dataset. Most of it is in open stands (+0.039 [+0.023, +0.057], against
-  +0.008 [+0.002, +0.015] in closed stands). A reference of stems of 10 cm
-  diameter or more seldom credits a detection under 5 m, so the gain says as
-  much about the reference as about the detector.
+  held-out plots. In the post hoc walk it is positive with an interval above
+  zero on every other dataset, and most of it is in open stands (+0.039
+  [+0.023, +0.057], against +0.008 [+0.002, +0.015] in closed stands). A
+  reference of stems of 10 cm diameter or more seldom credits a detection
+  under 5 m, so the gain says as much about the reference as about the
+  detector.
 - **The spacing rule.** One horizontal rule of 2.5 m for every top was
   selected in 176 of 200 splits, yet its own contribution spans zero on the
   held-out plots (+0.007 [−0.004, +0.019]).
-  Outside the 2021 native clips it adds nothing: its change lies between
-  −0.012 and +0.007 on the thinned clips, at the QL2 level and on the two
-  other flights, and every one of those intervals reaches zero.
-- **The lowest trees.** No configuration, stock included, finds the reference
-  stems under 5 m above the chance rate; there are 74 of them, 11 under 3 m.
-  Stems of 5 to 10 m are found above chance by every configuration. The floor
-  is therefore a statement of what counts as a tree, which these plots cannot
-  test.
+  Post hoc, on the other seven datasets the same contrast lies between −0.014
+  and +0.006, and every interval reaches zero but one: at 2.5 pulses/m² over
+  all plots the rule reads worse (−0.010 [−0.018, −0.001]).
+- **The lowest trees.** None of the ten configurations examined, stock
+  included, finds the reference stems under 5 m above the chance rate; there
+  are 74 of them, 11 under 3 m. Each of the ten finds stems of 5 to 10 m above
+  chance. The floor is therefore a statement of what counts as a tree, which
+  these plots cannot test.
 - **Intermediate crowns.** Their chance-corrected recall is 0.04 to 0.08 under
-  every configuration, stock included. The limit lies in which peaks
-  `multichm` proposes, not in which of them are kept.
+  each of those configurations, stock included. No rule of this family
+  changes it.
 - **Not tested.** Censused subplots, 3DEP clouds, complete labels and density
   routing, which the gated arm's studies covered, and any stand outside the
   benchmark with a field count.
@@ -89,8 +100,9 @@ highest return in a vertical column around it, minus its own height. The
 column has a radius of 1 m, widened at low density so that it holds eight
 first returns on average: it is 1 m at about 2.5 pulses/m² or more and reaches
 1.2 to 1.6 m at 1.3 pulses/m² and 1.7 to 2.2 m at 0.6. The depth reads heights
-only. It uses no return numbers, so it does not depend on how many returns the
-instrument records per pulse.
+only, so it does not depend on how many returns the instrument records per
+pulse. The arm as a whole still reads return numbers: first-return cover
+decides which stands are closed, and first-return density sizes the column.
 
 A configuration has six parameters:
 
@@ -110,7 +122,7 @@ Three configurations recur below, beside the declared gated arm:
 
 | | Deeper-layer peaks of a closed stand | Height floors | Distance filter of a closed stand |
 | --- | --- | --- | --- |
-| Declared gated arm, `z5_s0.75_c0.6_e1_d8` | Kept when lit from above (first-return share at least 0.75), and that only where crowns are at least 8 m apart | 5 m on deeper-layer peaks | Surface peaks exempt |
+| Declared gated arm, `z5_s0.75_c0.6_e1_d8` | Where crowns are at least 8 m apart, kept only when lit from above (first-return share at least 0.75). In other closed stands all kept | 5 m on deeper-layer peaks | Surface peaks exempt |
 | The selection, `k4_r2.5_z5_f5_l0_c0.6` | Kept when at most 4 m deep | 5 m on every peak | 2.5 m horizontally between any two tops |
 | Its low-floor sibling, `k4_r2.5_z3_f3_l0_c0.6` | As the selection | 3 m on every peak | As the selection |
 | The arm's configuration, `k4_r0_z3_f3_l0_c0.6` | Kept when at most 4 m deep | 3 m on every peak | Surface peaks exempt |
@@ -140,20 +152,24 @@ specification. In short:
 - **Blindness.** The validation plots were scored with the family's rules
   once, after the code had been reviewed.
 - **Reading.** A change in corrected F1 is "better" when its 95% interval
-  lies above zero, "worse" when it lies below, "not worse" when its lower
-  bound is above −0.02, and "inconclusive" otherwise. A scope of fewer than
-  10 plots is reported and not read.
-- **Added before the validation plots were scored.** How the lowest trees are
-  read, a low-floor sibling of the selection, closed and open stands as
-  scopes, and the datasets of the confirmation.
+  lies above zero, "not worse" when its lower bound is above −0.02, "worse"
+  when the interval lies below zero, and "inconclusive" otherwise.
+- **Added by the addendum.** After the calibration results had been read and
+  before the validation plots were scored, the addendum fixed the order in
+  which the readings are tried (better, worse, not worse, inconclusive), that
+  a scope of fewer than 10 plots is reported and not read, that the split is
+  taken from the gated study's record, how the lowest trees are read, a
+  low-floor sibling of the selection, closed and open stands as scopes, and
+  the datasets of the confirmation.
 
 The validation plots are not untouched. They are the held-out plots of the
 gated study, whose results on every plot had been read before this
 specification was written. The family's form, its constants and its grid
-values came from an exploratory look at 60 plots outside the benchmark that
-have no field reference, with three ML segmenters as referees. The held-out
-score therefore tests the selection within this grid, as the gated study's
-did.
+values were informed by an exploratory look at 60 plots outside the benchmark
+that have no field reference, with three ML segmenters as referees. The 3 m
+floors were added because about 3% of the NEON reference stems are under 5 m.
+The held-out score therefore tests the selection within this grid, as the
+gated study's did.
 
 Intervals are paired plot-bootstrap percentiles (1,000 draws, plots resampled
 within site, the same draws for both configurations and for observed and null
@@ -162,7 +178,9 @@ about 0.001 of zero is read below as sitting on zero.
 
 ## Calibration
 
-The six best configurations on the calibration plots, and the references:
+The six best configurations on the calibration plots, and the references.
+CHM-VWF is the benchmark's canopy-height-model detector with a variable
+window, scored from the gated study's cells:
 
 | Rank | Configuration | Corrected F1 | F1 | Precision | Recall | Detections per stem |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -309,7 +327,8 @@ changed. A positive change means the selection's value is the better one:
 The components do not say what the depth rule adds over the gated arm's share
 gate and switch, because the grid holds no configuration without a depth
 limit. The walk below does. It is post hoc: it was computed after the held-out
-results had been read, and it is where the arm's configuration comes from.
+results had been read, on plots that had been read, and it is where the arm's
+configuration comes from.
 Each step changes one rule on the way from the declared gated arm to the
 selection, on the validation half of each dataset:
 
@@ -339,14 +358,16 @@ Over all plots:
 
 - **Step 1, the depth rule.** On the validation half it is positive on six of
   the eight datasets, and its interval excludes zero on one, the ladder at 0.6
-  pulses/m². Over all plots it is better at 2.5 and 0.6 pulses/m², its lower
-  bound sits on zero at the QL2 level, and on the sparse California flights it
-  is negative with an interval too wide to read. At native density over all
-  plots it is level with what it replaces. The declared gated arm was itself
-  selected on the calibration half of those plots.
-- **Step 2, the spacing rule.** It gains on the native 2021 clips, where the
-  family was calibrated (+0.009 [+0.002, +0.016] over all plots), and nowhere
-  else.
+  pulses/m². Over all plots its interval lies above zero at 0.6 pulses/m²,
+  and at 2.5 pulses/m² and the QL2 level with lower bounds within 0.001 of
+  zero. On the earlier California flights it is negative with an interval too
+  wide to read. At native density over all plots it is level with what it
+  replaces. The declared gated arm was itself selected on the calibration half
+  of those plots.
+- **Step 2, the spacing rule.** It gains on the native 2021 clips only, and
+  there only over all plots (+0.009 [+0.002, +0.016]), which include the
+  calibration plots it was selected on. On the held-out half the interval
+  spans zero.
 - **Step 3, the floor on surface peaks.** It gains on every dataset in both
   subsets, each interval above zero.
 
@@ -368,9 +389,10 @@ matched by chance). On the validation plots:
 | 20 and more | 303 | 0.428 | 0.512 [0.392, 0.665] | 0.483 [0.391, 0.582] | 0.481 [0.400, 0.574] | 0.481 [0.400, 0.574] |
 | All stems | 1,172 | 0.409 | 0.214 [0.173, 0.267] | 0.239 [0.201, 0.285] | 0.260 [0.224, 0.301] | 0.262 [0.226, 0.304] |
 
-- **Under 5 m.** No configuration is above chance, stock included.
-- **From 5 to 20 m.** Every configuration is above chance. The selection has
-  the highest point estimate and stock the lowest, with overlapping intervals.
+- **Under 5 m.** None of the four is above chance, stock included.
+- **From 5 to 20 m.** All four are above chance. The selection and its
+  low-floor sibling have the highest point estimates and stock the lowest,
+  with overlapping intervals.
 - **At 20 m and more.** The three are level, and stock is nominally highest.
   Over all plots the configurations with a depth rule find fewer of these
   stems than the declared gated arm, as the section on the arm's configuration
@@ -391,7 +413,7 @@ By crown class:
 | Intermediate | 263 | 0.077 [−0.006, 0.164] (not above chance) | 0.057 [−0.011, 0.122] (not above chance) | 0.067 [−0.009, 0.140] (not above chance) | 0.067 [−0.017, 0.143] (not above chance) |
 | Suppressed | 8 | −0.025 [−0.413, 0.307] (not above chance) | 0.090 [−0.105, 0.334] (not above chance) | −0.006 [−0.158, 0.257] (not above chance) | −0.013 [−0.176, 0.254] (not above chance) |
 
-Dominant and codominant stems are found above chance by every configuration.
+Dominant and codominant stems are found above chance by all four.
 Intermediate stems, 263 of the 1,172 validation stems, are not: their
 chance-corrected recall is 0.06 to 0.08 with intervals that reach zero. On the
 calibration plots the same values clear zero by 0.004 to 0.020. Stock is no
@@ -465,12 +487,13 @@ comparison:
 | The same California stems on the 2021 clips | California | 39 (all plots) | +0.046 [+0.032, +0.064] | +0.059 [+0.042, +0.079] | +0.016 [+0.003, +0.030] | +0.013 [+0.000, +0.027] |
 
 - **Against stock.** The selection is better at the QL2 level and on the 2019
-  flight, and not worse on the sparse California flights.
-- **The sparse California flights.** The selection gains less there than on
-  the 2021 clips of the same stems: +0.012 over the declared gated arm where
-  the 2021 clips give +0.051, on the validation half.
+  flight, and not worse on the earlier California flights.
+- **The earlier California flights.** They have about half the density of the
+  2021 flight, 4 to 5 pulses/m² at the median. The selection gains less there
+  than on the 2021 clips of the same stems: +0.012 over the declared gated arm
+  where the 2021 clips give +0.051, on the validation half.
 - **The low-floor sibling.** It is not worse than the declared gated arm at
-  the QL2 level and on the 2019 flight, and inconclusive on the sparse
+  the QL2 level and on the 2019 flight, and inconclusive on the earlier
   California flights.
 - **A check of the wiring.** The declared gated arm against stock, recomputed
   here, equals the gated arm's confirmation tests in every scope those tests
@@ -481,9 +504,11 @@ comparison:
 Everything in this section is post hoc. It was computed after the held-out
 results and the confirmation had been read, and none of it was declared in the
 protocol. The choice also drew on a referee-only check on plots outside the
-benchmark that have no field reference. The validation-half figures are shown
-because the sections above use them. They are not held-out evidence for the
-choices made here.
+benchmark that have no field reference. That check is not part of this
+repository and its figures are not given here, so a reader can verify only the
+NEON side of each choice. The validation-half figures are shown because the
+sections above use them. They are not held-out evidence for the choices made
+here.
 [posthoc_multichm_depth.R](../scripts/posthoc_multichm_depth.R) computes all
 of it and reproduces the protocol's own rows as a check of its wiring.
 
@@ -496,11 +521,16 @@ choices on the way from the declared gated arm to the selection:
   [changes state](multichm-gated-confirmation-results.md#r4-noise-in-the-crown-spacing-switch)
   in 8 of 69 closed plots when the grid is shifted by less than a metre, and
   the first-return share, which added nothing on the 2019 flight. By the walk
-  it costs no corrected F1 on any dataset and gains at two density levels. It
-  does lose tall stems, as shown below.
-- **Leave out the spacing rule.** Its gain is confined to the clips the family
-  was calibrated on. On the plots outside the benchmark, three ML segmenters
-  agreed with few of the tops it adds.
+  it reads better or not worse on seven of the eight datasets over all plots,
+  with intervals above zero at three density levels, two of them narrowly. On
+  the
+  earlier California flights its interval is too wide to read (−0.010 [−0.025,
+  +0.002]). It does lose tall stems, as shown below.
+- **Leave out the spacing rule.** Its gain is confined to the native 2021
+  clips over all plots, which include the plots it was selected on. On the
+  held-out half it spans zero, and at 2.5 pulses/m² the rule reads worse over
+  all plots. On the plots outside the benchmark, three ML segmenters agreed
+  with few of the tops it adds.
 - **Set both floors to 3 m.** The reference stems start near 3 m: 11 of the
   2,525 are shorter and 63 lie between 3 and 5 m. A 5 m floor scores higher on
   these plots, by 0.005 to 0.016 on every dataset, because it removes
@@ -538,13 +568,13 @@ Over all plots:
 | Washington, 2019 flight | Washington | 56 | +0.009 [−0.006, +0.026] | +0.033 [+0.008, +0.058] | −0.010 [−0.022, +0.003] | −0.001 [−0.006, +0.003] | −0.012 [−0.020, −0.005] |
 | California, 2017 and 2018 flights | California | 39 | −0.004 [−0.019, +0.015] | +0.007 [−0.012, +0.026] | −0.011 [−0.024, +0.001] | +0.007 [−0.001, +0.016] | −0.005 [−0.017, +0.007] |
 
-- **Against the declared gated arm.** It is better or not worse on every
-  dataset. The interval excludes zero at 0.6 pulses/m² in both subsets, and at
-  2.5 pulses/m² and the QL2 level over all plots. At native density the two
-  are level. On the sparse California flights the lower bound sits at the 0.02
-  margin.
+- **Against the declared gated arm.** Its corrected F1 is better or not worse
+  on every dataset. The interval excludes zero at 0.6 pulses/m² in both
+  subsets, and at 2.5 pulses/m² and the QL2 level over all plots. At native
+  density the two are level. On the earlier California flights the lower bound
+  sits at the 0.02 margin.
 - **Against stock.** It is better on every dataset but two: the ladder at 1.3
-  pulses/m² on the validation half and the sparse California flights.
+  pulses/m² on the validation half and the earlier California flights.
 - **Against the selection.** It is lower on nearly every dataset: by 0.021 at
   native density, where the selection's spacing rule and its 5 m floors both
   gain, and by up to 0.016 elsewhere.
@@ -613,7 +643,7 @@ by field height over all plots, then the raw counts:
 | --- | --- | --- |
 | The arm's default: trees from 3 m up | `k4_r0_z3_f3_l0_c0.6` | Post hoc. Better or not worse than the declared gated arm on eight datasets |
 | A reference like this one, stems of 10 cm diameter or more | `k4_r0_z5_f5_l0_c0.6` | Post hoc. Better than the declared gated arm on seven of eight datasets in both subsets; the table follows |
-| The configuration with a held-out test | `k4_r2.5_z5_f5_l0_c0.6` | Selected on the calibration plots and better on the held-out plots. Its spacing rule gains on the 2021 native clips only |
+| The configuration with a held-out test | `k4_r2.5_z5_f5_l0_c0.6` | Selected on the calibration plots and better on the held-out plots. Its spacing rule gains on the 2021 native clips only, over all plots, and reads worse at 2.5 pulses/m² |
 
 The 5 m variant against the declared gated arm, and what the spacing rule adds
 to it:
@@ -629,10 +659,11 @@ to it:
 | Washington, 2019 flight | Washington | +0.030 [+0.007, +0.056] | +0.021 [+0.005, +0.038] | −0.004 [−0.015, +0.010] | −0.002 [−0.012, +0.008] |
 | California, 2017 and 2018 flights | California | +0.007 [−0.008, +0.025] | +0.002 [−0.014, +0.016] | +0.005 [−0.010, +0.023] | +0.006 [−0.004, +0.017] |
 
-`detect_multichm_depth(las, res, frdens)` runs the arm's configuration on one
-height-normalized clip. `res` is the resolution of the candidate search (the
-drivers use 0.25 m at 8 first returns per m² or more and 0.5 m below) and
-`frdens` the clip's first-return density. Another configuration is passed as
+`detect_multichm_depth(las, res, frdens = d)` runs the arm's configuration on
+one height-normalized clip that carries return numbers. `res` is the
+resolution of the candidate search (the drivers use 0.25 m at 8 first returns
+per m² or more and 0.5 m below). `frdens`, given by name, is the clip's
+first-return density. Another configuration is passed as
 `cfg = mcd_config(...)`.
 
 ## Limits
@@ -652,21 +683,25 @@ drivers use 0.25 m at 8 first returns per m² or more and 0.5 m below) and
   gated arm's tests on complete labels found that a 5 m floor removes labelled
   small trees.
 - **Suppressed and intermediate trees.** They are found barely above chance
-  or not at all. Changing which candidates are kept cannot find trees that
-  have no candidate.
-- **Density.** Below 2.5 pulses/m² the column widens and the depth is measured
-  over a larger footprint. The ladder covers this by decimation, and native
-  sparse flights by 39 California plots, where no configuration is
-  distinguishable from the declared gated arm.
+  or not at all under every configuration examined. Whether `multichm`
+  proposes a candidate for them was not measured.
+- **Density.** Below about 2.5 pulses/m² the column widens and the depth is
+  measured over a larger footprint. Only decimated clips cover that range: the
+  ladder and the QL2 level. The earlier California flights have 4 to 5
+  pulses/m², where the column is 1 m, so no natively sparse flight tested the
+  widened column.
 - **Cover is measured on each clip.** As in the gated arm, a stand is closed
   when its own clip has cover of at least 0.6. Cover reads lower on decimated
   clips and differs between flights, so a stand near the threshold can change
   state.
-- **Other instruments.** One flight of another year and instrument was tested,
-  over the Washington sites. 3DEP clouds were not.
+- **Other flights.** Flights of other years were tested at all five sites:
+  2019 over the Washington sites with another instrument, and 2017 and 2018
+  over the California sites at about half the density. 3DEP clouds were not
+  tested.
 - **Stands outside the benchmark.** A referee-only check on plots without a
   field reference informed the arm's configuration. It is not part of this
-  repository and no field count has been compared.
+  repository, its figures are not given here, and no field count has been
+  compared.
 - **Many contrasts.** The intervals are not adjusted for their number, and
   bounds near zero move with the bootstrap draws.
 

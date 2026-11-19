@@ -93,12 +93,13 @@ test_that("sourcing runs nothing; KEY=VALUE arguments with at most 8 workers, no
   expect_identical(S$STAGE, "all")
   expect_identical(S$DATASETS, CFD_DATASETS$name)
   expect_identical(c(S$CORES, S$N_BOOT), c(4L, MT_N_BOOT))
-  # OUT in canonical absolute form
-  expect_identical(S$OUT, file.path(normalizePath(dirname(w)), basename(w), "multichm_depth_runs",
-                                    "posthoc"))
-  expect_identical(S$CONFIRM, file.path(w, "multichm_depth_runs", "confirm"))
-  expect_identical(S$STUDY, file.path(w, "multichm_depth_runs", "neon", "multichm_depth"))
-  expect_identical(S$CAMPAIGN, file.path(w, "multichm_gated_confirmation"))
+  # WORK and OUT in canonical absolute form; the defaults hang from WORK
+  wc <- file.path(normalizePath(dirname(w)), basename(w))
+  expect_identical(S$WORK, wc)
+  expect_identical(S$OUT, file.path(wc, "multichm_depth_runs", "posthoc"))
+  expect_identical(S$CONFIRM, file.path(wc, "multichm_depth_runs", "confirm"))
+  expect_identical(S$STUDY, file.path(wc, "multichm_depth_runs", "neon", "multichm_depth"))
+  expect_identical(S$CAMPAIGN, file.path(wc, "multichm_gated_confirmation"))
   S2 <- ph_settings(c("STAGE=analyze", "CORES=8", "DATASETS=ql2,ca2017", "N_BOOT=50",
                       "CONFIRM=/c", "OUT=/o/p"), work = w)
   expect_identical(S2[c("STAGE", "CORES", "DATASETS", "N_BOOT", "CONFIRM", "OUT")],
@@ -176,6 +177,93 @@ test_that("OUT cannot reach a run of record by a relative path, `..` or a symbol
                            work = W), "the confirmation run of record")
   expect_identical(ph_settings(c(paste0("WORK=", copy), "OUT=out_x"), work = W)$OUT,
                    file.path(root, "out_x"))
+})
+
+test_that("WORK=../work from a subdirectory derives every default from its canonical form", {
+  skip_on_os("windows")
+  root <- syn_tree()
+  W <- file.path(root, "work")
+  dir.create(file.path(root, "scripts"))
+  withr::local_dir(file.path(root, "scripts"))
+  for (S in list(ph_settings("WORK=../work", work = "/elsewhere"),
+                 ph_settings(character(), work = "../work"))) {
+    expect_identical(S$WORK, W)
+    expect_identical(S$OUT, file.path(W, "multichm_depth_runs", "posthoc"))
+    expect_identical(S$CONFIRM, file.path(W, CFD_CONFIRM_DIR))
+    expect_identical(S$STUDY, file.path(W, CFD_STUDY_DIR))
+    expect_identical(S$CAMPAIGN, file.path(W, "multichm_gated_confirmation"))
+  }
+  # the runs of record under the canonical WORK stay read-only
+  expect_error(ph_settings(c("WORK=../work", paste0("OUT=", file.path(W, CFD_CONFIRM_DIR, "x"))),
+                           work = "/elsewhere"), "the confirmation run", fixed = TRUE)
+  # a `..` is refused in an OUT the user gave, never in a default
+  expect_error(ph_settings(c("WORK=../work", "OUT=../work/multichm_depth_runs/x"),
+                           work = "/elsewhere"), "has a `..` component", fixed = TRUE)
+  expect_identical(ph_settings(c("WORK=../work", "OUT=fresh"), work = "/elsewhere")$OUT,
+                   file.path(root, "scripts", "fresh"))
+})
+
+test_that("the directories the stems and plot centroids resolve to are read-only", {
+  skip_on_os("windows")
+  root <- syn_tree()
+  W <- file.path(root, "work")
+  withr::local_dir(root)
+  put <- function(f) { dir.create(dirname(f), recursive = TRUE, showWarnings = FALSE)
+                       writeLines("x", f); f }
+  link <- function(target, job, site, file) {
+    d <- file.path(job, "neon", site)
+    dir.create(d, recursive = TRUE, showWarnings = FALSE)
+    file.symlink(target, file.path(d, file))
+  }
+  job <- file.path(W, PH_STUDY_JOB)
+  # the study's job directory: SJER's two files link into paper/neon/SJER, WREF's
+  # stems into paper/neon/WREF and its centroids into other/WREF; SOAP's stems
+  # link into mid/SOAP, whose file links (relative target) into final/SOAP, as
+  # the study's stems link into a run whose files link into the reference
+  # directory; TEAK's stems point nowhere, ABBY's centroids are a plain file
+  for (f in PH_REF_FILES) link(put(file.path(root, "paper", "neon", "SJER", f)), job, "SJER", f)
+  link(put(file.path(root, "paper", "neon", "WREF", PH_REF_FILES[1])), job, "WREF",
+       PH_REF_FILES[1])
+  link(put(file.path(root, "other", "WREF", PH_REF_FILES[2])), job, "WREF", PH_REF_FILES[2])
+  put(file.path(root, "final", "SOAP", "stems.csv"))
+  dir.create(file.path(root, "mid", "SOAP"), recursive = TRUE)
+  file.symlink(file.path("..", "..", "final", "SOAP", "stems.csv"),
+               file.path(root, "mid", "SOAP", "stems.csv"))
+  link(file.path(root, "mid", "SOAP", "stems.csv"), job, "SOAP", PH_REF_FILES[1])
+  link(file.path(root, "nowhere", "stems.csv"), job, "TEAK", PH_REF_FILES[1])
+  put(file.path(job, "neon", "ABBY", PH_REF_FILES[2]))
+  # a dataset's job directory: ql2's SJER stems link into ql2ref/SJER
+  qjob <- file.path(W, "multichm_gated_confirmation", "ql2", "job")
+  link(put(file.path(root, "ql2ref", "SJER", PH_REF_FILES[1])), qjob, "SJER", PH_REF_FILES[1])
+  # every hop's directory, from the job's own to the final target's
+  jn <- function(s) file.path(job, "neon", s)
+  expect_identical(ph_reference_dirs(list(list(job = job, sites = CV_FIVE))),
+                   c(jn("SJER"), file.path(root, "paper", "neon", "SJER"), jn("SOAP"),
+                     file.path(root, c("mid/SOAP", "final/SOAP")), jn("WREF"),
+                     file.path(root, c("paper/neon/WREF", "other/WREF")), jn("ABBY")))
+  expect_identical(ph_reference_dirs(list(list(job = qjob, sites = CV_FIVE))),
+                   c(file.path(qjob, "neon", "SJER"), file.path(root, "ql2ref", "SJER")))
+  expect_identical(ph_reference_dirs(list(list(job = file.path(root, "none"), sites = "SJER"))),
+                   character())
+  ro <- "overlaps a read-only input (the stems and plot centroids"
+  for (o in c("paper/neon/SJER", "paper/neon/SJER/x", "paper", "paper/neon",
+              file.path(root, "paper", "neon", "WREF", "new"), "other/WREF/x", "ql2ref/SJER/x",
+              "mid/SOAP/x", "final/SOAP", "final"))
+    expect_error(ph_settings(paste0("OUT=", o), work = W), ro, fixed = TRUE)
+  # a site the run does not read, a dataset it does not score, a sibling directory
+  for (o in c("paper/neon/SOAP", "other/SJER", "ql2ref/WREF", "mid/TEAK")) {
+    S <- ph_settings(paste0("OUT=", o), work = W)
+    expect_identical(S$OUT, file.path(root, o))
+    expect_false(dir.exists(S$OUT))
+  }
+  expect_error(ph_settings("OUT=ql2ref/SJER/x", work = W), ro, fixed = TRUE)
+  expect_identical(ph_settings(c("DATASETS=wa2019", "OUT=ql2ref/SJER/x"), work = W)$OUT,
+                   file.path(root, "ql2ref", "SJER", "x"))
+  expect_error(ph_settings(c("DATASETS=wa2019", "OUT=paper/neon/SJER/x"), work = W), ro,
+               fixed = TRUE)
+  # a link to the protected directory is followed
+  file.symlink(file.path(root, "paper"), file.path(root, "paper_link"))
+  expect_error(ph_settings("OUT=paper_link/neon/SJER/x", work = W), ro, fixed = TRUE)
 })
 
 ## ---- configurations and pairs ---------------------------------------------------------------
@@ -748,10 +836,16 @@ test_that("numbers have three decimals, differences a sign, intervals in bracket
   expect_identical(PH_PROVENANCE, paste(
     "Post hoc and descriptive. The arm's configuration was chosen after the held-out results of",
     "the study and of its confirmation on other densities and flights had been read, and with a",
-    "referee-only check on plots outside the benchmark that have no field reference. None of the",
-    "contrasts below was declared in the protocol (docs/multichm-depth-protocol.md), which reads",
-    "the calibration's selection and its low-floor sibling only. The validation-half rows are",
-    "therefore not held-out evidence for the arm's configuration."))
+    "referee-only check on plots outside the benchmark that have no field reference. Apart from",
+    "the selection against the declared gated arm, which repeats the protocol's own rows as a",
+    "check, none of the contrasts below was declared in the protocol",
+    "(docs/multichm-depth-protocol.md), which reads the calibration's selection and its",
+    "low-floor sibling only. The validation-half rows are therefore not held-out evidence for",
+    "the arm's configuration."))
+  # the old sentence is gone; the pair it now names is the one P2 checks
+  expect_false(grepl("None of the contrasts", PH_PROVENANCE, fixed = TRUE))
+  expect_identical(CFD_PRIMARY, "S_minus_declared")
+  expect_true(CFD_PRIMARY %in% PH_PAIRS$pair)
   # prose is wrapped at 80 characters
   expect_true(all(nchar(cd_para(PH_PROVENANCE)) <= 80))
 })

@@ -36,8 +36,9 @@
 #
 # MCD_ARM is the configuration the arm uses (config_id 28 of the grid). It is
 # not the calibration study's selection: it was chosen after the held-out
-# results had been read (see its comment below). detect_multichm_depth() runs it
-# on one height-normalized clip in a single call.
+# results had been read (see its comment below). detect_multichm_depth(las, res,
+# frdens = ...) runs it on one height-normalized clip in a single call (frdens,
+# the clip's first returns per m^2, is given by name).
 #
 # Sourced, not run. No side effects. The caller sources multichm_gated_lib.R
 # and everything it needs first (sweep_lib.R, model_bench_lib.R, calval_lib.R,
@@ -313,10 +314,20 @@ mcd_accepted <- function(prep, feat, cfg) {
 # report = "z" (the default), z = zrep with report = "zrep" (the filter still
 # runs on Z, and the rows keep their order by Z). 0 rows when nothing is
 # detected; a clip without candidates gives 0 rows under any configuration.
+# A lit_union configuration stops, as mcg_apply does for a share gate, on a
+# clip prepared without ReturnNumber (prep$has_return_number FALSE) when its
+# stand is closed and it has deeper candidates: every share would be NA and
+# the lit branch would silently keep nothing. A prepared clip without that
+# element is not checked.
 mcd_apply <- function(prep, feat, cfg, report = "z") {
   cfg <- .mcd_check_config(cfg)
   if (!is.character(report) || length(report) != 1L || !report %in% c("z", "zrep"))
     stop("multichm_depth: report must be \"z\" or \"zrep\"", call. = FALSE)
+  if (cfg$lit_union && isFALSE(prep[["has_return_number"]]) && NROW(feat) &&
+      any(feat$layer != 1L) && isTRUE(mcd_closed(prep$cover, cfg)))
+    stop("multichm_depth: this configuration (lit_union) needs the first-return share of ",
+         "the deeper candidates in a closed stand, but the clip has no ReturnNumber",
+         call. = FALSE)
   acc <- mcd_accepted(prep, feat, cfg)
   if (report == "zrep" && length(acc) && is.null(feat[["zrep"]]))
     stop("multichm_depth: report = \"zrep\" needs the column `zrep` (mcd_features)",
@@ -330,19 +341,27 @@ mcd_apply <- function(prep, feat, cfg, report = "z") {
 }
 
 ## ---- one call: prepare a clip and detect --------------------------------------------------
+# The stop of mcd_prepare() and detect_multichm_depth() when frdens is missing.
+.mcd_need_frdens <- function()
+  stop("multichm_depth: frdens is missing; it is the clip's first returns per m^2 and must be ",
+       "given by name (frdens = ...)", call. = FALSE)
+
 # Everything the family needs of one height-normalized clip `las`: the
 # candidates (mcg_candidates with the variable window ws_factory(a), searched
 # on a CHM of resolution `res`), with their first-return share in the column
 # `share` (mcg_first_return_share) when share is TRUE and without that column
 # otherwise; the clip's canopy cover (mcg_canopy_cover); and the feature table
 # mcd_features(cand, las, frdens), frdens being the clip's first returns per
-# m^2. cand and cover are those of mcg_prepare(las, res, a), less the share
-# column when share is FALSE. The crowns and the top height mcg_prepare also
-# computes are left out: no rule of this family reads them. Returns
-# list(cand, cover, feat, res, a, frdens, has_return_number); prep$feat is the
-# feature table mcd_apply() takes with it. frdens is checked before the
+# m^2. The arguments follow detect_multichm_gated(las, res, a): `a` is third,
+# and frdens has no default and is given by name (frdens = ...); without it the
+# call stops at once. cand and cover are those of mcg_prepare(las, res, a),
+# less the share column when share is FALSE. The crowns and the top height
+# mcg_prepare also computes are left out: no rule of this family reads them.
+# Returns list(cand, cover, feat, res, a, frdens, has_return_number); prep$feat
+# is the feature table mcd_apply() takes with it. frdens is checked before the
 # candidate search.
-mcd_prepare <- function(las, res, frdens, a = 0.10, share = TRUE) {
+mcd_prepare <- function(las, res, a = 0.10, frdens, share = TRUE) {
+  if (missing(frdens)) .mcd_need_frdens()
   if (!is.logical(share) || length(share) != 1L || is.na(share))
     stop("multichm_depth: share must be TRUE or FALSE", call. = FALSE)
   mcd_col_radius(frdens)
@@ -357,13 +376,18 @@ mcd_prepare <- function(las, res, frdens, a = 0.10, share = TRUE) {
 # clip, in one call: mcd_prepare() (with the share only when the configuration
 # reads it, lit_union) and mcd_apply(). `res` is the resolution (m) of the CHM
 # the candidate search runs on; the arm drivers use 0.25 m at 8 first returns
-# per m^2 or more and 0.5 m below. `frdens` is the clip's first-return density
-# (first returns per m^2), which sets the column radius of the features. `a` is
-# the variable window's slope (ws_factory) and `report` the height reported
-# ("z" or "zrep", mcd_apply). Returns mcd_apply()'s data.frame x, y, z.
-detect_multichm_depth <- function(las, res, frdens, a = 0.10, cfg = MCD_ARM, report = "z") {
+# per m^2 or more and 0.5 m below. `a` is the variable window's slope
+# (ws_factory), third as in detect_multichm_gated(las, res, a); `report` the
+# height reported ("z" or "zrep", mcd_apply). `frdens` is the clip's
+# first-return density (first returns per m^2), which sets the column radius of
+# the features: it has no default and is given by name, e.g.
+# detect_multichm_depth(las, 0.5, frdens = 5); a call without it, such as
+# detect_multichm_depth(las, 0.5, 0.10), stops at once. Returns mcd_apply()'s
+# data.frame x, y, z.
+detect_multichm_depth <- function(las, res, a = 0.10, cfg = MCD_ARM, report = "z", frdens) {
+  if (missing(frdens)) .mcd_need_frdens()
   cfg <- .mcd_check_config(cfg)
-  prep <- mcd_prepare(las, res, frdens, a, share = cfg$lit_union)
+  prep <- mcd_prepare(las, res, a, frdens = frdens, share = cfg$lit_union)
   mcd_apply(prep, prep$feat, cfg, report)
 }
 

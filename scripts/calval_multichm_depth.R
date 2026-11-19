@@ -121,7 +121,11 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # GATED/declared_config.json (A1); SEED= and FRAC= are accepted only when they
 # repeat those values and stop the run otherwise, whatever UNBLIND is. K and
 # TOL are those the gated cells were scored with (its cells.config.json); an
-# explicit K= or TOL= must equal them. The criterion is cF1 (fixed).
+# explicit K= or TOL= must equal them. The criterion is cF1 (fixed). Any other
+# key stops the run (CD_KEYS). OUT, when given, has no `..` component, and it
+# does not equal, lie inside or contain GATED (the given one and the default
+# under the job directory), the job directory or the frozen root (compared in
+# canonical absolute form, cd_check_out).
 suppressMessages({ library(lidR); library(lidRplugins); library(sf)
                    library(data.table); library(parallel) })
 options(lidR.progress = FALSE)
@@ -213,6 +217,82 @@ CD_PROTOCOL       <- local({
 # of record wrote them; the document must quote both (cd_spec_record).
 CD_SPEC_SHA256     <- "671ca6aac794ba8ae34688d75ae1717bc054d53265fd82791ef17bce186fbc4a"
 CD_ADDENDUM_SHA256 <- "e9b854f821f2956538640057de6ff10af4a7654aa4fa2da1b8c532cd483924e7"
+# The keys cd_settings reads (any other stops the run).
+CD_KEYS <- c("STAGE", "UNBLIND", "CORES", "SITES", "RUNGS", "POP", "FROZEN_ROOT", "SEEDS",
+             "N_BOOT", "GATED", "OUT", "SEED", "FRAC", "K", "TOL")
+
+## ---- paths --------------------------------------------------------------------------------
+# The output guard of this driver, of the confirmation driver and of the post
+# hoc driver (both source this one).
+
+# A path for messages: relative to the repository root when it lies under it,
+# else as given.
+cd_rel <- function(p) {
+  p <- as.character(p)
+  r <- normalizePath(.ROOT, mustWork = FALSE)
+  q <- normalizePath(p, mustWork = FALSE)
+  ifelse(startsWith(q, paste0(r, "/")), substring(q, nchar(r) + 2L), ifelse(q == r, ".", p))
+}
+
+# The components of a path made absolute against the working directory ("."
+# and empty components dropped).
+cd_path_parts <- function(p) {
+  p <- path.expand(p)
+  if (!startsWith(p, "/")) p <- file.path(getwd(), p)
+  x <- strsplit(p, "/", fixed = TRUE)[[1]]
+  x[nzchar(x) & x != "."]
+}
+
+# The canonical absolute form of a path, whether it exists or not: made
+# absolute against the working directory, its longest existing ancestor
+# resolved with normalizePath(mustWork = TRUE) (a symbolic link in it is
+# followed), the components that do not exist yet appended. A `..` among those
+# is applied to what precedes it (a component that does not exist is no link)
+# and the result is canonicalized again. A dangling symbolic link stops.
+cd_canon_path <- function(p) {
+  if (!is.character(p) || length(p) != 1L || is.na(p) || !nzchar(p))
+    stop("a path must be one non-empty string", call. = FALSE)
+  parts <- cd_path_parts(p)
+  path_of <- function(x) paste0("/", paste(x, collapse = "/"))
+  k <- length(parts)
+  while (k > 0L && !file.exists(path_of(parts[seq_len(k)]))) k <- k - 1L
+  if (k < length(parts)) {
+    lk <- Sys.readlink(path_of(parts[seq_len(k + 1L)]))   # "" or NA unless a link
+    if (!is.na(lk) && nzchar(lk))
+      stop(cd_rel(p), " holds a symbolic link that points nowhere", call. = FALSE)
+  }
+  base <- cd_path_parts(normalizePath(path_of(parts[seq_len(k)]), mustWork = TRUE))
+  rest <- parts[seq_len(length(parts) - k) + k]
+  if (!".." %in% rest) return(path_of(c(base, rest)))
+  for (x in rest) base <- if (x == "..") base[-length(base)] else c(base, x)
+  cd_canon_path(path_of(base))
+}
+
+# TRUE when the canonical paths a and b are equal or one lies inside the other.
+cd_path_overlap <- function(a, b) {
+  dir_of <- function(p) if (endsWith(p, "/")) p else paste0(p, "/")
+  identical(a, b) || startsWith(a, dir_of(b)) || startsWith(b, dir_of(a))
+}
+
+# OUT in canonical form (cd_canon_path). Stops when OUT equals, lies inside or
+# contains one of the read-only directories `ro` (a character vector named by
+# what each is, canonicalized the same way), and, when the user gave OUT
+# (`given`), when it has a `..` component. A default OUT is derived from
+# canonical paths and is not tested for `..`.
+cd_check_out <- function(out, ro, given = TRUE) {
+  if (isTRUE(given) && ".." %in% strsplit(path.expand(out), "/", fixed = TRUE)[[1]])
+    stop("OUT=", cd_rel(out), " has a `..` component; give the directory without one",
+         call. = FALSE)
+  o <- cd_canon_path(out)
+  for (k in seq_along(ro))
+    if (cd_path_overlap(o, cd_canon_path(ro[[k]])))
+      stop("OUT=", cd_rel(o), " overlaps a read-only input (", names(ro)[k], ", ",
+           cd_rel(ro[[k]]), ")", call. = FALSE)
+  o
+}
+
+# Paths named by what they are, for cd_check_out.
+cd_named <- function(what, p) stats::setNames(as.character(p), rep(what, length(p)))
 
 ## ---- arguments ----------------------------------------------------------------------------
 # The headline split (A1): the seed and calibration fraction the gated study
@@ -242,11 +322,17 @@ cd_headline_split <- function(gated) {
 # the gated study ran in (stems, plot centroids, frozen root). S$SEED and S$FRAC
 # always hold the headline split's values (cd_headline_split); SEED= and FRAC=
 # are accepted only when they repeat them, whatever UNBLIND is (A1). SEEDS= (the
-# splits of analysis f) is free.
+# splits of analysis f) is free. A key outside CD_KEYS stops. OUT is kept in
+# canonical absolute form and stays out of the gated run (the given one and the
+# default under d), the job directory and the frozen root (cd_check_out).
 cd_settings <- function(args = commandArgs(TRUE), d = .job_dir()) {
   a <- strsplit(args, "=")
   # [[ ]] below, never $: `$` would partially match SEED to SEEDS
   A <- stats::setNames(lapply(a, `[`, 2), vapply(a, `[`, character(1), 1))
+  bad <- setdiff(names(A), CD_KEYS)
+  if (length(bad))
+    stop("unknown argument ", paste(bad, collapse = ", "), "; the keys are ",
+         paste(CD_KEYS, collapse = ", "), call. = FALSE)
   given <- function(k) !is.null(A[[k]]) && !is.na(A[[k]]) && nzchar(A[[k]])
   split <- function(x, default) if (is.null(x)) default else strsplit(x, ",")[[1]]
   num <- function(x, default) if (is.null(x)) default else suppressWarnings(as.numeric(x))
@@ -297,6 +383,13 @@ cd_settings <- function(args = commandArgs(TRUE), d = .job_dir()) {
     stop(sprintf("CORES must be at most %d (R worker processes)", CD_MAX_CORES), call. = FALSE)
   if ((!is.null(S$K_arg) && is.na(S$K_arg)) || (!is.null(S$TOL_arg) && is.na(S$TOL_arg)))
     stop("K and TOL must be numbers", call. = FALSE)
+  # outputs never go into, or around, the inputs: the gated run (cells.csv,
+  # cells.config.json, grid.csv and its candidates), given or default, the job
+  # directory (stems, plot centroids) and the frozen root
+  S$OUT <- cd_check_out(S$OUT, c(
+    cd_named("the gated run", unique(c(gated, file.path(d, "neon", "multichm_gated")))),
+    cd_named("the frozen root", root),
+    cd_named("the job directory", d)), given = given("OUT"))
   S
 }
 

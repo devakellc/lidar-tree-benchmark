@@ -5,7 +5,9 @@
 # protocol's rule, evaluates the protocol's outcome conditions and its rule for
 # which configuration is proposed, and runs two of its checks on the
 # calibration study's data: R1 (selection with a region held out) and R4 (noise
-# in the crown-spacing switch).
+# in the crown-spacing switch). It also checks how each dataset was scored
+# against the scorer's record, sets the stand measures of C3 and C4 beside
+# their 2021 values, and redraws the C3 contrasts with other bootstrap seeds.
 #
 # Nothing here changes a rule of the protocol. Where the protocol's text admits
 # two readings, both are reported (see mcgc_reading and mcgc_decide).
@@ -104,9 +106,22 @@ mcgc_reading <- function(lo, hi, n_plots, min_plots = MCGC_MIN_PLOTS, margin = M
 #            Default: [{"name": "all plots"}].
 #   decision_subset  optional name of the subset the decision reads (default:
 #            the first subset)
+#   scoring  required object: how the cells were scored, checked against the
+#            scorer's record before any contrast is computed (mcgc_check_record):
+#            {"record": "cells.config.json", "tol": 4, "K": 200,
+#             "population": "adopted"}. `record` is the file name of the record
+#            in the directory of the cells file (of each part, with `parts`),
+#            or "none" for a scorer that writes no record of these fields, with
+#            `why` saying so; `tol` (match radius, m) and `population` are
+#            required, `K` (shift-null offsets) with a null and never without.
+#   parts    optional array of cells files (paths as for `cells`) of which
+#            `cells` is the concatenation: the first part's header, then every
+#            part's rows in order (mcgc_check_pooled). Each part's record is
+#            checked; the pooled file is read.
 #   note     optional free text
 MCGC_DATASET_KEYS <- c("name", "test", "cells", "levels", "null", "scopes", "subsets",
-                       "decision_subset", "note")
+                       "decision_subset", "scoring", "parts", "note")
+MCGC_SCORING_KEYS <- c("record", "tol", "K", "population", "why")
 
 .mcgc_str <- function(v, what) {
   if (!is.character(v) || length(v) != 1L || is.na(v) || !nzchar(v))
@@ -170,6 +185,37 @@ mcgc_subset_spec <- function(x, base) {
   list(name = nm, kind = "all")
 }
 
+# The `scoring` object of dataset `nm` (see the manifest format above).
+mcgc_scoring_spec <- function(x, nm, null) {
+  if (is.null(x) || !is.list(x) || is.null(names(x)))
+    stop("manifest: dataset ", nm, " needs a scoring object (record, tol, population, ",
+         "and K with a null)", call. = FALSE)
+  bad <- setdiff(names(x), MCGC_SCORING_KEYS)
+  if (length(bad)) stop(sprintf("manifest: the scoring of dataset %s has unknown keys %s", nm,
+                                paste(bad, collapse = ",")), call. = FALSE)
+  rec <- .mcgc_str(x$record, sprintf("the scoring record of dataset %s", nm))
+  if (!identical(basename(rec), rec) || rec %in% c(".", ".."))
+    stop("manifest: the scoring record of dataset ", nm, " is a file name beside the cells ",
+         "file, or none", call. = FALSE)
+  tol <- x$tol
+  if (!is.numeric(tol) || length(tol) != 1L || !is.finite(tol) || tol <= 0)
+    stop("manifest: the scoring of dataset ", nm, " needs a positive tol (m)", call. = FALSE)
+  pop <- .mcgc_str(x$population, sprintf("the scoring population of dataset %s", nm))
+  K <- x$K
+  if (isTRUE(null)) {
+    if (!is.numeric(K) || length(K) != 1L || !is.finite(K) || K != round(K) || K < 1)
+      stop("manifest: dataset ", nm, " has a null, so its scoring needs an integer K",
+           call. = FALSE)
+  } else if (!is.null(K))
+    stop("manifest: dataset ", nm, " has no null, so its scoring takes no K", call. = FALSE)
+  why <- if (!is.null(x$why)) .mcgc_str(x$why, sprintf("the scoring why of dataset %s", nm))
+  if (identical(rec, "none") && is.null(why))
+    stop("manifest: dataset ", nm, " declares no scoring record and must say why",
+         call. = FALSE)
+  list(record = rec, tol = as.numeric(tol), K = if (!is.null(K)) as.integer(K),
+       population = pop, why = why)
+}
+
 mcgc_dataset_spec <- function(x, base) {
   if (!is.list(x) || is.null(names(x))) stop("manifest: a dataset is an object", call. = FALSE)
   bad <- setdiff(names(x), MCGC_DATASET_KEYS)
@@ -199,10 +245,18 @@ mcgc_dataset_spec <- function(x, base) {
   if (!dec %in% sn)
     stop(sprintf("manifest: decision_subset %s is not a subset of dataset %s", dec, nm),
          call. = FALSE)
+  scoring <- mcgc_scoring_spec(x$scoring, nm, x$null)
+  parts <- if (!is.null(x$parts)) {
+    p <- .mcgc_strs(x$parts, paste("parts of dataset", nm))
+    if (length(p) < 2L) stop("manifest: the parts of dataset ", nm, " are at least two files",
+                             call. = FALSE)
+    vapply(p, mcgc_resolve_path, "", base = base, USE.NAMES = FALSE)
+  }
   list(name = nm, test = test,
        cells = mcgc_resolve_path(.mcgc_str(x$cells, paste("the cells of dataset", nm)), base),
        levels = if (!is.null(x$levels)) .mcgc_strs(x$levels, paste("levels of dataset", nm)),
        null = isTRUE(x$null), scopes = scopes, subsets = subsets, decision_subset = dec,
+       scoring = scoring, parts = parts,
        note = if (!is.null(x$note)) as.character(x$note))
 }
 
@@ -261,6 +315,64 @@ mcgc_prepare_cells <- function(cells, null, levels = NULL, what = "cells") {
                          call. = FALSE)
   rownames(cells) <- NULL
   cells
+}
+
+## ---- how the cells were scored ---------------------------------------------------------------
+# Checks the scorer's record beside the cells file `cells` against the
+# dataset's `scoring` (mcgc_scoring_spec): the record must exist and hold tol
+# and population, and K when the dataset has a null, each equal to the
+# manifest's. Stops on a missing record, a missing field or a mismatch.
+# Returns list(record, sha256, K, tol, population, clip_manifest_sha256,
+# grid_sha256), the record's path and fields (NA when absent), or with record
+# "none" list(record = NA, why).
+mcgc_check_record <- function(scoring, cells, what = cells) {
+  if (identical(scoring$record, "none"))
+    return(list(record = NA_character_, why = scoring$why))
+  f <- file.path(dirname(cells), scoring$record)
+  if (!file.exists(f)) stop(what, ": no scoring record at ", f, call. = FALSE)
+  r <- tryCatch(jsonlite::read_json(f, simplifyVector = TRUE), error = function(e)
+    stop(what, ": the scoring record ", f, " is not readable JSON", call. = FALSE))
+  want <- list(tol = scoring$tol, population = scoring$population)
+  if (!is.null(scoring$K)) want$K <- scoring$K
+  for (k in names(want)) {
+    got <- r[[k]]
+    if (is.null(got) || length(got) != 1L || is.na(got))
+      stop(sprintf("%s: the scoring record %s holds no %s", what, f, k), call. = FALSE)
+    same <- if (is.character(want[[k]])) identical(as.character(got), want[[k]]) else
+      isTRUE(suppressWarnings(as.numeric(got)) == want[[k]])
+    if (!same) stop(sprintf("%s: scored with %s = %s (%s), the manifest expects %s", what, k,
+                            format(got), f, format(want[[k]])), call. = FALSE)
+  }
+  one <- function(k) if (is.null(r[[k]]) || length(r[[k]]) != 1L) NA else r[[k]]
+  list(record = f, sha256 = digest::digest(file = f, algo = "sha256"), K = one("K"),
+       tol = one("tol"), population = one("population"),
+       clip_manifest_sha256 = one("clip_manifest_sha256"), grid_sha256 = one("grid_sha256"))
+}
+
+# A pooled cells file must be the concatenation of its parts as the shell
+# makes it: the first part's header, then the rows of every part in order. The
+# parts must share one header. Stops otherwise.
+mcgc_check_pooled <- function(cells, parts) {
+  for (p in c(cells, parts)) if (!file.exists(p)) stop("no cells at ", p, call. = FALSE)
+  L <- lapply(parts, readLines, warn = FALSE)
+  hdr <- vapply(L, function(x) if (length(x)) x[1] else NA_character_, "")
+  if (anyNA(hdr) || length(unique(hdr)) != 1L)
+    stop("the parts of ", cells, " do not share one header", call. = FALSE)
+  want <- c(hdr[1], unlist(lapply(L, `[`, -1L)))
+  if (!identical(readLines(cells, warn = FALSE), want))
+    stop(cells, " is not the concatenation of its parts ", paste(parts, collapse = ", "),
+         call. = FALSE)
+  invisible(TRUE)
+}
+
+# Every check of how a manifest dataset was scored: the pooled file against
+# its parts, then the record of each file the dataset was scored in (its parts,
+# or its cells file). Returns one record (mcgc_check_record) per file.
+mcgc_check_scoring <- function(ds) {
+  if (length(ds$parts)) mcgc_check_pooled(ds$cells, ds$parts)
+  src <- if (length(ds$parts)) ds$parts else ds$cells
+  lapply(src, function(p) mcgc_check_record(ds$scoring, p,
+                                            what = sprintf("dataset %s (%s)", ds$name, p)))
 }
 
 mcgc_read_cells <- function(path, null = TRUE, levels = NULL) {
@@ -788,4 +900,144 @@ mcgc_r4_state <- function(sp, cover) {
                           n_on_off = sum(closed & gated0 & !gated),
                           n_off_on = sum(closed & !gated0 & gated)),
                    by = c("rung", "placement", "dx", "dy")])
+}
+
+## ---- stand measures on another flight (C3, C4) --------------------------------------------
+# The protocol asks, on C3 and C4, for canopy cover, crown spacing and the
+# first-return share of deeper-layer peaks beside their 2021 values on the same
+# plots, and for the plots whose closed or gated state differs.
+
+# One clip's deeper-layer candidates (layer > 1 of a preparation's `cand`,
+# which holds `layer` and `share`) and their first-return shares, with the
+# definition confirm_gated_3dep.R records beside the 3DEP stand measures
+# (c3_deep_shares): the number of candidates and of deeper-layer ones, the
+# median of their first-return share (NA shares dropped; NA without a
+# deeper-layer candidate) and the fraction at or above `min_share` (the
+# declared gate's 0.75).
+mcgc_deep_shares <- function(cand, min_share = MCG_DECLARED$min_share) {
+  if (!all(c("layer", "share") %in% names(cand)))
+    stop("deeper-layer shares need the candidates' layer and share", call. = FALSE)
+  d <- cand[cand$layer > 1L, , drop = FALSE]
+  list(n_cand = nrow(cand), n_deep = nrow(d),
+       deep_share_median = if (nrow(d)) stats::median(d$share, na.rm = TRUE) else NA_real_,
+       deep_share_ge = if (nrow(d)) mean(!is.na(d$share) & d$share >= min_share) else NA_real_)
+}
+
+# Per clip of one candidate directory (a calval_multichm_gated.R candidate
+# stage: `index` is its candidates.csv, `read(file)` returns the stored
+# preparation): the clip's cover, crown spacing and top height as the index
+# records them, and its deeper-layer shares (mcgc_deep_shares). The
+# preparation's candidate count must equal the index's.
+mcgc_clip_shares <- function(index, read, side) {
+  rows <- lapply(seq_len(nrow(index)), function(i) {
+    prep <- read(index$file[i])
+    if (nrow(prep$cand) != index$n_cand[i])
+      stop(sprintf("%s/%s: %d candidates stored, %d in the index", index$site[i], index$plot[i],
+                   nrow(prep$cand), index$n_cand[i]), call. = FALSE)
+    sh <- mcgc_deep_shares(prep$cand)
+    data.frame(side = side, site = index$site[i], plot = index$plot[i], rung = index$rung[i],
+               cover = index$cover[i], crown_spacing = index$crown_spacing[i],
+               top_height = index$top_height[i], n_cand = sh$n_cand, n_deep = sh$n_deep,
+               deep_share_median = sh$deep_share_median, deep_share_ge = sh$deep_share_ge,
+               stringsAsFactors = FALSE)
+  })
+  do.call(rbind, rows)
+}
+
+# Closed (cover at least the declared cover_min) and widely spaced (crown
+# spacing at least its spacing_min) per clip; unknown values count as neither,
+# as confirm_gated_3dep.R counts them (c3_state).
+mcgc_stand_state <- function(cover, spacing, cfg = MCG_DECLARED) {
+  closed <- !is.na(cover) & cover >= cfg$cover_min
+  spaced <- !is.na(spacing) & spacing >= cfg$spacing_min
+  data.frame(closed = closed, spaced = spaced, gated = closed & spaced)
+}
+
+# The stand measures of the same plots on two clips side by side: `a` and `b`
+# hold one row per site and plot with cover, crown_spacing and
+# deep_share_median (the new flight and the 2021 clip). Per scope (a named list
+# of site vectors): the plots in both, the median over plots of each measure
+# on each side, the closed, widely spaced and gated plots on each side and the
+# plots whose state differs. Every plot of `a` must have a row in `b`.
+mcgc_stand_transfer <- function(a, b, scopes, labels = c("new", "2021")) {
+  key <- function(x) paste(x$site, x$plot, sep = "::")
+  if (anyDuplicated(key(a)) || anyDuplicated(key(b)))
+    stop("the stand measures hold a plot twice", call. = FALSE)
+  gone <- setdiff(key(a), key(b))
+  if (length(gone)) stop("no 2021 stand measures for ", paste(utils::head(gone, 5), collapse = ", "),
+                         call. = FALSE)
+  b <- b[match(key(a), key(b)), , drop = FALSE]
+  sa <- mcgc_stand_state(a$cover, a$crown_spacing); sb <- mcgc_stand_state(b$cover, b$crown_spacing)
+  med <- function(v) if (length(v) && any(!is.na(v))) stats::median(v, na.rm = TRUE) else NA_real_
+  out <- lapply(names(scopes), function(sc) {
+    k <- a$site %in% scopes[[sc]]
+    if (!any(k)) return(NULL)
+    r <- data.frame(scope = sc, plots = sum(k), stringsAsFactors = FALSE)
+    for (m in c("cover", "crown_spacing", "deep_share_median")) {
+      r[[paste0(m, "_", labels[1])]] <- med(a[[m]][k])
+      r[[paste0(m, "_", labels[2])]] <- med(b[[m]][k])
+    }
+    r[[paste0("n_deep_", labels[1])]] <- sum(a$n_deep[k])
+    r[[paste0("n_deep_", labels[2])]] <- sum(b$n_deep[k])
+    r[[paste0("deep_share_missing_", labels[1])]] <- sum(is.na(a$deep_share_median[k]))
+    r[[paste0("deep_share_missing_", labels[2])]] <- sum(is.na(b$deep_share_median[k]))
+    for (s in c("closed", "spaced", "gated")) {
+      r[[paste0(s, "_", labels[1])]] <- sum(sa[[s]][k])
+      r[[paste0(s, "_", labels[2])]] <- sum(sb[[s]][k])
+      r[[paste0(s, "_changed")]] <- sum(sa[[s]][k] != sb[[s]][k])
+    }
+    r
+  })
+  do.call(rbind, out)
+}
+
+# C4: the 3DEP clips (confirm_gated_3dep.R's clips.csv, scored rows) beside
+# the 2021 values it records for the same plots: at the clouds' own density
+# against the 2021 native clip (neon_native_*), thinned against the 2021 clip
+# thinned to the same all-return target (neon_rung2_*). One block of
+# mcgc_stand_transfer rows per variant.
+MCGC_C4_VARIANTS <- c(`3dep_native` = "neon_native_", `3dep_dec2` = "neon_rung2_")
+mcgc_c4_transfer <- function(clips, scopes, variants = MCGC_C4_VARIANTS) {
+  x <- clips[clips$scored %in% TRUE, , drop = FALSE]
+  out <- lapply(names(variants), function(v) {
+    y <- x[x$rung == v, , drop = FALSE]
+    if (!nrow(y)) return(NULL)
+    p <- variants[[v]]
+    a <- data.frame(site = y$site, plot = y$plot, cover = y$cover,
+                    crown_spacing = y$crown_spacing, n_deep = y$n_deep,
+                    deep_share_median = y$deep_share_median, stringsAsFactors = FALSE)
+    b <- data.frame(site = y$site, plot = y$plot, cover = y[[paste0(p, "cover")]],
+                    crown_spacing = y[[paste0(p, "crown_spacing")]],
+                    n_deep = y[[paste0(p, "n_deep")]],
+                    deep_share_median = y[[paste0(p, "deep_share_median")]],
+                    stringsAsFactors = FALSE)
+    cbind(data.frame(variant = v, stringsAsFactors = FALSE),
+          mcgc_stand_transfer(a, b, scopes, labels = c("3dep", "2021")))
+  })
+  do.call(rbind, out)
+}
+
+## ---- the bootstrap's own variation -----------------------------------------------------------
+# The same contrasts redrawn with other seeds of the bootstrap: for each seed
+# and each pair (a list of c(a, b) configuration labels, named by contrast),
+# mcgc_contrast_row on the one-level rows L (ids Lid) and plots `plots`, and
+# the reading of `measure`. Returns one row per seed and contrast.
+mcgc_seed_bounds <- function(L, Lid, plots, pairs, seeds, n_boot = MT_N_BOOT,
+                             measure = "cF1") {
+  rows <- list()
+  for (s in seeds) for (k in names(pairs)) {
+    r <- mcgc_contrast_row(L, Lid, plots, pairs[[k]][1], pairs[[k]][2], n_boot, s,
+                           metrics = unique(c(measure, "F1")))
+    if (is.null(r)) stop("no plot to contrast for ", k, call. = FALSE)
+    lo <- r[[paste0("lo_", measure)]]; hi <- r[[paste0("hi_", measure)]]
+    rows[[length(rows) + 1L]] <- cbind(
+      data.frame(seed = as.integer(s), contrast = k, config_a = r$config_a, config_b = r$config_b,
+                 n_plots = r$n_plots, n_boot = as.integer(n_boot), measure = measure,
+                 d_measure = r[[paste0("d_", measure)]], lo_measure = lo, hi_measure = hi,
+                 stringsAsFactors = FALSE),
+      mcgc_reading(lo, hi, r$n_plots))
+  }
+  out <- do.call(rbind, rows)
+  rownames(out) <- NULL
+  out
 }

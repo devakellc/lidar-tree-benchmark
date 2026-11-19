@@ -1,8 +1,10 @@
 # Unit tests for the confirmation analysis of the multichm_gated arm
 # (multichm_gated_confirm_lib.R): the protocol's labels and reading rule, the
-# manifest and cells handling, the contrasts, the decision table, the R1
-# selection wrapper and the R4 recomposition, placements and spread. Synthetic
-# data only: no LiDAR files, no NEON data.
+# manifest and cells handling, the checks of how each dataset was scored (its
+# record and a pooled file's parts, on temporary files), the contrasts, the
+# decision table, the R1 selection wrapper, the R4 recomposition, placements
+# and spread, the stand measures of C3 and C4 and the C3 seed bounds.
+# Synthetic data only: no LiDAR files, no NEON data.
 suppressMessages({ library(lidR); library(data.table); library(sf) })
 source(file.path("..", "..", "scripts", "calval_lib.R"), local = TRUE)
 source(file.path("..", "..", "scripts", "master_tables_lib.R"), local = TRUE)
@@ -76,19 +78,33 @@ write_manifest <- function(x) {
   f
 }
 
+SCORED_4 <- list(record = "cells.config.json", tol = 4, K = 200, population = "adopted")
+
 test_that("the manifest reads datasets with defaults and resolves relative paths", {
   f <- write_manifest(list(datasets = list(
     list(name = "ql2", test = "C1", cells = "ql2/cells.csv", levels = list("ql2"), null = TRUE,
          scopes = list(`Five sites` = list("SJER", "WREF"), Washington = list("WREF"),
-                       Few = list(sites = list("WREF"), plots = list("WREF::WREF_001")))),
+                       Few = list(sites = list("WREF"), plots = list("WREF::WREF_001"))),
+         scoring = SCORED_4),
     list(name = "fgiemit", test = "C5", cells = "/abs/cells.csv", null = FALSE,
          scopes = list(`FGI-EMIT` = list("FGI")),
          subsets = list(list(name = "all plots"),
                         list(name = "half", split = list(seed = 3, side = "calib")),
                         list(name = "two", plots = list("FGI::p1", "FGI::p2"))),
-         decision_subset = "two"))))
+         decision_subset = "two",
+         scoring = list(record = "none", tol = 4, population = "labels",
+                        why = "the scorer writes no such record")),
+    list(name = "pooled", test = "C2", cells = "p/cells.csv", null = TRUE,
+         scopes = list(California = list("SOAP")), scoring = SCORED_4,
+         parts = list("a/cells.csv", "/abs/b/cells.csv")))))
   ds <- mcgc_read_manifest(f, base = "/job")
-  expect_length(ds, 2L)
+  expect_length(ds, 3L)
+  expect_identical(ds[[1]]$scoring, list(record = "cells.config.json", tol = 4, K = 200L,
+                                         population = "adopted", why = NULL))
+  expect_null(ds[[1]]$parts)
+  expect_identical(ds[[2]]$scoring$record, "none")
+  expect_null(ds[[2]]$scoring$K)
+  expect_identical(ds[[3]]$parts, c(file.path("/job", "a/cells.csv"), "/abs/b/cells.csv"))
   expect_identical(ds[[1]]$cells, file.path("/job", "ql2/cells.csv"))
   expect_identical(ds[[1]]$levels, "ql2")
   expect_identical(names(ds[[1]]$scopes), c("Five sites", "Washington", "Few"))
@@ -107,7 +123,7 @@ test_that("the manifest reads datasets with defaults and resolves relative paths
 
 test_that("the manifest stops on what it cannot read unambiguously", {
   ok <- list(name = "a", test = "C1", cells = "c.csv", null = TRUE,
-             scopes = list(`Five sites` = list("SJER")))
+             scopes = list(`Five sites` = list("SJER")), scoring = SCORED_4)
   bad <- function(...) write_manifest(list(datasets = list(utils::modifyList(ok, list(...)))))
   expect_error(mcgc_read_manifest(bad(test = "C9"), "/j"), "tests are")
   expect_error(mcgc_read_manifest(bad(null = NULL), "/j"), "null: true or false")
@@ -127,6 +143,109 @@ test_that("the manifest stops on what it cannot read unambiguously", {
                "names repeat")
   expect_error(mcgc_read_manifest(write_manifest(list(sets = list(ok))), "/j"), "datasets")
   expect_error(mcgc_read_manifest(tempfile(), "/j"), "no file")
+})
+
+test_that("every dataset says how it was scored, and nothing passes unsaid", {
+  ok <- list(name = "a", test = "R2", cells = "c.csv", null = TRUE,
+             scopes = list(`Five sites` = list("SJER")), scoring = SCORED_4)
+  rd <- function(d) mcgc_read_manifest(write_manifest(list(datasets = list(d))), "/j")
+  sc <- function(...) { d <- ok; d$scoring <- utils::modifyList(SCORED_4, list(...)); d }
+  no_scoring <- ok; no_scoring$scoring <- NULL
+  expect_error(rd(no_scoring), "needs a scoring object")
+  expect_error(rd(sc(radius = 4)), "unknown keys radius")
+  expect_error(rd(sc(record = "../cells.config.json")), "file name beside")
+  expect_error(rd(sc(tol = 0)), "positive tol")
+  expect_error(rd(sc(tol = "4")), "positive tol")
+  no_k <- ok; no_k$scoring$K <- NULL
+  expect_error(rd(no_k), "needs an integer K")
+  expect_error(rd(sc(K = 2.5)), "needs an integer K")
+  without_null <- ok; without_null$null <- FALSE
+  expect_error(rd(without_null), "takes no K")
+  no_pop <- ok; no_pop$scoring$population <- NULL
+  expect_error(rd(no_pop), "population")
+  expect_error(rd(sc(record = "none")), "must say why")
+  expect_identical(rd(sc(record = "none", why = "none written"))[[1]]$scoring$why,
+                   "none written")
+  one_part <- ok; one_part$parts <- list("x/cells.csv")
+  expect_error(rd(one_part), "at least two files")
+})
+
+## ---- how the cells were scored ---------------------------------------------------------------
+# A cells file with a scorer's record beside it, in its own temporary directory.
+scored_dir <- function(record = list(K = 200, tol = 4, population = "adopted",
+                                     clip_manifest_sha256 = "abc", grid_sha256 = "def"),
+                       cells = data.frame(site = "S", plot = "p1", n = 1:2)) {
+  d <- tempfile("scored_"); dir.create(d)
+  f <- file.path(d, "cells.csv")
+  write.csv(cells, f, row.names = FALSE)
+  if (!is.null(record)) jsonlite::write_json(record, file.path(d, "cells.config.json"),
+                                             auto_unbox = TRUE)
+  f
+}
+
+test_that("the scoring record must match the manifest's tol, K and population", {
+  f4 <- scored_dir()
+  r <- mcgc_check_record(SCORED_4, f4)
+  expect_identical(r$record, file.path(dirname(f4), "cells.config.json"))
+  expect_identical(c(r$K, r$tol), c(200L, 4L))
+  expect_identical(r$population, "adopted")
+  expect_identical(r$clip_manifest_sha256, "abc")
+  expect_identical(r$sha256, digest::digest(file = r$record, algo = "sha256"))
+  # an R2 entry scored at 4 m, a C1 entry scored at 2 m
+  expect_error(mcgc_check_record(utils::modifyList(SCORED_4, list(tol = 2)), f4),
+               "scored with tol = 4 .* expects 2")
+  f2 <- scored_dir(list(K = 200, tol = 2, population = "adopted"))
+  expect_error(mcgc_check_record(SCORED_4, f2), "scored with tol = 2 .* expects 4")
+  expect_error(mcgc_check_record(utils::modifyList(SCORED_4, list(K = 100L)), f4),
+               "K = 200 .* expects 100")
+  expect_error(mcgc_check_record(utils::modifyList(SCORED_4, list(population = "relaxed")), f4),
+               "population = adopted .* expects relaxed")
+  expect_error(mcgc_check_record(SCORED_4, scored_dir(record = NULL)), "no scoring record")
+  expect_error(mcgc_check_record(SCORED_4, scored_dir(list(K = 200, tol = 4))),
+               "holds no population")
+  expect_error(mcgc_check_record(SCORED_4, scored_dir(list(tol = 4, population = "adopted"))),
+               "holds no K")
+  # without a null the record's K is not asked for
+  no_null <- list(record = "cells.config.json", tol = 4, K = NULL, population = "adopted")
+  expect_identical(mcgc_check_record(no_null, scored_dir(list(tol = 4, population = "adopted")))$tol,
+                   4L)
+  bad <- scored_dir(record = NULL)
+  writeLines("{not json", file.path(dirname(bad), "cells.config.json"))
+  expect_error(mcgc_check_record(SCORED_4, bad), "not readable JSON")
+  # "none" reads nothing and says why
+  none <- mcgc_check_record(list(record = "none", tol = 4, population = "labels",
+                                 why = "no such record"), scored_dir(record = NULL))
+  expect_true(is.na(none$record))
+  expect_identical(none$why, "no such record")
+})
+
+test_that("a pooled file must be its parts' concatenation, each part's record checked", {
+  a <- scored_dir(cells = data.frame(site = "SOAP", plot = c("p1", "p2"), n = 1:2))
+  b <- scored_dir(cells = data.frame(site = "SJER", plot = "p3", n = 3L))
+  pooled <- file.path(tempfile("pooled_"), "cells.csv"); dir.create(dirname(pooled))
+  writeLines(c(readLines(a), readLines(b)[-1]), pooled)   # what the shell's cat and tail make
+  expect_true(mcgc_check_pooled(pooled, c(a, b)))
+  ds <- list(name = "C2", cells = pooled, parts = c(a, b), scoring = SCORED_4)
+  rec <- mcgc_check_scoring(ds)
+  expect_length(rec, 2L)
+  expect_identical(vapply(rec, `[[`, "", "record"),
+                   file.path(dirname(c(a, b)), "cells.config.json"))
+  # the pooled file has no record of its own and is not asked for one
+  expect_false(file.exists(file.path(dirname(pooled), "cells.config.json")))
+  # a part scored otherwise stops, naming it
+  jsonlite::write_json(list(K = 200, tol = 2, population = "adopted"),
+                       file.path(dirname(b), "cells.config.json"), auto_unbox = TRUE)
+  expect_error(mcgc_check_scoring(ds), "dataset C2 .*scored with tol = 2")
+  # the parts in the other order, a missing row, a part with other columns
+  expect_error(mcgc_check_pooled(pooled, c(b, a)), "not the concatenation")
+  short <- tempfile(fileext = ".csv"); writeLines(readLines(pooled)[-3], short)
+  expect_error(mcgc_check_pooled(short, c(a, b)), "not the concatenation")
+  other <- scored_dir(cells = data.frame(site = "TEAK", plot = "p4", m = 4L))
+  expect_error(mcgc_check_pooled(pooled, c(a, other)), "share one header")
+  expect_error(mcgc_check_pooled(pooled, c(a, tempfile())), "no cells at")
+  # a dataset without parts checks its own record
+  expect_length(mcgc_check_scoring(list(name = "C1", cells = a, parts = NULL,
+                                        scoring = SCORED_4)), 1L)
 })
 
 test_that("cells are completed, checked and cut to the declared levels", {
@@ -478,4 +597,135 @@ test_that("the spread and the gated state per placement are counted per cell", {
   expect_identical(sum(st$n_on_off), 3L)
   expect_identical(sum(st$n_off_on), 0L)
   expect_true(all(st$n_closed == 2L))
+})
+
+## ---- stand measures on another flight (C3, C4) --------------------------------------------
+# Candidates of one clip: surface peaks (layer 1) and deeper-layer peaks with
+# their first-return shares, one share unknown.
+syn_cand <- function(shares = c(0.2, 0.4, 0.8, NA), n_surface = 3L)
+  data.table::data.table(X = seq_len(n_surface + length(shares)), Y = 0, Z = 10,
+                         layer = c(rep(1L, n_surface),
+                                   if (length(shares)) c(rep(2L, length(shares) - 1L), 3L)),
+                         ztop = 12, share = c(rep(1, n_surface), shares))
+
+test_that("deeper-layer shares follow the definition of confirm_gated_3dep.R", {
+  c4 <- new.env()
+  suppressMessages(source(file.path("..", "..", "scripts", "confirm_gated_3dep.R"), local = c4))
+  for (cand in list(syn_cand(), syn_cand(c(0.75, 0.9)), syn_cand(numeric()),
+                    syn_cand(c(NA, NA)), syn_cand(c(0.1, 0.5), n_surface = 0L)))
+    expect_identical(mcgc_deep_shares(cand), c4$c3_deep_shares(cand))
+  s <- mcgc_deep_shares(syn_cand())
+  expect_identical(c(s$n_cand, s$n_deep), c(7L, 4L))
+  expect_identical(s$deep_share_median, 0.4)     # the NA share dropped
+  expect_identical(s$deep_share_ge, 0.25)        # one of four at or above 0.75
+  expect_true(is.na(mcgc_deep_shares(syn_cand(numeric()))$deep_share_median))
+  expect_error(mcgc_deep_shares(data.frame(layer = 1L)), "layer and share")
+})
+
+test_that("clip shares read each stored preparation and check its candidate count", {
+  idx <- data.frame(site = "WREF", plot = c("WREF_001", "WREF_002"), rung = "native",
+                    cover = c(0.9, 0.5), crown_spacing = c(8.5, 6), top_height = c(40, 30),
+                    n_cand = c(7L, 5L), file = c("a.rds", "b.rds"), stringsAsFactors = FALSE)
+  store <- list(a.rds = list(cand = syn_cand()), b.rds = list(cand = syn_cand(c(0.6, 0.7))))
+  x <- mcgc_clip_shares(idx, function(f) store[[f]], "2019")
+  expect_identical(x$side, c("2019", "2019"))
+  expect_equal(x$deep_share_median, c(0.4, 0.65))
+  expect_identical(x$cover, idx$cover)
+  idx$n_cand[2] <- 6L
+  expect_error(mcgc_clip_shares(idx, function(f) store[[f]], "2019"),
+               "WREF_002: 5 candidates stored, 6 in the index")
+})
+
+syn_sides <- function() {
+  a <- data.frame(site = c("WREF", "WREF", "ABBY", "ABBY"), plot = c("w1", "w2", "a1", "a2"),
+                  cover = c(0.9, 0.8, 0.59, 0.7), crown_spacing = c(8.1, 7, 6, 9),
+                  n_deep = c(10L, 20L, 5L, 0L), deep_share_median = c(0.2, 0.4, 0.3, NA),
+                  stringsAsFactors = FALSE)
+  b <- data.frame(site = c("ABBY", "ABBY", "WREF", "WREF"), plot = c("a2", "a1", "w2", "w1"),
+                  cover = c(0.75, 0.65, 0.85, 0.95), crown_spacing = c(9.5, 6.5, 7.2, 7.9),
+                  n_deep = c(3L, 6L, 22L, 12L), deep_share_median = c(0.5, 0.45, 0.5, 0.3),
+                  stringsAsFactors = FALSE)
+  list(a = a, b = b)
+}
+
+test_that("the stand transfer pairs plots and counts the states that differ", {
+  s <- syn_sides()
+  tr <- mcgc_stand_transfer(s$a, s$b, list(WREF = "WREF", ABBY = "ABBY",
+                                           Washington = c("WREF", "ABBY")),
+                            labels = c("2019", "2021"))
+  expect_identical(tr$scope, c("WREF", "ABBY", "Washington"))
+  expect_identical(tr$plots, c(2L, 2L, 4L))
+  w <- tr[tr$scope == "WREF", ]
+  expect_equal(c(w$cover_2019, w$cover_2021), c(0.85, 0.9))
+  expect_equal(c(w$deep_share_median_2019, w$deep_share_median_2021), c(0.3, 0.4))
+  # WREF: both closed on both sides; w1 is gated on 2019 only (8.1 against 7.9)
+  expect_identical(unlist(w[c("closed_2019", "closed_2021", "closed_changed", "gated_2019",
+                              "gated_2021", "gated_changed")], use.names = FALSE),
+                   c(2L, 2L, 0L, 1L, 0L, 1L))
+  ab <- tr[tr$scope == "ABBY", ]
+  # a1 is open on 2019 (0.59) and closed on 2021; a2 is gated on both
+  expect_identical(unlist(ab[c("closed_2019", "closed_2021", "closed_changed", "gated_2019",
+                               "gated_2021", "gated_changed")], use.names = FALSE),
+                   c(1L, 2L, 1L, 1L, 1L, 0L))
+  expect_identical(ab$deep_share_median_2019, 0.3)   # a2 has no deeper-layer peak
+  expect_identical(ab$deep_share_missing_2019, 1L)
+  expect_identical(tr$n_deep_2021[tr$scope == "Washington"], 43L)
+  expect_error(mcgc_stand_transfer(s$a, s$b[-1, ], list(ABBY = "ABBY")), "no 2021 stand")
+  expect_error(mcgc_stand_transfer(rbind(s$a, s$a[1, ]), s$b, list(WREF = "WREF")), "twice")
+})
+
+test_that("the C4 transfer reads the 3DEP clip record as confirm_gated_3dep.R counts it", {
+  s <- syn_sides()
+  b <- s$b[match(paste(s$a$site, s$a$plot), paste(s$b$site, s$b$plot)), ]
+  one <- function(rung, shift) data.frame(
+    site = s$a$site, plot = s$a$plot, rung = rung, scored = TRUE, cover = s$a$cover + shift,
+    crown_spacing = s$a$crown_spacing, n_deep = s$a$n_deep,
+    deep_share_median = s$a$deep_share_median,
+    neon_native_cover = b$cover, neon_native_crown_spacing = b$crown_spacing,
+    neon_native_n_deep = b$n_deep, neon_native_deep_share_median = b$deep_share_median,
+    neon_rung2_cover = b$cover - 0.3, neon_rung2_crown_spacing = b$crown_spacing,
+    neon_rung2_n_deep = 1L, neon_rung2_deep_share_median = 0.1, stringsAsFactors = FALSE)
+  clips <- rbind(one("3dep_native", 0), one("3dep_dec2", -0.2))
+  clips$scored[1] <- FALSE   # an unscored clip is left out
+  scopes <- list(WREF = "WREF", ABBY = "ABBY", California = c("WREF", "ABBY"))
+  tr <- mcgc_c4_transfer(clips, scopes)
+  expect_identical(tr$variant, rep(c("3dep_native", "3dep_dec2"), each = 3))
+  expect_identical(tr$plots, c(1L, 2L, 3L, 2L, 2L, 4L))
+  # the thinned clips are set against the 2021 thinned clip
+  expect_identical(tr$deep_share_median_2021[tr$variant == "3dep_dec2"], rep(0.1, 3))
+  expect_equal(tr$cover_2021[tr$variant == "3dep_native" & tr$scope == "WREF"], 0.85)
+  # the counts equal confirm_gated_3dep.R's transfer table on the same clips
+  c4 <- new.env()
+  suppressMessages(source(file.path("..", "..", "scripts", "confirm_gated_3dep.R"), local = c4))
+  ref <- c4$c3_transfer(clips)
+  m <- merge(tr, ref, by = c("variant", "scope"), suffixes = c("", ".ref"))
+  for (k in c("plots", "closed_3dep", "closed_2021", "closed_changed", "spaced_3dep",
+              "spaced_2021", "spaced_changed", "gated_3dep", "gated_2021", "gated_changed"))
+    expect_identical(as.integer(m[[k]]), as.integer(m[[paste0(k, ".ref")]]), info = k)
+})
+
+## ---- the bootstrap's own variation -----------------------------------------------------------
+test_that("seed bounds redraw each contrast with the given seeds", {
+  cells <- mcgc_prepare_cells(syn_confirm_cells(sites = c(WREF = 8, ABBY = 6),
+                                                rungs = "native"), null = TRUE)
+  Lid <- mcgc_ids(cells)
+  pairs <- list(declared_stock = MCGC_CONFIGS[c("declared", "stock")],
+                floor_exemption_stock = MCGC_CONFIGS[c("floor_exemption", "stock")])
+  sb <- mcgc_seed_bounds(cells, Lid, unique(Lid), pairs, seeds = 11:13, n_boot = 50)
+  expect_identical(nrow(sb), 6L)
+  expect_identical(sb$seed, rep(11:13, each = 2))
+  expect_identical(sb$contrast, rep(names(pairs), 3))
+  for (i in seq_len(nrow(sb))) {
+    r <- mcgc_contrast_row(cells, Lid, unique(Lid), sb$config_a[i], sb$config_b[i], 50,
+                           sb$seed[i])
+    expect_identical(c(sb$d_measure[i], sb$lo_measure[i], sb$hi_measure[i]),
+                     c(r$d_cF1, r$lo_cF1, r$hi_cF1))
+    expect_identical(sb$reading[i], mcgc_reading(r$lo_cF1, r$hi_cF1, r$n_plots)$reading)
+  }
+  # the point estimate is the same under every seed; the interval is not
+  d <- sb[sb$contrast == "declared_stock", ]
+  expect_identical(length(unique(d$d_measure)), 1L)
+  expect_gt(length(unique(d$lo_measure)), 1L)
+  expect_identical(unique(sb$n_boot), 50L)
+  expect_error(mcgc_seed_bounds(cells, Lid, character(), pairs, 1L, 10), "no plot")
 })
