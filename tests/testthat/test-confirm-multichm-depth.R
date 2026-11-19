@@ -74,7 +74,9 @@ test_that("sourcing runs nothing; arguments parse as KEY=VALUE with at most 8 wo
   expect_identical(S$STAGE, "all")
   expect_identical(S$DATASETS, CFD_DATASETS$name)
   expect_identical(c(S$CORES, S$N_BOOT), c(4L, MT_N_BOOT))
-  expect_identical(S$OUT, file.path(w, "multichm_depth_runs", "confirm"))
+  # OUT in canonical absolute form
+  expect_identical(S$OUT, file.path(normalizePath(dirname(w)), basename(w), "multichm_depth_runs",
+                                    "confirm"))
   expect_identical(S$STUDY, file.path(w, "multichm_depth_runs", "neon", "multichm_depth"))
   expect_identical(S$CAMPAIGN, file.path(w, "multichm_gated_confirmation"))
   S2 <- cfd_settings(c("CORES=8", "DATASETS=ql2,ca2017", "STAGE=contrasts", "N_BOOT=50"), work = w)
@@ -93,6 +95,74 @@ test_that("sourcing runs nothing; arguments parse as KEY=VALUE with at most 8 wo
               file.path(w, "multichm_depth_runs", "neon", "multichm_depth"),
               file.path(w, "neon", "frozen_2021"), file.path(w, "sparse_2017"), w))
     expect_error(cfd_settings(paste0("OUT=", o), work = w), "overlaps a read-only input")
+})
+
+test_that("paths are compared in canonical form: relative, `..` and symbolic links resolved", {
+  skip_on_os("windows")
+  root <- tempfile("cfd_tree_")
+  for (d in c(CFD_STUDY_DIR, "multichm_gated_confirmation"))
+    dir.create(file.path(root, "work", d), recursive = TRUE)
+  root <- normalizePath(root)
+  W <- file.path(root, "work")
+  withr::local_dir(root)
+  file.symlink(W, file.path(root, "alias"))
+  file.symlink(file.path(W, CFD_STUDY_DIR), file.path(root, "study_link"))
+  file.symlink(file.path(root, "nowhere"), file.path(root, "dangling"))
+  # absolute against the working directory; ".", empty components and a
+  # trailing slash dropped; `..` below a missing component applied
+  expect_identical(cfd_canon_path("work/a/b"), file.path(W, "a", "b"))
+  expect_identical(cfd_canon_path("work/./a//b/"), file.path(W, "a", "b"))
+  expect_identical(cfd_canon_path("work/zz/../a"), file.path(W, "a"))
+  expect_identical(cfd_canon_path(file.path(W, "zz", "..", "..", "x")), file.path(root, "x"))
+  expect_identical(cfd_canon_path(file.path(W, "multichm_depth_runs", "..", "x")),
+                   file.path(W, "x"))
+  # a symbolic link in the existing part is followed, also behind a `..`
+  expect_identical(cfd_canon_path("alias/multichm_depth_runs/new"),
+                   file.path(W, "multichm_depth_runs", "new"))
+  expect_identical(cfd_canon_path("alias/zz/../multichm_depth_runs"),
+                   file.path(W, "multichm_depth_runs"))
+  expect_identical(cfd_canon_path("work/zz/../../study_link/x"), file.path(W, CFD_STUDY_DIR, "x"))
+  expect_error(cfd_canon_path("dangling/x"), "points nowhere")
+  expect_identical(cfd_canon_path("/"), "/")
+  expect_true(cfd_path_overlap("/a/b", "/a/b/c"))
+  expect_true(cfd_path_overlap("/a/b/c", "/a/b"))
+  expect_true(cfd_path_overlap("/a/b", "/a/b"))
+  expect_false(cfd_path_overlap("/a/b", "/a/bc"))
+  expect_true(cfd_path_overlap("/", "/a"))
+  for (wk in list(W, "work")) {
+    # a relative OUT that does not exist yet and lies inside the study
+    expect_error(cfd_settings("OUT=work/multichm_depth_runs/neon/multichm_depth/x", work = wk),
+                 "overlaps a read-only input \\(the study")
+    # an OUT with `..`, relative or absolute
+    for (o in c("work/multichm_depth_runs/zz/../neon/multichm_depth",
+                file.path(W, "multichm_depth_runs", "zz", "..", "confirm"),
+                "work/multichm_depth_runs/zz/../confirm_new"))
+      expect_error(cfd_settings(paste0("OUT=", o), work = wk), "has a `..` component")
+    # STUDY= elsewhere: the study's run of record stays read-only
+    expect_error(cfd_settings(c("STUDY=elsewhere",
+                                "OUT=work/multichm_depth_runs/neon/multichm_depth"), work = wk),
+                 "the study's run of record")
+    expect_error(cfd_settings(c("STUDY=elsewhere", paste0("OUT=", W)), work = wk),
+                 "the study's run of record")
+    # a symbolic link in an existing part is followed
+    expect_error(cfd_settings("OUT=alias/multichm_depth_runs/neon/multichm_depth/x", work = wk),
+                 "overlaps a read-only input \\(the study")
+    expect_error(cfd_settings("OUT=study_link/x", work = wk), "overlaps a read-only input")
+    expect_error(cfd_settings("OUT=alias", work = wk), "overlaps a read-only input")
+    expect_error(cfd_settings("OUT=alias/multichm_gated_confirmation/x", work = wk),
+                 "the campaign")
+    # a legitimate new relative OUT: accepted, canonical, nothing written
+    S <- cfd_settings("OUT=work/multichm_depth_runs/confirm_new", work = wk)
+    expect_identical(S$OUT, file.path(W, "multichm_depth_runs", "confirm_new"))
+    expect_false(dir.exists(S$OUT))
+    expect_identical(cfd_settings("OUT=alias/multichm_depth_runs/confirm_new", work = wk)$OUT,
+                     S$OUT)
+    # the default OUT is kept canonical
+    expect_identical(cfd_settings(character(), work = wk)$OUT, file.path(W, CFD_CONFIRM_DIR))
+  }
+  # messages print paths under the repository relative to it
+  expect_identical(cfd_rel(file.path(.ROOT, "work", "x")), file.path("work", "x"))
+  expect_identical(cfd_rel(c("/elsewhere/x", .ROOT)), c("/elsewhere/x", "."))
 })
 
 test_that("the datasets name the campaign's runs, roots, sites and rungs; T4 pools two", {

@@ -22,8 +22,8 @@
 # candidate's own top.
 #
 # The features, constants, configurations, rules and grid are those of the
-# specification work/multichm_depth/SPEC.txt (sections 2 to 4), fixed before any
-# NEON score of these rules was computed. Its provenance (section 7): the
+# specification docs/multichm-depth-protocol.md (sections 2 to 4), fixed before
+# any NEON score of these rules was computed. Its provenance (section 7): the
 # family's form, its constants and its grid values were informed by an
 # exploratory look at 60 plots outside the benchmark that have no field
 # reference (three ML segmenters as referees).
@@ -34,11 +34,18 @@
 # mcd_config(Inf, 0, 0, 0, FALSE, Inf) exactly those of MCG_STOCK (stock
 # lidRplugins::multichm).
 #
+# MCD_ARM is the configuration the arm uses (config_id 28 of the grid). It is
+# not the calibration study's selection: it was chosen after the held-out
+# results had been read (see its comment below). detect_multichm_depth() runs it
+# on one height-normalized clip in a single call.
+#
 # Sourced, not run. No side effects. The caller sources multichm_gated_lib.R
 # and everything it needs first (sweep_lib.R, model_bench_lib.R, calval_lib.R,
 # master_tables_lib.R; lidR, lidRplugins and data.table attached): this library
-# calls mcg_filter() and assert_detection_contract(), and mcd_identities() calls
-# mcg_config(). It reads no file and changes no option or lidR setting.
+# calls mcg_filter() and assert_detection_contract(), mcd_prepare() calls
+# mcg_candidates(), mcg_first_return_share(), mcg_canopy_cover() and
+# ws_factory(), and mcd_identities() calls mcg_config(). It reads no file and
+# changes no option or lidR setting.
 
 ## ---- constants ----------------------------------------------------------------------------
 MCD_RADIUS    <- 1     # minimum horizontal radius (m) of a candidate's column
@@ -180,6 +187,22 @@ mcd_config_label <- function(cfg) {
           as.integer(cfg$lit_union), cfg$cover_min)
 }
 
+# The configuration the arm uses, k4_r0_z3_f3_l0_c0.6 (config_id 28 of
+# mcd_grid()). In a closed stand (canopy cover >= 0.6) a deeper-layer candidate
+# is kept when it sits at most 4 m under the local canopy surface; every top,
+# surface or deeper, in every stand must be at least 3 m high; the distance
+# filter is the declared gated arm's (near_2d 0: in a closed stand surface
+# peaks skip it, deeper ones meet the package's rule), and an open stand keeps
+# the package's filter; no lit union. It is NOT the calibration's selection,
+# which calval_multichm_depth.R derives on the calibration plots and writes to
+# declared_depth_config.json. It was chosen by hand after the held-out results
+# of the study had been read, so the scores of this configuration are
+# descriptive, not a held-out test. results/multichm-depth-results.md (section
+# "The arm's configuration") and scripts/posthoc_multichm_depth.R document the
+# choice.
+MCD_ARM <- mcd_config(depth_max = 4, near_2d = 0, zmin = 3, zmin_surface = 3,
+                      lit_union = FALSE, cover_min = 0.6)
+
 # The two identities with the gated arm (acceptance checks; they must hold on
 # every prepared clip): each element pairs a depth configuration with the gated
 # configuration that accepts exactly the same candidates. Needs mcg_config().
@@ -228,7 +251,7 @@ mcd_gate <- function(cand, cover, cfg) {
       share <- cand[["share"]]
       if (is.null(share))
         stop("multichm_depth: lit_union needs the candidates' first-return share ",
-             "(column `share`, from mcg_prepare)", call. = FALSE)
+             "(column `share`, from mcg_prepare or mcd_prepare(share = TRUE))", call. = FALSE)
       lit <- !is.na(share) & share >= MCD_LIT_SHARE & depth <= MCD_LIT_DEPTH
     }
     keep_deep <- keep_deep & (depth <= cfg$depth_max | lit)
@@ -304,6 +327,44 @@ mcd_apply <- function(prep, feat, cfg, report = "z") {
   det <- data.frame(x = as.numeric(C$X), y = as.numeric(C$Y), z = as.numeric(z))
   assert_detection_contract(det)
   det
+}
+
+## ---- one call: prepare a clip and detect --------------------------------------------------
+# Everything the family needs of one height-normalized clip `las`: the
+# candidates (mcg_candidates with the variable window ws_factory(a), searched
+# on a CHM of resolution `res`), with their first-return share in the column
+# `share` (mcg_first_return_share) when share is TRUE and without that column
+# otherwise; the clip's canopy cover (mcg_canopy_cover); and the feature table
+# mcd_features(cand, las, frdens), frdens being the clip's first returns per
+# m^2. cand and cover are those of mcg_prepare(las, res, a), less the share
+# column when share is FALSE. The crowns and the top height mcg_prepare also
+# computes are left out: no rule of this family reads them. Returns
+# list(cand, cover, feat, res, a, frdens, has_return_number); prep$feat is the
+# feature table mcd_apply() takes with it. frdens is checked before the
+# candidate search.
+mcd_prepare <- function(las, res, frdens, a = 0.10, share = TRUE) {
+  if (!is.logical(share) || length(share) != 1L || is.na(share))
+    stop("multichm_depth: share must be TRUE or FALSE", call. = FALSE)
+  mcd_col_radius(frdens)
+  cand <- mcg_candidates(las, res, ws_factory(a))
+  if (share) cand[, share := mcg_first_return_share(cand, las)]   # as mcg_prepare adds it
+  list(cand = cand, cover = mcg_canopy_cover(las), feat = mcd_features(cand, las, frdens),
+       res = res, a = a, frdens = frdens,
+       has_return_number = "ReturnNumber" %in% names(las@data))
+}
+
+# Detections of one configuration (MCD_ARM by default) on one height-normalized
+# clip, in one call: mcd_prepare() (with the share only when the configuration
+# reads it, lit_union) and mcd_apply(). `res` is the resolution (m) of the CHM
+# the candidate search runs on; the arm drivers use 0.25 m at 8 first returns
+# per m^2 or more and 0.5 m below. `frdens` is the clip's first-return density
+# (first returns per m^2), which sets the column radius of the features. `a` is
+# the variable window's slope (ws_factory) and `report` the height reported
+# ("z" or "zrep", mcd_apply). Returns mcd_apply()'s data.frame x, y, z.
+detect_multichm_depth <- function(las, res, frdens, a = 0.10, cfg = MCD_ARM, report = "z") {
+  cfg <- .mcd_check_config(cfg)
+  prep <- mcd_prepare(las, res, frdens, a, share = cfg$lit_union)
+  mcd_apply(prep, prep$feat, cfg, report)
 }
 
 ## ---- the declared grid --------------------------------------------------------------------

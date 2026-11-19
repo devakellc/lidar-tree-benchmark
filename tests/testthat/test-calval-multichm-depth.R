@@ -281,26 +281,50 @@ test_that("features are refused without the current constants stamp or column ra
   unlink(fdir, recursive = TRUE)
 })
 
-test_that("the analysis needs the specification and its addendum (A7, A9)", {
-  dir <- tempfile("cd_spec_"); dir.create(dir)
-  expect_error(cd_spec_record(dir), "not found")
-  writeLines("spec", file.path(dir, CD_SPEC))
-  expect_error(cd_spec_record(dir), "SPEC_ADDENDUM_1.txt")
-  writeLines("addendum", file.path(dir, CD_ADDENDUM))
-  expect_error(cd_spec_record(dir), "no recorded hash of the addendum")
+test_that("the analysis needs the protocol document, which quotes both hashes (A7, A9)", {
   sha <- function(f) digest::digest(file = f, algo = "sha256")
-  writeLines(c(paste0(sha(file.path(dir, CD_ADDENDUM)), "  ", CD_ADDENDUM), "2026-11-18"),
-             file.path(dir, "SPEC_ADDENDUM_1.sha256"))
-  r <- cd_spec_record(dir)
-  expect_identical(r, list(specification_sha256 = sha(file.path(dir, CD_SPEC)),
-                           addendum_sha256 = sha(file.path(dir, CD_ADDENDUM))))
-  writeLines(paste0(strrep("0", 64), "  SPEC.txt"), file.path(dir, "SPEC.sha256"))
-  expect_error(cd_spec_record(dir), "its record says")
-  unlink(file.path(dir, "SPEC.sha256"))
-  writeLines("addendum, changed", file.path(dir, CD_ADDENDUM))
-  expect_error(cd_spec_record(dir), "its record says")
-  unlink(dir, recursive = TRUE)
-  # the provenance the outputs repeat carries the addendum's sentence (A9)
+  # the hashes of the two working files, as the run of record wrote them
+  expect_identical(CD_SPEC_SHA256,
+                   "671ca6aac794ba8ae34688d75ae1717bc054d53265fd82791ef17bce186fbc4a")
+  expect_identical(CD_ADDENDUM_SHA256,
+                   "e9b854f821f2956538640057de6ff10af4a7654aa4fa2da1b8c532cd483924e7")
+  # a missing document: the message names it and the analyze stage
+  f <- tempfile("cd_protocol_", fileext = ".md")
+  expect_error(cd_spec_record(f), "the analyze stage needs the protocol document", fixed = TRUE)
+  expect_error(cd_spec_record(f), paste("not found:", f), fixed = TRUE)
+  # a document lacking one hash, or both, or quoting one with a character changed
+  writeLines(c("# protocol", CD_SPEC_SHA256), f)
+  expect_error(cd_spec_record(f), paste0("does not quote the sha256 of the addendum (",
+                                         CD_ADDENDUM_SHA256, ")"), fixed = TRUE)
+  writeLines(c("# protocol", CD_ADDENDUM_SHA256), f)
+  expect_error(cd_spec_record(f), paste0("does not quote the sha256 of the specification (",
+                                         CD_SPEC_SHA256, ")"), fixed = TRUE)
+  writeLines("# protocol", f)
+  expect_error(cd_spec_record(f), "of the specification and addendum", fixed = TRUE)
+  writeLines(c(paste0(substr(CD_SPEC_SHA256, 1, 63), "0"), CD_ADDENDUM_SHA256), f)
+  expect_error(cd_spec_record(f), "of the specification (", fixed = TRUE)
+  # a document that quotes both: the two hashes, the document's label (never
+  # the path it was read from) and the document's own sha256
+  writeLines(c("# protocol", "", "| Part | SHA-256 |", "| --- | --- |",
+               paste0("| Specification | `", CD_SPEC_SHA256, "` |"),
+               paste0("| Addendum 1 | `", CD_ADDENDUM_SHA256, "` |")), f)
+  expect_identical(cd_spec_record(f),
+                   list(specification_sha256 = CD_SPEC_SHA256,
+                        addendum_sha256 = CD_ADDENDUM_SHA256,
+                        protocol = "docs/multichm-depth-protocol.md", protocol_sha256 = sha(f)))
+  unlink(f)
+  # the committed document passes
+  committed <- file.path("..", "..", "docs", "multichm-depth-protocol.md")
+  expect_identical(CD_PROTOCOL_LABEL, "docs/multichm-depth-protocol.md")
+  expect_identical(normalizePath(CD_PROTOCOL), normalizePath(committed))
+  expect_identical(cd_spec_record(),
+                   list(specification_sha256 = CD_SPEC_SHA256,
+                        addendum_sha256 = CD_ADDENDUM_SHA256,
+                        protocol = CD_PROTOCOL_LABEL, protocol_sha256 = sha(committed)))
+  # the provenance the outputs repeat: section 7 and the addendum's sentence
+  # (A9) word for word as the document quotes them, then one sentence that
+  # names the document
+  expect_true(startsWith(CD_PROVENANCE, "The family's form, its constants and its grid values"))
   expect_true(grepl(paste("The precedence of the reading rule, the chance-corrected reading of",
                           "the lowest-tree guard, the low-floor sibling, the closed- and",
                           "open-stand scopes and the confirmation datasets were fixed in",
@@ -308,7 +332,40 @@ test_that("the analysis needs the specification and its addendum (A7, A9)", {
                           "results and the code review had been read, and before any",
                           "validation cell of the depth family was scored."), CD_PROVENANCE,
                     fixed = TRUE))
-  expect_true(startsWith(CD_PROVENANCE, "The family's form, its constants and its grid values"))
+  added <- "Both files are reproduced in docs/multichm-depth-protocol.md."
+  expect_true(endsWith(CD_PROVENANCE, paste0("depth family was scored. ", added)))
+  quoted <- strsplit(sub(paste0(" ", added), "", CD_PROVENANCE, fixed = TRUE),
+                     "(?<=\\(UNBLIND=1\\)\\.) ", perl = TRUE)[[1]]
+  expect_length(quoted, 2L)
+  doc <- gsub("\\s+", " ", paste(readLines(committed, warn = FALSE, encoding = "UTF-8"),
+                                 collapse = " "))
+  for (q in quoted) expect_true(grepl(paste0("\"", q, "\""), doc, fixed = TRUE))
+})
+
+test_that("the declared record carries the two hashes, then the protocol document", {
+  cells <- syn_cells()
+  sp <- cv_split(syn_plot_rows(cells), 1L, 0.5)
+  sel <- cd_select(cells, sp$calib)
+  spec <- cd_spec_record()
+  res <- list(selected = sel, n_calib = length(sp$calib), n_valid = length(sp$valid),
+              low_floor = NULL, spec = spec)
+  rec <- list(K = 200L, tol = 4, clip_manifest_sha256 = "abc", gated = list(out = "gated"))
+  d <- cd_declared(res, syn_settings(), rec, unblind = FALSE)
+  # the fields of the run of record, in their order, then the document's two
+  expect_identical(names(d), c(
+    "config_id", "label", "depth_max", "near_2d", "zmin", "zmin_surface", "lit_union",
+    "cover_min", "constants", "constants_sha256", "grid_sha256", "criterion", "seed", "frac",
+    "K", "tol", "n_calibration_plots", "n_validation_plots", "calibration_cF1",
+    "calibration_F1", "calibration_cF1_declared_gated", "calibration_cF1_stock",
+    "clip_manifest_sha256", "population", "gated_run", "declared_gated", "selection",
+    "low_floor", "blind", "provenance", "specification_sha256", "addendum_sha256", "protocol",
+    "protocol_sha256"))
+  expect_identical(d[c("specification_sha256", "addendum_sha256", "protocol", "protocol_sha256")],
+                   spec)
+  expect_identical(d$provenance, CD_PROVENANCE)
+  expect_identical(c(d$label, d$config_id), c(sel$label, sel$config_id))
+  expect_true(d$blind)
+  expect_false(d$low_floor$exists)
 })
 
 test_that("a selection on the calibration plots does not see the validation rows", {
@@ -1020,6 +1077,8 @@ test_that("the blind analyses and their Markdown hold calibration rows only", {
   expect_type(md, "character")
   expect_true(any(grepl("The family's form", md, fixed = TRUE)))
   expect_true(grepl("were fixed in work/multichm_depth/SPEC_ADDENDUM_1.txt", flat(md),
+                    fixed = TRUE))
+  expect_true(grepl("Both files are reproduced in docs/multichm-depth-protocol.md.", flat(md),
                     fixed = TRUE))
   expect_false(any(grepl("\\| valid \\|", md)))
   prose <- md[!startsWith(md, "|")]

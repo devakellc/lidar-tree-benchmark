@@ -14,7 +14,7 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 
 # Calibration/validation study of the `multichm_depth` tree-top arm
 # (multichm_depth_lib.R), a depth-gated variant of the multichm_gated arm, as
-# the specification work/multichm_depth/SPEC.txt (sections 5 to 7) fixes it
+# the specification docs/multichm-depth-protocol.md (sections 5 to 7) fixes it
 # before any NEON score of its rules was read. The family keeps a deeper-layer
 # candidate of a closed stand when it sits at most depth_max metres under the
 # local canopy surface (or, with lit_union, when it is lit and at most
@@ -27,22 +27,27 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # and the selection is contrasted on the held-out VALIDATION plots with the
 # declared gated arm (z5_s0.75_c0.6_e1_d8) and with three other gated
 # configurations re-derived from the same candidates, stock multichm and the
-# CHM-VWF baseline.
+# CHM-VWF baseline. The selection is not the configuration the arm uses
+# (MCD_ARM, chosen after the held-out results had been read).
 #
-# Addendum 1 (work/multichm_depth/SPEC_ADDENDUM_1.txt, fixed after the blind
-# calibration results and the code review, before any validation cell of the
-# depth family was scored) wins over SPEC.txt where they differ: the headline
-# split is read from the gated run, never taken as an argument (A1); the reading
-# rule's precedence is better, worse, not worse, inconclusive, and a scope of
-# fewer than 10 plots is not read (A2); the lowest-tree guard is read with its
-# chance-corrected counterpart, and every lowest-tree score carries a
-# chance-corrected interval (A3); the low-floor sibling S_low is derived from
-# the calibration plots and contrasted (A4); closed and open stands are two more
-# native scopes (A5); the features carry the constants' stamp (A7); the
-# provenance text gains the addendum's sentence (A9).
+# The specification and its addendum were written as two working files, which
+# docs/multichm-depth-protocol.md reproduces; the outputs carry the working
+# files' hashes and the document's (cd_spec_record). Addendum 1 (fixed after
+# the blind calibration results and the code review, before any validation
+# cell of the depth family was scored) wins over the specification where they
+# differ: the headline split is read from the gated run, never taken as an
+# argument (A1); the reading rule's precedence is better, worse, not worse,
+# inconclusive, and a scope of fewer than 10 plots is not read (A2); the
+# lowest-tree guard is read with its chance-corrected counterpart, and every
+# lowest-tree score carries a chance-corrected interval (A3); the low-floor
+# sibling S_low is derived from the calibration plots and contrasted (A4);
+# closed and open stands are two more native scopes (A5); the features carry
+# the constants' stamp (A7); the provenance text gains the addendum's sentence
+# (A9).
 #
 # Provenance (section 7 and A9, repeated in declared_depth_config.json,
-# tables_blind.md and tables.md): CD_PROVENANCE below.
+# tables_blind.md and tables.md): CD_PROVENANCE below, with one sentence added
+# that names the protocol document.
 #
 # BLIND RULE (section 5, A1). With UNBLIND=0, the default: the score stage
 # scores only the cells of the calibration plots of the headline split (the
@@ -78,8 +83,8 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #             exactly, null means within 1e-9). -> OUT/cells.csv, OUT/grid.csv,
 #             OUT/split.csv (the headline split: plot ids and strata, after
 #             CHECK S2), OUT/cells.config.json.
-#   analyze   Stops unless SPEC.txt and SPEC_ADDENDUM_1.txt are found (and the
-#             addendum matches its .sha256). CHECK S2 (the split equals the
+#   analyze   Stops without the protocol document (docs/multichm-depth-protocol.md,
+#             holding both working files' hashes). CHECK S2 (the split equals the
 #             gated study's: 57 calibration and 49 validation plots), the
 #             record's split (seed, frac, plot sets) equals it, the selection on
 #             the calibration plots, S_low (A4) from their per-stem matches, and
@@ -135,7 +140,7 @@ CD_CHM        <- "chm_vwf"
 CD_CRITERION  <- "cF1"                   # fixed by the specification (section 5)
 CD_METRICS    <- CV_METRICS              # cF1, F1, cPrecision, cRecall, precision, recall, det_per_ref
 CD_SEED_METRICS <- c("cF1", "F1", "recall", "precision")
-CD_MAX_CORES  <- 8L                      # at most 8 R worker processes (SPEC section 1)
+CD_MAX_CORES  <- 8L                      # at most 8 R worker processes (specification section 1)
 CD_ZREP       <- "@zrep"                 # suffix of the selection reported with z = zrep
 CD_BANDS      <- c("[0,5)", "[5,10)", "[10,20)", "[20,Inf)", "unknown")
 CD_BAND_BREAKS <- c(0, 5, 10, 20, Inf)
@@ -171,7 +176,9 @@ CD_PROVENANCE <- paste(
   "and the confirmation datasets were fixed in",
   "work/multichm_depth/SPEC_ADDENDUM_1.txt after the blind calibration results",
   "and the code review had been read, and before any validation cell of the",
-  "depth family was scored.")
+  "depth family was scored.",
+  # where the two working files named above are now read
+  "Both files are reproduced in docs/multichm-depth-protocol.md.")
 CD_SELECTED_ON <- paste("selected on the calibration plots at native density",
                         "(highest pooled cF1, ties to the smaller config_id)")
 CD_LOW_ON <- paste("among S and its four floor-pair siblings, the highest chance-corrected",
@@ -189,10 +196,23 @@ CD_STANDS_TEXT <- paste(
   "the others (A5; native density only).")
 CD_DEFAULT_OUT <- file.path(.ROOT, "work", "multichm_depth_runs", "neon", "multichm_depth")
 CD_CELLS_CONFIG <- "cells.config.json"
-# The specification and its addendum: the analyze stage stops without them (A7)
-CD_SPEC_DIR   <- file.path(.ROOT, "work", "multichm_depth")
-CD_SPEC       <- "SPEC.txt"
-CD_ADDENDUM   <- "SPEC_ADDENDUM_1.txt"
+# The protocol document, which reproduces the specification and its addendum:
+# the analyze stage stops without it (A7). The outputs print the label, never
+# an absolute path. It is looked for as .find() looks for a script: under the
+# repository root, then from the working directory and from two levels below
+# the root (tests/testthat, where .ROOT falls back to the working directory);
+# the root's path when none exists.
+CD_PROTOCOL_LABEL <- "docs/multichm-depth-protocol.md"
+CD_PROTOCOL       <- local({
+  rel <- file.path("docs", "multichm-depth-protocol.md")
+  hit <- Find(file.exists, c(file.path(.ROOT, rel), rel, file.path("..", "..", rel)))
+  if (length(hit)) hit else file.path(.ROOT, rel)
+})
+# The sha256 of the two working files the protocol document reproduces, the
+# specification (SPEC.txt) and its addendum (SPEC_ADDENDUM_1.txt), as the run
+# of record wrote them; the document must quote both (cd_spec_record).
+CD_SPEC_SHA256     <- "671ca6aac794ba8ae34688d75ae1717bc054d53265fd82791ef17bce186fbc4a"
+CD_ADDENDUM_SHA256 <- "e9b854f821f2956538640057de6ff10af4a7654aa4fa2da1b8c532cd483924e7"
 
 ## ---- arguments ----------------------------------------------------------------------------
 # The headline split (A1): the seed and calibration fraction the gated study
@@ -349,29 +369,27 @@ cd_constants_digest <- function(k = mcd_constants())
 
 cd_file_sha <- function(f) if (file.exists(f)) digest::digest(file = f, algo = "sha256") else NA
 
-# The first field of a sha256sum line (a .sha256 record), NA without the file.
-cd_recorded_sha <- function(f) {
-  if (!file.exists(f)) return(NA_character_)
-  strsplit(trimws(readLines(f, n = 1L, warn = FALSE)), "[[:space:]]+")[[1]][1]
-}
-
-# The specification and its addendum (A7, A9): their sha256 for the outputs'
-# provenance. Stops when either file is missing, so no output carries an NA
-# hash, and when a file differs from its .sha256 record (the addendum's record
-# must exist; the specification's is checked when present).
-cd_spec_record <- function(dir = CD_SPEC_DIR) {
-  f <- file.path(dir, c(CD_SPEC, CD_ADDENDUM))
-  miss <- f[!file.exists(f)]
+# The specification and its addendum (A7, A9) for the outputs' provenance: the
+# sha256 of the two working files (CD_SPEC_SHA256, CD_ADDENDUM_SHA256, the values
+# the run of record wrote), the protocol document that reproduces them (its
+# repository path, CD_PROTOCOL_LABEL) and the document's own sha256. Stops when
+# the document is missing, so no output names a document that is not there,
+# and when its text does not quote both working files' hashes, so the constants
+# and the document cannot drift apart.
+cd_spec_record <- function(protocol = CD_PROTOCOL) {
+  if (!file.exists(protocol))
+    stop("the analyze stage needs the protocol document (the specification and its ",
+         "addendum); not found: ", protocol, call. = FALSE)
+  txt <- paste(readLines(protocol, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+  want <- c(specification = CD_SPEC_SHA256, addendum = CD_ADDENDUM_SHA256)
+  miss <- names(want)[!vapply(want, grepl, logical(1), x = txt, fixed = TRUE)]
   if (length(miss))
-    stop("the analyze stage needs the specification and its addendum; not found: ",
-         paste(miss, collapse = ", "), call. = FALSE)
-  sha <- vapply(f, cd_file_sha, character(1), USE.NAMES = FALSE)
-  rec <- vapply(sub("\\.txt$", ".sha256", f), cd_recorded_sha, character(1), USE.NAMES = FALSE)
-  if (is.na(rec[2]))
-    stop("no recorded hash of the addendum at ", sub("\\.txt$", ".sha256", f[2]), call. = FALSE)
-  for (i in 1:2) if (!is.na(rec[i]) && !identical(sha[i], rec[i]))
-    stop(sprintf("%s has sha256 %s, its record says %s", f[i], sha[i], rec[i]), call. = FALSE)
-  list(specification_sha256 = sha[1], addendum_sha256 = sha[2])
+    stop(sprintf("%s does not quote the sha256 of the %s (%s); the protocol document and the ",
+                 protocol, paste(miss, collapse = " and "),
+                 paste(want[miss], collapse = ", ")),
+         "driver's hashes must agree", call. = FALSE)
+  list(specification_sha256 = CD_SPEC_SHA256, addendum_sha256 = CD_ADDENDUM_SHA256,
+       protocol = CD_PROTOCOL_LABEL, protocol_sha256 = cd_file_sha(protocol))
 }
 
 ## ---- the gated study's run (read only) ----------------------------------------------------
@@ -2156,7 +2174,8 @@ cd_declared <- function(res, S, rec, unblind) {
        selection = CD_SELECTED_ON, low_floor = cd_low_floor_record(res$low_floor),
        blind = !isTRUE(unblind), provenance = CD_PROVENANCE,
        specification_sha256 = spec$specification_sha256,
-       addendum_sha256 = spec$addendum_sha256)
+       addendum_sha256 = spec$addendum_sha256,
+       protocol = spec$protocol, protocol_sha256 = spec$protocol_sha256)
 }
 
 # Every analysis from explicit inputs: cells (already restricted to the
@@ -2164,7 +2183,7 @@ cd_declared <- function(res, S, rec, unblind) {
 # candidates index and the stems. unblind adds the validation analyses.
 # fdir: the features directory; out: where the files go; chm_keys: the cells
 # for which the gated cells.csv has a chm_vwf row (read from S$GATED when
-# NULL). Stops first when the specification or its addendum is missing (A7).
+# NULL). Stops first when the protocol document is missing (A7).
 cd_run_analysis <- function(S, rec, cells, plot_rows, sp, idx, stems, unblind = FALSE,
                             out = S$OUT, fdir = file.path(S$OUT, "features"),
                             cdir = file.path(S$GATED, "candidates"), chm_keys = NULL) {
@@ -2306,7 +2325,7 @@ cd_print_blind <- function(res) {
 }
 
 cd_stage_analyze <- function(S) {
-  cd_spec_record()                     # no analysis without SPEC.txt and its addendum (A7)
+  cd_spec_record()                     # no analysis without the protocol document (A7)
   G <- cd_read_gated(S)
   # the split: identity and strata only (split.csv), checked against the gated
   # study's (CHECK S2)
@@ -2354,7 +2373,7 @@ cd_stage_analyze <- function(S) {
 ## ---- main ---------------------------------------------------------------------------------
 cd_main <- function() {
   S <- cd_settings()
-  lidR::set_lidr_threads(1L)            # one thread; parallelism by processes (SPEC section 1)
+  lidR::set_lidr_threads(1L)            # one thread, parallel processes (specification section 1)
   dir.create(S$OUT, recursive = TRUE, showWarnings = FALSE)
   cat(sprintf("[multichm_depth] STAGE=%s UNBLIND=%d CORES=%d job dir %s, gated run %s, OUT %s\n",
               S$STAGE, as.integer(S$UNBLIND), S$CORES, S$d, S$GATED, S$OUT))

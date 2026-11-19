@@ -13,7 +13,7 @@ if (!length(bs)) stop("bootstrap.R not found", call. = FALSE)
 source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 
 # Confirmation of the `multichm_depth` selection on other densities and flights:
-# section A8 of work/multichm_depth/SPEC_ADDENDUM_1.txt. The configurations are
+# section A8 of docs/multichm-depth-protocol.md. The configurations are
 # FIXED: the selection S and its low-floor sibling S_low as the study recorded
 # them (declared_depth_config.json of the study's run: `label` and
 # `low_floor`), never re-selected or tuned, against the declared gated arm
@@ -92,7 +92,10 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #     [STUDY=$WORK/multichm_depth_runs/neon/multichm_depth]
 #     [CAMPAIGN=$WORK/multichm_gated_confirmation]
 #     [OUT=$WORK/multichm_depth_runs/confirm]
-# The contrasts stage reads every unit, so it needs every dataset scored.
+# The contrasts stage reads every unit, so it needs every dataset scored. OUT
+# has no `..` component and does not equal, lie inside or contain the given
+# study, the study's run of record, the campaign or a frozen root (compared in
+# canonical absolute form, cfd_check_out).
 suppressMessages({ library(lidR); library(lidRplugins); library(sf)
                    library(data.table); library(parallel) })
 options(lidR.progress = FALSE)
@@ -112,6 +115,9 @@ CFD_CHECK         <- "declared_minus_stock"
 CFD_GOOD          <- c("better", "not worse")
 CFD_LADDER_RUNGS  <- c("8", "4", "2", "1")
 CFD_CAMPAIGN_PAIR <- "declared_stock"    # the campaign's name of declared minus stock
+# The runs of record under WORK: the study's and this driver's default OUT.
+CFD_STUDY_DIR     <- file.path("multichm_depth_runs", "neon", "multichm_depth")
+CFD_CONFIRM_DIR   <- file.path("multichm_depth_runs", "confirm")
 CFD_SCOPES <- c(list(`Five sites` = CV_FIVE), MT_REGIONS,
                 stats::setNames(as.list(CV_FIVE), CV_FIVE))
 
@@ -158,9 +164,78 @@ CFD_A8_TEXT <- paste(
   "is the study's ladder on its validation plots (rungs 8, 4, 2 and 1) and has no",
   "all-plots counterpart.")
 
+## ---- paths --------------------------------------------------------------------------------
+# A path for messages: relative to the repository root when it lies under it,
+# else as given.
+cfd_rel <- function(p) {
+  p <- as.character(p)
+  r <- normalizePath(.ROOT, mustWork = FALSE)
+  q <- normalizePath(p, mustWork = FALSE)
+  ifelse(startsWith(q, paste0(r, "/")), substring(q, nchar(r) + 2L), ifelse(q == r, ".", p))
+}
+
+# The components of a path made absolute against the working directory ("."
+# and empty components dropped).
+cfd_path_parts <- function(p) {
+  p <- path.expand(p)
+  if (!startsWith(p, "/")) p <- file.path(getwd(), p)
+  x <- strsplit(p, "/", fixed = TRUE)[[1]]
+  x[nzchar(x) & x != "."]
+}
+
+# The canonical absolute form of a path, whether it exists or not: made
+# absolute against the working directory, its longest existing ancestor
+# resolved with normalizePath(mustWork = TRUE) (a symbolic link in it is
+# followed), the components that do not exist yet appended. A `..` among those
+# is applied to what precedes it (a component that does not exist is no link)
+# and the result is canonicalized again. A dangling symbolic link stops.
+cfd_canon_path <- function(p) {
+  if (!is.character(p) || length(p) != 1L || is.na(p) || !nzchar(p))
+    stop("a path must be one non-empty string", call. = FALSE)
+  parts <- cfd_path_parts(p)
+  path_of <- function(x) paste0("/", paste(x, collapse = "/"))
+  k <- length(parts)
+  while (k > 0L && !file.exists(path_of(parts[seq_len(k)]))) k <- k - 1L
+  if (k < length(parts)) {
+    lk <- Sys.readlink(path_of(parts[seq_len(k + 1L)]))   # "" or NA unless a link
+    if (!is.na(lk) && nzchar(lk))
+      stop(cfd_rel(p), " holds a symbolic link that points nowhere", call. = FALSE)
+  }
+  base <- cfd_path_parts(normalizePath(path_of(parts[seq_len(k)]), mustWork = TRUE))
+  rest <- parts[seq_len(length(parts) - k) + k]
+  if (!".." %in% rest) return(path_of(c(base, rest)))
+  for (x in rest) base <- if (x == "..") base[-length(base)] else c(base, x)
+  cfd_canon_path(path_of(base))
+}
+
+# TRUE when the canonical paths a and b are equal or one lies inside the other.
+cfd_path_overlap <- function(a, b) {
+  dir_of <- function(p) if (endsWith(p, "/")) p else paste0(p, "/")
+  identical(a, b) || startsWith(a, dir_of(b)) || startsWith(b, dir_of(a))
+}
+
+# OUT in canonical form (cfd_canon_path). Stops when OUT has a `..` component,
+# or when it equals, lies inside or contains one of the read-only directories
+# `ro` (a character vector named by what each is, canonicalized the same way).
+cfd_check_out <- function(out, ro) {
+  if (".." %in% strsplit(path.expand(out), "/", fixed = TRUE)[[1]])
+    stop("OUT=", cfd_rel(out), " has a `..` component; give the directory without one",
+         call. = FALSE)
+  o <- cfd_canon_path(out)
+  for (k in seq_along(ro))
+    if (cfd_path_overlap(o, cfd_canon_path(ro[[k]])))
+      stop("OUT=", cfd_rel(o), " overlaps a read-only input (", names(ro)[k], ", ",
+           cfd_rel(ro[[k]]), ")", call. = FALSE)
+  o
+}
+
+# Paths named by what they are, for cfd_check_out.
+cfd_named <- function(what, p) stats::setNames(as.character(p), rep(what, length(p)))
+
 ## ---- arguments ----------------------------------------------------------------------------
 # KEY=VALUE positional arguments -> the run's settings. `work` is the work
-# directory the dataset roots and the default paths hang from.
+# directory the dataset roots and the default paths hang from. OUT is kept in
+# canonical absolute form (cfd_check_out).
 cfd_settings <- function(args = commandArgs(TRUE), work = file.path(.ROOT, "work")) {
   a <- strsplit(args, "=")
   A <- stats::setNames(lapply(a, `[`, 2), vapply(a, `[`, character(1), 1))
@@ -171,8 +246,8 @@ cfd_settings <- function(args = commandArgs(TRUE), work = file.path(.ROOT, "work
             DATASETS = strsplit(get("DATASETS", paste(CFD_DATASETS$name, collapse = ",")),
                                 ",")[[1]],
             CORES = num("CORES", CFD_DEFAULT_CORES), N_BOOT = num("N_BOOT", MT_N_BOOT))
-  S$OUT <- get("OUT", file.path(S$WORK, "multichm_depth_runs", "confirm"))
-  S$STUDY <- get("STUDY", file.path(S$WORK, "multichm_depth_runs", "neon", "multichm_depth"))
+  S$OUT <- get("OUT", file.path(S$WORK, CFD_CONFIRM_DIR))
+  S$STUDY <- get("STUDY", file.path(S$WORK, CFD_STUDY_DIR))
   S$CAMPAIGN <- get("CAMPAIGN", file.path(S$WORK, "multichm_gated_confirmation"))
   if (!S$STAGE %in% c("all", "features", "score", "contrasts"))
     stop("STAGE must be all, features, score or contrasts", call. = FALSE)
@@ -186,16 +261,14 @@ cfd_settings <- function(args = commandArgs(TRUE), work = file.path(.ROOT, "work
   if (S$CORES > CFD_MAX_CORES)
     stop(sprintf("CORES must be at most %d (R worker processes)", CFD_MAX_CORES), call. = FALSE)
   S$CORES <- as.integer(S$CORES); S$N_BOOT <- as.integer(S$N_BOOT)
-  # outputs never go into the inputs (the study, the campaign, a frozen root)
-  o <- normalizePath(S$OUT, mustWork = FALSE)
-  inside <- function(p) {
-    p <- normalizePath(p, mustWork = FALSE)
-    identical(o, p) || startsWith(o, paste0(p, "/")) || startsWith(p, paste0(o, "/"))
-  }
-  ro <- c(S$STUDY, S$CAMPAIGN, file.path(S$WORK, unique(CFD_DATASETS$root)))
-  if (any(vapply(ro, inside, logical(1))))
-    stop("OUT=", S$OUT, " overlaps a read-only input (the study, the campaign or a root)",
-         call. = FALSE)
+  # outputs never go into, or around, the inputs: the given study, the study's
+  # run of record whatever STUDY= says (under WORK and under `work`), the
+  # campaign and the frozen roots
+  S$OUT <- cfd_check_out(S$OUT, c(
+    cfd_named("the study", S$STUDY),
+    cfd_named("the study's run of record", unique(file.path(c(S$WORK, work), CFD_STUDY_DIR))),
+    cfd_named("the campaign", S$CAMPAIGN),
+    cfd_named("a frozen root", file.path(S$WORK, unique(CFD_DATASETS$root)))))
   S
 }
 
@@ -219,24 +292,25 @@ cfd_dataset <- function(S, name) {
 # two grid rows, S first), file, sha256).
 cfd_read_declared <- function(study, grid = mcd_grid()) {
   f <- file.path(study, "declared_depth_config.json")
-  if (!file.exists(f)) stop("no declared depth configuration at ", f, call. = FALSE)
+  if (!file.exists(f)) stop("no declared depth configuration at ", cfd_rel(f), call. = FALSE)
   r <- jsonlite::read_json(f, simplifyVector = TRUE)
   if (!identical(r$constants_sha256, cd_constants_digest()))
-    stop(f, " was made with other constants than mcd_constants()", call. = FALSE)
+    stop(cfd_rel(f), " was made with other constants than mcd_constants()", call. = FALSE)
   if (!identical(r$grid_sha256, cd_grid_digest(grid)))
-    stop(f, " was made on another grid than mcd_grid()", call. = FALSE)
+    stop(cfd_rel(f), " was made on another grid than mcd_grid()", call. = FALSE)
   one <- function(label, id, what) {
     if (!is.character(label) || length(label) != 1L || !label %in% grid$label)
-      stop(f, ": ", what, " is not a label of mcd_grid()", call. = FALSE)
+      stop(cfd_rel(f), ": ", what, " is not a label of mcd_grid()", call. = FALSE)
     if (!isTRUE(as.integer(id) == grid$config_id[grid$label == label]))
-      stop(f, ": ", what, " ", label, " is not config_id ", id, " of mcd_grid()", call. = FALSE)
+      stop(cfd_rel(f), ": ", what, " ", label, " is not config_id ", id, " of mcd_grid()",
+           call. = FALSE)
     label
   }
   s <- one(r$label, r$config_id, "the selection S")
   lf <- r$low_floor
-  if (is.null(lf) || is.null(lf$exists)) stop(f, " has no low_floor record", call. = FALSE)
+  if (is.null(lf) || is.null(lf$exists)) stop(cfd_rel(f), " has no low_floor record", call. = FALSE)
   sl <- if (isTRUE(lf$exists)) one(lf$label, lf$config_id, "the low-floor sibling S_low")
-  if (identical(sl, s)) stop(f, ": S_low equals S", call. = FALSE)
+  if (identical(sl, s)) stop(cfd_rel(f), ": S_low equals S", call. = FALSE)
   g <- grid[match(c(s, sl), grid$label), , drop = FALSE]
   rownames(g) <- NULL
   list(S = s, S_id = as.integer(r$config_id), S_low = sl,
@@ -247,11 +321,11 @@ cfd_read_declared <- function(study, grid = mcd_grid()) {
 # The validation plots ("site::plot") of the study's headline split.
 cfd_valid_ids <- function(study) {
   f <- file.path(study, "split.csv")
-  if (!file.exists(f)) stop("no split at ", f, call. = FALSE)
+  if (!file.exists(f)) stop("no split at ", cfd_rel(f), call. = FALSE)
   x <- read.csv(f, stringsAsFactors = FALSE)
   if (!all(c("site", "plot", "split") %in% names(x)) || !all(x$split %in% c("calib", "valid")))
-    stop(f, " is not a split table (site, plot, split calib / valid)", call. = FALSE)
-  if (anyDuplicated(cv_ids(x))) stop(f, " lists a plot twice", call. = FALSE)
+    stop(cfd_rel(f), " is not a split table (site, plot, split calib / valid)", call. = FALSE)
+  if (anyDuplicated(cv_ids(x))) stop(cfd_rel(f), " lists a plot twice", call. = FALSE)
   cv_ids(x[x$split == "valid", , drop = FALSE])
 }
 
@@ -305,18 +379,20 @@ cfd_index <- function(ds) {
 # reference labels must mean what they meant then).
 cfd_dataset_record <- function(ds) {
   f <- file.path(ds$dir, "cells.config.json")
-  if (!file.exists(f)) stop("no cells record at ", f, call. = FALSE)
+  if (!file.exists(f)) stop("no cells record at ", cfd_rel(f), call. = FALSE)
   r <- jsonlite::read_json(f, simplifyVector = TRUE)
   miss <- setdiff(c("K", "tol", "population", "clip_manifest_sha256", "grid_sha256"), names(r))
-  if (length(miss)) stop(f, " lacks ", paste(miss, collapse = ", "), call. = FALSE)
+  if (length(miss)) stop(cfd_rel(f), " lacks ", paste(miss, collapse = ", "), call. = FALSE)
   if (!identical(r$population, CFD_POP))
-    stop(f, ": the cells were scored for population ", r$population, call. = FALSE)
+    stop(cfd_rel(f), ": the cells were scored for population ", r$population, call. = FALSE)
   if (!identical(r$clip_manifest_sha256, frozen_root_id(ds$root)))
-    stop(f, ": the cells were scored on another frozen root than ", ds$root, call. = FALSE)
+    stop(cfd_rel(f), ": the cells were scored on another frozen root than ", cfd_rel(ds$root),
+         call. = FALSE)
   if (!identical(r$grid_sha256, cv_grid_digest()))
-    stop(f, ": the cells were scored on another grid than the current mcg_grid()", call. = FALSE)
+    stop(cfd_rel(f), ": the cells were scored on another grid than the current mcg_grid()",
+         call. = FALSE)
   K <- as.integer(r$K); tol <- as.numeric(r$tol)
-  if (!isTRUE(K >= 1L) || !isTRUE(tol > 0)) stop(f, ": invalid K or TOL", call. = FALSE)
+  if (!isTRUE(K >= 1L) || !isTRUE(tol > 0)) stop(cfd_rel(f), ": invalid K or TOL", call. = FALSE)
   list(K = K, tol = tol, record = r, file = f,
        cells_sha256 = cd_file_sha(file.path(ds$dir, "cells.csv")))
 }
@@ -432,7 +508,7 @@ cfd_stage_score <- function(S, ds, D) {
     write.csv(s1$bad, file.path(ds$out, "s1_failures.csv"), row.names = FALSE)
     stop(sprintf(paste("%s: CHECK S1 failed: %d of %d reference rows differ from the dataset's",
                        "cells.csv (expected %d rows); see %s"), ds$name, s1$n_bad, s1$n, want,
-                 file.path(ds$out, "s1_failures.csv")), call. = FALSE)
+                 cfd_rel(file.path(ds$out, "s1_failures.csv"))), call. = FALSE)
   }
   unlink(file.path(ds$out, "s1_failures.csv"))
   cv_pass(paste("CHECK S1 %s: %d re-derived reference rows (%d cells x %d) equal the dataset's",
@@ -464,7 +540,7 @@ cfd_stage_score <- function(S, ds, D) {
   cd_write_json(rec, cfgf)
   cat(sprintf("[score] %s: %d rows (%d cells) in %.1f min -> %s\n", ds$name, nrow(cells),
               length(keys), as.numeric(difftime(Sys.time(), t0, units = "mins")),
-              file.path(ds$out, "cells.csv")))
+              cfd_rel(file.path(ds$out, "cells.csv"))))
   invisible(cells)
 }
 
@@ -642,8 +718,8 @@ cfd_pool_cells <- function(parts) {
 # the current declared configurations and the dataset's cells.csv is unchanged.
 cfd_read_scored <- function(S, ds, D) {
   f <- file.path(ds$out, "cells.config.json")
-  if (!file.exists(f)) stop(ds$name, ": no scored cells record at ", f, "; run STAGE=score",
-                            call. = FALSE)
+  if (!file.exists(f))
+    stop(ds$name, ": no scored cells record at ", cfd_rel(f), "; run STAGE=score", call. = FALSE)
   r <- jsonlite::read_json(f, simplifyVector = TRUE)
   dc <- r$declared_depth_config
   na_null <- function(v) if (!length(v) || (length(v) == 1L && is.na(v))) NULL else v
@@ -683,7 +759,7 @@ cfd_stage_contrasts <- function(S, D) {
   valid <- cfd_valid_ids(S$STUDY)
   tm <- file.path(S$STUDY, "tables.md")
   if (!file.exists(tm))
-    stop("T1 needs the study's held-out run: ", tm, " does not exist yet", call. = FALSE)
+    stop("T1 needs the study's held-out run: ", cfd_rel(tm), " does not exist yet", call. = FALSE)
   ladder <- read.csv(file.path(S$STUDY, "ladder.csv"), stringsAsFactors = FALSE,
                      colClasses = c(rung = "character"))
   pairs <- cfd_pairs(D$S, D$S_low)
@@ -743,7 +819,8 @@ cfd_stage_contrasts <- function(S, D) {
   writeLines(cfd_tables_md(S, D, con, chk, t1, a8rows, a8, ds_tab, valid),
              file.path(S$OUT, "tables.md"))
   cat(sprintf("[contrasts] %d rows in %.1f min -> %s\n", nrow(con),
-              as.numeric(difftime(Sys.time(), t0, units = "mins")), file.path(S$OUT, "tables.md")))
+              as.numeric(difftime(Sys.time(), t0, units = "mins")),
+              cfd_rel(file.path(S$OUT, "tables.md"))))
   cat(a8$sentence, "\n")
   invisible(list(contrasts = con, check = chk, t1 = t1, a8 = a8))
 }
@@ -856,7 +933,7 @@ cfd_main <- function() {
   cat(sprintf(paste("[confirm_multichm_depth] STAGE=%s CORES=%d DATASETS=%s; S = %s (id %d), S_low =",
                     "%s; OUT %s\n"), S$STAGE, S$CORES, paste(S$DATASETS, collapse = ","), D$S,
               D$S_id, if (is.null(D$S_low)) "none" else sprintf("%s (id %d)", D$S_low, D$S_low_id),
-              S$OUT))
+              cfd_rel(S$OUT)))
   for (nm in S$DATASETS) {
     ds <- cfd_dataset(S, nm)
     if (S$STAGE %in% c("all", "features")) cfd_stage_features(S, ds)

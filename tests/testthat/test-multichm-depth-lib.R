@@ -2,8 +2,10 @@
 # label, the declared grid, the per-candidate features (column radius, column
 # top, depth, zrep) on hand-computable clouds and against a brute-force count,
 # the keep rule with its floors, depth rule and lit union, the distance filter's
-# three paths, the reported height, and the two identities with the gated arm.
-# Synthetic data only (synth_closed_stand() comes from helper-synth.R).
+# three paths, the reported height, the two identities with the gated arm, the
+# arm's configuration (MCD_ARM) and the one-call detector (mcd_prepare,
+# detect_multichm_depth) against the long path. Synthetic data only
+# (synth_closed_stand() comes from helper-synth.R).
 suppressMessages({ library(lidR); library(data.table); library(sf) })
 source(file.path("..", "..", "scripts", "sweep_lib.R"), local = TRUE)
 source(file.path("..", "..", "scripts", "model_bench_lib.R"), local = TRUE)
@@ -149,6 +151,18 @@ test_that("the grid has 240 unique configurations in the declared nested order",
   # no grid configuration is one of the identities' configurations
   id_labels <- vapply(mcd_identities(), function(p) mcd_config_label(p$depth), "")
   expect_false(any(g$label %in% id_labels))
+})
+
+test_that("the arm's configuration is k4_r0_z3_f3_l0_c0.6, row 28 of the grid", {
+  expect_identical(mcd_config_label(MCD_ARM), "k4_r0_z3_f3_l0_c0.6")
+  expect_identical(MCD_ARM, list(depth_max = 4, near_2d = 0, zmin = 3, zmin_surface = 3,
+                                 lit_union = FALSE, cover_min = 0.6))
+  expect_identical(.mcd_check_config(MCD_ARM), MCD_ARM)
+  g <- mcd_grid()
+  expect_identical(g$config_id[g$label == mcd_config_label(MCD_ARM)], 28L)
+  expect_identical(g$label[28], "k4_r0_z3_f3_l0_c0.6")
+  expect_identical(mcd_grid_config(g, 28), MCD_ARM)
+  expect_identical(unlist(g[28, MCD_FIELDS]), unlist(MCD_ARM))
 })
 
 ## ---- features -------------------------------------------------------------------------------
@@ -476,4 +490,89 @@ test_that("the identities hold on a prepared stand, closed and open", {
     expect_false(is.unsorted(-d$z))
     expect_true(all(paste(d$x, d$y) %in% paste(P$cand$X, P$cand$Y)))
   }
+})
+
+## ---- the one-call detector ------------------------------------------------------------------
+# A lit_union configuration of the grid: k2_r0_z3_f3_l1_c0.6 (config_id 15).
+lit_cfg <- function() mcd_grid_config(mcd_grid(), 15)
+
+test_that("mcd_prepare() holds mcg_prepare's candidates and cover, and their features", {
+  las <- synth_closed_stand(1)
+  P <- mcg_prepare(las, 0.5)
+  Q <- mcd_prepare(las, 0.5, 5)
+  expect_identical(names(Q), c("cand", "cover", "feat", "res", "a", "frdens",
+                               "has_return_number"))
+  expect_identical(Q$cand, P$cand)
+  expect_identical(Q$cover, P$cover)
+  expect_identical(Q$feat, mcd_features(P$cand, las, 5))
+  expect_identical(Q[c("res", "a", "frdens", "has_return_number")],
+                   list(res = 0.5, a = 0.10, frdens = 5, has_return_number = TRUE))
+  # another resolution, window slope and density reach the candidates and features
+  P2 <- mcg_prepare(las, 0.25, 0.05)
+  Q2 <- mcd_prepare(las, 0.25, 16, a = 0.05)
+  expect_identical(Q2$cand, P2$cand)
+  expect_identical(Q2$feat, mcd_features(P2$cand, las, 16))
+  # without the share: no share column, the same candidates otherwise
+  N <- mcd_prepare(las, 0.5, 5, share = FALSE)
+  expect_false("share" %in% names(N$cand))
+  expect_false("share" %in% names(N$feat))
+  expect_identical(N$cand, P$cand[, -"share"])
+  expect_identical(N$cover, P$cover)
+  expect_identical(N$feat, Q$feat[, -"share"])
+  expect_identical(mcd_apply(N, N$feat, MCD_ARM), mcd_apply(Q, Q$feat, MCD_ARM))
+  # a lit_union configuration then stops with the library's message
+  expect_gte(N$cover, lit_cfg()$cover_min)
+  expect_true(any(N$cand$layer > 1L))
+  expect_error(mcd_apply(N, N$feat, lit_cfg()),
+               "multichm_depth: lit_union needs the candidates' first-return share", fixed = TRUE)
+  # arguments
+  expect_error(mcd_prepare(las, 0.5, 5, share = NA), "share must be TRUE or FALSE")
+  expect_error(mcd_prepare(las, 0.5, 0), "frdens must be one finite number above 0")
+  expect_error(detect_multichm_depth(las, 0.5, 5, cfg = NULL), "no configuration")
+  expect_error(detect_multichm_depth(las, 0.5, 5, report = "Z"), "report must be")
+})
+
+test_that("detect_multichm_depth() equals mcg_prepare + mcd_features + mcd_apply", {
+  las <- synth_closed_stand(1)
+  P <- mcg_prepare(las, 0.5)
+  f <- mcd_features(P$cand, las, 5)
+  lit <- lit_cfg()
+  expect_identical(mcd_config_label(lit), "k2_r0_z3_f3_l1_c0.6")
+  # on this stand the lit union, the arm and stock each give other detections
+  # than the configuration they are compared with, so each path is exercised
+  expect_false(identical(mcd_apply(P, f, lit),
+                         mcd_apply(P, f, replace(lit, "lit_union", list(FALSE)))))
+  expect_false(identical(mcd_apply(P, f, MCD_ARM), mcd_apply(P, f, MCD_STOCK)))
+  for (cfg in list(MCD_ARM, lit, MCD_STOCK)) for (rep in c("z", "zrep")) {
+    long <- mcd_apply(P, f, cfg, report = rep)
+    expect_gt(nrow(long), 0L)
+    expect_identical(detect_multichm_depth(las, 0.5, 5, cfg = cfg, report = rep), long)
+  }
+  expect_false(identical(mcd_apply(P, f, MCD_ARM, "zrep")$z, mcd_apply(P, f, MCD_ARM)$z))
+  # the default configuration is the arm's, the default report Z
+  expect_identical(detect_multichm_depth(las, 0.5, 5), mcd_apply(P, f, MCD_ARM))
+  # another resolution, window slope and density
+  P2 <- mcg_prepare(las, 0.25, 0.05)
+  expect_identical(detect_multichm_depth(las, 0.25, 16, a = 0.05),
+                   mcd_apply(P2, mcd_features(P2$cand, las, 16), MCD_ARM))
+})
+
+test_that("a clip without candidates gives 0 rows", {
+  set.seed(3)
+  flat <- pts_las(data.frame(X = runif(300, 0, 20), Y = runif(300, 0, 20), Z = 0.1,
+                             ReturnNumber = 1L))
+  empty <- pts_las(data.frame(X = numeric(), Y = numeric(), Z = numeric(),
+                              ReturnNumber = integer()))
+  for (las in list(flat, empty)) {
+    Q <- mcd_prepare(las, 0.5, 5)
+    expect_identical(nrow(Q$cand), 0L)
+    expect_identical(nrow(Q$feat), 0L)
+    for (cfg in list(MCD_ARM, lit_cfg(), MCD_STOCK)) for (rep in c("z", "zrep")) {
+      det <- detect_multichm_depth(las, 0.5, 5, cfg = cfg, report = rep)
+      expect_true(assert_detection_contract(det))
+      expect_identical(det, data.frame(x = numeric(), y = numeric(), z = numeric()))
+    }
+  }
+  # the empty clip has no cover: the 0 rows come before the cover is asked for
+  expect_identical(mcd_prepare(empty, 0.5, 5)$cover, NA_real_)
 })
