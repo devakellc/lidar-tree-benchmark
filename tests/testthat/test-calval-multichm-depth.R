@@ -203,6 +203,55 @@ test_that("OUT stays out of the gated run, the job directory and the frozen root
   expect_identical(cd_settings(character(), d = d)$OUT, CD_DEFAULT_OUT)
 })
 
+test_that("OUT stays out of the directories the run's stems and plot centroids link to", {
+  skip_on_os("windows")
+  d <- normalizePath(syn_job_dir())
+  base <- normalizePath(tempfile("cd_ref_"), mustWork = FALSE)
+  put <- function(f) { dir.create(dirname(f), recursive = TRUE, showWarnings = FALSE)
+                       writeLines("x", f); f }
+  link <- function(target, site, file) {
+    s <- file.path(d, "neon", site)
+    dir.create(s, recursive = TRUE, showWarnings = FALSE)
+    file.symlink(target, file.path(s, file))
+  }
+  # SJER's stems link into paper/neon/SJER, whose file links (relative target)
+  # into final/SJER, as the study's stems link into a run whose files link into
+  # the reference directory; WREF's centroids link into other/WREF; SOAP's
+  # stems point nowhere
+  put(file.path(base, "final", "SJER", CD_REF_FILES[1]))
+  dir.create(file.path(base, "paper", "neon", "SJER"), recursive = TRUE)
+  file.symlink(file.path("..", "..", "..", "final", "SJER", CD_REF_FILES[1]),
+               file.path(base, "paper", "neon", "SJER", CD_REF_FILES[1]))
+  link(file.path(base, "paper", "neon", "SJER", CD_REF_FILES[1]), "SJER", CD_REF_FILES[1])
+  link(put(file.path(base, "other", "WREF", CD_REF_FILES[2])), "WREF", CD_REF_FILES[2])
+  link(file.path(base, "nowhere", CD_REF_FILES[1]), "SOAP", CD_REF_FILES[1])
+  jn <- function(s) file.path(d, "neon", s)
+  expect_identical(cd_reference_dirs(list(list(job = d, sites = CV_FIVE))),
+                   c(jn("SJER"), file.path(base, c("paper/neon/SJER", "final/SJER")), jn("WREF"),
+                     file.path(base, "other", "WREF")))
+  ro <- "overlaps a read-only input (the stems and plot centroids"
+  for (o in c("paper/neon/SJER/x", "paper", "final/SJER", "final", "other/WREF/new", ""))
+    expect_error(cd_settings(paste0("OUT=", file.path(base, o)), d = d), ro, fixed = TRUE)
+  # through a symbolic link, and relative to the working directory
+  file.symlink(file.path(base, "final"), file.path(base, "final_link"))
+  expect_error(cd_settings(paste0("OUT=", file.path(base, "final_link", "SJER", "x")), d = d), ro,
+               fixed = TRUE)
+  withr::local_dir(base)
+  expect_error(cd_settings("OUT=other/WREF/x", d = d), ro, fixed = TRUE)
+  # a site the run does not read, a sibling directory: accepted, nothing written
+  expect_identical(cd_settings(c("SITES=SJER", "OUT=other/WREF/x"), d = d)$OUT,
+                   file.path(base, "other", "WREF", "x"))
+  for (o in c("paper/neon/SOAP", "other/SJER", "nowhere/x")) {
+    S <- cd_settings(paste0("OUT=", o), d = d)
+    expect_identical(S$OUT, file.path(base, o))
+    expect_false(dir.exists(S$OUT))
+  }
+  # the default OUT passes
+  expect_identical(cd_settings(character(), d = d)$OUT, CD_DEFAULT_OUT)
+  # the reference files are the stems and the plot centroids
+  expect_identical(CD_REF_FILES, c("ground_truth_stems.csv", "plot_centroids.csv"))
+})
+
 test_that("a cells record of another split is refused (A1)", {
   S <- list(SEED = 1L, FRAC = 0.5)
   sp <- list(calib = c("SJER::SJER_001", "SJER::SJER_003", "WREF::WREF_002"),

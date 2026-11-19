@@ -836,14 +836,18 @@ test_that("numbers have three decimals, differences a sign, intervals in bracket
   expect_identical(PH_PROVENANCE, paste(
     "Post hoc and descriptive. The arm's configuration was chosen after the held-out results of",
     "the study and of its confirmation on other densities and flights had been read, and with a",
-    "referee-only check on plots outside the benchmark that have no field reference. Apart from",
-    "the selection against the declared gated arm, which repeats the protocol's own rows as a",
-    "check, none of the contrasts below was declared in the protocol",
-    "(docs/multichm-depth-protocol.md), which reads the calibration's selection and its",
-    "low-floor sibling only. The validation-half rows are therefore not held-out evidence for",
-    "the arm's configuration."))
-  # the old sentence is gone; the pair it now names is the one P2 checks
+    "referee-only check on plots outside the benchmark that have no field reference. The rows",
+    "of the selection against the declared gated arm repeat the protocol's own rows where the",
+    "protocol has them (the validation plots of the study's clips at the scopes it reads, and",
+    "the confirmation datasets), as a check. Every other contrast below was not declared in the",
+    "protocol (docs/multichm-depth-protocol.md), which reads the calibration's selection and",
+    "its low-floor sibling only; that includes the all-plots rows of the study's clips, which",
+    "hold the calibration plots the selection was made on. The validation-half rows are",
+    "therefore not held-out evidence for the arm's configuration."))
+  # the old sentences are gone; the pair it now names is the one P2 checks
   expect_false(grepl("None of the contrasts", PH_PROVENANCE, fixed = TRUE))
+  expect_false(grepl("Apart from", PH_PROVENANCE, fixed = TRUE))
+  expect_false(grepl("repeats the protocol's own rows", PH_PROVENANCE, fixed = TRUE))
   expect_identical(CFD_PRIMARY, "S_minus_declared")
   expect_true(CFD_PRIMARY %in% PH_PAIRS$pair)
   # prose is wrapped at 80 characters

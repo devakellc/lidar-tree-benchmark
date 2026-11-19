@@ -82,7 +82,8 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # r4 stages present in OUT.
 #
 # The manifest (MANIFEST=, JSON; format in multichm_gated_confirm_lib.R; the
-# one the results use is docs/multichm-gated-confirmation-manifest.json):
+# default is the committed one the results use,
+# docs/multichm-gated-confirmation-manifest.json, CF_MANIFEST):
 #   {"datasets": [{"name": "calibration levels", "test": "baseline",
 #     "cells": "multichm_gated_runs/neon/multichm_gated/cells.csv",
 #     "levels": ["native", "8", "4", "2", "1"], "null": true,
@@ -104,7 +105,8 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #
 # Usage:
 #   Rscript scripts/confirm_multichm_gated.R [STAGES=contrasts,r1,r4]
-#     [MANIFEST=$CLAUDE_JOB_DIR/multichm_gated_confirmation/analysis/manifest.json]
+#     [MANIFEST=docs/multichm-gated-confirmation-manifest.json (under the
+#      repository root, found from any working directory)]
 #     [OUT=$CLAUDE_JOB_DIR/multichm_gated_confirmation/analysis]
 #     [STUDY=$CLAUDE_JOB_DIR/multichm_gated_runs/neon/multichm_gated]
 #     [FROZEN_ROOT=$CLAUDE_JOB_DIR/neon/frozen_2021] [N_BOOT=1000]
@@ -117,7 +119,8 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # LEFT_OUT names tests (C4, C5) the protocol allows to be left out because
 # their data could not be brought into the scorer; the decision then says so
 # instead of keeping them pending. STUDY, FROZEN_ROOT, C3_EPOCH, C3_SHARED,
-# C4_DIR and the cells are only read; OUT may not lie inside them.
+# C4_DIR and the cells are only read; OUT may not lie inside them. Any other
+# key stops the run (CF_KEYS).
 suppressMessages({ library(data.table); library(lidR); library(sf) })
 options(lidR.progress = FALSE)
 source(.find("sweep_lib.R"))          # plot_lapply
@@ -133,11 +136,34 @@ CF_FIVE <- c(CF_CA, CF_WA)
 CF_R4_SCOPES <- list(`Five sites` = list(sites = CF_FIVE), Washington = list(sites = CF_WA),
                      WREF = list(sites = "WREF"), ABBY = list(sites = "ABBY"))
 CF_STAGES <- c("contrasts", "r1", "r4", "c3_share", "c4_transfer", "c3_seeds", "tables")
+# The keys cf_settings reads (any other stops the run, so that a mistyped OUT
+# cannot fall back to the analysis run of record).
+CF_KEYS <- c("STAGES", "MANIFEST", "OUT", "STUDY", "FROZEN_ROOT", "N_BOOT", "BOOT_SEED",
+             "SPLIT_SEED", "FRAC", "LEFT_OUT", "R4_RUNGS", "R4_RECOMPUTE", "N_SEEDS", "C3_EPOCH",
+             "C3_EPOCH_LABEL", "C3_SHARED", "C4_DIR", "CORES")
+# The default manifest: the committed one the results use. It is looked for
+# under the repository root, then from the working directory and from two
+# levels below the root (tests/testthat, where .ROOT falls back to the working
+# directory), as calval_multichm_depth.R looks for its protocol document, and
+# kept in absolute form; the root's path when none exists.
+CF_MANIFEST <- local({
+  rel <- file.path("docs", "multichm-gated-confirmation-manifest.json")
+  hit <- Find(file.exists, c(file.path(.ROOT, rel), rel, file.path("..", "..", rel)))
+  if (length(hit)) normalizePath(hit) else file.path(.ROOT, rel)
+})
 
 ## ---- arguments ----------------------------------------------------------------------------
+# KEY=VALUE positional arguments -> the run's settings (read with A[[KEY]],
+# never A$KEY). A key outside CF_KEYS stops before anything is read. d is the
+# job directory (CLAUDE_JOB_DIR) the defaults and the manifest's relative cell
+# paths hang from; MANIFEST defaults to CF_MANIFEST.
 cf_settings <- function(args = commandArgs(TRUE), d = .job_dir()) {
   a <- strsplit(args, "=")
   A <- stats::setNames(lapply(a, `[`, 2), vapply(a, `[`, character(1), 1))
+  bad <- setdiff(names(A), CF_KEYS)
+  if (length(bad))
+    stop("unknown argument ", paste(bad, collapse = ", "), "; the keys are ",
+         paste(CF_KEYS, collapse = ", "), call. = FALSE)
   get <- function(k, default) {
     v <- A[[k]]
     if (is.null(v) || is.na(v) || !nzchar(v)) default else v
@@ -164,7 +190,7 @@ cf_settings <- function(args = commandArgs(TRUE), d = .job_dir()) {
                                                    "shared_2021")),
             C4_DIR = get("C4_DIR", file.path(d, "multichm_gated_confirmation", "3dep")),
             CORES = suppressWarnings(as.integer(get("CORES", 8L))))
-  S$MANIFEST <- get("MANIFEST", file.path(S$OUT, "manifest.json"))
+  S$MANIFEST <- get("MANIFEST", CF_MANIFEST)
   if (!all(S$STAGES %in% CF_STAGES))
     stop("STAGES are among ", paste(CF_STAGES, collapse = ", "), call. = FALSE)
   if (is.na(S$N_SEEDS) || S$N_SEEDS < 1) stop("N_SEEDS is a positive integer", call. = FALSE)

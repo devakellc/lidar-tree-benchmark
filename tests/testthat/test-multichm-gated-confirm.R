@@ -3,13 +3,18 @@
 # manifest and cells handling, the checks of how each dataset was scored (its
 # record and a pooled file's parts, on temporary files), the contrasts, the
 # decision table, the R1 selection wrapper, the R4 recomposition, placements
-# and spread, the stand measures of C3 and C4 and the C3 seed bounds.
+# and spread, the stand measures of C3 and C4 and the C3 seed bounds; and the
+# driver (confirm_multichm_gated.R): its keys, its default manifest, its
+# output guard, the scoring check of the contrasts stage and the count check of
+# the c4_transfer stage, on temporary trees. Sourcing the driver runs nothing
+# (it ends with `if (sys.nframe() == 0L) run_main()`).
 # Synthetic data only: no LiDAR files, no NEON data.
 suppressMessages({ library(lidR); library(data.table); library(sf) })
 source(file.path("..", "..", "scripts", "calval_lib.R"), local = TRUE)
 source(file.path("..", "..", "scripts", "master_tables_lib.R"), local = TRUE)
 source(file.path("..", "..", "scripts", "multichm_gated_lib.R"), local = TRUE)
 source(file.path("..", "..", "scripts", "multichm_gated_confirm_lib.R"), local = TRUE)
+source(file.path("..", "..", "scripts", "confirm_multichm_gated.R"), local = TRUE)
 
 ## ---- synthetic cells ------------------------------------------------------------------------
 # The five configurations and CHM-VWF on every plot of `sites` (named plot
@@ -728,4 +733,181 @@ test_that("seed bounds redraw each contrast with the given seeds", {
   expect_gt(length(unique(d$lo_measure)), 1L)
   expect_identical(unique(sb$n_boot), 50L)
   expect_error(mcgc_seed_bounds(cells, Lid, character(), pairs, 1L, 10), "no plot")
+})
+
+## ---- the driver: arguments ------------------------------------------------------------------
+test_that("the driver reads only its keys; any other stops with the list of keys", {
+  expect_true(is.function(run_main))
+  d <- normalizePath(tempfile("cf_job_"), mustWork = FALSE)
+  expect_identical(CF_KEYS, c("STAGES", "MANIFEST", "OUT", "STUDY", "FROZEN_ROOT", "N_BOOT",
+                              "BOOT_SEED", "SPLIT_SEED", "FRAC", "LEFT_OUT", "R4_RUNGS",
+                              "R4_RECOMPUTE", "N_SEEDS", "C3_EPOCH", "C3_EPOCH_LABEL",
+                              "C3_SHARED", "C4_DIR", "CORES"))
+  every <- c("STAGES=contrasts,c4_transfer", "MANIFEST=/m.json", "OUT=/o", "STUDY=/st",
+             "FROZEN_ROOT=/fr", "N_BOOT=10", "BOOT_SEED=3", "SPLIT_SEED=2", "FRAC=0.4",
+             "LEFT_OUT=C4", "R4_RUNGS=native,8", "R4_RECOMPUTE=TRUE", "N_SEEDS=5",
+             "C3_EPOCH=/ep", "C3_EPOCH_LABEL=2019", "C3_SHARED=/sh", "C4_DIR=/c4", "CORES=2")
+  expect_identical(sub("=.*", "", every), CF_KEYS)
+  S <- cf_settings(every, d = d)
+  expect_identical(S[c("STAGES", "MANIFEST", "OUT", "STUDY", "FROZEN_ROOT", "N_BOOT", "BOOT_SEED",
+                       "SPLIT_SEED", "FRAC", "LEFT_OUT", "R4_RUNGS", "R4_RECOMPUTE", "N_SEEDS",
+                       "C3_EPOCH", "C3_EPOCH_LABEL", "C3_SHARED", "C4_DIR", "CORES")],
+                   list(STAGES = c("contrasts", "c4_transfer"), MANIFEST = "/m.json", OUT = "/o",
+                        STUDY = "/st", FROZEN_ROOT = "/fr", N_BOOT = 10L, BOOT_SEED = 3L,
+                        SPLIT_SEED = 2L, FRAC = 0.4, LEFT_OUT = "C4",
+                        R4_RUNGS = c("native", "8"), R4_RECOMPUTE = TRUE, N_SEEDS = 5L,
+                        C3_EPOCH = "/ep", C3_EPOCH_LABEL = "2019", C3_SHARED = "/sh",
+                        C4_DIR = "/c4", CORES = 2L))
+  # the keys of the results' Reproduce command
+  S <- cf_settings(c("CORES=8", "MANIFEST=docs/multichm-gated-confirmation-manifest.json",
+                     "STAGES=contrasts,r1,r4,c3_share,c4_transfer,c3_seeds"), d = d)
+  expect_identical(S$STAGES, c("contrasts", "r1", "r4", "c3_share", "c4_transfer", "c3_seeds"))
+  expect_identical(S$CORES, 8L)
+  # a mistyped key no longer falls back to the analysis run of record
+  keys <- paste(CF_KEYS, collapse = ", ")
+  expect_error(cf_settings("OUTDIR=x", d = d),
+               paste0("unknown argument OUTDIR; the keys are ", keys), fixed = TRUE)
+  for (k in c("OUTPUT=x", "out=x", "STAGE=contrasts", "MANIFESTS=x", "N_SEED=3", "WORK=x",
+              "UNBLIND=1"))
+    expect_error(cf_settings(c("STAGES=contrasts", k), d = d),
+                 paste0("unknown argument ", sub("=.*", "", k), ";"), fixed = TRUE)
+  expect_error(cf_settings(c("A=1", "B=2"), d = d), "unknown argument A, B;", fixed = TRUE)
+  # the other checks still stop
+  expect_error(cf_settings("STAGES=contrasts,r9", d = d), "STAGES are among")
+  expect_error(cf_settings("LEFT_OUT=C1", d = d), "LEFT_OUT may name only C4 and C5")
+  expect_error(cf_settings("FRAC=1", d = d), "invalid numeric argument")
+})
+
+test_that("the default manifest is the committed one, found from the repository root", {
+  d <- normalizePath(tempfile("cf_job_"), mustWork = FALSE)
+  S <- cf_settings(character(), d = d)
+  committed <- normalizePath(file.path("..", "..", "docs",
+                                       "multichm-gated-confirmation-manifest.json"))
+  expect_identical(S$MANIFEST, CF_MANIFEST)
+  expect_identical(normalizePath(S$MANIFEST), committed)
+  # not the analysis run's own copy under OUT
+  expect_identical(S$OUT, file.path(d, "multichm_gated_confirmation", "analysis"))
+  expect_false(identical(S$MANIFEST, file.path(S$OUT, "manifest.json")))
+  # it reads, and every dataset says how it was scored
+  ds <- mcgc_read_manifest(S$MANIFEST, base = d)
+  expect_gt(length(ds), 0L)
+  expect_true(all(vapply(ds, function(x) is.list(x$scoring) && !is.null(x$scoring$tol), NA)))
+  # an explicit MANIFEST= still wins
+  expect_identical(cf_settings("MANIFEST=/m.json", d = d)$MANIFEST, "/m.json")
+  # run from another working directory, the driver reads the committed manifest
+  # (and stops at its first dataset, whose cells this empty job directory lacks)
+  skip_on_os("windows")
+  rs <- file.path(R.home("bin"), "Rscript")
+  skip_if_not(file.exists(rs))
+  drv <- normalizePath(file.path("..", "..", "scripts", "confirm_multichm_gated.R"))
+  wd <- normalizePath(tempfile("cf_wd_"), mustWork = FALSE)
+  dir.create(wd)
+  withr::local_dir(wd)
+  withr::local_envvar(CLAUDE_JOB_DIR = file.path(wd, "job"))
+  got <- suppressWarnings(system2(rs, c(shQuote(drv), "STAGES=contrasts",
+                                        shQuote(paste0("OUT=", file.path(wd, "out")))),
+                                  stdout = TRUE, stderr = TRUE))
+  expect_true(sprintf("[contrasts] %d dataset(s) from %s", length(ds), committed) %in% got)
+  expect_true(any(grepl("no scoring record", got, fixed = TRUE)))
+  expect_false(file.exists(file.path(wd, "out", "contrasts.csv")))
+})
+
+test_that("OUT may not lie inside the study, the frozen root or the C3 and C4 inputs", {
+  base <- normalizePath(tempfile("cf_tree_"), mustWork = FALSE)
+  d <- file.path(base, "job")
+  dirs <- c(STUDY = "study", FROZEN_ROOT = "root", C3_EPOCH = "epoch", C3_SHARED = "shared",
+            C4_DIR = "c4")
+  given <- paste0(names(dirs), "=", file.path(base, dirs))
+  ro <- "lies inside read-only inputs"
+  for (k in dirs) for (o in c(file.path(base, k), file.path(base, k, "analysis", "x")))
+    expect_error(cf_settings(c(given, paste0("OUT=", o)), d = d), ro, fixed = TRUE)
+  # the defaults under the job directory are read-only too
+  for (o in c(file.path(d, "multichm_gated_confirmation", "epoch_wa", "epoch_2019", "x"),
+              file.path(d, "multichm_gated_confirmation", "epoch_wa", "shared_2021"),
+              file.path(d, "multichm_gated_confirmation", "3dep", "out"),
+              file.path(d, "multichm_gated_runs", "neon", "multichm_gated", "x"),
+              file.path(d, "neon", "frozen_2021", "x")))
+    expect_error(cf_settings(paste0("OUT=", o), d = d), ro, fixed = TRUE)
+  # beside them: accepted, and nothing is written
+  for (o in c(file.path(base, "out"), file.path(base, "c4_out"),
+              file.path(d, "multichm_gated_confirmation", "analysis"))) {
+    expect_identical(cf_settings(c(given, paste0("OUT=", o)), d = d)$OUT, o)
+    expect_false(dir.exists(o))
+  }
+  expect_identical(cf_settings(character(), d = d)$OUT,
+                   file.path(d, "multichm_gated_confirmation", "analysis"))
+})
+
+## ---- the driver: stages -------------------------------------------------------------------
+test_that("the contrasts stage stops before any contrast on a record of another tol", {
+  d <- normalizePath(tempfile("cf_job_"), mustWork = FALSE)
+  cells <- file.path(d, "baseline", "cells.csv")
+  dir.create(dirname(cells), recursive = TRUE)
+  write.csv(syn_confirm_cells(sites = c(SJER = 4, WREF = 6), rungs = "native"), cells,
+            row.names = FALSE)
+  record <- function(tol) jsonlite::write_json(list(K = 200, tol = tol, population = "adopted"),
+                                               file.path(dirname(cells), "cells.config.json"),
+                                               auto_unbox = TRUE)
+  m <- write_manifest(list(datasets = list(list(
+    name = "syn baseline", test = "baseline", cells = "baseline/cells.csv",
+    levels = list("native"), null = TRUE,
+    scopes = list(`Five sites` = list("SJER", "WREF"), WREF = list("WREF")),
+    scoring = SCORED_4))))
+  out <- file.path(d, "out")
+  dir.create(out)
+  S <- cf_settings(c(paste0("MANIFEST=", m), paste0("OUT=", out), "N_BOOT=20"), d = d)
+  # scored with tol 2, the manifest says 4: nothing is written
+  record(2)
+  expect_error(capture.output(cf_stage_contrasts(S)), "scored with tol = 2 .* expects 4")
+  expect_identical(list.files(out), character())
+  # no record at all
+  file.remove(file.path(dirname(cells), "cells.config.json"))
+  expect_error(capture.output(cf_stage_contrasts(S)), "no scoring record")
+  expect_identical(list.files(out), character())
+  # scored as the manifest says: the stage runs
+  record(4)
+  capture.output(con <- cf_stage_contrasts(S))
+  expect_setequal(list.files(out), c("contrasts.csv", "datasets.csv", "decision.csv"))
+  expect_identical(unique(con$dataset), "syn baseline")
+  expect_setequal(unique(con$scope), c("Five sites", "WREF"))
+})
+
+test_that("the c4_transfer stage stops when transfer.csv disagrees with its counts", {
+  d <- normalizePath(tempfile("cf_job_"), mustWork = FALSE)
+  c4 <- file.path(d, "c4")
+  out <- file.path(d, "out")
+  dir.create(c4, recursive = TRUE)
+  dir.create(out)
+  # 3DEP clips of three California plots at both variants, with the 2021
+  # values the clip record carries
+  one <- function(rung, shift) data.frame(
+    site = c("SJER", "SOAP", "TEAK"), plot = c("s1", "o1", "t1"), rung = rung, scored = TRUE,
+    cover = c(0.4, 0.7, 0.8) + shift, crown_spacing = c(9, 8.5, 6), n_deep = c(2L, 10L, 12L),
+    deep_share_median = c(0.2, 0.4, 0.3), neon_native_cover = c(0.5, 0.65, 0.85),
+    neon_native_crown_spacing = c(9.2, 7.5, 6.5), neon_native_n_deep = c(3L, 9L, 14L),
+    neon_native_deep_share_median = c(0.25, 0.35, 0.3), neon_rung2_cover = c(0.3, 0.6, 0.7),
+    neon_rung2_crown_spacing = c(9, 8.2, 6.1), neon_rung2_n_deep = c(1L, 4L, 6L),
+    neon_rung2_deep_share_median = c(0.1, 0.2, 0.2), stringsAsFactors = FALSE)
+  clips <- rbind(one("3dep_native", 0), one("3dep_dec2", -0.1))
+  write.csv(clips, file.path(c4, "clips.csv"), row.names = FALSE)
+  ref <- mcgc_c4_transfer(clips, c(stats::setNames(as.list(CF_CA), CF_CA),
+                                   list(California = CF_CA)))
+  S <- cf_settings(c(paste0("C4_DIR=", c4), paste0("OUT=", out)), d = d)
+  # the record agrees: the stage writes its table
+  write.csv(ref, file.path(c4, "transfer.csv"), row.names = FALSE)
+  capture.output(cf_stage_c4_transfer(S))
+  got <- read.csv(file.path(out, "c4_transfer.csv"), stringsAsFactors = FALSE)
+  expect_identical(nrow(got), nrow(ref))
+  expect_identical(got$gated_3dep, ref$gated_3dep)
+  file.remove(file.path(out, "c4_transfer.csv"))
+  # a count that differs, a row that is missing: the stage stops, writing nothing
+  for (bad in list(within(ref, gated_3dep[nrow(ref)] <- gated_3dep[nrow(ref)] + 1L),
+                   within(ref, closed_changed[1] <- closed_changed[1] + 1L),
+                   within(ref, plots[2] <- plots[2] - 1L),
+                   ref[-1, , drop = FALSE])) {
+    write.csv(bad, file.path(c4, "transfer.csv"), row.names = FALSE)
+    expect_error(capture.output(cf_stage_c4_transfer(S)),
+                 "C4: the closed and gated counts differ")
+    expect_false(file.exists(file.path(out, "c4_transfer.csv")))
+  }
 })

@@ -1,6 +1,7 @@
 # Gated multichm: confirmation tests
 
-Checked on 16 November 2026. These tests follow the
+Checked on 16 November 2026; the stand measures of C3 and C4 and the seed
+sweep of C3 were added on 19 November 2026. These tests follow the
 [confirmation protocol](../docs/multichm-gated-confirmation-protocol.md), which
 was written before any of them was run. They ask whether `multichm_gated`, a
 post hoc arm described in the
@@ -16,7 +17,8 @@ another year and instrument it is better by an interval whose lower bound is
 (−0.0013 to +0.0041). In California it is not worse on the QL2 level, on the
 native sparse flights and on the 3DEP clouds thinned to 2 points/m²; on the
 3DEP clouds at their own density the reading is inconclusive (+0.000 [−0.030,
-+0.029]). It is better at a 2 m match radius.
++0.029]). Over the five sites it is better at a 2 m match radius (+0.031
+[+0.018, +0.043]).
 
 What the tests carry, part by part:
 
@@ -30,10 +32,10 @@ What the tests carry, part by part:
   level from 9.8 to 0.6 pulses/m², at 4 m and at 2 m, and under every matcher
   tried at native density. These checks re-score the plots and clips the arm
   was built on and are not confirmation.
-- **Open stands.** In California the arm is better on no dataset. It is not
-  worse on the QL2 level, the native sparse flights and the 3DEP clouds
-  thinned to 2 points/m², and inconclusive on the 3DEP clouds at their own
-  density. It lowers recall on all four.
+- **Open stands.** In California the arm is better on none of the four new
+  datasets. It is not worse on the QL2 level, the native sparse flights and the
+  3DEP clouds thinned to 2 points/m², and inconclusive on the 3DEP clouds at
+  their own density. It lowers recall on all four.
 - **Another instrument.** About half of the calibration flight's gain carries
   over to the 2019 Washington flight (+0.023 against +0.040 on the same
   stems).

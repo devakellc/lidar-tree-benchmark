@@ -192,6 +192,53 @@ test_that("every key the driver reads is accepted; any other stops with the list
   expect_error(cfd_settings(c("A=1", "B=2"), work = w), "unknown argument A, B;", fixed = TRUE)
 })
 
+test_that("OUT stays out of the directories each dataset's stems and plot centroids link to", {
+  skip_on_os("windows")
+  root <- normalizePath(tempfile("cfd_ref_"), mustWork = FALSE)
+  W <- file.path(root, "work")
+  dir.create(file.path(W, CFD_STUDY_DIR), recursive = TRUE)
+  put <- function(f) { dir.create(dirname(f), recursive = TRUE, showWarnings = FALSE)
+                       writeLines("x", f); f }
+  link <- function(target, job, site, file) {
+    s <- file.path(job, "neon", site)
+    dir.create(s, recursive = TRUE, showWarnings = FALSE)
+    file.symlink(target, file.path(s, file))
+  }
+  job <- function(nm) cfd_dataset(cfd_settings(character(), work = W), nm)$job
+  # ql2's SJER stems link into ql2ref/SJER; wa2019's WREF centroids link into
+  # mid/WREF, whose file links (relative target) into final/WREF; ca2017's SJER
+  # stems point nowhere
+  link(put(file.path(root, "ql2ref", "SJER", CD_REF_FILES[1])), job("ql2"), "SJER",
+       CD_REF_FILES[1])
+  put(file.path(root, "final", "WREF", CD_REF_FILES[2]))
+  dir.create(file.path(root, "mid", "WREF"), recursive = TRUE)
+  file.symlink(file.path("..", "..", "final", "WREF", CD_REF_FILES[2]),
+               file.path(root, "mid", "WREF", CD_REF_FILES[2]))
+  link(file.path(root, "mid", "WREF", CD_REF_FILES[2]), job("wa2019"), "WREF", CD_REF_FILES[2])
+  link(file.path(root, "nowhere", CD_REF_FILES[1]), job("ca2017"), "SJER", CD_REF_FILES[1])
+  expect_identical(cfd_reference_dirs, cd_reference_dirs)
+  withr::local_dir(root)
+  ro <- "overlaps a read-only input (the stems and plot centroids"
+  for (o in c("ql2ref/SJER", "ql2ref/SJER/x", "ql2ref", "mid/WREF/x", "final/WREF", "final"))
+    expect_error(cfd_settings(paste0("OUT=", o), work = W), ro, fixed = TRUE)
+  expect_error(cfd_settings(paste0("OUT=", file.path(root, "final", "WREF", "x")), work = W), ro,
+               fixed = TRUE)
+  # through a symbolic link to a protected directory
+  file.symlink(file.path(root, "ql2ref"), file.path(root, "ql2_link"))
+  expect_error(cfd_settings("OUT=ql2_link/SJER/x", work = W), ro, fixed = TRUE)
+  # only the datasets of the run: a dataset not scored, a site without a link
+  expect_identical(cfd_settings(c("DATASETS=wa2019", "OUT=ql2ref/SJER/x"), work = W)$OUT,
+                   file.path(root, "ql2ref", "SJER", "x"))
+  expect_error(cfd_settings(c("DATASETS=wa2019", "OUT=final/WREF/x"), work = W), ro, fixed = TRUE)
+  for (o in c("ql2ref/WREF", "mid/SJER", "nowhere/x")) {
+    S <- cfd_settings(paste0("OUT=", o), work = W)
+    expect_identical(S$OUT, file.path(root, o))
+    expect_false(dir.exists(S$OUT))
+  }
+  # the default OUT passes
+  expect_identical(cfd_settings(character(), work = W)$OUT, file.path(W, CFD_CONFIRM_DIR))
+})
+
 test_that("WORK is canonical before defaults are derived; `..` is refused in a given OUT only", {
   skip_on_os("windows")
   root <- normalizePath(tempfile("cfd_rel_"), mustWork = FALSE)

@@ -18,7 +18,8 @@ weaknesses. The 8 m switch is a step on a noisy per-clip number. The
 first-return share depends on the flight. And the exemption admits surface
 peaks at any distance from a taller one. This study replaces the share gate
 and the switch with one measurement in metres: how far a deeper-layer peak
-sits under the canopy surface above it.
+sits under the canopy surface above it. It still decides which stands are
+closed from first-return cover, which varies between flights too.
 
 **Outcome.** The study has two results, and they do not have the same
 standing.
@@ -80,8 +81,7 @@ What the study carries, part by part:
   chance. The floor is therefore a statement of what counts as a tree, which
   these plots cannot test.
 - **Intermediate crowns.** Their chance-corrected recall is 0.04 to 0.08 under
-  each of those configurations, stock included. No rule of this family
-  changes it.
+  each of those configurations, stock included. None of the ten changes it.
 - **Not tested.** Censused subplots, 3DEP clouds, complete labels and density
   routing, which the gated arm's studies covered, and any stand outside the
   benchmark with a field count.
@@ -166,8 +166,9 @@ The validation plots are not untouched. They are the held-out plots of the
 gated study, whose results on every plot had been read before this
 specification was written. The family's form, its constants and its grid
 values were informed by an exploratory look at 60 plots outside the benchmark
-that have no field reference, with three ML segmenters as referees. The 3 m
-floors were added because about 3% of the NEON reference stems are under 5 m.
+that have no field reference, with three ML segmenters of the benchmark as
+referees (ForestFormer3D, ForestMamba and SegmentAnyTree). The 3 m floors were
+added because about 3% of the NEON reference stems are under 5 m.
 The held-out score therefore tests the selection within this grid, as the
 gated study's did.
 
@@ -275,9 +276,9 @@ split selects 5 m floors on every peak and the 0.6 cover threshold. The 2.5 m
 spacing rule is selected in 176, a 3 m rule in 21 and the gated arm's filter
 in 3; a depth limit of 4 m in 176 and of 3 m in 24. The lit union is selected
 in 106, and at the selected configuration it changes no detection on the
-validation plots. On the headline split the selection is also the best of the
-240 configurations on the validation plots, where 159 of them score above the
-declared gated arm and all 240 above stock.
+validation plots. A post hoc count on the headline split: the selection is
+also the best of the 240 configurations on the validation plots, where 159 of
+them score above the declared gated arm and all 240 above stock.
 
 Selecting on four sites and scoring every plot of the fifth:
 
@@ -528,9 +529,10 @@ choices on the way from the declared gated arm to the selection:
   +0.002]). It does lose tall stems, as shown below.
 - **Leave out the spacing rule.** Its gain is confined to the native 2021
   clips over all plots, which include the plots it was selected on. On the
-  held-out half it spans zero, and at 2.5 pulses/m² the rule reads worse over
-  all plots. On the plots outside the benchmark, three ML segmenters agreed
-  with few of the tops it adds.
+  held-out half it spans zero. With 5 m floors on every peak, the selection
+  against the 5 m variant, the rule reads worse at 2.5 pulses/m² over all
+  plots (−0.010 [−0.018, −0.001]). On the plots outside the benchmark, the
+  three ML segmenters agreed with few of the tops it adds.
 - **Set both floors to 3 m.** The reference stems start near 3 m: 11 of the
   2,525 are shorter and 63 lie between 3 and 5 m. A 5 m floor scores higher on
   these plots, by 0.005 to 0.016 on every dataset, because it removes
@@ -538,7 +540,7 @@ choices on the way from the declared gated arm to the selection:
   floors are level (−0.004 [−0.012, +0.004] on the validation half, −0.005
   [−0.011, +0.001] over all plots), and the difference lies in open stands
   (−0.049 [−0.070, −0.033] on the validation half). On the plots outside the
-  benchmark the 3 m floors kept low trees that the ML segmenters see. The
+  benchmark the 3 m floors kept low trees that those segmenters see. The
   floor states which trees count, and these plots cannot test it.
 
 The arm's configuration against the other configurations, on the validation
@@ -678,10 +680,10 @@ first-return density. Another configuration is passed as
 - **Nominal plot cores.** Commission is counted against a reference that is
   not a complete census. The gated study also scored inside censused subplots;
   this study did not.
-- **Low trees.** The reference has 74 stems under 5 m and no configuration
-  finds them above chance. Neither floor can be tested on these plots, and the
-  gated arm's tests on complete labels found that a 5 m floor removes labelled
-  small trees.
+- **Low trees.** The reference has 74 stems under 5 m, and none of the ten
+  configurations examined finds them above chance. Neither floor can be tested
+  on these plots, and the gated arm's tests on complete labels found that a 5 m
+  floor removes labelled small trees.
 - **Suppressed and intermediate trees.** They are found barely above chance
   or not at all under every configuration examined. Whether `multichm`
   proposes a candidate for them was not measured.
@@ -695,8 +697,10 @@ first-return density. Another configuration is passed as
   clips and differs between flights, so a stand near the threshold can change
   state.
 - **Other flights.** Flights of other years were tested at all five sites:
-  2019 over the Washington sites with another instrument, and 2017 and 2018
-  over the California sites at about half the density. 3DEP clouds were not
+  2019 over the Washington sites, and 2017 and 2018 over the California sites
+  at about half the density. Each was flown with another instrument than the
+  2021 flight, so each test mixes a change of instrument with a change of
+  canopy, and in California with a change of density. 3DEP clouds were not
   tested.
 - **Stands outside the benchmark.** A referee-only check on plots without a
   field reference informed the arm's configuration. It is not part of this

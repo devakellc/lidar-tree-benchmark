@@ -96,8 +96,9 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # other key stops the run (CFD_KEYS). WORK is made canonical before the
 # defaults are derived from it. OUT, when given, has no `..` component, and it
 # does not equal, lie inside or contain the given study, the study's run of
-# record, the campaign or a frozen root (compared in canonical absolute form,
-# cfd_check_out).
+# record, the campaign, a frozen root or the directories the stems and plot
+# centroids of the datasets' job directories are reached through by symbolic
+# links (compared in canonical absolute form, cfd_check_out).
 suppressMessages({ library(lidR); library(lidRplugins); library(sf)
                    library(data.table); library(parallel) })
 options(lidR.progress = FALSE)
@@ -176,6 +177,7 @@ cfd_canon_path  <- cd_canon_path     # canonical absolute form, existing or not
 cfd_path_overlap <- cd_path_overlap  # equal, or one inside the other
 cfd_check_out   <- cd_check_out      # OUT kept out of the read-only inputs
 cfd_named       <- cd_named          # paths named by what they are
+cfd_reference_dirs <- cd_reference_dirs   # where the stems and plot centroids are reached
 
 ## ---- arguments ----------------------------------------------------------------------------
 # The keys cfd_settings reads (any other stops the run).
@@ -186,7 +188,9 @@ CFD_KEYS <- c("STAGE", "DATASETS", "CORES", "N_BOOT", "WORK", "STUDY", "CAMPAIGN
 # (cfd_canon_path) before the dataset roots and the default paths are derived
 # from it, so WORK=../work works from a subdirectory. A key outside CFD_KEYS
 # stops. OUT is kept in canonical absolute form (cfd_check_out); the refusal
-# of a `..` component applies to an OUT the user gave.
+# of a `..` component applies to an OUT the user gave. The directories the
+# stems and plot centroids of each dataset of DATASETS are reached through
+# from its job directory (cfd_reference_dirs) are read-only too.
 cfd_settings <- function(args = commandArgs(TRUE), work = file.path(.ROOT, "work")) {
   a <- strsplit(args, "=")
   A <- stats::setNames(lapply(a, `[`, 2), vapply(a, `[`, character(1), 1))
@@ -218,12 +222,16 @@ cfd_settings <- function(args = commandArgs(TRUE), work = file.path(.ROOT, "work
   S$CORES <- as.integer(S$CORES); S$N_BOOT <- as.integer(S$N_BOOT)
   # outputs never go into, or around, the inputs: the given study, the study's
   # run of record whatever STUDY= says (under WORK and under `work`), the
-  # campaign and the frozen roots
+  # campaign, the frozen roots and the directories the stems and plot centroids
+  # of each dataset of the run are reached through from its job directory by
+  # symbolic links (cfd_reference_dirs)
+  refs <- cfd_reference_dirs(lapply(S$DATASETS, function(nm) cfd_dataset(S, nm)))
   S$OUT <- cfd_check_out(S$OUT, c(
     cfd_named("the study", S$STUDY),
     cfd_named("the study's run of record", unique(file.path(c(S$WORK, work), CFD_STUDY_DIR))),
     cfd_named("the campaign", S$CAMPAIGN),
-    cfd_named("a frozen root", file.path(S$WORK, unique(CFD_DATASETS$root)))),
+    cfd_named("a frozen root", file.path(S$WORK, unique(CFD_DATASETS$root))),
+    cfd_named("the stems and plot centroids", refs)),
     given = given("OUT"))
   S
 }

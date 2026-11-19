@@ -124,8 +124,10 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # explicit K= or TOL= must equal them. The criterion is cF1 (fixed). Any other
 # key stops the run (CD_KEYS). OUT, when given, has no `..` component, and it
 # does not equal, lie inside or contain GATED (the given one and the default
-# under the job directory), the job directory or the frozen root (compared in
-# canonical absolute form, cd_check_out).
+# under the job directory), the job directory, the directories the stems and
+# plot centroids of the run's sites are reached through by symbolic links
+# (cd_reference_dirs) or the frozen root (compared in canonical absolute form,
+# cd_check_out).
 suppressMessages({ library(lidR); library(lidRplugins); library(sf)
                    library(data.table); library(parallel) })
 options(lidR.progress = FALSE)
@@ -294,6 +296,36 @@ cd_check_out <- function(out, ro, given = TRUE) {
 # Paths named by what they are, for cd_check_out.
 cd_named <- function(what, p) stats::setNames(as.character(p), rep(what, length(p)))
 
+# The reference files of a job directory, under <job>/neon/<site>/.
+CD_REF_FILES <- c("ground_truth_stems.csv", "plot_centroids.csv")
+
+# The directories the reference files of `jobs` are reached through: for each
+# job (list(job, sites)) and each of its sites, every one of CD_REF_FILES under
+# <job>/neon/<site> that exists, and the directory of every hop of its chain of
+# symbolic links, from the job's own directory to the final target's (a link
+# may point to another link: the study's stems link into one run's directory,
+# whose files link into the reference directory); each in canonical form
+# (cd_canon_path: a link among a directory's components is followed), unique.
+# A file that does not exist (a link that points nowhere included) is skipped.
+# The three drivers protect them from OUT (cd_settings, cfd_settings,
+# ph_settings).
+cd_reference_dirs <- function(jobs) {
+  f <- unlist(lapply(jobs, function(j)
+    file.path(j$job, "neon", rep(j$sites, each = length(CD_REF_FILES)), CD_REF_FILES)))
+  f <- f[file.exists(f)]                 # follows the links; a loop does not exist either
+  hops <- function(x) {
+    out <- character()
+    for (i in seq_len(40L)) {            # the kernel's own limit on a chain of links
+      out <- c(out, cd_canon_path(dirname(x)))
+      lk <- Sys.readlink(x)              # "" unless x is a link
+      if (is.na(lk) || !nzchar(lk)) return(out)
+      x <- if (startsWith(lk, "/")) lk else file.path(dirname(x), lk)
+    }
+    stop(x, ": too many symbolic links", call. = FALSE)
+  }
+  unique(as.character(unlist(lapply(f, hops), use.names = FALSE)))
+}
+
 ## ---- arguments ----------------------------------------------------------------------------
 # The headline split (A1): the seed and calibration fraction the gated study
 # recorded in its declared_config.json (seed 1, frac 0.5). It is read from that
@@ -324,7 +356,9 @@ cd_headline_split <- function(gated) {
 # are accepted only when they repeat them, whatever UNBLIND is (A1). SEEDS= (the
 # splits of analysis f) is free. A key outside CD_KEYS stops. OUT is kept in
 # canonical absolute form and stays out of the gated run (the given one and the
-# default under d), the job directory and the frozen root (cd_check_out).
+# default under d), the job directory, the directories the stems and plot
+# centroids of SITES are reached through (cd_reference_dirs) and the frozen
+# root (cd_check_out).
 cd_settings <- function(args = commandArgs(TRUE), d = .job_dir()) {
   a <- strsplit(args, "=")
   # [[ ]] below, never $: `$` would partially match SEED to SEEDS
@@ -385,11 +419,15 @@ cd_settings <- function(args = commandArgs(TRUE), d = .job_dir()) {
     stop("K and TOL must be numbers", call. = FALSE)
   # outputs never go into, or around, the inputs: the gated run (cells.csv,
   # cells.config.json, grid.csv and its candidates), given or default, the job
-  # directory (stems, plot centroids) and the frozen root
+  # directory (stems, plot centroids), the directories the stems and plot
+  # centroids of the run's sites are reached through by symbolic links
+  # (cd_reference_dirs) and the frozen root
   S$OUT <- cd_check_out(S$OUT, c(
     cd_named("the gated run", unique(c(gated, file.path(d, "neon", "multichm_gated")))),
     cd_named("the frozen root", root),
-    cd_named("the job directory", d)), given = given("OUT"))
+    cd_named("the job directory", d),
+    cd_named("the stems and plot centroids",
+             cd_reference_dirs(list(list(job = d, sites = S$SITES))))), given = given("OUT"))
   S
 }
 

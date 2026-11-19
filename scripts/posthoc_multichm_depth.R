@@ -132,12 +132,15 @@ PH_PROVENANCE <- paste(
   "Post hoc and descriptive. The arm's configuration was chosen after the",
   "held-out results of the study and of its confirmation on other densities and",
   "flights had been read, and with a referee-only check on plots outside the",
-  "benchmark that have no field reference. Apart from the selection against the",
-  "declared gated arm, which repeats the protocol's own rows as a check, none of",
-  "the contrasts below was declared in the protocol",
-  "(docs/multichm-depth-protocol.md), which reads the calibration's selection and",
-  "its low-floor sibling only. The validation-half rows are therefore not",
-  "held-out evidence for the arm's configuration.")
+  "benchmark that have no field reference. The rows of the selection against the",
+  "declared gated arm repeat the protocol's own rows where the protocol has them",
+  "(the validation plots of the study's clips at the scopes it reads, and the",
+  "confirmation datasets), as a check. Every other contrast below was not",
+  "declared in the protocol (docs/multichm-depth-protocol.md), which reads the",
+  "calibration's selection and its low-floor sibling only; that includes the",
+  "all-plots rows of the study's clips, which hold the calibration plots the",
+  "selection was made on. The validation-half rows are therefore not held-out",
+  "evidence for the arm's configuration.")
 
 # The configurations by name, in table order; S_low only when the study has one.
 PH_NAMES <- c("stock", "floor_exempt", "declared", "depth", "space", "S", "alt", "arm", "S_low")
@@ -221,33 +224,12 @@ PH_GRID_COLS  <- c("status", "subset", "family", "config_id", "label", MCD_FIELD
                    "rank")
 
 ## ---- arguments ----------------------------------------------------------------------------
-# The reference files of a job directory, under <job>/neon/<site>/.
-PH_REF_FILES <- c("ground_truth_stems.csv", "plot_centroids.csv")
-
-# The directories the reference files of `jobs` are reached through: for each
-# job (list(job, sites)) and each of its sites, every one of PH_REF_FILES under
-# <job>/neon/<site> that exists, and the directory of every hop of its chain of
-# symbolic links, from the job's own directory to the final target's (a link
-# may point to another link: the study's stems link into one run's directory,
-# whose files link into the reference directory); each in canonical form
-# (cfd_canon_path: a link among a directory's components is followed), unique.
-# A file that does not exist (a link that points nowhere included) is skipped.
-ph_reference_dirs <- function(jobs) {
-  f <- unlist(lapply(jobs, function(j)
-    file.path(j$job, "neon", rep(j$sites, each = length(PH_REF_FILES)), PH_REF_FILES)))
-  f <- f[file.exists(f)]                 # follows the links; a loop does not exist either
-  hops <- function(x) {
-    out <- character()
-    for (i in seq_len(40L)) {            # the kernel's own limit on a chain of links
-      out <- c(out, cfd_canon_path(dirname(x)))
-      lk <- Sys.readlink(x)              # "" unless x is a link
-      if (is.na(lk) || !nzchar(lk)) return(out)
-      x <- if (startsWith(lk, "/")) lk else file.path(dirname(x), lk)
-    }
-    stop(x, ": too many symbolic links", call. = FALSE)
-  }
-  unique(as.character(unlist(lapply(f, hops), use.names = FALSE)))
-}
+# The reference files of a job directory and the directories they are reached
+# through by symbolic links live in the study's driver (calval_multichm_depth.R:
+# CD_REF_FILES, cd_reference_dirs), whose own OUT and the confirmation's they
+# guard too; this driver and its tests use them under these names.
+PH_REF_FILES      <- CD_REF_FILES
+ph_reference_dirs <- cd_reference_dirs
 
 # KEY=VALUE positional arguments -> the run's settings (read with A[["KEY"]],
 # never A$KEY). Unknown keys stop. WORK (given, or `work`) is made canonical
