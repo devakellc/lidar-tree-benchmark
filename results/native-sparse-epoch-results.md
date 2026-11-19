@@ -11,6 +11,20 @@ the 2021 clouds decimated to bracketing rungs. It also checks whether
 published hand-drawn canopy boxes cover the scoring cores, which would give a
 reference for precision that does not depend on the partial field census.
 
+**Note of 17 November 2026: densities here are whole-clip densities.** Every
+density in this report, including "bracketing", divides the returns by the
+whole evaluation clip. Thinning leaves the clip's outer cells denser, so the
+scored plot cores of the 2021 rungs are sparser than stated, while the sparse
+flights, which are not thinned, are unaffected at the median. Inside the cores
+of the 39 plots the sparse flights hold a median of 4.64 first returns per m²
+(3.12 at SJER, 4.06 at TEAK and 5.03 at SOAP), rung 8 holds 4.85 and rung 4
+holds 2.48. The sparse flights therefore sit just below rung 8, not midway
+between the rungs: 13 of the 39 sparse clouds are denser than their rung-8 core
+and one is sparser than its rung-4 core. The comparison with rung 8 is close
+to density-matched, and rung 4 is about half as dense as the sparse flights.
+No score in this report changes. See the
+[core-density study](core-density-results.md).
+
 **Finding: decimation is slightly optimistic.** Against the 586 stems live in
 both epochs on 39 common plots, the native sparse clouds (3.9 to 5.0 first
 returns per m² at the median) give lower recall than the 2021 clouds

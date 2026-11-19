@@ -12,20 +12,31 @@
 # mask-voxel run); fusion; crown diameters; the sparse-epoch report; the
 # adapter before/after comparison; the master tables of the three populations
 # (the headline with the QL2 rung); the scoring sensitivities (matcher,
-# exact-2021 references, stem-position jitter, chance agreement), the
-# density-routed pipeline, the calibration/validation
-# split, the matching-rule ranks and the native QL2 cross-check; the figures.
+# exact-2021 references, stem-position jitter, chance agreement), the density
+# of the scored plot cores, the density-routed pipeline banded by it, the
+# unsmoothed baseline's chance null, the chance null inside censused subplots
+# and on plot subsets, the chance-correction simulation, the split-crown
+# diagnostic, the calibration/validation split, the matching-rule ranks, the
+# native QL2 cross-check, the count of noise-class points in the clips and the
+# reference audit; the figures.
 #
 # Detector inference is not repeated: the archive holds every arm's per-cell
-# results and persisted detections, which these steps re-score. The classical
-# CHM detectors do re-run inside the treetop export, coverage-gap ladder and
-# crown steps, and on the archived native 3DEP clouds in the QL2 cross-check.
+# results and persisted detections, which these steps re-score; that includes
+# the two runs of the baseline without its smoothing. The classical CHM
+# detectors do re-run inside the treetop export, coverage-gap ladder, fusion
+# and crown steps, and on the archived native 3DEP clouds in the QL2
+# cross-check.
 #
 #   bash scripts/reproduce_paper_tables.sh ARCHIVE=<archive dir> OUT=<new dir> \
 #     [CORES=8] [VERIFY=1]
 #
-# Run from a clone at the archive's CODE_COMMIT or later. Needs R 4.3.3 with
-# the packages of reproduce/Dockerfile; runs in about an hour on 8 cores.
+# Run from a clone at the archive's CODE_COMMIT: core_density_contract.json,
+# routing_contract.json and the master tables' master_contract.json record
+# checksums of the code that wrote them, so a later commit works only if it
+# leaves that code unchanged. Needs R 4.3.3 with the packages of
+# reproduce/Dockerfile; runs in about three hours on 8 cores (about 50 minutes
+# each for the chance null inside censused subplots and the chance-correction
+# simulation).
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 ARCHIVE=""; OUT=""; CORES=8; VERIFY=1
@@ -71,12 +82,24 @@ REBUILT=(
   paper_runs/master_tables paper_runs_all_mapped/master_tables paper_runs_relaxed/master_tables
   paper_runs/census_support_scores paper_runs/census_support_scores_strict
   paper_runs_ql2/census_support_scores paper_runs_ql2/sensitivity
-  paper_runs_nosmooth/sensitivity paper_runs/sensitivity/null_corrected_rank.csv
+  paper_runs_nosmooth/sensitivity paper_runs_nosmooth_ql2/sensitivity
+  paper_runs_nosmooth/census_support_scores paper_runs_nosmooth_ql2/census_support_scores
+  paper_runs/sensitivity/null_corrected_rank.csv
+  paper_runs/core_density paper_runs/density_routing_clip
+  paper_runs/neon/clip_noise_audit.csv paper_runs/neon/clip_noise_audit_summary.csv
   paper_runs/neon/best_treetops_geojson paper_runs/neon/crown_compare_tables.md
   paper_runs/neon/adapter_before_after sparse_2018/compare_report
   paper_runs/sensitivity paper_runs/neon/native_ql2_vs_decimated.csv
   paper_runs/neon/native_ql2_paired.csv paper_runs/density_routing
 )
+# The reference audit's tables and log; its cache of perimeter responses is
+# archived input.
+for f in reference_records reference_summary reference_years plot_measurement_years \
+         fire_sources fire_queries fire_perimeters fire_source_hits fire_hits fire_near_plots \
+         fire_source_offsets fire_field_remarks fire_status_transitions fire_status_individuals; do
+  REBUILT+=("paper_runs/reference_audit/$f.csv")
+done
+REBUILT+=(paper_runs/reference_audit/reference_audit_log.txt)
 # The nine figures, each as PNG and PDF, and the numbers each plots (the
 # schematic, figure 2, plots none).
 for n in 1 2 3 4 5 6 7 s1 s2; do
@@ -92,7 +115,6 @@ for s in "${SITE_LIST[@]}"; do
     REBUILT+=("paper_runs/neon/$s/$f")
   done
   REBUILT+=("paper_runs_maskvoxel/neon/$s/instance_iou_pq.csv")
-  REBUILT+=("paper_runs_nosmooth/neon/$s/lidrplugins_results.csv")
   for pop in all_mapped relaxed; do
     for arm in "${LEARNED[@]}"; do
       REBUILT+=("paper_runs_$pop/neon/$s/${arm}_results.csv" "paper_runs_$pop/neon/$s/${arm}_results.csv.frozen")
@@ -209,21 +231,79 @@ for q in "matcher" "null K=200" "null TOL=2 K=200"; do
   run "$W/paper_runs_ql2" "sensitivity_ql2_${q// /_}" scripts/paper_sensitivity.R MODE="${qa[@]}" \
     RUNGS=3.2 FROZEN_ROOT="$W/neon/frozen_2021_ql2" ARMS=$QL2_ARMS CORES="$CORES"
 done
+# The chance-correction simulation (post hoc): synthetic plots scored with the
+# paper's matcher and null; it reads nothing from the archive. Then how
+# clustered the reference stems of the distributed plots are beside the
+# simulated stands (reads the sealed root's population and stems, and the
+# archived census-support bundles for the plots with admitted support).
+run "$P" chance_simulation scripts/simulate_chance_correction.R N=200 K=200 SEED=0 CORES=6
+run "$P" reference_clustering scripts/reference_stem_clustering.R N=200 SEED=0
+# The split-crown diagnostic (post hoc): close pairs of every ladder arm's
+# persisted native detections, the valley test on the native canopy model and
+# split-crown candidates, in the nominal cores and inside the censused subplots
+# (it stops unless the counts equal the arms' own results and the censused
+# scores of step 2); then the same with pairs 2.5-4 m apart, beyond CHM-VWF's
+# smallest half-window.
+run "$P" split_crowns scripts/split_crown_diagnostic.R CORES="$CORES"
+run "$P" split_crowns_rmin2.5 scripts/split_crown_diagnostic.R RMIN=2.5 CORES="$CORES" \
+  OUT="$P/sensitivity/split_crowns/rmin2.5"
+# First-return density inside the scored plot cores (read-only on every root),
+# which names the density levels and bands the density-routed pipeline.
+run "$P" core_density scripts/core_density.R RUNG_ROOTS="$W/neon/frozen_2021_ql2" \
+  EPOCHS="SJER:$W/sparse_2017:2017,SOAP:$W/sparse_2018:2018,TEAK:$W/sparse_2018:2018" \
+  C21="$W/sparse_compare_2021"
 # The density-routed pipeline (post hoc), from the observed and null counts of
 # every level, the QL2 level's from its own root; it stops unless every
 # detector's per-level F1 and corrected F1 equal the master tables and nulls.
+# Bands by core density; the whole-clip banding is kept as a sensitivity.
 run "$P" density_routing scripts/paper_density_routing.R \
   RUNG_JOBS="$W/paper_runs_ql2:$W/neon/frozen_2021_ql2"
-# The baseline without its sub-8 pulses/m² smoothing, on the sealed clips, in
-# its own job directory (lasR runs single-threaded per site), and the audit
-# of the learned arms' persisted instances.
-NSJ="$W/paper_runs_nosmooth"; mkdir -p "$NSJ/neon"
-ln -sfn "$W/neon/frozen_2021" "$NSJ/neon/frozen_2021"
-for s in "${SITE_LIST[@]}"; do
-  mkdir -p "$NSJ/neon/$s"
-  for f in ground_truth_stems.csv plot_centroids.csv; do ln -sfn "$N/$s/$f" "$NSJ/neon/$s/$f"; done
-  run "$NSJ" "nosmooth_$s" scripts/detect_lidrplugins_sweep.R SITE=$s ARMS=chm_vwf SMOOTH_BELOW=0 CORES=1
+run "$P" density_routing_clip scripts/paper_density_routing.R DENSITY=clip \
+  RUNG_JOBS="$W/paper_runs_ql2:$W/neon/frozen_2021_ql2" OUT="$P/density_routing_clip"
+# The baseline without its sub-8 pulses/m² smoothing: its two runs (the sealed
+# 2021 root and the QL2 rung's root, each in its own job directory) are
+# re-scored from their archived detections and not re-detected, because lasR's
+# canopy-model maxima change by one tree top in a few cells from run to run
+# (baseline smoothing report). Their chance nulls at 4 and 2 m use the shifts
+# of every other detector. Then the audit of the learned arms' persisted
+# instances.
+NSJ="$W/paper_runs_nosmooth"; NSQJ="$W/paper_runs_nosmooth_ql2"
+for t in 4 2; do
+  run "$NSJ" "nosmooth_null_tol$t" scripts/paper_sensitivity.R MODE=null K=200 TOL=$t \
+    ARMS=chm_vwf CORES="$CORES"
+  run "$NSQJ" "nosmooth_ql2_null_tol$t" scripts/paper_sensitivity.R MODE=null K=200 TOL=$t \
+    ARMS=chm_vwf RUNGS=3.2 FROZEN_ROOT="$W/neon/frozen_2021_ql2" CORES="$CORES"
 done
+# Chance agreement inside the censused subplots (post hoc): the same shifts
+# scored by the censused scorer, stopping unless the observed counts equal the
+# census scores, the observed leads the master tables and the nominal-box null
+# the null cells above; the unsmoothed baseline scored and nulled the same way
+# from its persisted detections in its own job directories (no master-table
+# rows, so CHECK_MASTER=0) and the leads over it; then the nominal null on plot
+# subsets (tower and distributed plots, and without the three SOAP plots inside
+# CAL FIRE's perimeter of the 2020 Creek Fire that were measured only before it).
+DN=docs/census-support-declaration-nearest.json; SUP="$P/reference_support_census_event"
+run "$NSJ" census_nosmooth scripts/score_census_support.R DECLARATION="$DN" ARMS=chm_vwf \
+  SUPPORT="$SUP" OUT="$NSJ/census_support_scores/nearest_ladder"
+run "$NSQJ" census_nosmooth_ql2 scripts/score_census_support.R DECLARATION="$DN" ARMS=chm_vwf \
+  RUNGS=3.2 FROZEN_ROOT="$W/neon/frozen_2021_ql2" SUPPORT="$SUP" \
+  OUT="$NSQJ/census_support_scores/nearest_ladder"
+for t in 4 2; do
+  run "$P" "census_null_tol$t" scripts/paper_census_null.R DECLARATION="$DN" TOL=$t K=200 CORES="$CORES"
+  run "$W/paper_runs_ql2" "census_null_ql2_tol$t" scripts/paper_census_null.R DECLARATION="$DN" \
+    RUNGS=3.2 TOL=$t FROZEN_ROOT="$W/neon/frozen_2021_ql2" ARMS=$QL2_ARMS \
+    MASTER_TABLES="$P/master_tables/master_contrasts.csv" K=200 CORES="$CORES"
+  run "$NSJ" "census_null_nosmooth_tol$t" scripts/paper_census_null.R DECLARATION="$DN" \
+    ARMS=chm_vwf TOL=$t SUPPORT="$SUP" CHECK_MASTER=0 K=200 CORES="$CORES"
+  run "$NSQJ" "census_null_nosmooth_ql2_tol$t" scripts/paper_census_null.R DECLARATION="$DN" \
+    ARMS=chm_vwf RUNGS=3.2 TOL=$t FROZEN_ROOT="$W/neon/frozen_2021_ql2" SUPPORT="$SUP" \
+    CHECK_MASTER=0 K=200 CORES="$CORES"
+  run "$P" "census_null_unsmoothed_tol$t" scripts/paper_census_null_unsmoothed.R TOL=$t \
+    JOBS="$P,$W/paper_runs_ql2" NOSMOOTH="$NSJ,$NSQJ"
+done
+run "$P" census_null_strict scripts/paper_census_null.R \
+  DECLARATION=docs/census-support-declaration-nearest-strict.json RUNGS=native K=200 CORES="$CORES"
+run "$P" null_subsets scripts/paper_null_subsets.R EXCLUDE=SOAP_002,SOAP_008,SOAP_013
 run "$P" baseline_smoothing scripts/baseline_smoothing_sensitivity.R NOSMOOTH="$NSJ"
 run "$P" instance_audit scripts/instance_audit.R CORES="$CORES"
 run "$P" corrected_rank scripts/corrected_rank_stability.R
@@ -235,6 +315,11 @@ done
 run "$P" native_ql2_crosscheck scripts/native_ql2_crosscheck.R SITES=SOAP,SJER,TEAK \
   POP=adopted CACHE_JOB="$W"
 run "$P" native_ql2_paired scripts/native_ql2_paired.R
+# Noise-class points in the frozen NEON clips, which no detector removes.
+run "$P" clip_noise_audit scripts/clip_noise_audit.R
+# The reference-population and fire-history audit (post hoc), offline from the
+# archived perimeter responses.
+run "$P" reference_audit scripts/reference_population_audit.R OFFLINE=1
 
 ## 11. The paper's figures.
 run "$P" figures scripts/paper_figures.R

@@ -11,26 +11,28 @@ DOI against the NEON release API on 2026-10-05.
 ## Draft statement
 
 > All field, airborne LiDAR and camera data of the benchmark are public data
-> products of the National Ecological Observatory Network (NEON), released
-> under CC0 1.0:
+> products of the National Ecological Observatory Network, released under
+> CC0 1.0:
 > vegetation structure (DP1.10098.001, RELEASE-2026,
 > [doi:10.48443/pypa-qf12](https://doi.org/10.48443/pypa-qf12)), the
 > discrete-return LiDAR point cloud (DP1.30003.001,
 > [doi:10.48443/5ts2-rc92](https://doi.org/10.48443/5ts2-rc92)) and the
 > camera imagery mosaic (DP3.30010.001,
-> [doi:10.48443/8vq2-s021](https://doi.org/10.48443/8vq2-s021)) from the 2021
-> flights over SJER, SOAP, TEAK, WREF and ABBY. The native QL2 cross-check
-> also uses public-domain USGS 3DEP point clouds over the California sites.
-> The frozen evaluation clips,
+> [doi:10.48443/8vq2-s021](https://doi.org/10.48443/8vq2-s021)), from the 2021
+> flights over SJER, SOAP, TEAK, WREF and ABBY. The cross-sensor check also
+> uses public-domain USGS 3DEP point clouds. The fixed evaluation clips,
 > field-stem references, plot populations, per-cell results and persisted
-> detections, checkpoint hashes and container image IDs are archived at
-> Zenodo (DOI to be assigned at deposit), with a script that rebuilds every
-> table from the archive. The code is available at
-> <https://github.com/devakellc/lidar-tree-benchmark> under the MIT licence;
-> the archive records the commit it was staged with. Third-party models are
-> used under their own licences and are not redistributed; the archive lists
-> their sources, versions and SHA-256 hashes so that every run can be repeated
-> with the same weights.
+> detections, checkpoint hashes and container image identifiers are archived
+> at Zenodo (DOI to be assigned at deposit), with a script that rebuilds every
+> table from the archive, the density-routing analysis included; the radius
+> check of Section S18 and the ForestMamba run of Section S23 are not in the
+> archive. The code is available at
+> <https://github.com/devakellc/lidar-tree-benchmark> under the MIT licence.
+> Third-party models are used under their own licences and are not
+> redistributed; the archive lists their sources, versions and SHA-256
+> hashes, and the repository lists ForestMamba's (Section S23). FGI-EMIT is
+> available from its authors under CC BY-NC-SA 4.0
+> ([doi:10.5281/zenodo.19351234](https://doi.org/10.5281/zenodo.19351234)).
 
 ## Inputs
 
@@ -46,7 +48,7 @@ DOI against the NEON release API on 2026-10-05.
 
 | Component | Source | Licence | Version pin | In the archive |
 |---|---|---|---|---|
-| Benchmark code | This repository | MIT | Commit per table | Source snapshot |
+| Benchmark code | This repository | MIT | Commit per table | Source snapshot of the commit in `CODE_COMMIT`, deposited beside the archive |
 | treeiso (vendored) | `external/treeiso` | MIT (treeiso, cut-pursuit); LGPL 2.1 (matlas_tools) | Vendored copy | Included with the code |
 | ForestFormer3D code | [SmartForest-no/ForestFormer3D](https://github.com/SmartForest-no/ForestFormer3D) | CC BY-NC 4.0 | Commit `6a75c37` with local patch; build files in `gpu/forestformer3d-sm120` | Image ID only |
 | ForestFormer3D weights | [doi:10.5281/zenodo.16742708](https://doi.org/10.5281/zenodo.16742708) | GPL-3.0-or-later | `epoch_3000_fix.pth` | SHA-256 only |
@@ -73,14 +75,19 @@ cite the RELEASE-2026 DOI for the point clouds.
 ## Archive and reproduction
 
 The archive is staged with `scripts/stage_archive.sh` and described in the
-[archive guide](reproduction-archive.md). `scripts/reproduce_paper_tables.sh`
+[archive guide](reproduction-archive.md); a source snapshot of the commit in
+its `CODE_COMMIT` is deposited beside it, and the [rebuild
+record](reproduction-rebuilds.md) lists its stagings and clean-container
+rebuilds. `scripts/reproduce_paper_tables.sh`
 rebuilds every table of the frozen-clip benchmark from it on CPU and checks
 each rebuilt file against the archived copy; `reproduce/Dockerfile` gives the
 clean-machine environment. [model-provenance.json](model-provenance.json)
-records the checkpoint hashes, image IDs and source commits taken from the
-final runs' manifests and weight files. The GPU images were built locally
-from the files under `gpu/` and are identified by image ID, as they are not
-in a registry.
+records the checkpoint hashes, image IDs and source commits of every learned
+arm. Those of ForestFormer3D and TreeisoNet come from the final runs'
+manifests; the other arms wrote no run manifest, and theirs come from the
+local images and weight files the runs used. The GPU images were built
+locally from the files under `gpu/` and are identified by image ID, as they
+are not in a registry.
 
 ## Before the deposit
 

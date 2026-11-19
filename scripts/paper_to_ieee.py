@@ -1353,15 +1353,20 @@ def front_matter(md):
     author = re.search(r"^([A-Z][^.\n]*?)\.\s+Co-authors", front, flags=re.M)
     if not author:
         raise SystemExit("cannot find the author line under the title")
-    return sections, author.group(1)
+    # An optional "ORCID: <iD>" line (the iD bare or as a link) under the author line.
+    orcid = re.search(r"^ORCID:\s*\[?(\d{4}-\d{4}-\d{4}-\d{3}[\dX])\b", front, flags=re.M)
+    if re.search(r"^ORCID:", front, flags=re.M) and not orcid:
+        raise SystemExit("cannot read the ORCID iD under the author line")
+    return sections, author.group(1), orcid.group(1) if orcid else None
 
 
 def build_main(authors):
     md = (REPO / "paper/manuscript.md").read_text(encoding="utf-8")
     known = paper_numbers()
-    sections, author = front_matter(md)
+    sections, author, orcid = front_matter(md)
     surname = author.split()[-1]
     initials = "~".join(f"{p[0]}." for p in author.split()[:-1])
+    orcid_tex = f" (ORCID: {orcid})" if orcid else ""
     sec = {h: t for h, t in sections}
     abstract_md = sec["## Abstract"].split("**Keywords:**")[0].strip()
     keywords = sec["## Abstract"].split("**Keywords:**")[1].strip()
@@ -1427,7 +1432,8 @@ def build_main(authors):
 \\thanks{{Manuscript received Month DD, 2026. % TODO: leave for the journal or fill in
 This work was supported by TODO. % TODO: funding statement, or remove this sentence
 }}%
-\\thanks{{{initials}~{surname} is with TODO affiliation (e-mail: TODO). % TODO
+\\thanks{{{initials}~{surname}{orcid_tex} is with TODO affiliation (e-mail: TODO). % TODO
+% IEEE also takes each author's ORCID iD from the submission system.
 }}}}
 
 \\markboth{{IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing}}%
@@ -1481,7 +1487,7 @@ This work was supported by TODO. % TODO: funding statement, or remove this sente
 def build_supplement(authors):
     manuscript = (REPO / "paper/manuscript.md").read_text(encoding="utf-8")
     known = paper_numbers()
-    _, author = front_matter(manuscript)
+    _, author, _ = front_matter(manuscript)
     md = (REPO / "paper/supplement.md").read_text(encoding="utf-8")
     sections = split_sections(md)
     intro, code = hold_code(sections[0][1])

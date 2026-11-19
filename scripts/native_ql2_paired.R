@@ -16,14 +16,22 @@ source(.find("master_tables_lib.R"))
 # paired plot bootstrap (MT_N_BOOT resamples, MT_SEED).
 #   Rscript scripts/native_ql2_paired.R [SITES=SJER,SOAP,TEAK]
 # Writes $CLAUDE_JOB_DIR/neon/native_ql2_paired.csv.
+# The 3DEP rows must record the read-time noise filter of the cross-check
+# (noise_filter column); rows written before it existed, or a mix of filter
+# settings across sites, stop the run.
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
 SITES <- strsplit(if (is.null(A$SITES)) "SJER,SOAP,TEAK" else A$SITES, ",")[[1]]
 nd <- file.path(.job_dir(), "neon")
 cols <- c("site", "plot", "detector", "variant", "n_ref", "n_det", "TP", "precision")
 
+filters <- character(0)
 rows <- do.call(rbind, lapply(SITES, function(s) {
   q <- read.csv(file.path(nd, s, "ql2", "ql2_detect_results.csv"), stringsAsFactors = FALSE)
+  if (is.null(q$noise_filter))
+    stop(s, ": ql2_detect_results.csv has no noise_filter column; rerun ",
+         "native_ql2_crosscheck.R", call. = FALSE)
+  filters <<- union(filters, unique(q$noise_filter))
   q <- q[q$variant == "native_dec2", ]
   q$site <- s; q$variant <- "3dep_dec2"
   sw <- read.csv(file.path(nd, s, "sweep_results.csv"), stringsAsFactors = FALSE)
@@ -35,6 +43,10 @@ rows <- do.call(rbind, lapply(SITES, function(s) {
   nb$site <- s; nb$variant <- "neon_dec2"
   rbind(q[, cols], nb[, cols])
 }))
+if (length(filters) != 1L)
+  stop("3DEP rows mix noise filters across sites: ", paste(filters, collapse = " | "),
+       call. = FALSE)
+cat("3DEP clouds read with noise filter:", filters, "\n")
 rows$tp_core <- ifelse(rows$n_det > 0, round(rows$precision * rows$n_det), 0)
 rows$rung <- "2"
 

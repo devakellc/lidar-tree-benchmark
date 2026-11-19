@@ -43,10 +43,22 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #
 # Pipeline per plot:
 #   centroid (UTM 11N) -> +/-PAD m box -> reproject box to EPT native SRS ->
-#   PDAL readers.ept(bounds) -> drop noise (class 7/18) + withheld points ->
-#   filters.reprojection out_srs=OUTCRS -> writers.las -> per-plot laz.
-#   Then Step-0 density -> detect_lasr(res-by-density, a=A) -> score_plot
-#   (stems reprojected 32611 -> OUTCRS so they share the detection CRS).
+#   PDAL readers.ept(bounds) -> filters.range (drops withheld points only; see
+#   PULL_FILTER_LIMITS) -> filters.reprojection out_srs=OUTCRS -> writers.las
+#   -> per-plot laz.
+#   Read laz -> drop noise (class 7/18) + withheld points (ql2_noise_filter, the
+#   filter that removes the noise classes; clouds cached before the pull's
+#   withheld clause was added still hold withheld points, and the cache test
+#   does not key on the filter) -> Step-0 density ->
+#   detect_lasr(res-by-density, a=A) -> score_plot (stems reprojected
+#   32611 -> OUTCRS so they share the detection CRS).
+# Densities are counted inside a box and divided by that box's area
+# (box_density): the pulled cloud covers more than the nominal +/-PAD box,
+# because the query box is the bounding box of the UTM box reprojected to the
+# EPT's Web Mercator SRS. Each plot reports all-return and first-return
+# density inside the +/-PAD box and first-return density inside the plot
+# core; the never-upsample guard and the CHM-resolution rule use the box
+# densities. Detection still reads the whole pulled cloud.
 # Pool per site exactly like the sweep: recall = sum(TP)/sum(n_ref); per-class
 # TP recovered as round(rec_class * n_class).
 #
@@ -55,7 +67,7 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #   Rscript scripts/native_ql2_crosscheck.R SITES=SOAP,SJER,TEAK \
 #       [EPT_SOAP=<url>] [EPT_SJER=<url>] [EPT_TEAK=<url>] [OUTCRS=EPSG:32611] \
 #       [TOL=4] [A=0.10] [PAD=45] [MAXPLOTS=ALL] [PLOTS=SJER_050,...] \
-#       [QL2_LO=1.5] [QL2_HI=4]
+#       [QL2_LO=1.5] [QL2_HI=4] [NOISE_FILTER=1|classes|0]
 #
 # If EPT_<SITE> is not given, the script auto-discovers via ept_discovery.R
 # (writes work/neon/<SITE>/ql2/ept_candidates.csv) and uses the preferred one.
@@ -100,6 +112,13 @@ ONLY_PLOTS <- if (is.null(A$PLOTS)) NULL else strsplit(A$PLOTS, ",")[[1]]
 # clouds under another job directory, so a re-score reuses the cached pulls.
 POP_SCOPED <- !is.null(A$POP)
 CACHE <- if (is.null(A$CACHE_JOB)) JOB else A$CACHE_JOB
+# NOISE_FILTER= sets what is dropped when a cloud is read: 1 (default) classes
+# 7 and 18 and withheld points (the pull drops only the withheld ones);
+# `classes` classes 7 and 18 only (a diagnostic); 0 nothing, the clouds as
+# cached (reproduces outputs made before the read-time filter existed).
+NOISE_FILTER <- if (is.null(A$NOISE_FILTER)) "1" else A$NOISE_FILTER
+if (!NOISE_FILTER %in% c("1", "classes", "0"))
+  stop("NOISE_FILTER must be 1, classes or 0")
 
 # Per-site EPT override argument: EPT_<SITE>=<url>.
 ept_override <- function(site) {
@@ -151,11 +170,70 @@ ept_srs <- function(url, cache_dir) {
 # silently reused.
 manifest_path <- function(out_laz) paste0(out_laz, ".json")
 
+# Noise classes (7 low noise, 18 high noise). The read-time filter
+# (ql2_noise_filter) is the one that removes them. The pull's PDAL
+# filters.range limits do not: filters.range ORs ranges that name the same
+# dimension and ANDs different dimensions, so `Classification![7:7]` and
+# `Classification![18:18]` together keep every point and only `Withheld![1:1]`
+# (keep points whose Withheld flag is not 1) removes any. In these surveys
+# every class 7 or 18 point is also withheld. The string is kept as pulled, so
+# that fresh pulls record the same filter in their manifests as earlier ones,
+# the cached clouds stay valid and nothing is pulled again.
+QL2_NOISE_CLASSES <- c(7L, 18L)
+PULL_FILTER_LIMITS <- paste(c(sprintf("Classification![%d:%d]", QL2_NOISE_CLASSES,
+                                      QL2_NOISE_CLASSES), "Withheld![1:1]"),
+                            collapse = ",")
+
+# Fresh pulls also record the pull's limits string. Clouds cached before that
+# record was added have no `filter` field; cache_valid does not key on it (the
+# cached clouds are reused as they are), so the read-time filter below covers
+# them.
 write_manifest <- function(out_laz, ept_url, pad, outcrs) {
   writeLines(jsonlite::toJSON(
-    list(ept_url = ept_url, pad = pad, outcrs = outcrs),
+    list(ept_url = ept_url, pad = pad, outcrs = outcrs, filter = PULL_FILTER_LIMITS),
     auto_unbox = TRUE, pretty = TRUE), manifest_path(out_laz))
 }
+
+# Read-time noise filter: drops points of `classes` and, when `withheld`, every
+# point flagged Withheld, whatever the age of the cached cloud. Returns the
+# filtered cloud and one row of counts: points read, points in class 7, in
+# class 18 and flagged withheld (whether dropped or not), and points dropped.
+# With nothing to drop the cloud is returned untouched. A cloud read without
+# the withheld flag (readLAS select without "w") stops the run (an error of
+# class ql2_read_error, which the per-site handler re-raises), since its
+# withheld points could be neither dropped nor counted.
+ql2_noise_filter <- function(las, classes = QL2_NOISE_CLASSES, withheld = TRUE) {
+  cl <- las$Classification
+  if (is.null(las$Withheld_flag))
+    stop(structure(class = c("ql2_read_error", "error", "condition"), list(
+      message = "The cloud was read without the withheld flag; read it with readLAS select including \"w\"",
+      call = sys.call())))
+  wh <- las$Withheld_flag %in% TRUE
+  drop <- (cl %in% classes) | (withheld & wh)
+  counts <- data.frame(n_read = length(cl), n_class7 = sum(cl == 7L),
+                       n_class18 = sum(cl == 18L), n_withheld = sum(wh),
+                       n_dropped = sum(drop))
+  if (any(drop)) las <- lidR::filter_poi(las, !drop)
+  list(las = las, counts = counts)
+}
+
+# Label of a read-time filter setting, recorded with every per-plot row.
+noise_filter_label <- function(classes, withheld) {
+  lab <- c(if (length(classes)) paste(classes, collapse = ","), if (withheld) "withheld")
+  if (length(lab)) paste(lab, collapse = ",") else "none"
+}
+
+# All-return and first-return density (points/m^2) inside the axis-aligned box
+# of half-width `half` centred on (cx, cy): points and area from the same box.
+box_density <- function(las, cx, cy, half) {
+  inb <- abs(las$X - cx) <= half & abs(las$Y - cy) <= half
+  area <- (2 * half)^2
+  c(pdens = sum(inb) / area, frdens = sum(inb & las$ReturnNumber == 1L) / area)
+}
+
+NF_CLASSES  <- if (NOISE_FILTER == "0") integer(0) else QL2_NOISE_CLASSES
+NF_WITHHELD <- NOISE_FILTER == "1"
+NF_LABEL    <- noise_filter_label(NF_CLASSES, NF_WITHHELD)
 
 # TRUE iff a cached laz exists AND its sidecar manifest matches the provenance
 # we are about to use (ept_url + pad + outcrs). Missing/mismatched manifest -> not
@@ -185,7 +263,7 @@ to_outcrs <- function(e, n) {
 }
 
 # Pull a single plot's native cloud via PDAL readers.ept, reproject to OUTCRS.
-# box (UTM) -> EPT SRS bounds -> ept reader -> drop noise -> reproject -> laz.
+# box (UTM) -> EPT SRS bounds -> ept reader -> drop withheld -> reproject -> laz.
 pull_plot <- function(cx, cy, pad, ept_url, ept_epsg, out_laz) {
   box <- st_as_sf(data.frame(id = 1:4,
                              x = c(cx - pad, cx + pad, cx + pad, cx - pad),
@@ -195,16 +273,12 @@ pull_plot <- function(cx, cy, pad, ept_url, ept_epsg, out_laz) {
   bb <- st_bbox(box_ept)
   bounds <- sprintf("([%f, %f], [%f, %f])",
                     bb["xmin"], bb["xmax"], bb["ymin"], bb["ymax"])
-  # Drop noise classes (7 low noise, 18 high noise) AND any point flagged
-  # Withheld (fix 3): a genuine withheld exclusion so the code matches the
-  # documented "drop class 7/18 + withheld". `Withheld![1:1]` keeps points whose
-  # Withheld flag is NOT 1 (i.e. removes withheld). Multiple range conditions in
-  # one limits string are ANDed by filters.range.
+  # PULL_FILTER_LIMITS drops only the points flagged Withheld (its class
+  # clauses cancel; see there); the read-time filter drops classes 7 and 18.
   pipe <- list(
     list(type = "readers.ept", filename = ept_url, bounds = bounds),
-    list(type = "filters.range",                       # drop noise + withheld
-         limits = paste0("Classification![7:7],",
-                         "Classification![18:18],Withheld![1:1]")),
+    list(type = "filters.range",                       # drops withheld points
+         limits = PULL_FILTER_LIMITS),
     list(type = "filters.reprojection", out_srs = OUTCRS),
     list(type = "writers.las", filename = out_laz, compression = "laszip")
   )
@@ -222,20 +296,16 @@ pull_plot <- function(cx, cy, pad, ept_url, ept_epsg, out_laz) {
   list(ok = TRUE, msg = "")
 }
 
-# Run detect_lasr on a (possibly decimated) LAS; returns det + measured density.
-# res_override: when non-NA, pin the CHM resolution instead of deriving it from
-# the (decimated) first-return density. Used by the decimated-2 arm so its CHM
-# resolution MATCHES the NEON dec2 arm it is compared against (chm_res=0.5).
-# Without this, a native cloud decimated to ~2 ppsm would fall into the res=1.0
-# branch (frdens<4) while NEON dec2 is pooled at res=0.5 -- a resolution confound
-# that contaminates the "sensor difference" delta. With it, the residual delta is
-# genuinely sensor/return-structure, not CHM resolution.
-detect_on <- function(src_las, rung, pad, res_override = NA_real_, seed = NA) {
+# Shared preparation of both detectors: optional decimation of the (noise-
+# filtered) native cloud to all-return density `rung`, TIN normalization and
+# the Z window. `native_pdens` is the native all-return density inside the
+# +/-PAD box, the unit of the never-upsample guard. The returned densities are
+# counted inside the +/-pad box (all-return, first-return) and the plot core
+# (first-return), centred on (cx, cy) in the cloud's CRS.
+prep_cloud <- function(src_las, rung, native_pdens, cx, cy, pad, core_half, seed = NA) {
   l <- src_las
-  area0 <- (2 * pad)^2
-  pdens_native <- npoints(src_las) / area0
   if (!is.na(rung)) {
-    if (pdens_native <= rung) return(NULL)             # never upsample
+    if (native_pdens <= rung) return(NULL)             # never upsample
     if (!is.na(seed)) set.seed(seed)
     l <- decimate_points(l, homogenize(density = rung, res = 5))
   }
@@ -244,10 +314,25 @@ detect_on <- function(src_las, rung, pad, res_override = NA_real_, seed = NA) {
                   error = function(e) NULL)
   if (is.null(nrm)) return(NULL)
   nrm <- filter_poi(nrm, Z >= -1, Z < 80)
-  a2   <- (2 * pad)^2
-  pdn  <- npoints(nrm) / a2
-  frdn <- sum(nrm$ReturnNumber == 1L) / a2
-  fn   <- tempfile(fileext = ".laz"); writeLAS(nrm, fn)
+  bd  <- box_density(nrm, cx, cy, pad)
+  list(nrm = nrm, pdens = bd[["pdens"]], frdens = bd[["frdens"]],
+       frdens_core = box_density(nrm, cx, cy, core_half)[["frdens"]])
+}
+
+# Run detect_lasr on a (possibly decimated) LAS; returns det + measured density.
+# res_override: when non-NA, pin the CHM resolution instead of deriving it from
+# the (decimated) first-return density. Used by the decimated-2 arm so its CHM
+# resolution MATCHES the NEON dec2 arm it is compared against (chm_res=0.5).
+# Without this, a native cloud decimated to ~2 ppsm would fall into the res=1.0
+# branch (frdens<4) while NEON dec2 is pooled at res=0.5 -- a resolution confound
+# that contaminates the "sensor difference" delta. With it, the residual delta is
+# genuinely sensor/return-structure, not CHM resolution.
+detect_on <- function(src_las, rung, native_pdens, cx, cy, pad, core_half,
+                      res_override = NA_real_, seed = NA) {
+  p <- prep_cloud(src_las, rung, native_pdens, cx, cy, pad, core_half, seed)
+  if (is.null(p)) return(NULL)
+  frdn <- p$frdens
+  fn   <- tempfile(fileext = ".laz"); writeLAS(p$nrm, fn)
   res  <- if (!is.na(res_override)) res_override else
           if (frdn >= 8) 0.25 else if (frdn >= 4) 0.5 else 1.0
   # NB the <8 ppsm pre-LM smoothing branch in detect_lasr keys on dens=frdn, not
@@ -257,7 +342,8 @@ detect_on <- function(src_las, rung, pad, res_override = NA_real_, seed = NA) {
                    error = function(e) { message(conditionMessage(e)); NULL })
   unlink(fn)
   if (is.null(det)) return(NULL)
-  list(det = det, res = res, pdens = pdn, frdens = frdn)
+  list(det = det, res = res, pdens = p$pdens, frdens = frdn,
+       frdens_core = p$frdens_core)
 }
 
 # multichm counterpart of detect_on (issue #39): the SAME decimate/normalize/
@@ -269,31 +355,18 @@ detect_on <- function(src_las, rung, pad, res_override = NA_real_, seed = NA) {
 # matching the cached multichm dec2 rung (multichm_sweep_results.csv rung==2,
 # which is itself density-derived at 0.5 m), so the equivalence test stays
 # resolution-consistent the same way the CHM-VWF arm is res-pinned to 0.5 m.
-detect_on_multichm <- function(src_las, rung, pad, seed = NA) {
-  l <- src_las
-  area0 <- (2 * pad)^2
-  pdens_native <- npoints(src_las) / area0
-  if (!is.na(rung)) {
-    if (pdens_native <= rung) return(NULL)             # never upsample
-    if (!is.na(seed)) set.seed(seed)
-    l <- decimate_points(l, homogenize(density = rung, res = 5))
-  }
-  if (sum(l$Classification == 2L) < 10) return(NULL)
-  nrm <- tryCatch(normalize_height(l, tin(), na.rm = TRUE),
-                  error = function(e) NULL)
-  if (is.null(nrm)) return(NULL)
-  nrm  <- filter_poi(nrm, Z >= -1, Z < 80)
-  a2   <- (2 * pad)^2
-  pdn  <- npoints(nrm) / a2
-  frdn <- sum(nrm$ReturnNumber == 1L) / a2
-  res  <- if (frdn >= 8) 0.25 else 0.5
-  tt <- tryCatch(lidR::locate_trees(nrm, lidRplugins::multichm(res = res,
+detect_on_multichm <- function(src_las, rung, native_pdens, cx, cy, pad, core_half,
+                               seed = NA) {
+  p <- prep_cloud(src_las, rung, native_pdens, cx, cy, pad, core_half, seed)
+  if (is.null(p)) return(NULL)
+  res  <- if (p$frdens >= 8) 0.25 else 0.5
+  tt <- tryCatch(lidR::locate_trees(p$nrm, lidRplugins::multichm(res = res,
                    ws = ws_factory(AVWF))), error = function(e) NULL)
   if (is.null(tt) || nrow(tt) == 0) return(NULL)
   co <- sf::st_coordinates(tt)                          # 2-D tops; apex z from Z
   z  <- if (ncol(co) >= 3) co[, 3] else if (!is.null(tt$Z)) tt$Z else co[, 2] * 0
   list(det = data.frame(x = co[, 1], y = co[, 2], z = z),
-       res = res, pdens = pdn, frdens = frdn)
+       res = res, pdens = p$pdens, frdens = p$frdens, frdens_core = p$frdens_core)
 }
 
 ## ---- per-site run ---------------------------------------------------------
@@ -355,15 +428,20 @@ run_site <- function(site) {
       cat(sprintf("  %s: cache HIT (provenance match)\n", pid))
     }
     las <- tryCatch(readLAS(out_laz), error = function(e) NULL)
+    # Noise classes and withheld points are dropped before any measurement or
+    # detection, whatever the pull of the cached cloud dropped.
+    nf <- NULL
+    if (!is.null(las) && !is.empty(las)) {
+      nf  <- ql2_noise_filter(las, classes = NF_CLASSES, withheld = NF_WITHHELD)
+      las <- nf$las
+      cat(sprintf("  %s: read %d points; dropped %d (class 7: %d, class 18: %d, withheld: %d; filter %s)\n",
+                  pid, nf$counts$n_read, nf$counts$n_dropped, nf$counts$n_class7,
+                  nf$counts$n_class18, nf$counts$n_withheld, NF_LABEL))
+    }
     if (is.null(las) || is.empty(las) || npoints(las) < 200) {
       cat(sprintf("  %s: too few native points; skip\n", pid)); next }
     if (sum(las$Classification == 2L) < 10) {
       cat(sprintf("  %s: <10 ground pts; skip\n", pid)); next }
-
-    # native densities over the padded box (all-return + first-return/pulse)
-    area     <- (2 * PAD)^2
-    pdens_n  <- npoints(las) / area
-    frdens_n <- sum(las$ReturnNumber == 1L) / area
 
     # Move stems + core centre from native EPSG:32611 into OUTCRS so they share
     # the detection CRS (fix 2). Stem-core SELECTION above stayed native (matches
@@ -373,6 +451,14 @@ run_site <- function(site) {
     stems_o$E <- s_xy[, "x"]; stems_o$N <- s_xy[, "y"]
     c_xy <- to_outcrs(cx, cy)
     cx_o <- c_xy[1, "x"]; cy_o <- c_xy[1, "y"]
+
+    # Native densities, each counted inside the box it is divided by: the
+    # +/-PAD box (all-return + first-return/pulse) and the plot core
+    # (first-return). The pulled cloud is larger than the +/-PAD box.
+    bd_n     <- box_density(las, cx_o, cy_o, PAD)
+    pdens_n  <- bd_n[["pdens"]]
+    frdens_n <- bd_n[["frdens"]]
+    frdens_core_n <- box_density(las, cx_o, cy_o, ph)[["frdens"]]
 
     # native_full = detection at the survey's native density (its true sparsity);
     #   CHM resolution derived from its (high) native first-return density.
@@ -394,9 +480,11 @@ run_site <- function(site) {
         seed_for(site, pid, paste0("3DEP-", variants[[vn]]$rung))
       for (dn in c("chm_vwf", "multichm")) {
         v <- if (dn == "chm_vwf")
-          detect_on(las, variants[[vn]]$rung, PAD, res_override = variants[[vn]]$res, seed = seed)
+          detect_on(las, variants[[vn]]$rung, pdens_n, cx_o, cy_o, PAD, ph,
+                    res_override = variants[[vn]]$res, seed = seed)
         else
-          detect_on_multichm(las, variants[[vn]]$rung, PAD, seed = seed)
+          detect_on_multichm(las, variants[[vn]]$rung, pdens_n, cx_o, cy_o, PAD, ph,
+                             seed = seed)
         if (is.null(v)) { cat(sprintf("  %s [%s/%s]: skip\n", pid, vn, dn)); next }
         sc <- score_plot(stems_o, v$det, tol_xy = TOL, core_cx = cx_o,
                          core_cy = cy_o, core_half = ph)
@@ -404,8 +492,11 @@ run_site <- function(site) {
                                variant = vn, detector = dn,
                                native_pdens = round(pdens_n, 2),
                                native_frdens = round(frdens_n, 2),
+                               native_frdens_core = round(frdens_core_n, 2),
                                pdens = round(v$pdens, 2), frdens = round(v$frdens, 2),
-                               chm_res = v$res, vwf_a = AVWF), sc)
+                               frdens_core = round(v$frdens_core, 2),
+                               chm_res = v$res, vwf_a = AVWF), sc,
+                    data.frame(noise_filter = NF_LABEL), nf$counts)
         rows[[length(rows) + 1]] <- sc
         got_any <- TRUE
         cat(sprintf("  %s [%s/%s]: native_fr=%.2f -> fr=%.2f res=%.2f n_ref=%d TP=%d recall=%.2f prec=%.2f\n",
@@ -426,8 +517,12 @@ run_site <- function(site) {
   res_df$site_class <- cls
   res_df$native_frdens_median <- round(med_fr, 2)
   write.csv(res_df, file.path(ql2, "ql2_detect_results.csv"), row.names = FALSE)
-  cat(sprintf("  --> %s native median first-return density = %.2f pulses/m^2 (class=%s)\n",
-              site, med_fr, cls))
+  pl <- unique(res_df[, c("plot", "native_frdens_core", "n_read", "n_dropped")])
+  cat(sprintf("  --> %s native median first-return density = %.2f pulses/m^2 in the +/-%g m box, %.2f in the core (class=%s)\n",
+              site, med_fr, PAD, median(pl$native_frdens_core), cls))
+  cat(sprintf("  --> %s noise filter %s: dropped %d of %d points read (%.2f%%) over %d plots\n",
+              site, NF_LABEL, sum(pl$n_dropped), sum(pl$n_read),
+              100 * sum(pl$n_dropped) / sum(pl$n_read), nrow(pl)))
   res_df
 }
 
@@ -508,7 +603,7 @@ pool_decimated_multichm <- function(site, plots) {
 ## ---- main -----------------------------------------------------------------
 all_native <- list(); all_cmp <- list()
 for (site in SITES) {
-  nv <- tryCatch(run_site(site), error = function(e) {
+  nv <- tryCatch(run_site(site), ql2_read_error = function(e) stop(e), error = function(e) {
     cat("  ", site, " errored: ", conditionMessage(e), "\n"); NULL })
   if (is.null(nv) || !nrow(nv)) next
   all_native[[site]] <- nv

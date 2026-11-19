@@ -54,3 +54,17 @@ The freeze verified, and every arm completed all 106 cells. The results are
 in the [master tables](../results/master-tables-results.md#the-ql2-rung), the
 [density-ladder study](../results/density-ladder-sweep-results.md) and the
 [model comparison](../results/model-benchmark-results.md).
+
+## Addendum, 17 November 2026
+
+The declared median of 1.995 pulses/m² (1.99 in the table above) is the
+median of whole-clip first-return density: the plot core plus the 25 m
+buffer, as the clip manifest records it. A measurement added after an
+internal review counted the scored plot cores alone
+([core density](../results/core-density-results.md)). Thinning leaves the
+clip's edge denser than its interior, so in the plot cores the rung's median
+is 1.77 pulses/m² [1.64, 2.00], ranging from 1.39 to 2.91 per plot, and 79 of
+the 106 cores lie below the QL2 floor (54 by whole-clip density): 20 of the
+43 in California and 59 of the 63 in Washington. The rung sits below the
+floor in most plots rather than at it. The target, the freeze and every
+result are unchanged; only the density label differs.

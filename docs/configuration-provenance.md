@@ -78,3 +78,46 @@ scores.
   out-of-sample, although the rule predates Washington. The development
   against replication comparison uses the master tables' fixed
   configurations only.
+
+## Upstream inference behaviour, read from the code on 17 November 2026
+
+A check of the paper's methods text against the code found settings that the
+table above and the detector table did not state, or stated loosely. None is
+a change to a run: these are the values the paper runs used.
+
+- **SegmentAnyTree** (`segment-any-tree` at `a3561ed`). The IoU threshold of
+  0.25 in the checkpoint's configuration (`min_iou_threshold`) belongs to the
+  training loss of the score network. At inference the tracker keeps a cluster
+  after non-maximum suppression at IoU 0.3 if it holds more than 10 points
+  and its score exceeds 0.6 (`get_instances` in
+  `torch_points3d/models/panoptic/structure_3heads.py`, called with the
+  tracker's `min_cluster_points = 10`). The driver runs a patched copy of
+  `run_inference.sh` and replaces `conf/eval.yaml` inside the container; the
+  model source is unchanged. On FGI-EMIT the instance labels are exported
+  before the upstream background-removal step; on NEON they are read from the
+  upstream `final_results`. The two paths were not compared.
+- **ForestFormer3D** (`6a75c37`, `oneformer3d/oneformer3d.py`). A point joins
+  an instance's mask above a mask score of 0.15 (`sp_score_thr`), and an
+  instance needs at least 10 points. Upstream post-processing also drops masks
+  with a point within 0.5 m of the edge of their input cylinder, zeroes
+  instances that are mostly ground or whose lowest point is more than 5 m
+  above the ground, and merges overlapping instances. Query points are drawn
+  by farthest-point sampling (`torch_cluster.fps`) with its default random
+  start, and the runs set no seed, so a re-run is not expected to repeat bit
+  for bit. No repeat run of ForestFormer3D was made; ForestMamba, a fork of
+  the same code, moved by up to 0.007 pooled F1 between two runs.
+- **TreeisoNet** (`gpu/run_treeisonet.py`). Peaks above the confidence
+  threshold are merged by TreeAIBox's `postPeakExtraction`; each keeps its
+  horizontal position and takes as height the highest point within 2 m
+  horizontally. The checkpoint voxel of the offset network is
+  0.1 × 0.1 × 0.2 m. The confidence of 0.22 was chosen by hand; no selection
+  script or output exists.
+- **RGB detectors.** A detection's height is the value of a 0.5 m
+  highest-return raster of the plot's native normalised clip at the box centre
+  or polygon centroid, and 2 m where that raster is empty.
+- **`ptrees` and AMS3D.** `ptrees` uses the package example's neighbourhood
+  sizes k = (30, 15); AMS3D's crown diameter- and length-to-height ratios of
+  0.4 and 0.8 are literature values recorded in the arm's ledger, and it
+  segments only above 2 m.
+- **Height bands.** The height bands of the master tables are right-closed:
+  up to 8 m, above 8 and up to 15 m, above 15 m.
