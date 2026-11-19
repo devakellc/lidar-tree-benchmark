@@ -427,6 +427,34 @@ accuracy comparison remains blocked by reference review, registration, and
 validated crown-box adapters. Its detector compatibility runs establish that
 the models execute; they do not establish a TEAK crown-accuracy ranking.
 
+### Open Forest Observatory stem maps
+
+A score-blind [preflight](results/ofo-preflight-results.md) checked whether
+stem maps of the Open Forest Observatory catalogue, paired with public 3DEP
+point clouds, can extend the field reference beyond the NEON plots. Of the
+225 plots that are not NEON plots, 169 have an admitted flight (quality
+level 1, within four years of the survey, covering the plot) at about twice
+the NEON density. The decision is no-go for every plot group: the stem maps
+must be shifted onto the LiDAR before matching at 4 m, and no registration
+method passed its known-truth test on NEON plots. No detector was run on
+these plots and they are not part of any result above. That test also put
+the stem maps of three Abby Road plots about 3 m from their canopy; whether
+this affects the NEON results at Abby Road was not examined. The
+[protocol](docs/ofo-preflight-protocol.md) holds the rules and its
+amendments.
+
+A [second preflight](results/ofo-preflight-2-results.md) tested the same
+method against crowns drawn by people, for the two plot groups that are
+complete from 10 cm diameter. Where that truth was credible the method
+agreed with it, on five plots per signal, and the
+[second protocol](docs/ofo-preflight-protocol-2.md) asks for ten. The test
+was therefore inconclusive, and the decision is hold, or no-go on a strict
+reading of the protocol; neither authorises anything further. One of
+the three Abby Road plots was among the five: its drawn crowns lie about
+3 m from its mapped stems, as the method had found. No plot is registered
+and none is a reference. The study was closed there on 18 November 2026:
+these stem maps are not part of the benchmark's reference.
+
 ## Benchmark design
 
 The [methodology](docs/treetop-detection-approach.md) explains the processing
@@ -593,6 +621,7 @@ scripts and configuration.
 | USGS extraction and detection | [extract.json](scripts/extract.json), [detect_lasr_aoi.R](scripts/detect_lasr_aoi.R), [detect_lidr_aoi.R](scripts/detect_lidr_aoi.R), [shared_chm_aoi.R](scripts/shared_chm_aoi.R) |
 | Tiled point-cloud processing | [tile_aoi.R](scripts/tile_aoi.R), [detect_lasr_catalog.R](scripts/detect_lasr_catalog.R), [detect_lidr_catalog.R](scripts/detect_lidr_catalog.R) |
 | NEON acquisition and references | [neon_ground_truth.R](scripts/neon_ground_truth.R), [neon_download_lidar.R](scripts/neon_download_lidar.R), [neon_download_aop.R](scripts/neon_download_aop.R), [preflight_site_extension.R](scripts/preflight_site_extension.R) |
+| Open Forest Observatory preflight (no detector) | [preflight_ofo_catalog.R](scripts/preflight_ofo_catalog.R), [preflight_ofo_registration.R](scripts/preflight_ofo_registration.R), [preflight_ofo_conditions.R](scripts/preflight_ofo_conditions.R), [preflight_ofo_state_lidar.R](scripts/preflight_ofo_state_lidar.R), [preflight_ofo_decision.R](scripts/preflight_ofo_decision.R), [prepare_ofo_reference.R](scripts/prepare_ofo_reference.R), [report_ofo_preflight.R](scripts/report_ofo_preflight.R); second preflight: [preflight_ofo_crowntruth.R](scripts/preflight_ofo_crowntruth.R), [preflight_ofo_niwo.R](scripts/preflight_ofo_niwo.R), [preflight_ofo_disturbance.R](scripts/preflight_ofo_disturbance.R), [preflight_ofo2_assemble.R](scripts/preflight_ofo2_assemble.R), [report_ofo_preflight2.R](scripts/report_ofo_preflight2.R) |
 | NEON population and frozen clips | [freeze_clips.R](scripts/freeze_clips.R), [check_frozen_ladder.R](scripts/check_frozen_ladder.R) |
 | Reference population and fire-history audit | [reference_population_audit.R](scripts/reference_population_audit.R) |
 | NEON master tables and intervals | [master_tables.R](scripts/master_tables.R), [master_tables_lib.R](scripts/master_tables_lib.R) |
