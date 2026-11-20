@@ -3,19 +3,18 @@
 # gated configuration added as a candidate): arguments and the output guard,
 # the candidate's cells from the gated files, cell parity, the selection
 # ranking, the comparison with reference tables, Table 7 extraction, and (when
-# the paper branch's density_routing_lib.R is available) the routing with and
-# without the candidate, shared draws, scores, contrasts, picks, margins, the
-# Table 7 rows and the requested tables. Sourcing the script defines its
-# helpers without running it. Synthetic counts only.
+# density_routing_lib.R is found) the routing with and without the candidate,
+# shared draws, scores, contrasts, picks, margins, the Table 7 rows and the
+# requested tables. Sourcing the script defines its helpers without running
+# it. Synthetic counts only.
 source(file.path("..", "..", "scripts", "confirm_gated_routing.R"), local = TRUE)
 
-# The routing library lives on the paper branch, not on this one: tests that
-# need it skip when it cannot be found (ROUTING_LIB= overrides the default).
-cgr_lib <- Sys.getenv("ROUTING_LIB", file.path("..", "..", "work", "paper-novelty-checkout", "scripts",
-                                               "density_routing_lib.R"))
+# The routing library is scripts/density_routing_lib.R (ROUTING_LIB= names
+# another copy); tests that need it skip when it cannot be found.
+cgr_lib <- Sys.getenv("ROUTING_LIB", file.path("..", "..", "scripts", "density_routing_lib.R"))
 have_lib <- file.exists(cgr_lib)
 if (have_lib) source(cgr_lib, local = TRUE)
-need_lib <- function() skip_if_not(have_lib, "density_routing_lib.R (paper branch) is not available")
+need_lib <- function() skip_if_not(have_lib, "density_routing_lib.R is not available")
 
 ## ---- synthetic data -------------------------------------------------------------------------------
 SYN_SITES <- c("SJER", "SOAP", "TEAK", "WREF", "ABBY")
@@ -152,7 +151,21 @@ test_that("the body rows of Table 7 are read from the manuscript", {
   expect_error(cgr_manuscript_table7(lines[-2]), "not found")
 })
 
-## ---- the routing (needs the paper branch's library) ----------------------------------------------------
+test_that("the banding of a reference run is read from its contract", {
+  d <- tempfile("ref"); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  f <- file.path(d, "routing_contract.json")
+  expect_true(is.na(cgr_reference_density(d)))                    # no contract
+  jsonlite::write_json(list(seed = 1), f, auto_unbox = TRUE)
+  expect_true(is.na(cgr_reference_density(d)))                    # a run made before there were two bandings
+  for (x in c("clip", "core")) {
+    jsonlite::write_json(list(density = x, seed = 1), f, auto_unbox = TRUE)
+    expect_identical(cgr_reference_density(d), x)
+    jsonlite::write_json(list(density = x), f)                    # written as an array of one
+    expect_identical(cgr_reference_density(d), x)
+  }
+})
+
+## ---- the routing (needs density_routing_lib.R) --------------------------------------------------------
 test_that("the routing picks per band, and adding a candidate leaves every other score and draw unchanged", {
   need_lib()
   dens <- syn_dens(); W <- syn_W(dens)

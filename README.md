@@ -419,10 +419,12 @@ qualifications: as the protocol words condition 3, it fails on C5 at 11.3
 pulses/m². Against the complete labels of FGI-EMIT the arm is inconclusive at
 the two dense levels, 0.016 F1 below `multichm`, where the 5 m floor removes
 labelled small trees, and not worse below them. Added to the paper's density
-routing with its thresholds selected on California alone, the arm has the
-highest F1 among the Washington candidates below the QL2 floor and is level with
+routing as banded by whole-clip density, its definition when the test was run,
+with its thresholds selected on California alone, the arm has the highest F1
+among the Washington candidates below the QL2 floor and is level with
 ForestFormer3D in corrected F1 over all cells pooled (+0.003 [−0.008, +0.015]),
-while the routing's California rule cannot tell it from `multichm`. No public
+while the routing's California rule cannot tell it from `multichm`. The test
+was not repeated on the core-density bands the routing uses now. No public
 3DEP tile set covers the Washington plots, and no stand outside the benchmark
 with a field count was tested.
 

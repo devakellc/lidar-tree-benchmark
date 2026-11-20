@@ -8,6 +8,11 @@ paper's twelve arms, the master tables do not include it, and the declared
 other density levels, flights and instruments under a protocol written
 beforehand.
 
+The density levels are named here by their median first-return density over
+the whole evaluation clip: 9.8 pulses/m² at native density and 4.7, 2.5, 1.3
+and 0.6 on the thinned levels. Inside the scored plot cores the medians are
+9.8, 4.4, 2.2, 1.1 and 0.6 ([core density](core-density-results.md)).
+
 `multichm` (lidRplugins) finds local maxima on the canopy surface, strips the
 top of the cloud and searches again, layer by layer. It then keeps a peak unless
 a taller kept peak lies within 3 m horizontally or within 5 m in three

@@ -20,42 +20,60 @@ source(.find("master_tables_lib.R"))
 # as one more candidate of both the GPU and the CPU route, at the six density
 # levels (native and all-return targets 8, 4, 3.2, 2 and 1 points/m2).
 #
-# The routing itself is the paper's (paper_density_routing.R with
-# density_routing_lib.R, on the paper branch): each cell, one plot at one
-# level, falls in a band of its measured first-return density (A >= 8, B 2 to
-# < 8, C < 2 pulses/m2, from the frozen roots' clip manifests); in each band a
-# route runs the candidate with the highest pooled F1 on the band's California
-# cells; Washington is the held-out check. Counts are the chance-agreement
-# re-scores (observed and each cell's mean over 200 shifts); corrected F1 is
-# (F1 - null F1) / (1 - null F1); every interval comes from the master tables'
-# plot resamples (mt_plot_weights with their N_BOOT and SEED), so the added
-# candidate shares every draw with the paper's detectors and routes.
+# The routing itself is the paper's with whole-clip density bands
+# (paper_density_routing.R DENSITY=clip, with density_routing_lib.R): each
+# cell, one plot at one level, falls in a band of its measured first-return
+# density over the whole evaluation clip (A >= 8, B 2 to < 8, C < 2 pulses/m2,
+# from the frozen roots' clip manifests); in each band a route runs the
+# candidate with the highest pooled F1 on the band's California cells;
+# Washington is the held-out check. That was the paper's banding when this
+# check was run, on 16 November 2026. The paper's routing has since banded by
+# the density of the scored plot cores (paper_density_routing.R's default) and
+# keeps the whole-clip banding as a sensitivity run, the one reproduced here;
+# the check was not repeated with core-density bands. Counts are the
+# chance-agreement re-scores (observed and each cell's mean over 200 shifts);
+# corrected F1 is (F1 - null F1) / (1 - null F1); every interval comes from
+# the master tables' plot resamples (mt_plot_weights with their N_BOOT and
+# SEED), so the added candidate shares every draw with the paper's detectors
+# and routes.
 #
-# The routing library is sourced from ROUTING_LIB (it is not on this branch).
+# The routing library is sourced from ROUTING_LIB, by default
+# density_routing_lib.R beside this script (the change to core-density bands
+# added dr_cell_density() to it, which this check does not call).
 # Before anything with the candidate is computed, the same code is run without
-# it (the harness) and must reproduce, to 1e-9, every row of the paper's
-# routing_cells/bands/picks/scores/contrasts.csv, every detector's per-level
-# F1 and corrected F1 against the master tables and the null re-score, and
-# (when MANUSCRIPT is readable) the text of every row of Table 7. The
-# candidate's cells come from the gated cells files (one row per site x plot x
-# rung x config, with the null means n_det0, TP0, tp_core0); its `stock`
+# it (the harness) and must reproduce, to 1e-9, every row of the whole-clip
+# routing_cells/bands/picks/scores/contrasts.csv under PAPER_ROUTING, every
+# detector's per-level F1 and corrected F1 against the master tables and the
+# null re-score, and (when MANUSCRIPT is given) the text of every row of its
+# Table 7. PAPER_ROUTING is the output of
+#   CLAUDE_JOB_DIR=<PAPER_RUNS> Rscript scripts/paper_density_routing.R \
+#     DENSITY=clip OUT=<PAPER_RUNS>/density_routing_clip
+# (without OUT= that script writes to <PAPER_RUNS>/density_routing, over the
+# core-density tables). A reference whose routing_contract.json records
+# another density than `clip` is refused. MANUSCRIPT has no default: Table 7
+# was the routing table of the manuscript when the check was run and is
+# another table now.
+#
+# The candidate's cells come from the gated cells files (one row per site x
+# plot x rung x config, with the null means n_det0, TP0, tp_core0); its `stock`
 # configuration must equal the paper's null cells of `multichm` in every cell,
 # and the candidate is banded by the routing's own densities (the gated files'
 # densities are compared and reported, never used).
 #
 #   Rscript scripts/confirm_gated_routing.R CONFIG=<grid label> NAME=<set>
 #     HELD_OUT=yes|no [SELECTION=<text>] [LABEL=multichm_gated]
-#     [ROUTING_LIB=work/paper-novelty-checkout/scripts/density_routing_lib.R]
-#     [PAPER_RUNS=work/paper_runs] [PAPER_ROUTING=<PAPER_RUNS>/density_routing]
+#     [ROUTING_LIB=scripts/density_routing_lib.R]
+#     [PAPER_RUNS=work/paper_runs] [PAPER_ROUTING=<PAPER_RUNS>/density_routing_clip]
 #     [MASTER=<PAPER_RUNS>/master_tables] [FROZEN_ROOT=<PAPER_RUNS>/neon/frozen_2021]
 #     [RUNG_JOBS=<job dir>:<root>,...] [POP=adopted] [N_BOOT=1000] [SEED=20261002]
-#     [MANUSCRIPT=work/paper-novelty-checkout/paper/manuscript.md]
+#     [MANUSCRIPT=<a manuscript.md whose Table 7 is the whole-clip routing table>]
 #     [GATED_CELLS=<five-level cells.csv>,<QL2 cells.csv>]
 #     [OUT=work/multichm_gated_confirmation/routing/<NAME>]
 # Every input is read only. OUT may not lie under work/paper_runs*,
-# work/multichm_gated_runs*, a neon/frozen_* root or the routing library's
-# checkout. Writes to OUT: harness/ (the reproduced paper tables and
-# table7_rows.md), harness_check.csv, routing_check.csv, stock_parity.csv,
+# work/multichm_gated_runs*, a neon/frozen_* root or, when ROUTING_LIB names a
+# library in another checkout, that checkout. Writes to OUT: harness/ (the
+# reproduced paper tables and table7_rows.md), harness_check.csv,
+# routing_check.csv, stock_parity.csv,
 # density_agreement.csv, selection_check.csv, routing_cells.csv,
 # routing_bands.csv, routing_picks.csv, routing_scores.csv,
 # routing_contrasts.csv, washington_bands.csv, route_versus.csv,
@@ -508,6 +526,17 @@ CGR_TABLE7_HEADER <- paste(
   "| Band (first-return pulses/m²) | Compute | Detector to run |",
   "California F1; margin over the runner-up | Washington F1 | Washington corrected F1 |",
   "Level with the pick in Washington | Pick minus Washington best: F1; corrected F1 |")
+# The density a reference run of the paper's routing was banded by, as its
+# routing_contract.json records it ("clip" or "core"); NA when there is no
+# contract or it records none (runs made before the routing had two bandings,
+# which were whole-clip).
+cgr_reference_density <- function(ref) {
+  f <- file.path(ref, "routing_contract.json")
+  if (!file.exists(f)) return(NA_character_)
+  d <- jsonlite::read_json(f)$density
+  if (is.null(d) || !length(d)) NA_character_ else as.character(d[[1]])
+}
+
 # The body rows of Table 7 in the manuscript's lines.
 cgr_manuscript_table7 <- function(lines) {
   i <- grep("^\\*\\*Table 7\\.\\*\\*", lines)
@@ -602,9 +631,12 @@ cgr_markdown <- function(o) {
   md <- c(md, cgr_para(sprintf(
     "The candidate `%s` is configuration `%s` (config_id %s) of the gated variant, added as a ninth",
     o$label, o$config, o$config_id),
-    "candidate of the GPU route and a sixth of the CPU route of the paper's density routing,",
-    "at the six density levels. Stock `multichm` stays a candidate. Every other part of the",
-    "routing is the paper's: bands of measured first-return density, selection by the highest",
+    "candidate of the GPU route and a sixth of the CPU route of the paper's density routing",
+    "with whole-clip density bands, at the six density levels. Stock `multichm` stays a",
+    "candidate. Every other part of the routing is the paper's: bands of first-return density",
+    "measured over the whole evaluation clip (the paper's routing has since banded by the",
+    "density of the plot cores and keeps this banding as a sensitivity run), selection by the",
+    "highest",
     "pooled F1 on the band's California cells, the chance-agreement counts and the master",
     "tables' plot resamples, so the candidate shares every draw with the paper's detectors and",
     "routes. Intervals are 95% percentile intervals over 1,000 plot resamples and are not",
@@ -618,7 +650,8 @@ cgr_markdown <- function(o) {
   ## harness and checks
   hc <- o$harness
   md <- c(md, "## Harness proof", "",
-          cgr_para("Without the candidate the same code reproduces the paper's routing outputs.",
+          cgr_para("Without the candidate the same code reproduces the outputs of the paper's routing",
+                   "with whole-clip density bands.",
                    "Rows: rows of the paper's table; differing: rows whose value differs by more",
                    "than 1e-9 (numbers) or at all (text), or whose key is missing on either side."),
           "| Paper output | Rows | Columns compared | Rows differing | Largest absolute difference | Same row order |",
@@ -686,7 +719,8 @@ cgr_markdown <- function(o) {
 
   ## decision table
   md <- c(md, "## Decision table and held-out check", "",
-          cgr_para("In the format of the paper's Table 7, with the candidate in both candidate sets.",
+          cgr_para("In the format of the paper's routing table (Table 7 of the manuscript when the check",
+                   "was first run), with the candidate in both candidate sets.",
                    "Margin: the pick's paired F1 difference to the runner-up on the band's",
                    "California cells. Level with the pick: the candidates whose paired F1",
                    "difference to the pick on the Washington cells has an interval that includes",
@@ -790,16 +824,26 @@ run_main <- function(argv = commandArgs(TRUE)) {
   A <- cgr_args(argv)
   arg <- function(k, default) if (is.null(A[[k]]) || !nzchar(A[[k]])) default else A[[k]]
   work <- file.path(.ROOT, "work")
-  LIB <- normalizePath(arg("ROUTING_LIB", file.path(work, "paper-novelty-checkout", "scripts",
-                                                    "density_routing_lib.R")), mustWork = FALSE)
-  if (!file.exists(LIB)) stop("No routing library at ", LIB, " (set ROUTING_LIB=)", call. = FALSE)
+  LIB <- arg("ROUTING_LIB", .find("density_routing_lib.R"))
+  if (!length(LIB) || !file.exists(LIB))
+    stop("No routing library at ", if (length(LIB)) LIB else "scripts/density_routing_lib.R",
+         " (set ROUTING_LIB=)", call. = FALSE)
+  LIB <- normalizePath(LIB)
   source(LIB)
   d <- normalizePath(arg("PAPER_RUNS", file.path(work, "paper_runs")), mustWork = TRUE)
   POP <- arg("POP", "adopted")
   ROOT <- frozen_root(d, A[["FROZEN_ROOT"]])
   MASTER <- arg("MASTER", file.path(d, "master_tables"))
-  REF <- arg("PAPER_ROUTING", file.path(d, "density_routing"))
-  MS <- arg("MANUSCRIPT", file.path(work, "paper-novelty-checkout", "paper", "manuscript.md"))
+  REF <- arg("PAPER_ROUTING", file.path(d, "density_routing_clip"))
+  if (!file.exists(file.path(REF, "routing_cells.csv")))
+    stop("No whole-clip routing tables at ", REF, " (make them with paper_density_routing.R ",
+         "DENSITY=clip OUT=", REF, ", or set PAPER_ROUTING=)", call. = FALSE)
+  ref_density <- cgr_reference_density(REF)
+  if (!is.na(ref_density) && ref_density != "clip")
+    stop("The routing tables at ", REF, " are banded by ", ref_density,
+         " density; this check reproduces the whole-clip banding (set PAPER_ROUTING=)", call. = FALSE)
+  MS <- arg("MANUSCRIPT", "")
+  if (nzchar(MS) && !file.exists(MS)) stop("No manuscript at ", MS, " (MANUSCRIPT=)", call. = FALSE)
   GATED <- strsplit(arg("GATED_CELLS", paste(
     file.path(work, "multichm_gated_runs", "neon", "multichm_gated", "cells.csv"),
     file.path(work, "multichm_gated_confirmation", "ql2", "cells.csv"), sep = ",")), ",", fixed = TRUE)[[1]]
@@ -1093,6 +1137,8 @@ run_main <- function(argv = commandArgs(TRUE)) {
     picks = lapply(run1$policies, function(p) setNames(as.list(p$pick), p$band)),
     harness = list(reproduced = TRUE, tables = hc, table7_text = t7_ok, shared_draws_max_abs_diff = shared_diff),
     inputs = data.frame(input = inputs, sha256 = vapply(inputs, frozen_sha256, character(1)), row.names = NULL),
+    band_density = "clip",
+    paper_routing = list(path = REF, density = if (is.na(ref_density)) "not recorded" else ref_density),
     routing_lib = list(path = LIB, md5 = unname(tools::md5sum(LIB))),
     code_md5 = unname(tools::md5sum(c(.find("confirm_gated_routing.R"), .find("master_tables_lib.R"))))),
     file.path(OUT, "routing_contract.json"), auto_unbox = TRUE, pretty = TRUE, digits = NA)

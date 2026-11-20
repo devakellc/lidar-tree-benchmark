@@ -87,10 +87,12 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 #             study's cells (CAL_OUT/cells.csv): every count column, the null
 #             means, cover, top height, crown spacing and densities, for the
 #             five configurations. -> harness.csv.
-#   xcheck    the native QL2 cross-check's own clip definition (its cached
-#             PAD=45 clouds under XCHECK_CACHE/neon/<SITE>/ql2, its seeded
-#             thinning and normalisation) run through the stock configuration
-#             and scored as that study scored, against its multichm rows in
+#   xcheck    the native QL2 cross-check's own clip definition as it was
+#             before that study's correction of 17 November 2026 (its cached
+#             PAD=45 clouds under XCHECK_CACHE/neon/<SITE>/ql2, read as they
+#             are, its seeded thinning and normalisation) run through the
+#             stock configuration and scored as that study scored, against
+#             its multichm rows in
 #             XCHECK_JOB/neon/<SITE>/ql2/ql2_detect_results.csv; and, beside it,
 #             this study's stock counts on its own clips. -> xcheck.csv.
 #
@@ -1074,10 +1076,16 @@ c3_stage_harness <- function(S) {
 
 ## ---- xcheck: the native QL2 cross-check's own clips ---------------------------------------
 # The cross-check's per-plot preparation (native_ql2_crosscheck.R
-# detect_on_multichm): its cached cloud over the +/-PAD box, thinned with its
+# detect_on_multichm) as it was when this stage was run, on 16 November 2026:
+# its cached cloud over the +/-PAD box, read as it is, thinned with its
 # seed when `rung` is given, normalized by TIN, heights in [-1, 80), densities
 # over (2 PAD)^2, res 0.25 m at >= 8 first returns per m2 else 0.5 m. Then the
 # stock configuration of this library, scored as that study scored (no null).
+# The stage then equalled all 86 of that study's multichm rows. On 17 November
+# 2026 the cross-check was corrected: it drops noise-class and withheld points
+# when it reads a cached cloud and counts densities inside the box, so 57 of
+# its 86 current rows (SOAP and TEAK) differ from this stage's in their counts
+# (n_ref, n_det, TP or tp_core).
 c3_xcheck_cell <- function(laz, j, rung, pad, seed, tol) {
   l <- lidR::readLAS(laz)
   area0 <- (2 * pad)^2

@@ -9,6 +9,12 @@ post hoc arm described in the
 better default than `multichm` beyond the flight it was calibrated on. The arm
 is not one of the paper's twelve arms and the master tables do not include it.
 
+The density levels of the 2021 clips are named here by their median
+first-return density over the whole evaluation clip: 9.8 pulses/m² at native
+density, 4.7, 2.5, 1.3 and 0.6 on the thinned levels and 2.0 at the QL2 level.
+Inside the scored plot cores the medians are 9.8, 4.4, 2.2, 1.1 and 0.6, and
+1.8 at the QL2 level ([core density](core-density-results.md)).
+
 **Outcome.** By the protocol's rules the statement is supported for the
 declared configuration, at the margin. The arm is better than `multichm` at the
 QL2 level on the five sites, with a clear interval. On a Washington flight of
@@ -50,11 +56,11 @@ What the tests carry, part by part:
 - **The floor.** Its gain carries over to the 2019 flight. Against complete
   labels it removes labelled small trees and is worse than `multichm` at three
   of the six density levels.
-- **In the paper's density routing.** With its thresholds selected on
-  California alone, the arm has the highest F1 among the Washington
-  candidates below the QL2 floor and is level with ForestFormer3D in corrected
-  F1 over all cells pooled (+0.003 [−0.008, +0.015]), but the routing's
-  California rule cannot tell it from `multichm`.
+- **In the paper's density routing, with whole-clip density bands.** With its
+  thresholds selected on California alone, the arm has the highest F1 among
+  the Washington candidates below the QL2 floor and is level with
+  ForestFormer3D in corrected F1 over all cells pooled (+0.003 [−0.008,
+  +0.015]), but the routing's California rule cannot tell it from `multichm`.
 - **Not tested.** Closed conifer stands of the Washington kind on 3DEP
   instruments, for want of public tiles over the Washington plots (the 3DEP
   clouds hold eleven closed California plots), and any stand outside the
@@ -472,7 +478,16 @@ the candidate with the highest pooled F1 on the California cells, among eight
 detectors with a GPU or five classical ones without, and Washington is the
 held-out check. It was recomputed with the arm as one more candidate in both
 sets. Without the candidate the recomputation reproduces every pick, score,
-interval and contrast of the paper's routing to 1e-9.
+interval and contrast of the paper's whole-clip routing to 1e-9.
+
+The check bands each cell by the density of its whole evaluation clip, the
+routing's definition when the check was run on 16 November 2026. The
+[density-routing study](density-routing-results.md) has since banded by the
+density of the scored plot cores and keeps the whole-clip banding as a
+sensitivity run, which is the routing reproduced here. With core bands 55 of
+the 636 cells change band and the GPU pick in band B goes from ForestFormer3D
+to SegmentAnyTree. The check was not repeated with core bands, so this section
+describes the whole-clip routing only.
 
 Two versions were run. In the first the candidate is `z5_s0.5_c0.6_e1`, the
 configuration selected on the California plots alone (R1), so that Washington
@@ -594,10 +609,14 @@ of decide.
 While reusing the clouds of the
 [native QL2 cross-check](native-ql2-crosscheck-results.md), the 3DEP run found
 that its cached clouds still hold the noise classes 7 and 18 and withheld
-points, which that study's script and report say were dropped: at SOAP and
-TEAK 4.7% and 4.8% of the cached points are withheld, up to 15% in one cloud.
+points, which that study's script and report said were dropped: at SOAP and
+TEAK 4.7% and 4.8% of the points in all cached clouds are withheld, up to 15%
+in one cloud. Over the 19 clouds of the adopted TEAK plots, which that study's
+correction counts, the share is 5.2%; the cache holds one more TEAK cloud.
 The clouds of C4 were pulled afresh and do not hold them. The cross-check's
-numbers were not recomputed here.
+numbers were not recomputed here. That study was corrected on 17 November
+2026: it now drops those points when it reads a cached cloud, and its report
+gives the recomputed numbers.
 
 ## Outputs
 
@@ -615,7 +634,7 @@ Under `work/multichm_gated_confirmation/`:
   checks; `fgiemit/` the complete-label cells; `variants/` and
   `removed_peaks/` the R3 and R5 tables.
 - `routing/california_selected/` and `routing/declared/` hold the R6 picks,
-  scores and contrasts, and the check against the paper's routing.
+  scores and contrasts, and the check against the paper's whole-clip routing.
 - `protocol_stamp.txt` holds the time and hash of the protocol before the
   first run.
 
@@ -705,11 +724,13 @@ CLAUDE_JOB_DIR=$W Rscript scripts/confirm_multichm_gated.R CORES=8 \
   MANIFEST=docs/multichm-gated-confirmation-manifest.json \
   STAGES=contrasts,r1,r4,c3_share,c4_transfer,c3_seeds
 
-# R6: needs the routing library of the paper's density-routing study
-L=/path/to/scripts/density_routing_lib.R
-Rscript scripts/confirm_gated_routing.R ROUTING_LIB=$L CONFIG=z5_s0.5_c0.6_e1 \
+# R6: needs the whole-clip run of the paper's density-routing study, made with
+#   CLAUDE_JOB_DIR=$W/paper_runs Rscript scripts/paper_density_routing.R \
+#     DENSITY=clip OUT=$W/paper_runs/density_routing_clip
+# (without OUT= that script writes over the core-density tables)
+Rscript scripts/confirm_gated_routing.R CONFIG=z5_s0.5_c0.6_e1 \
   NAME=california_selected HELD_OUT=yes OUT=$C/routing/california_selected
-Rscript scripts/confirm_gated_routing.R ROUTING_LIB=$L CONFIG=z5_s0.75_c0.6_e1_d8 \
+Rscript scripts/confirm_gated_routing.R CONFIG=z5_s0.75_c0.6_e1_d8 \
   NAME=declared HELD_OUT=no OUT=$C/routing/declared
 ```
 

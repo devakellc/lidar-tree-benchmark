@@ -9,6 +9,12 @@ and `multichm_gated` arms are unchanged. The study follows a
 any run, and an addendum fixed after the calibration results had been read and
 before the validation plots were scored.
 
+The density levels of the 2021 clips are named here by their median
+first-return density over the whole evaluation clip: 9.8 pulses/m² at native
+density, 4.7, 2.5, 1.3 and 0.6 on the thinned levels and 2.0 at the QL2 level.
+Inside the scored plot cores the medians are 9.8, 4.4, 2.2, 1.1 and 0.6, and
+1.8 at the QL2 level ([core density](core-density-results.md)).
+
 In closed stands whose crowns are at least 8 m apart, `multichm_gated` keeps a
 deeper-layer peak of `multichm` only when enough of the returns around its top
 are first returns. Elsewhere it keeps every deeper-layer peak of at least 5 m
