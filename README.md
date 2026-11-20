@@ -331,6 +331,63 @@ four closed plots outside the benchmark that have no field reference. The
 held-out score therefore tests only the selection within that grid: 434 of its
 446 non-stock configurations beat stock on the held-out plots.
 
+The [confirmation tests](results/multichm-gated-confirmation-results.md) then
+ran five frozen configurations of the arm on data it had not been run on, under
+a [protocol](docs/multichm-gated-confirmation-protocol.md) written beforehand.
+At the QL2 level the declared configuration gains +0.025 [+0.012, +0.037] in
+corrected F1 over `multichm` on the five sites: +0.035 [+0.019, +0.052] in
+Washington and +0.006 [−0.007, +0.020] in California. On a July 2019 flight of
+the Washington sites with another instrument it gains +0.023 [+0.000, +0.045],
+about half of its gain on the 2021 clips of the same stems; under 40 other
+bootstrap seeds that lower bound runs from −0.0013 to +0.0041. On the native
+sparse California flights and on 3DEP clouds over the California plots thinned
+to 2 points/m² it is not worse, with lower recall; on those 3DEP clouds at their
+own density the reading is inconclusive (+0.000 [−0.030, +0.029]). By the
+protocol's rules the arm is supported as better than `multichm` in closed
+conifer stands and not worse in open ones, at the margin. The share gate adds
+corrected F1 at the QL2 level and nothing on the 2019 flight. Without it, the
+floor with the exemption passes the protocol's conditions 1, 2 and 4, and
+condition 3 only when the 3DEP and complete-label tests (C4 and C5) are read as
+qualifications: as the protocol words condition 3, it fails on C5 at 11.3
+pulses/m². Against the complete labels of FGI-EMIT the arm is inconclusive at
+the two dense levels, 0.016 F1 below `multichm`, where the 5 m floor removes
+labelled small trees, and not worse below them. Added to the paper's density
+routing with its thresholds selected on California alone, the arm has the
+highest F1 among the Washington candidates below the QL2 floor and is level with
+ForestFormer3D in corrected F1 over all cells pooled (+0.003 [−0.008, +0.015]),
+while the routing's California rule cannot tell it from `multichm`. No public
+3DEP tile set covers the Washington plots, and no stand outside the benchmark
+with a field count was tested.
+
+The [depth-gated multichm study](results/multichm-depth-results.md) adds a
+successor, `multichm_depth`, also outside the paper's twelve. It replaces the
+share gate and the crown-spacing switch with one measurement: how far a
+deeper-layer peak sits under the highest return within about 1 m. A grid of 240
+configurations adds height floors and an optional horizontal spacing rule. Under
+a [protocol](docs/multichm-depth-protocol.md) fixed before the held-out plots
+were scored, the configuration selected on the 57 calibration plots was set
+against the declared gated arm once, on the 49 held-out plots: corrected F1
+rises from 0.200 to **0.234** (+0.034 [+0.014, +0.055]) with 8% fewer
+detections, and by +0.068 [+0.044, +0.092] over `multichm`. The selection is
+better at the QL2 level (+0.027 [+0.008, +0.047]) and not worse on the 2019
+Washington flight and the 2017 and 2018 California flights. Of its three changes
+only the 5 m floor on surface peaks is established on its own (+0.015 [+0.009,
++0.022]). A post hoc walk puts the depth rule at +0.011 [−0.006, +0.028] over
+the share gate and the switch on the held-out plots, and finds a gain of the
+spacing rule only on the 2021 native clips over all plots, which include the
+plots it was selected on. None of the ten configurations examined, stock
+included, finds the reference stems under 5 m above the chance rate. The arm
+runs another configuration, chosen after those results had been read: the depth
+rule with the gated arm's distance filter and 3 m floors
+(`k4_r0_z3_f3_l0_c0.6`). Its scores are descriptive. Against the declared gated
+arm its corrected F1 is better or not worse on eight datasets: level at native
+density (+0.006 [−0.004, +0.017] over all plots) and better at the QL2 level
+(+0.013 [+0.004, +0.022]). At native density it scores 0.021 below the
+selection, and with 5 m floors the same rules score 0.005 to 0.016 higher on
+every dataset. It finds fewer of the stems of 20 m and more than the gated arm.
+The held-out plots are the gated study's and had been read before, so the
+held-out score tests only the selection within the grid.
+
 ### Crown delineation
 
 The [crown benchmark](results/crown-segmentation-results.md) compares growing
@@ -516,7 +573,8 @@ comparison and larger-area experiments.
 | Precision inside censused subplots | [Censused-subplot study](results/census-support-results.md) and its reviewed declarations under `docs/` |
 | NEON field-stem density ladder | [Density-ladder study](results/density-ladder-sweep-results.md) and [cross-model comparison](results/model-benchmark-results.md) |
 | ForestMamba arm, outside the paper's twelve | [ForestMamba benchmark](results/forestmamba-results.md) and its [Blackwell runtime](gpu/forestmamba-sm120/README.md) |
-| Gated multichm arm, outside the paper's twelve | [Gated multichm study](results/multichm-gated-results.md) |
+| Gated multichm arm, outside the paper's twelve | [Gated multichm study](results/multichm-gated-results.md) and its [confirmation tests](results/multichm-gated-confirmation-results.md) under a [protocol written beforehand](docs/multichm-gated-confirmation-protocol.md) |
+| Depth-gated multichm arm, outside the paper's twelve | [Depth-gated multichm study](results/multichm-depth-results.md) under a [protocol fixed beforehand](docs/multichm-depth-protocol.md) |
 | Crown diameters and segmentation | [Crown benchmark](results/crown-segmentation-results.md) |
 | Paired optical/LiDAR fusion | [RGB-LiDAR comparison](results/rgb-lidar-fusion-results.md) and [confidence calibration](results/confidence-calibration-results.md) |
 | Native FGI-EMIT products | [Current execution guide](docs/final-ensemble-pipeline-v2.md) and [development/reserve results](results/final-ensemble-pipeline-results.md) |
@@ -560,12 +618,14 @@ scripts and configuration.
 | Native 3DEP cross-check | [native_ql2_crosscheck.R](scripts/native_ql2_crosscheck.R), [native_ql2_paired.R](scripts/native_ql2_paired.R), [ept_discovery.R](scripts/ept_discovery.R) |
 | Reproduction archive and table rebuild | [stage_archive.sh](scripts/stage_archive.sh), [reproduce_paper_tables.sh](scripts/reproduce_paper_tables.sh), [compare_reproduction.R](scripts/compare_reproduction.R), [reproduce/Dockerfile](reproduce/Dockerfile) |
 | NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
-| Native sparse epochs | [prepare_sparse_epoch.R](scripts/prepare_sparse_epoch.R), [audit_sparse_epoch.R](scripts/audit_sparse_epoch.R), [compare_sparse_epoch.R](scripts/compare_sparse_epoch.R) |
+| Native sparse epochs and flights of another year | [prepare_sparse_epoch.R](scripts/prepare_sparse_epoch.R), [audit_sparse_epoch.R](scripts/audit_sparse_epoch.R), [compare_sparse_epoch.R](scripts/compare_sparse_epoch.R), [epoch_stand_measures.R](scripts/epoch_stand_measures.R), [sparse_epoch_lib.R](scripts/sparse_epoch_lib.R) |
 | NEON density ladder | [run_sweep.R](scripts/run_sweep.R), [analyze_sweep.R](scripts/analyze_sweep.R), [compare_sites.R](scripts/compare_sites.R) |
 | Point-cloud understory detection | [detect_pc_sweep.R](scripts/detect_pc_sweep.R), [detect_pc_ladder.R](scripts/detect_pc_ladder.R) |
 | Cross-model detection analysis | [analyze_model_benchmark.R](scripts/analyze_model_benchmark.R), [compare_model_sites.R](scripts/compare_model_sites.R) |
 | ForestMamba arm | [detect_forestmamba_sweep.R](scripts/detect_forestmamba_sweep.R), [analyze_forestmamba.R](scripts/analyze_forestmamba.R), [gpu/forestmamba-sm120](gpu/forestmamba-sm120/README.md) |
 | Gated multichm arm | [detect_multichm_gated_sweep.R](scripts/detect_multichm_gated_sweep.R), [calval_multichm_gated.R](scripts/calval_multichm_gated.R), [multichm_gated_lib.R](scripts/multichm_gated_lib.R) |
+| Gated multichm confirmation tests | [confirm_multichm_gated.R](scripts/confirm_multichm_gated.R), [multichm_gated_confirm_lib.R](scripts/multichm_gated_confirm_lib.R), [confirm_gated_3dep.R](scripts/confirm_gated_3dep.R), [confirm_gated_fgiemit.R](scripts/confirm_gated_fgiemit.R), [confirm_gated_scoring_variants.R](scripts/confirm_gated_scoring_variants.R), [confirm_gated_removed_peaks.R](scripts/confirm_gated_removed_peaks.R), [confirm_gated_routing.R](scripts/confirm_gated_routing.R) |
+| Depth-gated multichm arm | [calval_multichm_depth.R](scripts/calval_multichm_depth.R), [confirm_multichm_depth.R](scripts/confirm_multichm_depth.R), [posthoc_multichm_depth.R](scripts/posthoc_multichm_depth.R), [multichm_depth_lib.R](scripts/multichm_depth_lib.R) |
 | Crown-diameter evaluation | [crown_metrics_sweep.R](scripts/crown_metrics_sweep.R), [crown_metrics_3d.R](scripts/crown_metrics_3d.R), [crown_metrics_deepmodel.R](scripts/crown_metrics_deepmodel.R), [analyze_crown_metrics.R](scripts/analyze_crown_metrics.R) |
 | Instance masks, credited F1 and re-scoring | [score_instances_iou.R](scripts/score_instances_iou.R), [compare_matching_rules.R](scripts/compare_matching_rules.R), [coverage_gap.R](scripts/coverage_gap.R), [export_best_treetops_geojson.R](scripts/export_best_treetops_geojson.R), [rescore_population.R](scripts/rescore_population.R), [compare_adapter_reruns.R](scripts/compare_adapter_reruns.R) |
 | Calibration/validation and the historical sensitivity studies | [calval_split.R](scripts/calval_split.R), [matcher_robustness.R](scripts/matcher_robustness.R), [mc_positional_uncertainty.R](scripts/mc_positional_uncertainty.R), [temporal_sensitivity.R](scripts/temporal_sensitivity.R) |
