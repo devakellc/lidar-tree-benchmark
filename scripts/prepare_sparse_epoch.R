@@ -8,6 +8,7 @@ source(bs[1]); rm(bs, .bs_file)
 source(.find("neon_spatial_lib.R"))
 source(.find("neon_acquisition_lib.R"))
 source(.find("site_extension_lib.R"))
+source(.find("sparse_epoch_lib.R"))
 
 # Acquires one earlier NEON LiDAR epoch over the D17 plots, for the native
 # sparse validation. Run it in a job directory of its own, after
@@ -17,8 +18,16 @@ source(.find("site_extension_lib.R"))
 # 25 m) for the plots with live mapped stems in this epoch's reference and in
 # the declared 2021 population, writes the acquisition manifest, downloads the
 # missing tiles and verifies each against the listed size and CRC32C or MD5.
+# Sites and frames come from the references (UTM 11N at D17, 10N at WREF and
+# ABBY). A flight whose listing lacks a tile that a clip needs stops the run;
+# with MISSING_TILES=drop the plots whose clips need such tiles are left out
+# instead and written to <site>/uncovered_plots.csv (with their missing
+# tiles). They hold no tile, so freeze_clips.R records their cells as
+# unusable; a plot partly covered by the acquired tiles stops the run, since it
+# would freeze a partial clip.
 #   Rscript scripts/prepare_sparse_epoch.R MONTHS=SOAP:2018-06,TEAK:2018-06 \
 #     [RELEASE=RELEASE-2026] [POPULATION=<2021 frozen root>/population.csv] [DOWNLOAD=TRUE]
+#     [MISSING_TILES=stop|drop]
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
 if (is.null(A$MONTHS)) stop("MONTHS=SITE:YYYY-MM[,...] is required")
@@ -26,6 +35,8 @@ months <- do.call(rbind, lapply(strsplit(strsplit(A$MONTHS, ",")[[1]], ":"), fun
   data.frame(site = x[1], month = x[2], stringsAsFactors = FALSE)))
 release <- if (is.null(A$RELEASE)) "RELEASE-2026" else A$RELEASE
 download <- isTRUE(as.logical(if (is.null(A$DOWNLOAD)) "TRUE" else A$DOWNLOAD))
+missing_mode <- match.arg(if (is.null(A$MISSING_TILES)) "stop" else A$MISSING_TILES,
+                          c("stop", "drop"))
 product <- "DP1.30003.001"
 d <- .job_dir()
 pop21 <- read.csv(if (is.null(A$POPULATION))
@@ -47,10 +58,10 @@ for (i in seq_len(nrow(months))) {
   live <- unique(ext_live_trees(gt)$plotID)
   here <- pc[pc$plotID %in% live, ]
   there <- pop21[pop21$site == site, ]
-  boxes <- rbind(data.frame(x = here$easting, y = here$northing, h = ext_core_half(here$plotType)),
-                 data.frame(x = there$easting, y = there$northing, h = there$core_half))
-  needed <- sort(unique(unlist(lapply(seq_len(nrow(boxes)), function(j)
-    neon_required_tiles(boxes$x[j], boxes$y[j], boxes$h[j] + EXT_CLIP_BUF)))))
+  boxes <- rbind(data.frame(plotID = here$plotID, x = here$easting, y = here$northing,
+                            h = ext_core_half(here$plotType)),
+                 data.frame(plotID = there$plotID, x = there$easting, y = there$northing,
+                            h = there$core_half))
 
   path <- file.path(nd, "lidar_files.json")
   fresh <- NULL
@@ -62,6 +73,18 @@ for (i in seq_len(nrow(months))) {
   if (!identical(snap$month, month) || !identical(snap$release, release))
     stop("Cached file list does not match the declared acquisition")
   tiles <- neon_tile_index(snap$files, product)
+  uncovered <- NULL
+  if (missing_mode == "drop") {
+    dropped <- se_drop_uncovered(boxes, tiles$key)
+    needed <- dropped$needed; uncovered <- dropped$uncovered
+    write.csv(uncovered, file.path(nd, "uncovered_plots.csv"), row.names = FALSE)
+    if (!length(needed)) stop(site, " ", month, " lists no tile for any plot clip")
+    if (nrow(uncovered)) message(site, " ", month, ": no listed tiles for ",
+                                 paste(uncovered$plotID, collapse = ","), "; left out")
+  } else {
+    needed <- sort(unique(unlist(lapply(seq_len(nrow(boxes)), function(j)
+      neon_required_tiles(boxes$x[j], boxes$y[j], boxes$h[j] + EXT_CLIP_BUF)))))
+  }
   missing_listed <- setdiff(needed, tiles$key)
   if (length(missing_listed)) stop(site, " ", month, " lists no tile for ", paste(missing_listed, collapse = ","))
 
@@ -87,5 +110,6 @@ for (i in seq_len(nrow(months))) {
   rows[[site]] <- data.frame(site = site, month = month, release = release,
     listed_tiles = nrow(tiles), needed_tiles = length(needed),
     verified = sum(au$files$verified), needed_gb = round(sum(as.numeric(want$size)) / 1e9, 2))
+  if (!is.null(uncovered)) rows[[site]]$uncovered_plots <- nrow(uncovered)
 }
 print(do.call(rbind, rows), row.names = FALSE)

@@ -14,9 +14,10 @@ suppressMessages({ library(terra); library(xml2) })
 # NeonTreeEvaluation canopy boxes over the declared scoring cores. Run after
 # prepare_sparse_epoch.R and freeze_clips.R YEAR=<year> in each epoch's job
 # directory. Downloads only the pinned annotation XML and RGB files of plots
-# in the 2021 `adopted` or `all_mapped` populations.
+# in the 2021 `adopted` or `all_mapped` populations. NTE=FALSE skips the
+# canopy boxes (they cover D17 plots only), for epochs of other sites.
 #   Rscript scripts/audit_sparse_epoch.R EPOCHS=SJER:<job dir>:2017,SOAP:<job dir>:2018,... \
-#     [ROOT2021=<work>/neon/frozen_2021] [OUT=<dir>]
+#     [ROOT2021=<work>/neon/frozen_2021] [OUT=<dir>] [NTE=TRUE]
 args <- strsplit(commandArgs(TRUE), "=", fixed = TRUE)
 A <- setNames(lapply(args, function(x) paste(x[-1], collapse = "=")), sapply(args, `[`, 1))
 ep <- do.call(rbind, lapply(strsplit(strsplit(A$EPOCHS, ",")[[1]], ":"), function(x)
@@ -25,6 +26,8 @@ root21 <- if (is.null(A$ROOT2021)) file.path(.job_dir(), "neon", "frozen_2021") 
 out <- if (is.null(A$OUT)) file.path(ep$job[1], "audit") else A$OUT
 dir.create(out, recursive = TRUE, showWarnings = FALSE)
 NTE_REV <- "96b29d566ca7ea9f604de3e1235c503ab101cb8a"   # as the TEAK canopy package
+nte_boxes <- as.logical(if (is.null(A$NTE)) "TRUE" else A$NTE)
+if (length(nte_boxes) != 1L || is.na(nte_boxes)) stop("NTE must be TRUE or FALSE")
 
 cells <- function(root) {
   cm <- read.csv(file.path(root, "clip_manifest.csv"), colClasses = c(rung = "character"))
@@ -92,6 +95,14 @@ for (i in seq_len(nrow(ep))) {
   }
 }
 
+save <- function(x, f) { x <- do.call(rbind, x); write.csv(x, file.path(out, f), row.names = FALSE); x }
+if (!nte_boxes) {
+  print(save(dens, "density.csv"), row.names = FALSE)
+  print(save(strata, "reference_strata.csv"), row.names = FALSE)
+  if (length(mort)) print(save(mort, "mortality.csv"), row.names = FALSE)
+  quit(save = "no")
+}
+
 # NeonTreeEvaluation boxes over the scoring cores of the declared populations.
 tree <- jsonlite::fromJSON(sprintf(
   "https://api.github.com/repos/weecology/NeonTreeEvaluation/git/trees/%s?recursive=1", NTE_REV))$tree
@@ -128,7 +139,6 @@ for (k in which(listed$in_adopted | listed$in_all_mapped)) {
     stems_all_mapped = sum(stems21$plotID == p$plotID & stems21$population == "all_mapped"))
 }
 
-save <- function(x, f) { x <- do.call(rbind, x); write.csv(x, file.path(out, f), row.names = FALSE); x }
 print(save(dens, "density.csv"), row.names = FALSE)
 print(save(strata, "reference_strata.csv"), row.names = FALSE)
 print(save(mort, "mortality.csv"), row.names = FALSE)
