@@ -174,8 +174,11 @@ returns per m² or more, otherwise 0.5 m.
   is read below as sitting on zero.
 
 An independent scorer, written from the protocol's text, reproduces the
-counts of all 280 cells, and a second run reproduces every output byte for
-byte.
+counts of all 280 cells. The whole pipeline, freeze included, ran three
+times, the last from the committed code with a clean tree. Every clip,
+reference table, detection, count, interval and after-run table is byte for
+byte the same in all three; only the records that hold the scripts' hashes,
+the root id and the commit differ.
 
 ## Result
 
@@ -461,6 +464,14 @@ range, so that group holds five plots instead of two. The "moved" rows move
 the polygon with the stems. The 2 m row's null window is widened by 2 m. And
 the height bands are cut as the scoring cuts them.
 
+The protocol builds each clip once. The freeze was built again after the
+first run, as reviews changed the scripts, and each time every clip and
+table came out byte for byte the same. One of those changes made the code
+follow the protocol's terrain rule as written: the share of points without a
+terrain value is now taken over every point in the box, not only over those
+left after noise and withheld points are dropped. No area's share or
+admission changed.
+
 Reported beyond the protocol's list, none of it deciding anything:
 
 - the share gate's own change and the gate in every closed stand within the
@@ -481,12 +492,13 @@ censused subplots it is measured, and the gated study reports it.
 
 ## Outputs
 
-- `work/newfor/frozen_v1/` is the sealed freeze root, id `6d4212110614…`.
+- `work/newfor/frozen_v1/` is the sealed freeze root, id `a7fa4b8b07ab…`.
   Each area folder holds `normalized.laz`, `aoi.wkt`, `reference_stems.csv`
   and `cell.json`. `admission.csv` holds every rule per area,
   `registration_scan.csv` the registration check at every offset, and
   `freeze.json` the hashes of the inputs, the protocol and every script the
-  freeze sources. The id does not depend on the commit checked out.
+  freeze sources. The id records no commit, but it changes when any of those
+  scripts or a package version freeze.json records changes.
 - `work/newfor/multichm_runs/` holds `run.json` (the pins, the constants and
   the hashes of the scripts), `detections/<area>/<configuration>.csv`,
   `features.csv` (one row per area) and `cells.csv` (observed and null counts
