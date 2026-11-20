@@ -664,6 +664,12 @@ well.
   Q780), has no closed plot, so this study does not test the share gate and
   the exemption on a second sensor; the confirmation tests do, on a 2019
   flight of the Washington sites.
+- **Outside NEON.** On 13 fully callipered Alpine plots flown with three
+  other instruments, the declared configuration is not separable from stock
+  in F1 (−0.017 [−0.041, +0.015]): precision rises and recall falls. The
+  share gate's own change in F1 is −0.030 [−0.052, −0.002] there. The
+  interval ends just short of zero and reaches it when forests are resampled
+  instead of plots. See the [NEWFOR validation](newfor-multichm-results.md).
 - **One switch per clip.** A clip that mixes open and closed patches, or
   crowded and widely spaced crowns, is treated as one stand.
 - **Reference.** The reference holds live stems of at least 10 cm DBH, so the

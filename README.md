@@ -425,8 +425,27 @@ among the Washington candidates below the QL2 floor and is level with
 ForestFormer3D in corrected F1 over all cells pooled (+0.003 [−0.008, +0.015]),
 while the routing's California rule cannot tell it from `multichm`. The test
 was not repeated on the core-density bands the routing uses now. No public
-3DEP tile set covers the Washington plots, and no stand outside the benchmark
-with a field count was tested.
+3DEP tile set covers the Washington plots, and the confirmation tests include
+no stand outside the benchmark with a field count.
+
+The [NEWFOR validation](results/newfor-multichm-results.md) runs the declared
+configuration, unchanged, on 13 fully callipered Alpine plots (1,244 stems of
+at least 10 cm) under a [protocol](docs/newfor-validation-protocol.md) fixed
+before any detector ran on them. Pooled F1 is 0.615 against 0.632 for stock
+`multichm`: −0.017 [−0.041, +0.015], which the protocol reads as inconclusive.
+The NEON held-out gain lies above that interval. Precision rises by 0.072
+[0.047, 0.088] and recall falls by 0.061 [0.003, 0.111].
+The floor and the surface exemption keep their sign but not their size
+(+0.014 [+0.007, +0.020], against +0.037 on NEON). The share gate's own
+change is −0.030, with an interval that ends just short of zero and reaches
+it when forests are resampled instead of plots. As on the 2019 Washington
+flight of the confirmation tests, the floor and the exemption carry over and
+the share gate does not. The pattern is the one the
+arm showed at WREF inside NEON's censused subplots: fewer detections, higher
+precision, lower recall, no change in F1. NEON and NEWFOR differ in forest,
+sensors and reference, so the two results are not like for like. One plot was
+excluded by a registration check that the detections later did not bear out;
+including it changes nothing.
 
 The [depth-gated multichm study](results/multichm-depth-results.md) adds a
 successor, `multichm_depth`, also outside the paper's twelve. It replaces the
@@ -680,6 +699,7 @@ comparison and larger-area experiments.
 | ForestMamba arm, outside the paper's twelve | [ForestMamba benchmark](results/forestmamba-results.md) and its [Blackwell runtime](gpu/forestmamba-sm120/README.md) |
 | SegmentAnyTree grouping-radius check, outside the tables | [Radius check](results/segmentanytree-radius-results.md) |
 | Gated multichm arm, outside the paper's twelve | [Gated multichm study](results/multichm-gated-results.md) and its [confirmation tests](results/multichm-gated-confirmation-results.md) under a [protocol written beforehand](docs/multichm-gated-confirmation-protocol.md) |
+| Gated multichm on fully callipered Alpine plots | [NEWFOR validation](results/newfor-multichm-results.md) and its [protocol](docs/newfor-validation-protocol.md) |
 | Depth-gated multichm arm, outside the paper's twelve | [Depth-gated multichm study](results/multichm-depth-results.md) under a [protocol fixed beforehand](docs/multichm-depth-protocol.md) |
 | Crown diameters and segmentation | [Crown benchmark](results/crown-segmentation-results.md) |
 | Paired optical/LiDAR fusion | [RGB-LiDAR comparison](results/rgb-lidar-fusion-results.md) and [confidence calibration](results/confidence-calibration-results.md) |
@@ -689,7 +709,10 @@ comparison and larger-area experiments.
 NEON acquisition also needs `neonUtilities`, `jsonlite`, `curl`, `digest`,
 network access, and `NEON_TOKEN` for downloads. GPU arms require their existing
 model environments and weights; use the corresponding runtime guide rather
-than a single environment for every detector.
+than a single environment for every detector. The NEWFOR validation needs
+`lidRplugins` 0.4.0 and lidR 4.3.2, which its detection script enforces, plus
+`jsonlite` and `digest`; its download step also needs `curl` and network
+access.
 
 The native FGI-EMIT entry point verifies prepared inputs, a frozen policy, and
 accepted inference before assembling products. Follow its guide to supply
@@ -741,6 +764,7 @@ scripts and configuration.
 | SegmentAnyTree grouping-radius check | [sat_radius_check.R](scripts/sat_radius_check.R), [run_sat_radius_check.sh](gpu/run_sat_radius_check.sh), the opt-in radius of [gpu/sat_compat](gpu/sat_compat/usercustomize.py) |
 | Gated multichm arm | [detect_multichm_gated_sweep.R](scripts/detect_multichm_gated_sweep.R), [calval_multichm_gated.R](scripts/calval_multichm_gated.R), [multichm_gated_lib.R](scripts/multichm_gated_lib.R) |
 | Gated multichm confirmation tests | [confirm_multichm_gated.R](scripts/confirm_multichm_gated.R), [multichm_gated_confirm_lib.R](scripts/multichm_gated_confirm_lib.R), [confirm_gated_3dep.R](scripts/confirm_gated_3dep.R), [confirm_gated_fgiemit.R](scripts/confirm_gated_fgiemit.R), [confirm_gated_scoring_variants.R](scripts/confirm_gated_scoring_variants.R), [confirm_gated_removed_peaks.R](scripts/confirm_gated_removed_peaks.R), [confirm_gated_routing.R](scripts/confirm_gated_routing.R) |
+| Gated multichm on the NEWFOR Alpine plots | [download_external_newfor.R](scripts/download_external_newfor.R), [freeze_newfor.R](scripts/freeze_newfor.R), [detect_newfor_multichm.R](scripts/detect_newfor_multichm.R), [analyze_newfor_multichm.R](scripts/analyze_newfor_multichm.R), [check_newfor_run.R](scripts/check_newfor_run.R), [newfor_lib.R](scripts/newfor_lib.R) |
 | Depth-gated multichm arm | [calval_multichm_depth.R](scripts/calval_multichm_depth.R), [confirm_multichm_depth.R](scripts/confirm_multichm_depth.R), [posthoc_multichm_depth.R](scripts/posthoc_multichm_depth.R), [multichm_depth_lib.R](scripts/multichm_depth_lib.R) |
 | Crown-diameter evaluation | [crown_metrics_sweep.R](scripts/crown_metrics_sweep.R), [crown_metrics_3d.R](scripts/crown_metrics_3d.R), [crown_metrics_deepmodel.R](scripts/crown_metrics_deepmodel.R), [analyze_crown_metrics.R](scripts/analyze_crown_metrics.R) |
 | Instance masks, credited F1 and re-scoring | [score_instances_iou.R](scripts/score_instances_iou.R), [compare_matching_rules.R](scripts/compare_matching_rules.R), [coverage_gap.R](scripts/coverage_gap.R), [export_best_treetops_geojson.R](scripts/export_best_treetops_geojson.R), [rescore_population.R](scripts/rescore_population.R), [compare_adapter_reruns.R](scripts/compare_adapter_reruns.R) |
@@ -794,6 +818,9 @@ The code and documentation in this repository are released under the
 - NEON field and airborne data are released under CC0 1.0; USGS 3DEP point
   clouds are public domain.
 - FGI-EMIT data are licensed CC BY-NC-SA 4.0 and are not redistributed here.
+- The NEWFOR benchmark dataset is released under the Etalab Open Licence 2.0
+  and is not redistributed here; the download script fetches it from its
+  repository and checks every file.
 - Model checkpoints and container images used by the GPU arms remain under
   their upstream licences; this repository pins their hashes but does not
   redistribute them.
