@@ -17,8 +17,8 @@
 # population, inside the inventoried one. The release records no crown class,
 # so recall is reported by height band. The bands are score_plot's, used
 # unchanged: cut() at 8 and 15 m with right-closed intervals, so short is up to
-# 8 m, mid above 8 up to 15 m and tall above 15 m; a stem of exactly 8.0 m
-# (15.0 m) counts as short (mid), one band lower than the protocol's wording.
+# 8 m, mid above 8 up to 15 m and tall above 15 m (a stem of exactly 8.0 m is
+# short, one of 15.0 m mid); the amended protocol states these bands.
 #
 # The clip and the CRS. The clip is the polygon's bounding box widened by
 # NEWFOR_BUFFER on every side, cut where the cloud ends; heights are elevations
@@ -324,16 +324,21 @@ newfor_covered_area <- function(x, y) {
 # and Y in box (closed) are kept, then dropped and counted in this order: class
 # in NEWFOR_DROP_CLASSES, Withheld_flag (when present), no terrain value
 # (bilinear), height below NEWFOR_Z_MIN, height at or above NEWFOR_Z_MAX. The
-# clip gets the CRS assigned, the canonical point order and coordinate snapping
-# of the NEON frozen clips (frozen_canonical; Z is snapped after the height
-# filter) and an updated header. covered_area = newfor_covered_area of the kept
+# terrain is read once for every box point, before any drop: terrain_na_share
+# is the share of box points without a terrain value, whatever rule drops them
+# (the protocol's admission rule), while dropped[["no_terrain"]] counts only
+# those left after the class and withheld drops. The clip gets the CRS
+# assigned, the canonical point order and coordinate snapping of the NEON
+# frozen clips (frozen_canonical; Z is snapped after the height filter) and an
+# updated header. covered_area = newfor_covered_area of the kept
 # points' snapped X and Y, so the written clip gives it back exactly; it is the
 # clip-wide densities' denominator, because a cloud that is a disc leaves the
 # corners of clip empty. Scan angles above 90 degrees, which some clouds hold,
 # are kept: they fit the attribute's signed byte and writeLAS writes them back
 # unchanged. box and clip are c(xmin, ymin, xmax, ymax). Returns list(las, box,
 # clip, reach, covered_area, clip_area, n_box, dropped = c(class, withheld,
-# no_terrain, below, above), terrain_na_share = no_terrain / n_box).
+# no_terrain, below, above), terrain_na_share = box points without terrain /
+# n_box, NA for an empty box).
 newfor_clip <- function(las, dtm, aoi, epsg, buffer = NEWFOR_BUFFER) {
   if (!methods::is(las, "LAS")) stop("newfor: las must be a lidR LAS object", call. = FALSE)
   if (lidR::is.empty(las)) stop("newfor: the cloud holds no points", call. = FALSE)
@@ -350,14 +355,17 @@ newfor_clip <- function(las, dtm, aoi, epsg, buffer = NEWFOR_BUFFER) {
   clip_area <- max(0, clip[["xmax"]] - clip[["xmin"]]) * max(0, clip[["ymax"]] - clip[["ymin"]])
   D <- P[P$X >= box[["xmin"]] & P$X <= box[["xmax"]] & P$Y >= box[["ymin"]] & P$Y <= box[["ymax"]]]
   n_box <- nrow(D)
+  # the terrain under every box point, read once and carried through the drops
+  # (bilinear extraction is pointwise, so a kept point gets the same value)
+  g <- if (n_box) terra::extract(dtm, cbind(D$X, D$Y), method = "bilinear")[, 1] else numeric()
+  n_na_box <- sum(is.na(g))
   drop <- D$Classification %in% NEWFOR_DROP_CLASSES
-  n_class <- sum(drop); D <- D[!drop]
+  n_class <- sum(drop); D <- D[!drop]; g <- g[!drop]
   n_withheld <- 0L
   if ("Withheld_flag" %in% names(D)) {
     drop <- D$Withheld_flag %in% TRUE
-    n_withheld <- sum(drop); D <- D[!drop]
+    n_withheld <- sum(drop); D <- D[!drop]; g <- g[!drop]
   }
-  g <- if (nrow(D)) terra::extract(dtm, cbind(D$X, D$Y), method = "bilinear")[, 1] else numeric()
   drop <- is.na(g)
   n_terrain <- sum(drop); D <- D[!drop]; g <- g[!drop]
   data.table::set(D, j = "Z", value = D$Z - g)
@@ -372,7 +380,7 @@ newfor_clip <- function(las, dtm, aoi, epsg, buffer = NEWFOR_BUFFER) {
        clip_area = clip_area, n_box = n_box,
        dropped = c(class = n_class, withheld = n_withheld, no_terrain = n_terrain,
                    below = sum(below), above = sum(above)),
-       terrain_na_share = if (n_box > 0) n_terrain / n_box else NA_real_)
+       terrain_na_share = if (n_box > 0) n_na_box / n_box else NA_real_)
 }
 
 ## ---- density -------------------------------------------------------------------------------

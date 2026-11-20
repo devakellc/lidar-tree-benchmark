@@ -15,14 +15,14 @@ held-out plots (+0.032 in plain F1) lies above the interval.
 The secondary analyses, which decide nothing, show this:
 
 - The arm trades recall for precision. Precision rises by 0.072 [0.047,
-  0.088]. Recall falls by 0.061, with an interval that reaches zero. The arm
-  places 19% fewer detections inside the polygons.
+  0.088]. Recall falls by 0.061 [0.003, 0.111]. The arm places 19% fewer
+  detections inside the polygons.
 - The 5 m floor and the surface exemption keep the sign they had on NEON, not
   the size: together they raise F1 by 0.014 [0.007, 0.020], against +0.037
   there.
 - The share gate does not gain. Against the same configuration without it, F1
-  is lower by 0.030 and corrected F1 by 0.020, with intervals that end at
-  zero or just short of it. In the seven plots where it applies it removes
+  is lower by 0.030 [0.002, 0.052] and corrected F1 by 0.020, with an
+  interval that includes zero. In the seven plots where it applies it removes
   158 detections inside the polygons, and 84 matched stems go with them.
 - One plot was excluded by a registration check fixed in advance. Checked
   after the run, the detections do not bear that check out. With the plot
@@ -391,7 +391,9 @@ on nominal cores:
 
 The floor and the exemption gain in both, by less here. The share gate's own
 change was not separable from zero on NEON's held-out plots. Here its
-estimate is negative in both measures and both intervals reach zero.
+estimate is negative in both measures. The F1 interval ends just short of
+zero, and reaches it when forests are resampled instead of plots; the
+corrected interval includes zero.
 
 The settings differ in ways this study cannot separate:
 

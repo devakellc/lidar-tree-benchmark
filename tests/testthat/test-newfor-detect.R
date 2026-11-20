@@ -2,9 +2,11 @@
 # (detect_newfor_multichm.R, analyze_newfor_multichm.R): arguments, the
 # detector pins (library blob and package versions), the git record, exact
 # detection files, the registration move, a two-area freeze root built through
-# the freeze driver and run end to end (pins enforced), the refusals of a
-# foreign run root and of a root frozen under another protocol, re-scoring from
-# the written detections in one and two workers and with explicit null
+# the freeze driver and run end to end, the refusals of a foreign run root and
+# of a root frozen under another protocol, the guards that keep the population
+# whole (the admission table against the area folders and cell.json, an area
+# whose scoring fails, a rerun leaving nothing of the earlier one), re-scoring
+# from the written detections in one and two workers and with explicit null
 # offsets, the analysis's outputs and refusals, its statement of the
 # protocol's settings, its pools, the protocol's reading rule and a hand-made
 # cells table pooled by hand in every scenario, the after-run checks
@@ -16,7 +18,19 @@
 # here reads the release. Sourcing a script defines its helpers without
 # running it (guarded by `if (sys.nframe() == 0L) run_main()`); each script
 # gets its own environment, so the run_main() functions do not collide.
+#
+# Sourcing a script evaluates its default job directory, so CLAUDE_JOB_DIR is
+# a fresh temporary folder while this file runs: testthat restores the
+# variable and removes the folder when the file ends, and nothing is created
+# in the checkout.
+#
+# Where the installed lidR or lidRplugins is not the version the protocol
+# pins, the end-to-end fixture runs with ALLOW_UNPINNED=1, and the assertions
+# that hold only for a pinned run assert the unpinned outcome instead
+# (NF_PINNED). The tests of the pins themselves set the pins they need.
 suppressMessages({ library(lidR); library(data.table); library(sf); library(terra) })
+NF_JOB <- withr::local_tempdir("newfor-job-")
+withr::local_envvar(CLAUDE_JOB_DIR = NF_JOB)
 DET <- new.env()
 source(file.path("..", "..", "scripts", "detect_newfor_multichm.R"), local = DET)
 ANA <- new.env()
@@ -25,6 +39,15 @@ FRZ <- new.env()
 source(file.path("..", "..", "scripts", "freeze_newfor.R"), local = FRZ)
 CHK <- new.env()
 source(file.path("..", "..", "scripts", "check_newfor_run.R"), local = CHK)
+# TRUE when the installed lidR and lidRplugins are the protocol's pins.
+NF_PINNED <- isTRUE(DET$nfd_check_versions(allow_unpinned = TRUE)$versions_match)
+# A run's arguments, with ALLOW_UNPINNED=1 added where the installed versions
+# are not the pins (an argument list that sets it is kept as it is).
+nf_args <- function(...) {
+  A <- list(...)
+  if (!NF_PINNED && is.null(A[["ALLOW_UNPINNED"]])) A[["ALLOW_UNPINNED"]] <- "1"
+  A
+}
 
 ## ---- a synthetic two-area release, frozen through the library ---------------------------------
 NF_X0 <- 600000; NF_Y0 <- 5100000; NF_EPSG <- 32632L
@@ -152,7 +175,8 @@ nf_hashes <- function(dir) {
 }
 
 # One end-to-end run, shared by the tests below: root, protocol copy, run root
-# and the detection run's return value (built on first use).
+# and the detection run's return value (built on first use; with
+# ALLOW_UNPINNED=1 where the installed versions are not the pins).
 nf_e2e <- local({
   cache <- NULL
   function() {
@@ -163,8 +187,8 @@ nf_e2e <- local({
     file.copy(DET$.nfd_repo_file(file.path("docs", "newfor-validation-protocol.md")), proto)
     root <- nf_root(file.path(base, "raw"), file.path(base, "frozen"), proto)
     out <- file.path(base, "run")
-    res <- quiet(DET$run_main(list(FROZEN = root, OUT = out, PROTOCOL = proto,
-                                   K = as.character(NF_K))))
+    res <- quiet(DET$run_main(nf_args(FROZEN = root, OUT = out, PROTOCOL = proto,
+                                      K = as.character(NF_K))))
     cache <<- list(base = base, root = root, protocol = proto, out = out, res = res)
     cache
   }
@@ -201,9 +225,13 @@ test_that("arguments are KEY=VALUE split at the first '='; unknown or repeated k
 })
 
 test_that("options: defaults under the job directory, validated numbers and areas", {
+  # the job directory is this file's CLAUDE_JOB_DIR, set before the scripts were sourced
+  job <- normalizePath(NF_JOB, mustWork = TRUE)
+  expect_identical(Sys.getenv("CLAUDE_JOB_DIR"), NF_JOB)
+  expect_identical(c(DET$d, ANA$d), c(job, job))
   o <- DET$nfd_options(list())
-  expect_identical(o$frozen, file.path(DET$d, "newfor", "frozen_v1"))
-  expect_identical(o$out, file.path(DET$d, "newfor", "multichm_runs"))
+  expect_identical(o$frozen, file.path(job, "newfor", "frozen_v1"))
+  expect_identical(o$out, file.path(job, "newfor", "multichm_runs"))
   expect_true(file.exists(o$protocol))
   expect_identical(basename(o$protocol), "newfor-validation-protocol.md")
   expect_null(o$areas)
@@ -225,7 +253,7 @@ test_that("options: defaults under the job directory, validated numbers and area
   expect_error(DET$nfd_options(list(ALLOW_UNPINNED = "yes")), "0 or 1")
   expect_error(DET$nfd_options(list(AREAS = ",")), "comma-separated")
   a <- ANA$nfa_options(list())
-  expect_identical(a$run, file.path(ANA$d, "newfor", "multichm_runs"))
+  expect_identical(a$run, file.path(job, "newfor", "multichm_runs"))
   expect_identical(c(a$n_boot, a$seed), c(1000L, 20261002L))
   expect_error(ANA$nfa_options(list(N_BOOT = "0")), "N_BOOT= must be")
 })
@@ -292,6 +320,23 @@ test_that("the run record refuses a changed library or other package versions", 
   expect_false(rec$detector_library$pin_matches); expect_true(rec$detector_library$allow_unpinned)
   expect_false(rec$versions_match)
   expect_identical(rec$pinned_versions, list(lidR = "9.9.9", lidRplugins = "0.4.0"))
+  # pins that are the installed versions pass without ALLOW_UNPINNED=1, on any machine
+  here <- vapply(names(DET$NFD_PIN_VERSIONS), DET$.nfd_installed, "")
+  o$allow_unpinned <- FALSE
+  rec <- DET$nfd_run_record(o, fz, fz$ids, configs, pin_versions = here)
+  expect_true(rec$versions_match); expect_false(rec$detector_library$allow_unpinned)
+  expect_true(rec$detector_library$pin_matches)
+  expect_identical(rec$pinned_versions, as.list(here))
+  expect_false(dir.exists(file.path(e$base, "unused")))
+  # run_main checks the pins before it writes anything: pins that are not the
+  # installed versions stop it without ALLOW_UNPINNED=1
+  pins <- DET$NFD_PIN_VERSIONS
+  on.exit(DET$NFD_PIN_VERSIONS <- pins, add = TRUE)
+  DET$NFD_PIN_VERSIONS <- c(lidR = "0.0.1", lidRplugins = "0.0.1")
+  expect_error(quiet(DET$run_main(list(FROZEN = e$root, OUT = file.path(e$base, "unused"),
+                                       PROTOCOL = e$protocol))),
+               paste("the package versions differ from the protocol's: lidR is .*, the",
+                     "protocol pins 0.0.1"))
   expect_false(dir.exists(file.path(e$base, "unused")))
 })
 
@@ -313,6 +358,17 @@ test_that(paste("git_clean: TRUE for a clean tree, FALSE with a new file there, 
     unlink(d, recursive = TRUE)
   }
   expect_identical(DET$.nfd_git_head(dir), NA_character_)            # no commit yet
+  # an untracked file still counts where the repository hides untracked files
+  # from a plain `git status`
+  system2("git", c("-C", shQuote(dir), "config", "status.showUntrackedFiles", "no"),
+          stdout = FALSE, stderr = FALSE)
+  dir.create(file.path(dir, "scripts")); writeLines("x", file.path(dir, "scripts", "a.R"))
+  plain <- system2("git", c("-C", shQuote(dir), "status", "--porcelain"), stdout = TRUE,
+                   stderr = FALSE)
+  expect_length(plain, 0L)                                            # hidden from git status
+  expect_identical(DET$.nfd_git_clean(dir), FALSE)
+  unlink(file.path(dir, "scripts"), recursive = TRUE)
+  expect_identical(DET$.nfd_git_clean(dir), TRUE)
 })
 
 ## ---- detection files and the registration move -------------------------------------------------
@@ -345,7 +401,7 @@ test_that("the registered scenario moves detections by minus the estimate, or no
 })
 
 ## ---- end to end: detection ---------------------------------------------------------------------
-test_that("a two-area root runs end to end with the pin enforced: run.json and detections", {
+test_that("a two-area root runs end to end: run.json, its pins and the detections", {
   skip_if_not_installed("lidRplugins")
   e <- nf_e2e()
   rec <- jsonlite::read_json(file.path(e$out, "run.json"), simplifyVector = TRUE)
@@ -353,7 +409,8 @@ test_that("a two-area root runs end to end with the pin enforced: run.json and d
   expect_identical(rec$frozen$root_id, newfor_root_id(e$root))
   expect_identical(rec$detector_library$git_blob, DET$NFD_PIN_BLOB)
   expect_true(rec$detector_library$pin_matches)
-  expect_false(rec$detector_library$allow_unpinned)
+  # ALLOW_UNPINNED=1 only where the installed versions are not the pins, and recorded
+  expect_identical(rec$detector_library$allow_unpinned, !NF_PINNED)
   expect_identical(rec$configurations$name, names(newfor_configs()))
   expect_identical(rec$configurations$label, c("stock", "z5_s0.75_c0.6_e1_d8", "z5_s0_c0_e0",
                                                "z5_s0_c0.6_e1", "z5_s0.75_c0.6_e1"))
@@ -363,7 +420,7 @@ test_that("a two-area root runs end to end with the pin enforced: run.json and d
   expect_length(rec$not_frozen, 0L)
   expect_identical(rec$lidr_threads, 1L)
   expect_identical(rec$pinned_versions, as.list(DET$NFD_PIN_VERSIONS))
-  expect_true(rec$versions_match)
+  expect_identical(rec$versions_match, NF_PINNED)
   expect_true(is.null(rec$git_clean) || is.logical(rec$git_clean))   # null without git
   expect_true(is.null(rec$git_head) || grepl("^[0-9a-f]{40}$", rec$git_head))
   # the root was frozen under the run's protocol
@@ -545,7 +602,7 @@ test_that("a foreign run root, an unsealed root and unknown areas are refused", 
   skip_if_not_installed("lidRplugins")
   e <- nf_e2e()
   configs <- newfor_configs()
-  o <- DET$nfd_options(list(FROZEN = e$root, OUT = e$out, PROTOCOL = e$protocol))
+  o <- DET$nfd_options(nf_args(FROZEN = e$root, OUT = e$out, PROTOCOL = e$protocol))
   fz <- DET$nfd_frozen_areas(e$root)
   rec <- DET$nfd_run_record(o, fz, fz$ids, configs)
   expect_silent(DET$nfd_check_out(e$out, rec))              # the same pins: accepted
@@ -565,7 +622,8 @@ test_that("a foreign run root, an unsealed root and unknown areas are refused", 
   before <- nf_hashes(e$out)
   expect_true(all(c("run.json", "features.csv", "cells.csv") %in% names(before)))
   expect_true(any(startsWith(names(before), "detections/")))
-  expect_error(quiet(DET$run_main(list(FROZEN = e$root, OUT = e$out, PROTOCOL = other, K = "1"))),
+  expect_error(quiet(DET$run_main(nf_args(FROZEN = e$root, OUT = e$out, PROTOCOL = other,
+                                          K = "1"))),
                "holds a run with another protocol; move it aside")
   expect_identical(nf_hashes(e$out), before)
   # into a fresh OUT, a root frozen under another protocol is refused (no override)
@@ -579,8 +637,8 @@ test_that("a foreign run root, an unsealed root and unknown areas are refused", 
   file.copy(list.files(e$root, full.names = TRUE), bare, recursive = TRUE)
   unlink(file.path(bare, c("freeze.json", "freeze_manifest.csv")))
   newfor_seal(bare)
-  expect_error(quiet(DET$run_main(list(FROZEN = bare, OUT = fresh, PROTOCOL = e$protocol,
-                                       K = "1"))),
+  expect_error(quiet(DET$run_main(nf_args(FROZEN = bare, OUT = fresh, PROTOCOL = e$protocol,
+                                          K = "1"))),
                "the root holds no freeze.json")
   expect_false(dir.exists(fresh))
   # a freeze.json added or changed after the seal is refused
@@ -612,8 +670,8 @@ test_that("AREAS= runs a subset of the root", {
   skip_if_not_installed("lidRplugins")
   e <- nf_e2e()
   out <- file.path(e$base, "only91")
-  res <- quiet(DET$run_main(list(FROZEN = e$root, OUT = out, PROTOCOL = e$protocol,
-                                 AREAS = "91", K = "1")))
+  res <- quiet(DET$run_main(nf_args(FROZEN = e$root, OUT = out, PROTOCOL = e$protocol,
+                                    AREAS = "91", K = "1")))
   expect_identical(res$features$area, "91")
   expect_identical(unique(res$cells$plot), "91")
   rj <- jsonlite::read_json(file.path(out, "run.json"), simplifyVector = TRUE)
@@ -625,15 +683,106 @@ test_that("AREAS= runs a subset of the root", {
     expect_identical(DET$nfd_read_detections(file.path(out, "detections", "91", paste0(l, ".csv"))),
                      DET$nfd_read_detections(file.path(e$out, "detections", "91",
                                                        paste0(l, ".csv"))))
-  # a rerun with the same pins starts afresh: nothing of an earlier run is left
+  # a rerun with the same pins starts afresh: nothing of an earlier run is left,
+  # its analysis and after-run checks included
   dir.create(file.path(out, "analysis")); writeLines("old", file.path(out, "analysis", "x.csv"))
+  dir.create(file.path(out, "after_run"))
+  writeLines("old", file.path(out, "after_run", "after_run.json"))
   dir.create(file.path(out, "detections", "92"))
   writeLines("old", file.path(out, "detections", "92", "stock.csv"))
-  rerun <- quiet(DET$run_main(list(FROZEN = e$root, OUT = out, PROTOCOL = e$protocol,
-                                   AREAS = "91", K = "1")))
+  rerun <- quiet(DET$run_main(nf_args(FROZEN = e$root, OUT = out, PROTOCOL = e$protocol,
+                                      AREAS = "91", K = "1")))
   expect_false(dir.exists(file.path(out, "analysis")))
+  expect_false(dir.exists(file.path(out, "after_run")))
+  expect_setequal(list.files(out), c("run.json", "features.csv", "cells.csv", "detections"))
   expect_identical(list.files(file.path(out, "detections")), "91")
   expect_identical(rerun$cells, res$cells)
+})
+
+## ---- the guards that keep the population whole -------------------------------------------------
+# A copy of the e2e freeze root, changed by change(dir) and sealed again.
+nf_resealed <- function(e, name, change) {
+  dst <- file.path(e$base, name)
+  dir.create(dst)
+  file.copy(list.files(e$root, full.names = TRUE), dst, recursive = TRUE)
+  unlink(file.path(dst, "freeze_manifest.csv"))
+  change(dst)
+  newfor_seal(dst)
+  dst
+}
+
+test_that("a root whose admission table and area folders disagree is refused", {
+  skip_if_not_installed("lidRplugins")
+  e <- nf_e2e()
+  adm <- newfor_frozen_admission(e$root)
+  write_adm <- function(a) function(dir)
+    utils::write.csv(a, file.path(dir, "admission.csv"), row.names = FALSE)
+  same <- DET$nfd_frozen_areas(nf_resealed(e, "fz-same", write_adm(adm)))
+  expect_identical(same$ids, c("91", "92")); expect_length(same$not_frozen, 0L)
+  expect_error(DET$nfd_frozen_areas(nf_resealed(e, "fz-twice", write_adm(adm[c(1, 2, 2), ]))),
+               "admission.csv lists an area twice")
+  expect_error(DET$nfd_frozen_areas(nf_resealed(e, "fz-missing",
+                                                write_adm(adm[adm$area == "91", ]))),
+               "frozen areas missing from admission.csv: 92")
+  # an area of the table without a folder cannot be run: it is listed as not frozen
+  one <- DET$nfd_frozen_areas(nf_resealed(e, "fz-one", function(dir)
+    unlink(file.path(dir, "92"), recursive = TRUE)))
+  expect_identical(one$ids, "91"); expect_identical(one$not_frozen, "92")
+  expect_error(DET$nfd_frozen_areas(nf_resealed(e, "fz-none", function(dir)
+    unlink(file.path(dir, c("91", "92")), recursive = TRUE))),
+    "the freeze root holds no area")
+})
+
+test_that("an admission row that disagrees with cell.json stops the area before detection", {
+  skip_if_not_installed("lidRplugins")
+  e <- nf_e2e()
+  cfg <- newfor_configs()
+  row <- newfor_frozen_admission(e$root)
+  row <- row[row$area == "91", , drop = FALSE]
+  expect_true(row$admitted); expect_identical(row$failed, "")
+  flip <- row; flip$admitted <- FALSE
+  expect_error(DET$nfd_detect_area(e$root, "91", flip, cfg),
+               "area 91: admission.csv and cell.json disagree")
+  other <- row; other$failed <- "rule_gap"
+  expect_error(DET$nfd_detect_area(e$root, "91", other, cfg),
+               "area 91: admission.csv and cell.json disagree")
+  expect_error(DET$nfd_detect_area(e$root, "91", row[0, ], cfg), "area 91 needs one admission row")
+  expect_error(DET$nfd_detect_area(e$root, "91", rbind(row, row), cfg),
+               "area 91 needs one admission row")
+})
+
+# A hand-made area to score: three primary stems in the 20 m square at (x0, y0)
+# of the frame, unless aoi is another polygon, and one detection 0.5 m from
+# each stem under every configuration.
+nf_hand_item <- function(id, aoi = NULL) {
+  x0 <- NF_X0; y0 <- NF_Y0
+  sq <- sf::st_sfc(sf::st_polygon(list(rbind(c(x0, y0), c(x0 + 20, y0), c(x0 + 20, y0 + 20),
+                                             c(x0, y0 + 20), c(x0, y0)))), crs = NF_EPSG)
+  stems <- data.frame(E = x0 + c(5, 10, 15), N = y0 + c(5, 12, 8), height = c(20, 15, 18),
+                      primary = TRUE, inventoried = TRUE)
+  det <- data.frame(x = stems$E + 0.5, y = stems$N, z = stems$height)
+  list(id = id, forest = "F", admitted = TRUE, aoi = if (is.null(aoi)) sq else aoi,
+       stems = stems, det = lapply(newfor_configs(), function(cfg) det),
+       reg = c(dx = 0, dy = 0, offset = 0))
+}
+
+test_that("an area whose scoring fails stops the run, named, in one worker or two", {
+  ok <- nf_hand_item("A")
+  cfg <- newfor_configs()
+  good <- DET$nfd_score_all(list(A = ok), cfg, 2L)
+  expect_identical(nrow(good), 4L * length(cfg))
+  expect_true(all(good$TP == 3))
+  # area B's polygon lies 1 km east of its stems, so its scoring stops
+  far <- nf_hand_item("B")$aoi
+  far <- sf::st_sfc(sf::st_geometry(far)[[1]] + c(1000, 0), crs = NF_EPSG)
+  items <- list(A = ok, B = nf_hand_item("B", aoi = far))
+  for (cores in 1:2) {
+    msg <- tryCatch(suppressWarnings(DET$nfd_score_all(items, cfg, 2L, cores = cores)),
+                    error = conditionMessage)
+    expect_match(msg, "^newfor: scoring failed for area B: .*outside declared scoring footprint",
+                 info = cores)
+    expect_false(grepl("area A", msg), info = cores)
+  }
 })
 
 ## ---- end to end: analysis ----------------------------------------------------------------------
@@ -711,19 +860,28 @@ test_that("the analysis of the two-area run writes every output with its schema"
                    vapply(ANA$NFA_CODE, function(f) frozen_sha256(.find(f)), ""))
   expect_identical(c(aj$n_boot, aj$seed), c(20L, 20261002L))
   expect_false(aj$protocol_settings)
-  expect_identical(aj$protocol_settings_reasons, c("K is 4, not 200", "N_BOOT is 20, not 1000"))
+  # K = 4 and 20 resamples; where the installed versions are not the pins, also
+  # the ALLOW_UNPINNED=1 the run needed and the versions. The run's sources and
+  # the analysis's code are the same files, and a, tol and null_min_shift the
+  # protocol's, so none of them is named.
+  why <- c("K is 4, not 200",
+           if (!NF_PINNED) c("ALLOW_UNPINNED=1 was given",
+                             "lidR or lidRplugins is not the pinned version"),
+           "N_BOOT is 20, not 1000")
+  expect_identical(aj$protocol_settings_reasons, why)
   # the header states the settings and why the run does not meet them
   expect_true("Null shifts per plot K = 4; 20 resamples, seed 20261002." %in% md)
   expect_true("Areas run: 2 of the 2 frozen." %in% md)
-  expect_true(paste0("Detector library blob ", substr(DET$NFD_PIN_BLOB, 1, 12), ": pinned.") %in%
-                md)
-  expect_true(sprintf("Packages: lidR %s, lidRplugins %s (the pinned versions).",
+  expect_true(paste0("Detector library blob ", substr(DET$NFD_PIN_BLOB, 1, 12), ": ",
+                     if (NF_PINNED) "pinned." else "pinned, ALLOW_UNPINNED=1 given.") %in% md)
+  expect_true(sprintf("Packages: lidR %s, lidRplugins %s (%s).",
                       as.character(packageVersion("lidR")),
-                      as.character(packageVersion("lidRplugins"))) %in% md)
+                      as.character(packageVersion("lidRplugins")),
+                      if (NF_PINNED) "the pinned versions" else "not the pinned versions") %in% md)
   i <- grep("^This run does not meet", md); j <- grep("^Counts are sums", md)
   expect_identical(paste(md[i:(j - 1L)], collapse = " "),
-                   paste("This run does not meet the protocol's settings: K is 4, not 200;",
-                         "N_BOOT is 20, not 1000."))
+                   paste0("This run does not meet the protocol's settings: ",
+                          paste(why, collapse = "; "), "."))
   expect_true(all(nchar(md[!startsWith(md, "|")]) <= 80))
   # the admission and density tables
   i <- grep("^## Density", md)
@@ -843,9 +1001,10 @@ test_that("the reading rule gives each of its four readings, and none without an
 #                tp_core + 1;
 #   registered   A1..A5 TP and tp_core + 1; A6 TP 5, tp_core 5 under both;
 #   tol2         one match fewer: TP and tp_core - 1.
-# run.json meets the protocol's settings (K 200, pinned library and versions,
-# every frozen area run) unless `record` overrides fields (modifyList: NULL
-# removes one).
+# run.json meets the protocol's settings (K 200, a 0.1, tol 4, null_min_shift
+# 8, pinned library and versions, every frozen area run, and the sources the
+# run would record from the files the analysis hashes too) unless `record`
+# overrides fields (modifyList: NULL removes one).
 hand_run <- function(dir, record = list()) {
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   cfg <- newfor_configs()
@@ -855,9 +1014,11 @@ hand_run <- function(dir, record = list()) {
               protocol = list(sha256 = strrep("b", 64)),
               detector_library = list(git_blob = DET$NFD_PIN_BLOB, pin_matches = TRUE,
                                       allow_unpinned = FALSE),
+              sources = as.list(newfor_code_sha256(DET$NFD_SOURCES, .find)),
               versions = list(lidR = "4.3.2", lidRplugins = "0.4.0"),
               pinned_versions = list(lidR = "4.3.2", lidRplugins = "0.4.0"),
-              versions_match = TRUE, K = 200L, areas = I(areas), root_areas = I(areas))
+              versions_match = TRUE, a = 0.1, tol = 4, K = 200L, null_min_shift = 8,
+              areas = I(areas), root_areas = I(areas))
   jsonlite::write_json(utils::modifyList(rec, record), file.path(dir, "run.json"),
                        auto_unbox = TRUE, digits = NA)
   feats <- data.frame(area = areas, forest = c("F", "F", "F", "F", "G", "F"),
@@ -1025,13 +1186,18 @@ test_that("the analysis states whether a run meets the protocol's settings", {
   expect_false(any(grepl("does not meet", md)))
   # a run that breaks every setting: each is named, in the files and in tables.md
   bad <- hand_run(tempfile("newfor-hand-"), record = list(
-    K = 4L, detector_library = list(pin_matches = FALSE, allow_unpinned = TRUE),
+    K = 4L, a = 0.2, tol = 3, null_min_shift = 6,
+    detector_library = list(pin_matches = FALSE, allow_unpinned = TRUE),
+    sources = list(newfor_lib.R = strrep("0", 64)),
     versions = list(lidR = "4.3.3"), versions_match = FALSE, root_areas = I(paste0("A", 1:8))))
   on.exit(unlink(bad, recursive = TRUE), add = TRUE)
   r2 <- quiet(ANA$run_main(list(RUN = bad, N_BOOT = "50", SEED = "1")))
-  why <- c("K is 4, not 200", "the detector library is not the pinned one",
+  why <- c("K is 4, not 200", "a is 0.2, not 0.1", "tol is 3, not 4",
+           "null_min_shift is 6, not 8", "the detector library is not the pinned one",
            "ALLOW_UNPINNED=1 was given", "lidR or lidRplugins is not the pinned version",
-           "6 of the 8 frozen areas were run", "N_BOOT is 50, not 1000", "SEED is 1, not 20261002")
+           "6 of the 8 frozen areas were run",
+           "newfor_lib.R changed between the run and the analysis", "N_BOOT is 50, not 1000",
+           "SEED is 1, not 20261002")
   expect_false(r2$settings$met)
   expect_identical(r2$settings$reasons, why)
   expect_identical(read.csv(file.path(bad, "analysis", "reading.csv"))$protocol_settings,
@@ -1052,30 +1218,71 @@ test_that("the analysis states whether a run meets the protocol's settings", {
                           paste(why, collapse = "; "), "."))
   # a setting that run.json does not record counts as not met
   rec <- jsonlite::read_json(file.path(run, "run.json"), simplifyVector = TRUE)
-  expect_true(ANA$nfa_protocol_settings(rec, 1000L, 20261002L)$met)
-  gone <- list(K = "K: not recorded", versions_match = "package versions: not recorded",
+  code <- newfor_code_sha256(ANA$NFA_CODE, .find)                    # the analysis's own hashes
+  settings <- function(r, cd = code) ANA$nfa_protocol_settings(r, 1000L, 20261002L, cd)
+  expect_true(settings(rec)$met)
+  expect_length(settings(rec)$reasons, 0L)
+  gone <- list(K = "K: not recorded", a = "a: not recorded", tol = "tol: not recorded",
+               null_min_shift = "null_min_shift: not recorded",
+               versions_match = "package versions: not recorded",
                areas = "frozen areas: not recorded", root_areas = "frozen areas: not recorded",
-               detector_library = "detector pin: not recorded")
+               detector_library = "detector pin: not recorded", sources = "sources: not recorded")
   for (k in names(gone)) {
     r <- rec; r[[k]] <- NULL
-    s <- ANA$nfa_protocol_settings(r, 1000L, 20261002L)
+    s <- settings(r)
     expect_false(s$met, info = k); expect_identical(s$reasons, gone[[k]], info = k)
   }
+  # a is read by its full name: without it, areas is not taken for it
+  expect_false(is.null(rec$areas))
+  r <- rec; r$sources <- list()
+  expect_identical(settings(r)$reasons, "sources: not recorded")
+  r <- rec; r$sources <- unname(rec$sources)
+  expect_identical(settings(r)$reasons, "sources: not recorded")
+  # each setting off the protocol's value, alone
+  off <- list(K = list(201L, "K is 201, not 200"), a = list(0.11, "a is 0.11, not 0.1"),
+              tol = list(2, "tol is 2, not 4"),
+              null_min_shift = list(8.5, "null_min_shift is 8.5, not 8"))
+  for (k in names(off)) {
+    r <- rec; r[[k]] <- off[[k]][[1]]
+    expect_identical(settings(r)$reasons, off[[k]][[2]], info = k)
+  }
+  # a file hashed by both the run's sources and the analysis must not differ;
+  # files that only one of them hashes are not compared
+  expect_true(all(c("detect_newfor_multichm.R", "newfor_lib.R") %in% names(rec$sources)))
+  expect_false("detect_newfor_multichm.R" %in% names(code))
+  r <- rec; r$sources$detect_newfor_multichm.R <- strrep("1", 64)
+  expect_true(settings(r)$met)
+  r <- rec; r$sources$newfor_lib.R <- strrep("0", 64); r$sources$sweep_lib.R <- strrep("0", 64)
+  expect_identical(settings(r)$reasons,                              # in the analysis's order
+                   c("sweep_lib.R changed between the run and the analysis",
+                     "newfor_lib.R changed between the run and the analysis"))
+  cd <- code; cd[["bootstrap.R"]] <- strrep("2", 64)                 # the analysis's side changed
+  expect_identical(settings(rec, cd)$reasons,
+                   "bootstrap.R changed between the run and the analysis")
   r <- rec; r$detector_library$allow_unpinned <- NULL
-  expect_identical(ANA$nfa_protocol_settings(r, 1000L, 20261002L)$reasons,
-                   "detector pin: not recorded")
+  expect_identical(settings(r)$reasons, "detector pin: not recorded")
   r <- rec; r$detector_library$allow_unpinned <- TRUE
-  expect_identical(ANA$nfa_protocol_settings(r, 1000L, 20261002L)$reasons,
-                   "ALLOW_UNPINNED=1 was given")
+  expect_identical(settings(r)$reasons, "ALLOW_UNPINNED=1 was given")
   r <- rec; r[c("versions_match", "root_areas")] <- NULL
-  head <- ANA$nfa_settings_lines(r, ANA$nfa_protocol_settings(r, 1000L, 20261002L), 1000L,
-                                 20261002L)
+  head <- ANA$nfa_settings_lines(r, settings(r), 1000L, 20261002L)
   expect_true("Packages: lidR 4.3.2, lidRplugins 0.4.0 (pins not recorded)." %in% head)
   expect_identical(head[5], "Areas run: 6; the frozen areas are not recorded.")
   expect_identical(paste(head[-(1:5)], collapse = " "),
                    paste("This run does not meet the protocol's settings: package versions: not",
                          "recorded; frozen areas: not recorded."))
   expect_true(all(nchar(head) <= 80))
+})
+
+test_that("the protocol's values the analysis holds are the library's constants", {
+  # the analysis compares run.json with literals, so a constant changed in the
+  # library would otherwise go unnoticed
+  expect_identical(names(ANA$NFA_PROTOCOL), c("K", "a", "tol", "null_min_shift"))
+  expect_identical(vapply(ANA$NFA_PROTOCOL, as.numeric, 0),
+                   c(K = NEWFOR_NULL_K, a = NEWFOR_A, tol = NEWFOR_TOL,
+                     null_min_shift = NEWFOR_NULL_MIN_SHIFT))
+  expect_identical(ANA$NFA_PROTOCOL$K, 200L)
+  expect_identical(c(ANA$NFA_PROTOCOL$a, ANA$NFA_PROTOCOL$tol, ANA$NFA_PROTOCOL$null_min_shift),
+                   c(0.10, 4, 8))
 })
 
 test_that("tables.md rounds to three decimals, writes counts as integers and names sources", {

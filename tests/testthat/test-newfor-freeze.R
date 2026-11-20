@@ -10,7 +10,11 @@
 # sourced into an environment of its own: sourcing defines its functions
 # without running it (guarded by `if (sys.nframe() == 0L) run_main()`), and
 # both define run_main. Synthetic data only, no network; nothing here reads
-# the release.
+# the release. CLAUDE_JOB_DIR is a fresh temporary folder while this file
+# runs (testthat restores the variable and removes the folder when the file
+# ends), so a default job directory never lands in the checkout.
+NF_JOB <- withr::local_tempdir("newfor-job-")
+withr::local_envvar(CLAUDE_JOB_DIR = NF_JOB)
 FZ <- new.env(); source(file.path("..", "..", "scripts", "freeze_newfor.R"), local = FZ)
 DL <- new.env(); source(file.path("..", "..", "scripts", "download_external_newfor.R"), local = DL)
 RSCRIPT <- file.path(R.home("bin"), "Rscript")
@@ -472,6 +476,16 @@ test_that("inputs are checked: AREAS= names known areas, META and FILES one rele
   expect_identical(x, list(raw = "r", out = "o", areas = c("01", "02"), meta = "m", files = "f",
                            protocol = "p"))
   expect_null(FZ$.freeze_inputs(FZ$.freeze_args(c("RAW=r", "OUT=o", "AREAS=ALL")))$areas)
+  # the defaults: under this file's job directory, and the repository's documents
+  job <- normalizePath(NF_JOB, mustWork = TRUE)
+  def <- FZ$.freeze_inputs(list())
+  expect_identical(def$raw, file.path(job, "external", "newfor", "raw"))
+  expect_identical(def$out, file.path(job, "newfor", "frozen_v1"))
+  expect_null(def$areas)
+  expect_identical(basename(c(def$meta, def$files, def$protocol)),
+                   c("newfor-area-metadata.json", "newfor-release-files.json",
+                     "newfor-validation-protocol.md"))
+  expect_true(all(file.exists(c(def$meta, def$files, def$protocol))))
   # split at the first "=": the rest of the value is kept verbatim, a final "=" included
   expect_identical(FZ$.freeze_args(c("OUT=/data/root=", "RAW=/a=b/raw"))[c("OUT", "RAW")],
                    list(OUT = "/data/root=", RAW = "/a=b/raw"))

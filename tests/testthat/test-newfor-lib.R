@@ -1,9 +1,10 @@
 # Unit tests for the NEWFOR validation library: the five configurations and
 # their pins, metadata and file checks, one area read from shapefiles, the
 # reference flags, the clip over a sloping terrain raster and its covered area
-# (the kept points' convex hull), densities and the resolution gate, the
-# registration diagnostic, each admission rule, the freeze
-# with its seal and read-back, the code hashes of a run record, the null's
+# (the kept points' convex hull) and terrain share (every box point without
+# terrain), densities and the resolution gate, the registration diagnostic,
+# each admission rule, the freeze with its seal and read-back (a resealed
+# change of an inside flag refused), the code hashes of a run record, the null's
 # offsets and shifts, scoring on a
 # polygon, and the detection wrapper with its package parity. Synthetic data
 # only; nothing here reads the release.
@@ -438,6 +439,39 @@ test_that("dropped points beyond the kept cloud widen the clip but not the cover
   expect_identical(cl$clip_area, 79 * 80)
 })
 
+test_that("the terrain share counts box points without terrain that another rule drops", {
+  p <- syn_points()
+  base <- newfor_clip(syn_las(p), syn_dtm(), SYN_AOI, SYN_EPSG)
+  # a class-7 point and a withheld point where the terrain raster has no value
+  # (the gap between cell centres 15.5 and 24.5 m east, 70.5 and 79.5 m north)
+  extra <- data.frame(x = c(20, 22), y = c(76, 74), hgt = 3, rn = 1L, nr = 1L, cls = c(7L, 1L),
+                      wh = c(FALSE, TRUE), why = c("class", "withheld"),
+                      stringsAsFactors = FALSE)
+  las <- syn_las(rbind(p, extra))
+  n <- nrow(p)
+  expect_true(all(is.na(terra::extract(syn_dtm(), cbind(las$X[n + 1:2], las$Y[n + 1:2]),
+                                       method = "bilinear")[, 1])))
+  cl <- newfor_clip(las, syn_dtm(), SYN_AOI, SYN_EPSG)
+  expect_identical(cl$n_box, base$n_box + 2L)
+  # each is dropped by its own rule and not counted again as without terrain ...
+  expect_identical(cl$dropped - base$dropped, c(class = 1L, withheld = 1L, no_terrain = 0L,
+                                                below = 0L, above = 0L))
+  expect_identical(cl$dropped[["no_terrain"]], 6L)
+  # ... but the share counts every box point without terrain, before any drop
+  expect_identical(base$terrain_na_share, 6 / base$n_box)
+  expect_identical(cl$terrain_na_share, 8 / cl$n_box)
+  # the kept clip is the one without the two points
+  expect_identical(cl$las@data, base$las@data)
+  expect_identical(c(cl$covered_area, cl$clip_area), c(base$covered_area, base$clip_area))
+  expect_identical(cl$reach, base$reach)
+  # without a withheld flag the extra point reaches the terrain rule, which drops
+  # it: the count moves, the share does not
+  las@data[, Withheld_flag := NULL]
+  nw <- newfor_clip(las, syn_dtm(), SYN_AOI, SYN_EPSG)
+  expect_identical(nw$dropped[["no_terrain"]], 7L)
+  expect_identical(nw$terrain_na_share, cl$terrain_na_share)
+})
+
 test_that("densities inside the polygon and over the clip; the resolution gate at exactly 8", {
   aoi <- syn_square(0, 0, 10, 10)
   # 30 first and 20 second returns inside (two of them on the boundary), 10 and 10 outside
@@ -737,6 +771,22 @@ test_that("a sealed root reads back, and refuses tampering and new areas", {
   unlink(file.path(root, "91", "aoi.wkt"))
   expect_error(newfor_frozen_area(root, "91"), "91/aoi.wkt differs")
   expect_error(newfor_frozen_area(root, "93"), "93/normalized.laz is not in the root's manifest")
+})
+
+test_that("an inside flag changed and sealed again is refused against the polygon", {
+  raw <- tempfile(); root <- tempfile(); on.exit(unlink(c(raw, root), recursive = TRUE))
+  files <- syn_release(raw)
+  newfor_freeze_area(raw, SYN_AREA, files, root)
+  f <- file.path(root, "91", "reference_stems.csv")
+  st <- read.csv(f, stringsAsFactors = FALSE, colClasses = c(dbh_status = "character"))
+  expect_identical(st$inside[11], FALSE)                              # the stem outside
+  st$inside[11] <- TRUE
+  write.csv(st, f, row.names = FALSE)
+  newfor_seal(root)                                                   # the seal now holds it
+  expect_error(newfor_frozen_area(root, "91"),
+               "area 91: the polygon read back does not hold the frozen inside flags")
+  expect_error(newfor_frozen_area(root, "91", verify = FALSE),
+               "does not hold the frozen inside flags")
 })
 
 test_that("a corrupted raw file fails rule_files; a missing one stops the freeze", {

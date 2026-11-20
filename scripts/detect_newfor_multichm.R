@@ -53,9 +53,9 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # An OUT whose run.json records another protocol, freeze root, detector library
 # or configuration set is refused, as is an OUT that holds files but no
 # run.json; move it aside to start fresh. A run into an OUT with the same pins
-# first removes the earlier run's features.csv, cells.csv, detections/ and
-# analysis/. Unknown arguments are refused, so a misspelt FROZEN= cannot fall
-# back to the default root.
+# first removes the earlier run's features.csv, cells.csv, detections/,
+# analysis/ and after_run/ (check_newfor_run.R). Unknown arguments are refused,
+# so a misspelt FROZEN= cannot fall back to the default root.
 #
 # Usage:
 #   Rscript scripts/detect_newfor_multichm.R [FROZEN=<root>] [OUT=<run root>]
@@ -249,11 +249,13 @@ nfd_config_table <- function(configs) {
   if (length(h) == 1L && grepl("^[0-9a-f]{40}$", h)) h else NA_character_
 }
 
-# TRUE when `git status --porcelain -- scripts docs tests` prints nothing (no
-# modified, staged or untracked file there), FALSE when it prints something,
-# NA when git or the repository is unavailable.
+# TRUE when `git status --porcelain --untracked-files=all -- scripts docs
+# tests` prints nothing (no modified, staged or untracked file there, whatever
+# the user's status.showUntrackedFiles), FALSE when it prints something, NA
+# when git or the repository is unavailable.
 .nfd_git_clean <- function(root = .ROOT) {
-  s <- .nfd_git(c("status", "--porcelain", "--", "scripts", "docs", "tests"), root)
+  s <- .nfd_git(c("status", "--porcelain", "--untracked-files=all", "--", "scripts", "docs",
+                  "tests"), root)
   if (is.null(s)) NA else !length(s)
 }
 
@@ -542,9 +544,10 @@ run_main <- function(A = nfd_args()) {
   nfd_check_out(o$out, record)
   nfd_check_freeze_protocol(o$frozen, record$protocol$sha256)
   dir.create(o$out, recursive = TRUE, showWarnings = FALSE)
-  # a run with the same pins starts afresh: no result of an earlier run, or of a
-  # run that fails part way, is left beside this run.json
-  unlink(file.path(o$out, c("features.csv", "cells.csv", "detections", "analysis")),
+  # a run with the same pins starts afresh: no result of an earlier run (its
+  # analysis and after-run checks included), or of a run that fails part way, is
+  # left beside this run.json
+  unlink(file.path(o$out, c("features.csv", "cells.csv", "detections", "analysis", "after_run")),
          recursive = TRUE)
   jsonlite::write_json(record, file.path(o$out, "run.json"), auto_unbox = TRUE, pretty = TRUE,
                        digits = NA, na = "null")

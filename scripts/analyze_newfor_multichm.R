@@ -44,14 +44,16 @@ source(bs[1]); rm(bs, .bs_ofile, .bs_file)
 # area's admission or forest.
 #
 # A run outside the protocol's fixed settings is analysed, not refused, and
-# says so: protocol_settings is TRUE only when run.json records K =
-# NEWFOR_NULL_K null shifts, the pinned detector library without
-# ALLOW_UNPINNED=1, the pinned lidR and lidRplugins versions and every frozen
-# area run (areas equal to root_areas), and the analysis uses N_BOOT = MT_N_BOOT
-# and SEED = MT_SEED. A setting that run.json does not record counts as not
-# met. reading.csv carries the flag, analysis.json the flag and its reasons,
-# and the header of tables.md states the settings and, when they are not met,
-# why.
+# says so: protocol_settings is TRUE only when run.json records the protocol's
+# K null shifts, window coefficient a, matching radius tol and null minimum
+# shift (NFA_PROTOCOL, the protocol's values held here), the pinned detector
+# library without ALLOW_UNPINNED=1, the pinned lidR and lidRplugins versions,
+# every frozen area run (areas equal to root_areas) and, in its sources, the
+# same SHA-256 as the analysis's code_sha256 for every R file both hash; and
+# the analysis uses N_BOOT = MT_N_BOOT and SEED = MT_SEED. A setting that
+# run.json does not record counts as not met. reading.csv carries the flag,
+# analysis.json the flag and its reasons, and the header of tables.md states
+# the settings and, when they are not met, why.
 #
 # Usage:
 #   Rscript scripts/analyze_newfor_multichm.R [RUN=<run root>] [N_BOOT=1000]
@@ -107,6 +109,11 @@ NFA_PAIRS <- data.frame(a = c("declared", "floor", "floor_exempt", "gate_all", "
 NFA_METRICS <- c("F1", "cF1", "precision", "recall", "cPrecision", "cRecall", "det_per_ref")
 NFA_MIN_INTERVAL <- 5L      # plots a pool needs for an interval
 NFA_NOT_WORSE <- -0.02      # the lower bound "not worse" must exceed
+# The protocol's fixed values of the settings run.json records, held here as
+# the protocol states them rather than read from the constants the run used:
+# K null shifts per plot, the window coefficient a, the matching radius tol
+# (m) and the null's minimum shift (m).
+NFA_PROTOCOL <- list(K = 200L, a = 0.10, tol = 4, null_min_shift = 8)
 # Columns of features.csv the analysis reads.
 NFA_FEATURE_COLS <- c("area", "forest", "admitted", "failed", "n_rows", "n_inside", "n_outside",
                       "n_primary", "n_inventoried", "n_missing_dbh", "n_below_caliper",
@@ -228,16 +235,23 @@ nfa_check_support <- function(cells, features, configs) {
 }
 
 ## ---- the protocol's settings -------------------------------------------------------------------
-# Whether the run (record: run.json as read) and the analysis (n_boot, seed)
-# meet the protocol's fixed settings: list(met, reasons), reasons naming each
-# setting that is not met or that run.json does not record ("not recorded").
-nfa_protocol_settings <- function(record, n_boot, seed) {
+# Whether the run (record: run.json as read) and the analysis (n_boot, seed;
+# code, its own code_sha256 by base name) meet the protocol's fixed settings:
+# list(met, reasons), reasons naming each setting that is not met or that
+# run.json does not record ("not recorded"). K, a, tol and null_min_shift are
+# compared with NFA_PROTOCOL. A file that run.json's sources and code both hash
+# must have the same hash in both, or it changed between the run and the
+# analysis.
+nfa_protocol_settings <- function(record, n_boot, seed, code) {
   has <- function(x) !is.null(x) && length(x) > 0L && !anyNA(x)
   why <- character()
-  K <- record$K
-  if (!has(K)) why <- c(why, "K: not recorded")
-  else if (!identical(as.numeric(K), as.numeric(NEWFOR_NULL_K)))
-    why <- c(why, sprintf("K is %s, not %d", paste(K, collapse = ","), NEWFOR_NULL_K))
+  for (k in names(NFA_PROTOCOL)) {
+    v <- record[[k]]                                  # [[ ]]: no partial match (a, areas)
+    if (!has(v)) why <- c(why, paste0(k, ": not recorded"))
+    else if (!identical(as.numeric(v), as.numeric(NFA_PROTOCOL[[k]])))
+      why <- c(why, sprintf("%s is %s, not %s", k, paste(v, collapse = ","),
+                            format(NFA_PROTOCOL[[k]])))
+  }
   lib <- record$detector_library
   if (!is.list(lib) || !has(lib$pin_matches) || !has(lib$allow_unpinned))
     why <- c(why, "detector pin: not recorded")
@@ -254,6 +268,13 @@ nfa_protocol_settings <- function(record, n_boot, seed) {
     why <- c(why, sprintf("%d of the %d frozen areas were run",
                           length(intersect(record$areas, record$root_areas)),
                           length(record$root_areas)))
+  src <- record[["sources"]]
+  src <- if (is.list(src) || is.character(src)) unlist(src)
+  if (!is.character(src) || !length(src) || is.null(names(src)) || anyNA(src))
+    why <- c(why, "sources: not recorded")
+  else for (f in intersect(names(code), names(src)))
+    if (!identical(unname(src[[f]]), unname(code[[f]])))
+      why <- c(why, paste(f, "changed between the run and the analysis"))
   if (!identical(as.integer(n_boot), MT_N_BOOT))
     why <- c(why, sprintf("N_BOOT is %d, not %d", as.integer(n_boot), MT_N_BOOT))
   if (!identical(as.integer(seed), MT_SEED))
@@ -604,7 +625,7 @@ run_main <- function(A = nfa_args()) {
   if (!length(pools$admitted)) stop("newfor: no admitted area in ", o$run, call. = FALSE)
   pooled <- nfa_pooled(r$cells, pools, r$configs)
   contrasts <- nfa_contrasts(r$cells, pools, r$configs, o$n_boot, o$seed)
-  settings <- nfa_protocol_settings(r$record, o$n_boot, o$seed)
+  settings <- nfa_protocol_settings(r$record, o$n_boot, o$seed, code)
   reading <- nfa_reading_table(contrasts)
   reading$protocol_settings <- settings$met
   per_plot <- nfa_per_plot(r$cells, r$features)

@@ -43,7 +43,7 @@
      "plot_shape": "square 50 m x 50 m", "field_date": "2009-06", "flight_date": "2011-09",
      "caliper_cm": 10, "dead_trees": "not stated", "sensor": "RIEGL LMS-Q560",
      "forest_class": "ML/C", "conifer_percent": 100, "stems_per_ha": 400,
-     "notes": "Subalpine spruce near the tree line. The cloud carries no classification (every point is class 0) and the terrain raster no CRS. The inventory holds 20 stems below the stated 10 cm caliper threshold."},
+     "notes": "Subalpine spruce near the tree line. The cloud carries no classification (every point is class 0) and the terrain raster no CRS. The inventory holds 24 stems below the stated 10 cm caliper threshold, 20 of them by more than 0.5 cm."},
     {"id": "07", "name": "Pellizzano area 5", "forest": "Pellizzano", "country": "Italy",
      "sheet": "07_Metadata.pdf", "epsg": 32632, "epsg_source": "plot sheet (UTM WGS84 frame 32N, no code given)",
      "plot_shape": "circle, radius 20 m", "field_date": "2013-08", "flight_date": "2012-09",

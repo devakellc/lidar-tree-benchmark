@@ -337,7 +337,7 @@ at least 10 cm) under a [protocol](docs/newfor-validation-protocol.md) fixed
 before any detector ran on them. Pooled F1 is 0.615 against 0.632 for stock
 `multichm`: −0.017 [−0.041, +0.015], which the protocol reads as inconclusive.
 The NEON held-out gain lies above that interval. Precision rises by 0.072
-[0.047, 0.088] and recall falls by 0.061, with an interval that reaches zero.
+[0.047, 0.088] and recall falls by 0.061 [0.003, 0.111].
 The floor and the surface exemption keep their sign but not their size
 (+0.014 [+0.007, +0.020], against +0.037 on NEON). The share gate's own
 change is −0.030, with an interval that ends just short of zero and reaches
