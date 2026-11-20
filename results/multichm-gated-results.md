@@ -651,8 +651,13 @@ well.
 - **Sensor.** The first-return share depends on how many returns per pulse a
   sensor records. All 69 closed plots were flown with one instrument (Optech
   Galaxy Prime, July 2021). SJER, the only site flown with another lidar (RIEGL
-  Q780), has no closed plot, so the share gate and the exemption are untested
-  on a second sensor.
+  Q780), has no closed plot, so within NEON the share gate and the exemption
+  are untested on a second sensor.
+- **Outside NEON.** On 13 fully callipered Alpine plots flown with three
+  other instruments, the declared configuration is not separable from stock
+  in F1 (−0.017 [−0.041, +0.015]): precision rises and recall falls. The
+  share gate's own change in F1 is −0.030 there, with an interval that ends
+  at zero. See the [NEWFOR validation](newfor-multichm-results.md).
 - **One switch per clip.** A clip that mixes open and closed patches, or
   crowded and widely spaced crowns, is treated as one stand.
 - **Reference.** The reference holds live stems of at least 10 cm DBH, so the

@@ -331,6 +331,23 @@ four closed plots outside the benchmark that have no field reference. The
 held-out score therefore tests only the selection within that grid: 434 of its
 446 non-stock configurations beat stock on the held-out plots.
 
+The [NEWFOR validation](results/newfor-multichm-results.md) runs the declared
+configuration, unchanged, on 13 fully callipered Alpine plots (1,244 stems of
+at least 10 cm) under a [protocol](docs/newfor-validation-protocol.md) fixed
+before any detector ran on them. Pooled F1 is 0.615 against 0.632 for stock
+`multichm`: −0.017 [−0.041, +0.015], which the protocol reads as inconclusive.
+The NEON held-out gain lies above that interval. Precision rises by 0.072
+[0.047, 0.088] and recall falls by 0.061, with an interval that reaches zero.
+The floor and the surface exemption keep their sign but not their size
+(+0.014 [+0.007, +0.020], against +0.037 on NEON). The share gate's own
+change is −0.030, with an interval that ends just short of zero and reaches
+it when forests are resampled instead of plots. The pattern is the one the
+arm showed at WREF inside NEON's censused subplots: fewer detections, higher
+precision, lower recall, no change in F1. NEON and NEWFOR differ in forest,
+sensors and reference, so the two results are not like for like. One plot was
+excluded by a registration check that the detections later did not bear out;
+including it changes nothing.
+
 ### Crown delineation
 
 The [crown benchmark](results/crown-segmentation-results.md) compares growing
@@ -517,6 +534,7 @@ comparison and larger-area experiments.
 | NEON field-stem density ladder | [Density-ladder study](results/density-ladder-sweep-results.md) and [cross-model comparison](results/model-benchmark-results.md) |
 | ForestMamba arm, outside the paper's twelve | [ForestMamba benchmark](results/forestmamba-results.md) and its [Blackwell runtime](gpu/forestmamba-sm120/README.md) |
 | Gated multichm arm, outside the paper's twelve | [Gated multichm study](results/multichm-gated-results.md) |
+| Gated multichm on fully callipered Alpine plots | [NEWFOR validation](results/newfor-multichm-results.md) and its [protocol](docs/newfor-validation-protocol.md) |
 | Crown diameters and segmentation | [Crown benchmark](results/crown-segmentation-results.md) |
 | Paired optical/LiDAR fusion | [RGB-LiDAR comparison](results/rgb-lidar-fusion-results.md) and [confidence calibration](results/confidence-calibration-results.md) |
 | Native FGI-EMIT products | [Current execution guide](docs/final-ensemble-pipeline-v2.md) and [development/reserve results](results/final-ensemble-pipeline-results.md) |
@@ -525,7 +543,10 @@ comparison and larger-area experiments.
 NEON acquisition also needs `neonUtilities`, `jsonlite`, `curl`, `digest`,
 network access, and `NEON_TOKEN` for downloads. GPU arms require their existing
 model environments and weights; use the corresponding runtime guide rather
-than a single environment for every detector.
+than a single environment for every detector. The NEWFOR validation needs
+`lidRplugins` 0.4.0 and lidR 4.3.2, which its detection script enforces, plus
+`jsonlite` and `digest`; its download step also needs `curl` and network
+access.
 
 The native FGI-EMIT entry point verifies prepared inputs, a frozen policy, and
 accepted inference before assembling products. Follow its guide to supply
@@ -566,6 +587,7 @@ scripts and configuration.
 | Cross-model detection analysis | [analyze_model_benchmark.R](scripts/analyze_model_benchmark.R), [compare_model_sites.R](scripts/compare_model_sites.R) |
 | ForestMamba arm | [detect_forestmamba_sweep.R](scripts/detect_forestmamba_sweep.R), [analyze_forestmamba.R](scripts/analyze_forestmamba.R), [gpu/forestmamba-sm120](gpu/forestmamba-sm120/README.md) |
 | Gated multichm arm | [detect_multichm_gated_sweep.R](scripts/detect_multichm_gated_sweep.R), [calval_multichm_gated.R](scripts/calval_multichm_gated.R), [multichm_gated_lib.R](scripts/multichm_gated_lib.R) |
+| Gated multichm on the NEWFOR Alpine plots | [download_external_newfor.R](scripts/download_external_newfor.R), [freeze_newfor.R](scripts/freeze_newfor.R), [detect_newfor_multichm.R](scripts/detect_newfor_multichm.R), [analyze_newfor_multichm.R](scripts/analyze_newfor_multichm.R), [check_newfor_run.R](scripts/check_newfor_run.R), [newfor_lib.R](scripts/newfor_lib.R) |
 | Crown-diameter evaluation | [crown_metrics_sweep.R](scripts/crown_metrics_sweep.R), [crown_metrics_3d.R](scripts/crown_metrics_3d.R), [crown_metrics_deepmodel.R](scripts/crown_metrics_deepmodel.R), [analyze_crown_metrics.R](scripts/analyze_crown_metrics.R) |
 | Instance masks, credited F1 and re-scoring | [score_instances_iou.R](scripts/score_instances_iou.R), [compare_matching_rules.R](scripts/compare_matching_rules.R), [coverage_gap.R](scripts/coverage_gap.R), [export_best_treetops_geojson.R](scripts/export_best_treetops_geojson.R), [rescore_population.R](scripts/rescore_population.R), [compare_adapter_reruns.R](scripts/compare_adapter_reruns.R) |
 | Calibration/validation and the historical sensitivity studies | [calval_split.R](scripts/calval_split.R), [matcher_robustness.R](scripts/matcher_robustness.R), [mc_positional_uncertainty.R](scripts/mc_positional_uncertainty.R), [temporal_sensitivity.R](scripts/temporal_sensitivity.R) |
@@ -617,6 +639,9 @@ The code and documentation in this repository are released under the
 - NEON field and airborne data are released under CC0 1.0; USGS 3DEP point
   clouds are public domain.
 - FGI-EMIT data are licensed CC BY-NC-SA 4.0 and are not redistributed here.
+- The NEWFOR benchmark dataset is released under the Etalab Open Licence 2.0
+  and is not redistributed here; the download script fetches it from its
+  repository and checks every file.
 - Model checkpoints and container images used by the GPU arms remain under
   their upstream licences; this repository pins their hashes but does not
   redistribute them.
