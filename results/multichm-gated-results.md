@@ -3,7 +3,15 @@
 Checked on 13 November 2026 on the frozen five-site `adopted` population (106
 plots, 2,525 stems). `multichm_gated` is a post hoc arm. It is not one of the
 paper's twelve arms, the master tables do not include it, and the declared
-`multichm` arm is unchanged.
+`multichm` arm is unchanged. The
+[confirmation tests](multichm-gated-confirmation-results.md) run the arm on
+other density levels, flights and instruments under a protocol written
+beforehand.
+
+The density levels are named here by their median first-return density over
+the whole evaluation clip: 9.8 pulses/m² at native density and 4.7, 2.5, 1.3
+and 0.6 on the thinned levels. Inside the scored plot cores the medians are
+9.8, 4.4, 2.2, 1.1 and 0.6 ([core density](core-density-results.md)).
 
 `multichm` (lidRplugins) finds local maxima on the canopy surface, strips the
 top of the cloud and searches again, layer by layer. It then keeps a peak unless
@@ -647,12 +655,15 @@ well.
   1.1 m down and 1.0 m up. The share gate applies in 30 to 33 plots against
   36 at native density, and 5, 6, 9 and 10 plots change gate state at 4.7,
   2.5, 1.3 and 0.6 pulses/m². The 8 m threshold was selected at native
-  density, and the arm has not been run on a natively sparse flight.
+  density, and this study does not run the arm on a natively sparse flight;
+  the [confirmation tests](multichm-gated-confirmation-results.md) do, on the
+  earlier California flights.
 - **Sensor.** The first-return share depends on how many returns per pulse a
   sensor records. All 69 closed plots were flown with one instrument (Optech
   Galaxy Prime, July 2021). SJER, the only site flown with another lidar (RIEGL
-  Q780), has no closed plot, so within NEON the share gate and the exemption
-  are untested on a second sensor.
+  Q780), has no closed plot, so this study does not test the share gate and
+  the exemption on a second sensor; the confirmation tests do, on a 2019
+  flight of the Washington sites.
 - **Outside NEON.** On 13 fully callipered Alpine plots flown with three
   other instruments, the declared configuration is not separable from stock
   in F1 (−0.017 [−0.041, +0.015]): precision rises and recall falls. The

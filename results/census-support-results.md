@@ -286,3 +286,8 @@ The declarations bind the exact support identities prepared under
 - The censused reference is the census event's own records, not the
   population's nearest-measurement stems, so censused and nominal scores are
   reported side by side rather than one correcting the other.
+- Censused scores carry chance agreement as nominal ones do: randomly shifted
+  copies of the detections reach 72 to 83% of each arm's censused F1 at native
+  density and 4 m.
+  The [censused chance agreement study](censused-chance-agreement-results.md),
+  added on 17 November 2026, gives the censused F1 above that null.

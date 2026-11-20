@@ -36,10 +36,23 @@ out <- do.call(rbind, lapply(c("null", "null_tol2"), function(pre) {
   de <- read_both(paste0(pre, "_delta.csv"))
   de <- de[de$scope == "five sites" & de$stratum == "all" & de$metric == "F1_scaled" & de$detector %in% LADDER, ]
   est <- function(r) setNames(de$estimate[de$rung == r], de$detector[de$rung == r])[LADDER]
-  nat <- split(dr$value[dr$rung == "native"], dr$draw[dr$rung == "native"])
+  # Each draw's values keyed by detector, in LADDER order: the files of the
+  # two job directories may list the detectors in different orders (the order
+  # of the run's ARMS=), and the correlation must pair a detector with itself.
+  by_draw <- function(r) {
+    z <- dr[dr$rung == r, ]
+    v <- lapply(split(z, z$draw), function(g) {
+      if (anyDuplicated(g$detector)) stop("Duplicated detector in a draw at rung ", r)
+      setNames(g$value, g$detector)[LADDER]
+    })
+    if (any(vapply(v, anyNA, logical(1)))) stop("A ladder detector is missing from a draw at rung ", r)
+    v
+  }
+  nat <- by_draw("native")
   do.call(rbind, lapply(setdiff(unique(dr$rung), "native"), function(r) {
     e <- cor(est("native"), est(r), method = "spearman")
-    rr <- split(dr$value[dr$rung == r], dr$draw[dr$rung == r])
+    rr <- by_draw(r)
+    if (!setequal(names(rr), names(nat))) stop("Native and rung ", r, " hold different draws")
     rho <- vapply(names(rr), function(k) cor(nat[[k]], rr[[k]], method = "spearman"), numeric(1))
     cbind(data.frame(radius_m = radius, metric = "F1_corrected",
                      from = "native", to = r, arms = length(LADDER), estimate = e), mt_interval(rho))

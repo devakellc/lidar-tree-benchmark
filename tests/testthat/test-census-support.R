@@ -123,6 +123,23 @@ test_that("only declared bundles are loaded, each admitted once", {
   expect_error(census_admitted_bundles(d, "HARV", lost, 2022), "not found")
 })
 
+test_that("admitted plots are flagged from the bundles, and none or no bundles stop", {
+  d <- tempfile(); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  b <- census_fixture()
+  dir.create(file.path(d, "HARV_2022"))
+  saveRDS(list(`HARV_033::vst_HARV_2022` = b), file.path(d, "HARV_2022", "support_bundles.rds"))
+  decl <- list(name = "synthetic", resolved_blockers = c("datum_review_pending", "flight_provenance_pending"),
+               admitted = data.frame(site = "HARV", plot = "HARV_033", event = "vst_HARV_2022",
+                                     support_id = neon_support_identity(b)))
+  plots <- data.frame(site = c("HARV", "HARV", "BART"), plotID = c("HARV_001", "HARV_033", "BART_033"))
+  expect_identical(census_admitted_plots(plots, d, decl, 2019:2024), c(FALSE, TRUE, FALSE))
+  expect_error(census_admitted_plots(plots[c(1, 3), ], d, decl, 2022), "None of the 2 plots")
+  expect_error(census_admitted_plots(plots, file.path(d, "absent"), decl, 2022), "No census-support bundles")
+  # a declared bundle missing from the directory stops, as for the scorer
+  lost <- decl; lost$admitted$event <- "vst_HARV_2021"
+  expect_error(census_admitted_plots(plots, d, lost, 2022), "not found")
+})
+
 test_that("census and nominal-box scores of one cell pool side by side", {
   b <- census_fixture()
   decl <- list(name = "synthetic", resolved_blockers = c("datum_review_pending", "flight_provenance_pending"),

@@ -401,10 +401,15 @@ The settings differ in ways this study cannot separate:
   slopes, several of them multi-layered. The arm was shaped on Douglas-fir
   and hemlock in Washington and on three sites of California's Sierra
   Nevada.
-- **The sensors.** NEON's closed plots were all flown with one instrument.
-  These plots were flown with three others (RIEGL LMS-Q560, RIEGL LMS-Q680i,
-  Optech ALTM 3100EA), and the first-return share depends on how many returns
-  per pulse an instrument records. Seen after the results, on single-plot
+- **The sensors.** NEON's closed plots were all flown with one instrument in
+  the calibration study. These plots were flown with three others (RIEGL
+  LMS-Q560, RIEGL LMS-Q680i, Optech ALTM 3100EA), and the first-return share
+  depends on how many returns per pulse an instrument records. The arm's
+  [confirmation tests](multichm-gated-confirmation-results.md) ran it on a
+  2019 flight of the Washington sites with another instrument (RIEGL Q780).
+  There too the floor and the exemption carried over and the share gate did
+  not: its own change was +0.003 [−0.011, +0.017] in corrected F1, with
+  recall 0.073 lower. Seen after the results, on single-plot
   rates: of the seven plots with the share gate on, the two that gain (38 and
   16 stems) are the two flown with the Optech instrument. They are also the
   two Cotolivier plots, so sensor and forest cannot be told apart.

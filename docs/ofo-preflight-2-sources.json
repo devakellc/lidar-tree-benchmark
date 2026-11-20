@@ -1,0 +1,217 @@
+{
+ "schema_version": 1,
+ "study": "Open Forest Observatory stem maps: second preflight",
+ "scope": "Score-blind: crown annotations, NEON stems and clouds of one test-only site, fire and activity records. No detector was run and nothing was scored.",
+ "crown_annotations": {
+  "repository": "weecology/NeonTreeEvaluation",
+  "commit": "96b29d566ca7ea9f604de3e1235c503ab101cb8a",
+  "commit_date": "2022-01-28T21:35:58Z",
+  "licence": "CC0 1.0 Universal (repository LICENSE)",
+  "selection": "annotations/<SITE>_<NNN>_<YEAR>.xml for SITE in ABBY, WREF, SOAP, TEAK, SJER, NIWO with evaluation/RGB/<id>.tif and evaluation/CHM/<id>_CHM.tif, plus LICENSE",
+  "retrieved_utc": "2026-11-17T16:48:22Z",
+  "files": 210,
+  "annotations": 70,
+  "missing": [
+   "evaluation/CHM/NIWO_011_2018_CHM.tif"
+  ],
+  "file_list": "nte/nte_sources.json under <job>/ofo/preflight2 holds each file's path, bytes and SHA-256",
+  "file_list_sha256": "aae0fce55b397e99cd62050b23be5f37ae074036823df92d6294581df29c8acc"
+ },
+ "niwo": {
+  "site": "NIWO (Niwot Ridge), used for the registration test only",
+  "stems": "NEON vegetation structure DP1.10098.001, built at YEAR=2020 with a copy of neon_ground_truth.R (SHA-256 d5864a3b02ef77cfb4b7c5cc4852f0825826277b88fd490021574b9ad21bd3b0) with one guard added (copy SHA-256 4727aedcf899a735e6abe11653804f8e427ab62d6a6ab0c4f85cce98de6ec35f): the crown-class height-quantile fallback is skipped for a plot whose quantiles tie (NIWO_061, not annotated); the registration and the crown truth do not read crown class",
+  "lidar": "NEON discrete-return LiDAR DP1.30003.001, flight 2020_NIWO_4",
+  "tiles": [
+   {
+    "tile": "450000_4432000",
+    "bytes": 59683765,
+    "sha256": "8e23e72eed314833309f572b51522f39889a46ec33ee60e112849188a0a3bf5b"
+   },
+   {
+    "tile": "450000_4433000",
+    "bytes": 34932962,
+    "sha256": "a34107e258ac39064e582f3f469d308f0af658f130a1e5d3444a3e3760f49ac4"
+   },
+   {
+    "tile": "451000_4431000",
+    "bytes": 55530761,
+    "sha256": "10fbfb246a3ea1e30a66103743d7e1ca4065fafab6accd0cc6835678855af315"
+   },
+   {
+    "tile": "451000_4432000",
+    "bytes": 58219096,
+    "sha256": "6f39980344947a9560301a7969787e374fc0b48ec37b9c327333f1103066bc27"
+   },
+   {
+    "tile": "452000_4431000",
+    "bytes": 57550129,
+    "sha256": "698e69db716bc367cb22c6ebfe80220ed252d33de4f91a7d71aef2f010f702ed"
+   },
+   {
+    "tile": "452000_4432000",
+    "bytes": 61639149,
+    "sha256": "3fe05898fadcaf9fc36b36a86ea541cd67c7c4a826dbb65803755b4f024f7398"
+   },
+   {
+    "tile": "453000_4432000",
+    "bytes": 65993351,
+    "sha256": "889b2cb2620b142974f95fea99f6e3a19e6ee65dd504dff30116c427cebd29df"
+   },
+   {
+    "tile": "453000_4433000",
+    "bytes": 52264211,
+    "sha256": "1b8f211cae9e21cd0f33dcdc639dd0018410da7c7d759f6be38c149c56330c5f"
+   }
+  ],
+  "download_log": "niwo/downloads.json under <job>/ofo/preflight2 holds every request with its time, size and SHA-256",
+  "download_log_sha256": "88190b8d1e889a722fac9852e323f3b91da190d6830fd7d3074bac7856f96375",
+  "clip_manifest_sha256": "b2e473e29b4b763e7711f77e7e18262f8ffa8b64cdca7ddc3df464b7aab458f1"
+ },
+ "disturbance_records": {
+  "retrieved_utc": "2026-11-17T16:40:45Z",
+  "services": [
+   {
+    "source": "fire_history",
+    "record": "fire",
+    "url": "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/InterAgencyFirePerimeterHistory_All_Years_View/FeatureServer/0",
+    "layer_name": "InteragencyFirePerimeterHistory",
+    "oid": "OBJECTID",
+    "date_rule": "fire_year",
+    "date_field": "FIRE_YEAR_INT",
+    "name_field": "INCIDENT",
+    "category_field": "FEATURE_CA"
+   },
+   {
+    "source": "fire_wfigs",
+    "record": "fire",
+    "url": "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters/FeatureServer/0",
+    "layer_name": "WFIGS Interagency Perimeters",
+    "oid": "OBJECTID",
+    "date_rule": "discovery_date",
+    "date_field": "attr_FireDiscoveryDateTime",
+    "name_field": "poly_IncidentName",
+    "category_field": "attr_IncidentTypeCategory"
+   },
+   {
+    "source": "harvest_2011_2020",
+    "record": "harvest",
+    "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TimberHarvest_01/MapServer/0",
+    "layer_name": "Timber Harvest 2011 - 2020",
+    "oid": "objectid",
+    "date_rule": "date_completed",
+    "date_field": "date_completed",
+    "name_field": "activity_name",
+    "category_field": "treatment_type"
+   },
+   {
+    "source": "harvest_2021_current",
+    "record": "harvest",
+    "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TimberHarvest_01/MapServer/11",
+    "layer_name": "Timber Harvest 2021 - Current",
+    "oid": "objectid",
+    "date_rule": "date_completed",
+    "date_field": "date_completed",
+    "name_field": "activity_name",
+    "category_field": "treatment_type"
+   },
+   {
+    "source": "fuels_fire",
+    "record": "fuels",
+    "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_HazardousFuelsTreatments_01/MapServer/3",
+    "layer_name": "Treatments - Completed: Fire",
+    "oid": "objectid",
+    "date_rule": "date_completed",
+    "date_field": "date_completed",
+    "name_field": "activity",
+    "category_field": "treatment_type"
+   },
+   {
+    "source": "fuels_other",
+    "record": "fuels",
+    "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_HazardousFuelsTreatments_01/MapServer/4",
+    "layer_name": "Treatments - Completed: Other",
+    "oid": "objectid",
+    "date_rule": "date_completed",
+    "date_field": "date_completed",
+    "name_field": "activity",
+    "category_field": "treatment_type"
+   },
+   {
+    "source": "fuels_mechanical",
+    "record": "fuels",
+    "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_HazardousFuelsTreatments_01/MapServer/5",
+    "layer_name": "Treatments - Completed: Mechanical",
+    "oid": "objectid",
+    "date_rule": "date_completed",
+    "date_field": "date_completed",
+    "name_field": "activity",
+    "category_field": "treatment_type"
+   },
+   {
+    "source": "fuels_wildfire_nontreatment",
+    "record": "fuels",
+    "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_HazardousFuelsTreatments_01/MapServer/6",
+    "layer_name": "Treatments - Completed: Wildfire Non-Treatment",
+    "oid": "objectid",
+    "date_rule": "date_completed",
+    "date_field": "date_completed",
+    "name_field": "activity",
+    "category_field": "treatment_type"
+   },
+   {
+    "source": "fuels_all_other",
+    "record": "fuels",
+    "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_HazardousFuelsTreatments_01/MapServer/7",
+    "layer_name": "Treatments - Completed: All Other Values",
+    "oid": "objectid",
+    "date_rule": "date_completed",
+    "date_field": "date_completed",
+    "name_field": "activity",
+    "category_field": "treatment_type"
+   },
+   {
+    "source": "tsi_2011_2020",
+    "record": "tsi",
+    "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_SilvicultureTimberstandImprovement_01/MapServer/0",
+    "layer_name": "Silviculture Timber Stand Improvement 2011 - 2020",
+    "oid": "objectid",
+    "date_rule": "date_completed",
+    "date_field": "date_completed",
+    "name_field": "activity_name",
+    "category_field": "treatment_type"
+   },
+   {
+    "source": "tsi_2021_current",
+    "record": "tsi",
+    "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_SilvicultureTimberstandImprovement_01/MapServer/9",
+    "layer_name": "Silviculture Timber Stand Improvement 2021 - Current",
+    "oid": "objectid",
+    "date_rule": "date_completed",
+    "date_field": "date_completed",
+    "name_field": "activity_name",
+    "category_field": "treatment_type"
+   },
+   {
+    "source": "nfs_surface_ownership",
+    "record": "ownership",
+    "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_SurfaceOwnership_01/MapServer/0",
+    "layer_name": "BdyOwn_LSRS_SurfaceOwnership",
+    "oid": "objectid",
+    "date_rule": "none",
+    "date_field": "",
+    "name_field": "ownerclassification",
+    "category_field": "nfslandunitname"
+   }
+  ],
+  "national_forest_land": "EDW_SurfaceOwnership_01 layer 0 (Land Status Record System surface ownership parcels): the plot polygon intersects a parcel whose ownerclassification is USDA FOREST SERVICE",
+  "date_rules": {
+   "fire_history": "FIRE_YEAR_INT, else the FIRE_YEAR string; the placeholders 0, 1000 and 9999 and years after the retrieval year are unknown, years before 1800 are years; in the interval when within its calendar years",
+   "fire_wfigs": "attr_FireDiscoveryDateTime (epoch ms) as a UTC date; in the interval when between its start and end, both included",
+   "activities": "date_completed (the completion date, FACTS DATE_ACCOMPLISHED) of the timber harvest, hazardous-fuel (Treatments - Completed) and timber stand improvement layers, as a UTC date; dates before 1800 or after the retrieval date are unknown"
+  },
+  "responses": 540,
+  "response_log": "records/records_sources.json under <job>/ofo/preflight2 holds every response with its URL, time, size and SHA-256",
+  "response_log_sha256": "28a29c929f6ba864abbb720016747cda408ad8de4cac7f0442e03fb15a81a7eb",
+  "note": "The responses were retrieved once and kept; the fire-year rule above was corrected after review and re-applied to the kept responses, which changed no plot's result."
+ }
+}

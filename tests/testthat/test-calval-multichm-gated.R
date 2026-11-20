@@ -2078,3 +2078,291 @@ test_that("the analyze stage adds the censused reference contrast only beside th
                         s$out, fixed = TRUE)))
   expect_false(any(file.exists(ref_files)))
 })
+
+## ---- other roots, rungs, radii and candidates directories ---------------------------------------
+# A sealed root (its clip manifest only) whose freeze contract holds `rungs`
+# (NULL: no contract, which frozen_root_rungs() reads as FROZEN_RUNGS).
+syn_root <- function(rungs = NULL) {
+  root <- tempfile("mcg_root"); dir.create(root)
+  writeLines(c("file,sha256", "a.laz,0"), file.path(root, "clip_manifest.csv"))
+  if (!is.null(rungs))
+    jsonlite::write_json(list(rungs = I(rungs)), file.path(root, "freeze_contract.json"))
+  root
+}
+
+test_that("RUNGS defaults to and must be among the rungs the frozen root holds", {
+  # the canonical root, or a path without a freeze contract: native,8,4,2,1
+  expect_identical(cv_root_rungs(file.path(tempdir(), "none")), CV_RUNGS)
+  expect_identical(cv_root_rungs(syn_root(c(8, 4, 2, 1))), CV_RUNGS)
+  ql2 <- syn_root(3.2)
+  expect_identical(cv_root_rungs(ql2), c("native", "3.2"))
+  S <- cv_settings(paste0("FROZEN_ROOT=", ql2), d = tempdir())
+  expect_identical(S$RUNGS, c("native", "3.2"))
+  expect_identical(cv_settings(c(paste0("FROZEN_ROOT=", ql2), "RUNGS=3.2"), d = tempdir())$RUNGS,
+                   "3.2")
+  expect_error(cv_settings(c(paste0("FROZEN_ROOT=", ql2), "RUNGS=native,8"), d = tempdir()),
+               "RUNGS must be among native,3.2 (the rungs of the frozen root", fixed = TRUE)
+  # a root frozen at native density only
+  nat <- syn_root(numeric())
+  expect_identical(cv_settings(paste0("FROZEN_ROOT=", nat), d = tempdir())$RUNGS, "native")
+  expect_error(cv_settings(c(paste0("FROZEN_ROOT=", nat), "RUNGS=native,1"), d = tempdir()),
+               "RUNGS must be among native (", fixed = TRUE)
+  # the default root's rungs are unchanged
+  expect_identical(cv_settings(character(), d = tempdir())$RUNGS, CV_RUNGS)
+  expect_identical(cv_settings("RUNGS=native,8", d = tempdir())$RUNGS, c("native", "8"))
+})
+
+test_that("CANDIDATES defaults to OUT and is refused by the stages that write candidates", {
+  S <- cv_settings("OUT=/o", d = tempdir())
+  expect_identical(c(S$CANDIDATES, cv_cand_dir(S)), c("/o", "/o"))
+  expect_false(S$CANDIDATES_given)
+  expect_identical(cv_cand_dir(list(OUT = "/p")), "/p")
+  for (st in c("score", "analyze")) {
+    S <- cv_settings(c("OUT=/o", "CANDIDATES=/c", paste0("STAGE=", st)), d = tempdir())
+    expect_identical(c(S$CANDIDATES, cv_cand_dir(S), S$OUT), c("/c", "/c", "/o"))
+    expect_true(S$CANDIDATES_given)
+  }
+  for (st in c("all", "candidates"))
+    expect_error(cv_settings(c("OUT=/o", "CANDIDATES=/c", paste0("STAGE=", st)), d = tempdir()),
+                 sprintf("STAGE=%s writes its candidates to OUT", st), fixed = TRUE)
+  expect_error(cv_settings(c("OUT=/o", "CANDIDATES=/c"), d = tempdir()), "STAGE=all")
+  # OUT itself, however spelled, is no other directory
+  expect_identical(cv_settings(c("OUT=/o/x", "CANDIDATES=/o/x/", "STAGE=candidates"),
+                               d = tempdir())$CANDIDATES, "/o/x/")
+  expect_true(cv_same_dir("/o/x", "/o/./x/"))
+  expect_false(cv_same_dir("/o/x", "/o/y"))
+})
+
+test_that("the record names BASE and another candidates directory, null when absent", {
+  root <- syn_root()
+  S <- cv_settings(c("OUT=/o", paste0("FROZEN_ROOT=", root)), d = tempdir())
+  rec <- cv_cells_config(S, "SJER", "native", FALSE)
+  expect_identical(names(rec), c("K", "tol", "population", "clip_manifest_sha256", "grid_sha256",
+                                 "sites", "rungs", "chm_vwf", "base", "candidates"))
+  expect_true(is.na(rec$base) && is.na(rec$candidates))
+  d <- tempfile("mcg_rec"); dir.create(d)
+  cv_write_cells_config(rec, d)
+  back <- jsonlite::read_json(file.path(d, CV_CELLS_CONFIG))
+  expect_null(back$base); expect_null(back$candidates)
+  expect_true(all(c("base", "candidates") %in% names(back)))
+  S <- cv_settings(c("OUT=/o", "CANDIDATES=/c", "STAGE=score", "BASE=/b",
+                     paste0("FROZEN_ROOT=", root)), d = tempdir())
+  chk <- list(package_parity = "pass: 1 cells", paper_detections = "not run: no BASE",
+              paper_null = "not run: no BASE")
+  rec <- cv_cells_config(S, "SJER", "native", TRUE, checks = chk)
+  expect_identical(c(rec$base, rec$candidates), c("/b", "/c"))
+  expect_identical(rec$checks, chk)
+})
+
+test_that("the null cells of the paper runs are named by their match radius", {
+  expect_identical(cv_paper_null_file("/b", 4), file.path("/b", "sensitivity", "null_cells.csv"))
+  expect_identical(cv_paper_null_file("/b", 2),
+                   file.path("/b", "sensitivity", "null_tol2_cells.csv"))
+  expect_identical(cv_paper_null_file("/b", 2.5),
+                   file.path("/b", "sensitivity", "null_tol2.5_cells.csv"))
+})
+
+test_that("the checks record their outcomes, and check the null at the cells' radius", {
+  cells <- syn_cells(sites = "SJER", n = 3, rungs = "native")
+  st <- cells[cells$config == "stock", ]
+  idx <- data.frame(site = st$site, plot = st$plot, rung = st$rung, parity = TRUE,
+                    stringsAsFactors = FALSE)
+  nul <- function(config, detector) {
+    x <- cells[cells$config == config, ]
+    rbind(data.frame(variant = "baseline", site = x$site, plot = x$plot, rung = x$rung,
+                     detector = detector, n_ref = x$n_ref, n_det = x$n_det, TP = x$TP,
+                     tp_core = x$tp_core, stringsAsFactors = FALSE),
+          data.frame(variant = "null", site = x$site, plot = x$plot, rung = x$rung,
+                     detector = detector, n_ref = x$n_ref, n_det = x$n_det0, TP = x$TP0,
+                     tp_core = x$tp_core0, stringsAsFactors = FALSE))
+  }
+  base <- tempfile("mcg_paper"); dir.create(file.path(base, "sensitivity"), recursive = TRUE)
+  # the detections check is the paper runs' own (tested above); here it only counts
+  env <- new.env(parent = environment(cv_checks))
+  env$calls <- 0L
+  env$cv_check_detections <- function(idx, cdir, base, root) {
+    calls <<- calls + 1L
+    cv_pass("stock detections: all %d cells", nrow(idx))
+  }
+  environment(env$cv_check_detections) <- env
+  chk <- cv_checks; environment(chk) <- env
+  S <- list(BASE = NULL, K = 200L, TOL = 2, root = "/r")
+  out <- utils::capture.output(r <- chk(S, idx, cells, "adopted", "/c"))
+  expect_identical(r, list(package_parity = "pass: 3 cells", paper_detections = "not run: no BASE",
+                           paper_null = "not run: no BASE"))
+  expect_identical(env$calls, 0L)
+  idx$parity[2] <- FALSE
+  expect_error(utils::capture.output(chk(S, idx, cells, "adopted", "/c")), "parity")
+  idx$parity <- TRUE
+  # at 2 m without the paper's null cells at 2 m: skipped with a note
+  S$BASE <- base
+  out <- utils::capture.output(r <- chk(S, idx, cells, "adopted", "/c"))
+  expect_identical(env$calls, 1L)
+  expect_identical(r$paper_detections, "pass: 3 cells")
+  expect_true(startsWith(r$paper_null, "skipped: the paper runs hold no null cells at TOL = 2"))
+  expect_true(any(grepl("SKIP null cells: the paper runs hold no null cells at TOL = 2", out,
+                        fixed = TRUE)))
+  # with them: stock and chm_vwf compared at 2 m, a difference stops
+  write.csv(rbind(nul("stock", "multichm"), nul("chm_vwf", "chm_vwf")),
+            cv_paper_null_file(base, 2), row.names = FALSE)
+  out <- utils::capture.output(r <- chk(S, idx, cells, "adopted", "/c"))
+  expect_true(startsWith(r$paper_null, "pass: stock and chm_vwf in 3 cells against "))
+  expect_true(endsWith(r$paper_null, "null_tol2_cells.csv"))
+  expect_true(any(grepl(paste("PASS null cells: stock observed and null means equal the paper's",
+                              "multichm null cells at TOL = 2 in all 3 cells"), out, fixed = TRUE)))
+  off <- cells; off$TP0[off$config == "stock"][1] <- off$TP0[off$config == "stock"][1] + 1
+  expect_error(utils::capture.output(chk(S, idx, off, "adopted", "/c")),
+               "multichm null cells at TOL = 2: SJER/SJER_001", fixed = TRUE)
+  # at 4 m the paper's null cells must exist; K or population other than the
+  # paper's skip the null with a note
+  S$TOL <- 4
+  expect_error(utils::capture.output(chk(S, idx, cells, "adopted", "/c")), "no null cells at")
+  out <- utils::capture.output(r <- chk(utils::modifyList(S, list(K = 50L)), idx, cells,
+                                        "adopted", "/c"))
+  expect_identical(r$paper_null, paste("skipped: the paper's null cells use K = 200, TOL = 4 and",
+                                       "population adopted"))
+  expect_true(any(out == paste("SKIP null cells: the paper's null cells use K = 200, TOL = 4 and",
+                               "population adopted")))
+  out <- utils::capture.output(r <- chk(utils::modifyList(S, list(TOL = 2)), idx, cells,
+                                        "relaxed", "/c"))
+  expect_identical(r$paper_null, "skipped: the paper's null cells use K = 200 and population adopted")
+})
+
+# A study scored from another directory's candidates: one synthetic plot at two
+# rungs of a root holding native and 3.2, its candidates made in `cand`. The
+# plots of the job directory (cv_jobs) and the population's stems (frozen_scope)
+# are stubbed, as no ground-truth files or clips are needed to score prepared
+# candidates.
+syn_reuse <- function(plots = "SYN_002") {
+  d <- tempfile("mcg_reuse"); dir.create(d)
+  root <- syn_root(3.2)
+  cand <- file.path(d, "cand")
+  frozen_stamp(file.path(cand, "candidates"), root)
+  prep <- mcg_prepare(synth_closed_stand(), 0.5, CV_A_VWF)
+  m <- synth_closed_meta()
+  idx <- do.call(rbind, lapply(c("native", "3.2"), function(rl) {
+    r <- data.frame(site = m$site, plot = m$plot, plotType = m$plotType, rung = rl, cx = m$cx,
+                    cy = m$cy, half = m$half, pdens = m$pdens, frdens = m$frdens, res = 0.5,
+                    a = CV_A_VWF, radius = MCG_RADIUS, half_dz = MCG_HALF_DZ,
+                    cover_height = MCG_COVER_HEIGHT, top_prob = MCG_TOP_PROB,
+                    crown_res = MCG_CROWN_RES, crown_ws = MCG_CROWN_WS, cover = prep$cover,
+                    top_height = prep$top_height, crown_spacing = prep$crown_spacing,
+                    n_crowns = prep$n_crowns, crown_area = prep$crown_area, parity = TRUE,
+                    population = "adopted", file = cv_cell_file(m$site, m$plot, rl),
+                    stringsAsFactors = FALSE)
+    saveRDS(list(meta = r, prep = prep, parity = TRUE), file.path(cand, "candidates", r$file))
+    r
+  }))
+  write.csv(idx, file.path(cand, "candidates.csv"), row.names = FALSE)
+  write.csv(cv_skipped_cells(list()), file.path(cand, "candidates_skipped.csv"), row.names = FALSE)
+  dir.create(file.path(d, "neon", "SYN"), recursive = TRUE)
+  write.csv(transform(synth_closed_stems(), plotID = m$plot),
+            file.path(d, "neon", "SYN", "ground_truth_stems.csv"), row.names = FALSE)
+  env <- new.env(parent = environment(cv_stage_score))
+  env$frozen_scope <- function(d, site, A, gt) list(root = root, population = "adopted",
+                                                    plots = plots, gt = gt)
+  env$cv_jobs <- function(S) lapply(plots, function(p) list(site = "SYN", plot = p))
+  for (f in c("cv_stage_score", "cv_check_candidate_plots")) {
+    g <- get(f); environment(g) <- env; assign(f, g, envir = env)
+  }
+  list(d = d, root = root, cand = cand, score = env$cv_stage_score,
+       args = c("STAGE=score", "SITES=SYN", "K=2", "CORES=1", paste0("FROZEN_ROOT=", root)))
+}
+
+test_that("the score stage reads another directory's candidates and records it", {
+  skip_if_not_installed("lidRplugins")
+  r <- syn_reuse()
+  run <- function(out, ...) {
+    dir.create(out, showWarnings = FALSE)
+    S <- cv_settings(c(r$args, paste0("OUT=", out), ...), d = r$d)
+    utils::capture.output(cells <- r$score(S))
+    cells
+  }
+  # scored in the candidates' own directory, then from another at 2 m and at 4 m
+  own <- run(r$cand, "TOL=2")
+  o2 <- file.path(r$d, "tol2"); o4 <- file.path(r$d, "tol4")
+  at2 <- run(o2, paste0("CANDIDATES=", r$cand), "TOL=2")
+  at4 <- run(o4, paste0("CANDIDATES=", r$cand), "TOL=4")
+  expect_identical(at2, own)
+  expect_identical(unique(at2$rung), c("native", "3.2"))
+  expect_identical(nrow(at2), 2L * nrow(mcg_grid()))
+  expect_identical(readLines(file.path(o2, "cells.csv")), readLines(file.path(r$cand, "cells.csv")))
+  expect_false(file.exists(file.path(o2, "candidates.csv")))
+  # the same detections, each scored with its own radius and null shifts
+  expect_identical(at4$n_det, at2$n_det)
+  cell <- readRDS(file.path(r$cand, "candidates", cv_cell_file("SYN", "SYN_002", "3.2")))
+  stems <- synth_closed_stems()
+  for (tol in c(2, 4)) for (cfg in list(MCG_STOCK, MCG_DECLARED)) {
+    got <- (if (tol == 2) at2 else at4)
+    got <- got[got$rung == "3.2" & got$config == mcg_config_label(cfg), MCG_COUNT_COLS]
+    want <- mcg_score_cell(stems, mcg_apply(cell$prep, cfg), 16, 16, 16,
+                           mcg_null_offsets("SYN", "SYN_002", 16, tol = tol, k = 2), tol = tol)
+    expect_equal(unlist(got), unlist(want[MCG_COUNT_COLS]))
+  }
+  rec <- jsonlite::read_json(file.path(o2, CV_CELLS_CONFIG), simplifyVector = TRUE)
+  expect_identical(rec$candidates, normalizePath(r$cand))
+  expect_equal(rec$tol, 2)
+  expect_null(rec$base)
+  expect_false(rec$chm_vwf)
+  expect_identical(rec$rungs, c("native", "3.2"))
+  expect_identical(rec$checks$package_parity, "pass: 2 cells")
+  expect_identical(rec$checks$paper_null, "not run: no BASE")
+  own_rec <- jsonlite::read_json(file.path(r$cand, CV_CELLS_CONFIG))
+  expect_true("candidates" %in% names(own_rec) && is.null(own_rec$candidates))
+  # one rung only
+  o3 <- file.path(r$d, "ql2")
+  q <- run(o3, paste0("CANDIDATES=", r$cand), "TOL=2", "RUNGS=3.2")
+  want <- own[own$rung == "3.2", ]
+  rownames(want) <- NULL
+  expect_identical(q, want)
+  expect_identical(jsonlite::read_json(file.path(o3, CV_CELLS_CONFIG), simplifyVector = TRUE)$rungs,
+                   "3.2")
+})
+
+test_that("candidates of other plots than the job directory's stop the score stage", {
+  skip_if_not_installed("lidRplugins")
+  for (plots in list(c("SYN_002", "SYN_009"), "SYN_009")) {
+    r <- syn_reuse(plots)
+    out <- file.path(r$d, "o"); dir.create(out)
+    S <- cv_settings(c(r$args, paste0("OUT=", out), paste0("CANDIDATES=", r$cand)), d = r$d)
+    expect_error(utils::capture.output(r$score(S)),
+                 "are not this job directory's plots of SYN", fixed = TRUE)
+    expect_false(file.exists(file.path(out, "cells.csv")))
+  }
+  # a plot whose every cell was skipped is not missing
+  r <- syn_reuse(c("SYN_002", "SYN_009"))
+  sk <- data.frame(site = "SYN", plot = "SYN_009", rung = "native",
+                   reason = "lidRplugins::multichm failed", error = "e", stringsAsFactors = FALSE)
+  write.csv(sk, file.path(r$cand, "candidates_skipped.csv"), row.names = FALSE)
+  out <- file.path(r$d, "o"); dir.create(out)
+  S <- cv_settings(c(r$args, paste0("OUT=", out), paste0("CANDIDATES=", r$cand)), d = r$d)
+  utils::capture.output(cells <- r$score(S))
+  expect_identical(unique(cells$plot), "SYN_002")
+})
+
+test_that("the analyze stage reads the candidates the record names", {
+  st <- syn_study()
+  cand <- file.path(st$d, "cand"); dir.create(cand)
+  for (f in c("candidates", "candidates.csv", "candidates_skipped.csv"))
+    file.rename(file.path(st$out, f), file.path(cand, f))
+  expect_error(analyze_with(st), "no candidate index at")
+  S <- cv_settings(c(st$args, paste0("CANDIDATES=", cand)), d = st$d)
+  rec <- cv_cells_config(S, c("SJER", "WREF"), c("native", "1"), chm_vwf = TRUE)
+  expect_identical(rec$candidates, normalizePath(cand))
+  cv_write_cells_config(rec, st$out)
+  a <- analyze_with(st)
+  expect_identical(a$res$selected$label, "z5_s0_c0_e0")
+  expect_true(any(grepl("PASS parity", a$out, fixed = TRUE)))
+  expect_identical(nrow(analyze_with(st, paste0("CANDIDATES=", cand, "/"))$res$selection),
+                   nrow(a$res$selection))
+  expect_error(analyze_with(st, paste0("CANDIDATES=", st$out)),
+               "were scored from the candidates in", fixed = TRUE)
+  # a record of OUT's own candidates (null) refuses another directory, and one
+  # without the field (written before it existed) reads what it is given
+  rec$candidates <- NA
+  cv_write_cells_config(rec, st$out)
+  expect_error(analyze_with(st, paste0("CANDIDATES=", cand)), "were scored from the candidates in")
+  rec$candidates <- NULL
+  cv_write_cells_config(rec, st$out)
+  expect_identical(analyze_with(st, paste0("CANDIDATES=", cand))$res$selected$label, "z5_s0_c0_e0")
+})

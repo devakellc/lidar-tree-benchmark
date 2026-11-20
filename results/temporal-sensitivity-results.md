@@ -40,7 +40,7 @@ for both cuts, paired plot-bootstrap intervals:
 - Recall is the clean temporal signal. It rises by 0.01 to 0.04 for every
   arm except ForestFormer3D and SAM2Point: a stem measured in 2021 stands as
   the laser saw it, while a stem measured up to four years away may have
-  grown, died or fallen.
+  grown, died or fallen. (Qualified by the post hoc ignore variant below.)
 - Precision falls for every arm, by 0.02 to 0.06, and F1 with it. That is a
   property of the subset, not of time: the stems not measured in 2021 are
   still trees, so their detections now count against precision. The
@@ -60,7 +60,9 @@ for both cuts, paired plot-bootstrap intervals:
   matched 64% of the 239 stems the cut removes (153 of its 1,024 matches)
   and CHM-VWF 32% (77 of 786), so more of its detections become false
   positives against the smaller reference. SegmentAnyTree keeps a positive
-  lead in both regions (Washington 0.490 against 0.465).
+  lead in both regions (Washington 0.490 against 0.465). (The two match
+  counts and this explanation are corrected under the post hoc ignore
+  variant below.)
 
 Leads over CHM-VWF in native F1 on the same plots for both cuts, with paired
 plot-bootstrap intervals (`exact2021_leads.csv`):
@@ -83,6 +85,126 @@ and −0.008 [−0.018, −0.000]. The cut moves ForestFormer3D's lead and barel
 moves SegmentAnyTree's.
 `paper_runs/sensitivity/` holds every rung and scope (`exact2021_pooled.csv`,
 `exact2021_delta.csv`, `exact2021_leads.csv`).
+
+### Stems not measured in 2021 ignored (post hoc)
+
+Added on 17 November 2026, after an internal review and with every result
+known, so this variant is post hoc. The same run now also scores variant
+`exact2021_ignore`, the ignore-region convention of detection benchmarks: the
+core stems not measured in 2021 are "don't care". A detection that the
+baseline matching pairs with one of them counts as neither a true nor a false
+positive and is dropped, and those stems leave the reference. The 2021 stems
+are then scored against the remaining detections with the baseline matcher.
+The greedy matcher assigns the shortest pairs first, so this matching is the
+baseline matching restricted to the 2021 stems. The script checks that for
+every cell and stops on any difference (1,936 cells, none differ): the
+variant's true positives are the baseline pairs with a 2021 stem, and its core
+detections are the baseline's less those paired with an ignored stem. Each
+arm therefore keeps exactly its baseline false positives and loses its
+matches to the ignored stems, so its precision cannot exceed the baseline's.
+On the exact-2021 cut a detection released by a removed stem can be
+re-matched to a 2021 stem; under this variant it cannot. Re-running added the
+variant's rows and left every earlier row of the `exact2021_*.csv` files
+unchanged.
+
+Native density, five sites, the same 44 plots for the three references; the
+changes are the ignore variant minus the ±4-year reference, with paired
+plot-bootstrap intervals:
+
+| Arm | F1, ±4 yr | F1, exact 2021 | F1, ignore variant | Δ recall | Δ precision | Δ F1 |
+| --- | --- | --- | --- | --- | --- | --- |
+| CHM-VWF | 0.445 | 0.430 | 0.437 | +0.029 [+0.009, +0.057] | −0.027 [−0.044, −0.014] | −0.008 [−0.016, −0.000] |
+| `multichm` | 0.425 | 0.391 | 0.399 | +0.005 [−0.005, +0.019] | −0.036 [−0.058, −0.019] | −0.026 [−0.044, −0.013] |
+| `lmfauto` | 0.363 | 0.346 | 0.350 | +0.039 [+0.015, +0.076] | −0.019 [−0.030, −0.010] | −0.013 [−0.022, −0.006] |
+| `ptrees` | 0.317 | 0.288 | 0.292 | +0.024 [+0.005, +0.054] | −0.021 [−0.033, −0.011] | −0.025 [−0.039, −0.013] |
+| AMS3D | 0.238 | 0.212 | 0.214 | +0.016 [−0.002, +0.042] | −0.017 [−0.026, −0.009] | −0.024 [−0.038, −0.013] |
+| Li 2012 | 0.455 | 0.435 | 0.443 | +0.034 [+0.011, +0.069] | −0.025 [−0.040, −0.014] | −0.012 [−0.021, −0.006] |
+| ForestFormer3D | 0.479 | 0.430 | 0.443 | −0.005 [−0.019, +0.008] | −0.041 [−0.068, −0.021] | −0.036 [−0.062, −0.017] |
+| TreeisoNet | 0.449 | 0.429 | 0.437 | +0.028 [+0.008, +0.057] | −0.027 [−0.044, −0.014] | −0.012 [−0.023, −0.004] |
+| SegmentAnyTree | 0.495 | 0.468 | 0.478 | +0.028 [+0.009, +0.057] | −0.030 [−0.048, −0.015] | −0.017 [−0.030, −0.007] |
+| DeepForest | 0.440 | 0.412 | 0.422 | +0.022 [+0.006, +0.047] | −0.030 [−0.048, −0.015] | −0.018 [−0.032, −0.008] |
+| Detectree2 | 0.362 | 0.350 | 0.355 | +0.014 [+0.003, +0.030] | −0.033 [−0.056, −0.016] | −0.007 [−0.017, +0.002] |
+| SAM2Point | 0.077 | 0.077 | 0.077 | +0.001 [−0.003, +0.006] | −0.033 [−0.062, −0.010] | +0.001 [−0.006, +0.008] |
+
+Detections dropped because the baseline matching pairs them with an ignored
+stem, at native density (in parentheses, those inside the core, which leave
+the precision denominator; the rest lie in the 4 m ring around it). Each
+count is also the number of ignored stems the arm's baseline matching pairs.
+The last column sets that share of the 239 ignored stems beside the share of
+the 1,318 2021 stems the same matching pairs:
+
+| Arm | Five sites, 239 ignored stems | California, 72 | Washington, 167 | Paired, ignored against 2021 stems |
+| --- | --- | --- | --- | --- |
+| CHM-VWF | 83 (80) | 32 (31) | 51 (49) | 35% against 53% |
+| ForestFormer3D | 164 (158) | 46 (44) | 118 (114) | 69% against 65% |
+| SegmentAnyTree | 120 (116) | 48 (47) | 72 (69) | 50% against 69% |
+
+Leads over CHM-VWF in native F1 under the three references, and the paired
+change of each lead from the ±4-year reference (metric `F1_lead`, variants
+`exact2021 minus baseline` and `exact2021_ignore minus baseline` in
+`exact2021_leads.csv`):
+
+| Scope | Arm | ±4 yr | Exact 2021 | Ignore variant | Change, exact 2021 | Change, ignore variant |
+| --- | --- | --- | --- | --- | --- | --- |
+| Five sites (44 plots) | ForestFormer3D | +0.034 [+0.010, +0.059] | +0.000 [−0.034, +0.034] | +0.006 [−0.026, +0.037] | −0.034 [−0.060, −0.014] | −0.028 [−0.050, −0.012] |
+| Five sites (44 plots) | SegmentAnyTree | +0.050 [+0.023, +0.075] | +0.039 [+0.008, +0.069] | +0.041 [+0.010, +0.069] | −0.011 [−0.021, −0.003] | −0.010 [−0.017, −0.003] |
+| California (11 plots) | ForestFormer3D | +0.089 [+0.049, +0.138] | +0.075 [+0.016, +0.135] | +0.078 [+0.024, +0.131] | −0.014 [−0.038, +0.001] | −0.011 [−0.032, +0.000] |
+| California (11 plots) | SegmentAnyTree | +0.126 [+0.057, +0.191] | +0.113 [+0.031, +0.196] | +0.124 [+0.043, +0.198] | −0.014 [−0.045, +0.010] | −0.002 [−0.026, +0.013] |
+| Washington (33 plots) | ForestFormer3D | +0.020 [−0.008, +0.048] | −0.018 [−0.061, +0.020] | −0.011 [−0.050, +0.024] | −0.038 [−0.072, −0.013] | −0.031 [−0.059, −0.010] |
+| Washington (33 plots) | SegmentAnyTree | +0.033 [+0.008, +0.058] | +0.025 [−0.002, +0.053] | +0.025 [−0.002, +0.051] | −0.008 [−0.018, −0.000] | −0.008 [−0.017, −0.002] |
+
+**Readings of the ignore variant.**
+
+- A correction to the readings above: the baseline matching pairs 164 of the
+  239 removed stems with a ForestFormer3D detection (69%) and 83 with a
+  CHM-VWF detection (35%), not 153 (64%) and 77 (32%). Those two numbers are
+  the net loss of matches between the cuts (1,024 − 871 and 786 − 709): on
+  the exact-2021 cut 11 more 2021 stems find a ForestFormer3D detection, and
+  6 more a CHM-VWF detection, than in the baseline matching.
+- Every arm's F1 under the ignore variant lies between its ±4-year and
+  exact-2021 values, except SAM2Point's, whose three values lie within 0.001.
+  F1 still falls from the ±4-year reference for ten arms, six of them weakly
+  (CHM-VWF, `lmfauto`, Li 2012, TreeisoNet, SegmentAnyTree and DeepForest);
+  Detectree2's and SAM2Point's intervals span zero. ForestFormer3D's fall,
+  −0.036, is still the largest; the other arms fall by at most 0.026.
+- Recall still rises for eight arms, by 0.014 to 0.039, with intervals that
+  exclude zero, weakly for all but `lmfauto` and Li 2012. Every arm's recall
+  change is 0.000 to 0.008 lower than on the exact-2021 cut; that part of the
+  earlier rise came from detections re-matched to 2021 stems once the removed
+  stems released them. `multichm`'s and AMS3D's rises now span zero, and
+  ForestFormer3D's recall changes by −0.005 [−0.019, +0.008]. So the recall
+  rise on the exact-2021 cut was not wholly the clean temporal signal the
+  first reading calls it, though for the eight arms most of it survives. Nor
+  does the variant separate time from the make-up of the two sets of stems:
+  107 of the 239 ignored stems (45%) are understory (intermediate or
+  suppressed), against 240 of the 1,318 2021 stems (18%).
+- Precision falls for every arm, by 0.017 to 0.041. Under this variant the
+  fall follows from the definition: each arm keeps its false positives and
+  loses its matches to the ignored stems. ForestFormer3D loses the most core
+  matches of the three arms above (158, against 116 for SegmentAnyTree and
+  80 for CHM-VWF) and its precision falls most (−0.041).
+- ForestFormer3D's lead over CHM-VWF does not survive the ignore variant
+  either: +0.006 [−0.026, +0.037] on the 44 plots, a paired change of
+  −0.028 [−0.050, −0.012] from the ±4-year reference against −0.034 on the
+  exact-2021 cut. The statement that the lead is not robust to the reference
+  window holds for these numbers, but the explanation given above does not:
+  under the variant no detection becomes a false positive, and the lead still
+  loses 0.028 of the 0.034. What moves it is which stems the reference holds.
+  ForestFormer3D's baseline matching pairs the stems measured outside 2021 at
+  least as often as the 2021 stems (69% against 65%), CHM-VWF's less often
+  (35% against 53%), and of the 107 ignored understory stems ForestFormer3D
+  pairs 59 and CHM-VWF 10 (`n_under`, `tp_under` in `exact2021_cells.csv`).
+  The numbers do not show that the lead depends on time.
+- By region, ForestFormer3D's lead holds in California under the variant,
+  +0.078 [+0.024, +0.131], and is −0.011 [−0.050, +0.024] in Washington,
+  where its F1 changes by −0.031 [−0.062, −0.011] and CHM-VWF's by
+  −0.000 [−0.008, +0.007]. On the 44 plots it ties Li 2012 for second
+  (0.443 each), ahead of CHM-VWF and TreeisoNet (0.437 each).
+- SegmentAnyTree keeps its lead: +0.041 [+0.010, +0.069] on the 44 plots
+  (lower bound 0.0104, just outside the weak range) and
+  +0.124 [+0.043, +0.198] in California; in Washington,
+  +0.025 [−0.002, +0.051], the interval spans zero as on the exact-2021 cut.
+  The variant changes its lead by −0.010 [−0.017, −0.003] (weak).
 
 The sections below are the historical June 2026 check: CHM-VWF only, on the
 three-site population.

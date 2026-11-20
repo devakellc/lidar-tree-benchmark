@@ -97,6 +97,18 @@ census_admitted_bundles <- function(support, site, declaration, years) {
   out
 }
 
+# Which of `plots` (columns site and plotID) a declaration admits: TRUE where
+# census_admitted_bundles loads and admits the plot's bundle. Stops when the
+# support directory is missing or none of the plots is admitted.
+census_admitted_plots <- function(plots, support, declaration, years) {
+  if (!dir.exists(support)) stop("No census-support bundles at ", support)
+  adm <- unlist(lapply(unique(plots$site), function(s)
+    paste(s, names(census_admitted_bundles(support, s, declaration, years)), sep = "::")))
+  hit <- paste(plots$site, plots$plotID, sep = "::") %in% adm
+  if (!any(hit)) stop("None of the ", nrow(plots), " plots has admitted census support in ", support)
+  hit
+}
+
 # Support-aware row for one cell, with the nominal-box score of the same
 # detections against the population's core reference alongside (rect_*), so
 # raw and censused precision are read on identical detections.
