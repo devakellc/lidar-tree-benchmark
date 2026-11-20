@@ -532,7 +532,7 @@ fma_figure_data <- function(long, corrected, pulses) {
 }
 
 # F1, recall, precision and corrected F1 against pulse density with the 95%
-# intervals, drawn as the paper's Figure 2 draws its ladder arms (base
+# intervals, drawn as the paper's Figure 3 draws its ladder arms (base
 # graphics; the paper's colours and symbols for its arms).
 FMA_COL <- c(forestmamba = "#117733", forestformer3d = "#D55E00", segmentanytree = "#0072B2",
              treeisonet = "#CC79A7", chm_vwf = "#000000")

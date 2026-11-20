@@ -446,10 +446,13 @@ prepare_clip <- function(ctg, cx, cy, rung, tmpdir, core_half = PLOT_HALF) {
 # tol_z_up/lambda are passed to the matcher (lambda swaps the hard height band
 # for the soft 3-D cost). FP-structure columns fp_near/fp_isolated split the core
 # false positives (over-segmentation vs isolated commission) via fp_structure().
+# return_pairs = TRUE (off by default) also attaches the matching as attribute
+# "pairs": one row per matched stem, stem and det = row indices into `stems`
+# and `det`, core = the detection lies in the core (counts toward n_det).
 score_plot <- function(stems, det, tol_xy = 4.0, core_cx, core_cy,
                        core_half = PLOT_HALF, method = c("greedy", "optimal"),
                        tol_z_up = 8, lambda = NULL, near_tol = 4.0,
-                       core_geometry = NULL) {
+                       core_geometry = NULL, return_pairs = FALSE) {
   method  <- match.arg(method)
   reg_tol <- max(tol_xy)            # region uses the widest per-stem tol (safe)
   # Recall region: detections within the core expanded by tol, so a stem at the
@@ -518,7 +521,31 @@ score_plot <- function(stems, det, tol_xy = 4.0, core_cx, core_cy,
                       stems$E[matched], stems$N[matched], near_tol = near_tol)
   base$fp_near <- unname(fps["near"]); base$fp_isolated <- unname(fps["isolated"])
   if (!is.null(core_geometry)) base$tp_core <- tp_core
+  if (return_pairs) {
+    if (anyNA(in_reg)) stop("return_pairs needs detections with coordinates")
+    attr(base, "pairs") <- data.frame(stem = which(matched), det = which(in_reg)[m[matched]],
+                                      core = is_core[m[matched]])
+  }
   base
+}
+
+## ---- ignore-region scoring: "don't care" reference stems -----------------
+# The ignore-region convention of detection benchmarks. Stems flagged `ignore`
+# (logical, one per row of `stems`) are "don't care": a detection the full
+# matching (score_plot with `...`, every stem against `det`) pairs with one of
+# them is neither a true nor a false positive. Returns `det` without those
+# detections, to be scored against the stems not ignored, with the matching
+# as attribute "pairs" (score_plot's, plus ignored = the stem is ignored).
+# Under the greedy matcher the matching of the kept stems against the
+# remaining detections is the full matching restricted to the kept stems.
+drop_ignored_detections <- function(stems, det, ignore, ...) {
+  if (!is.logical(ignore) || length(ignore) != nrow(stems) || anyNA(ignore))
+    stop("ignore must be a logical flag for every stem")
+  pr <- attr(score_plot(stems, det, ..., return_pairs = TRUE), "pairs")
+  pr$ignored <- ignore[pr$stem]
+  out <- det[!seq_len(nrow(det)) %in% pr$det[pr$ignored], , drop = FALSE]
+  attr(out, "pairs") <- pr
+  out
 }
 
 ## ---- th_cr-style stop rule for the random-walker crown labels -------------

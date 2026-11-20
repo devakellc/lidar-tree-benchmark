@@ -22,6 +22,8 @@
 #
 # Also writes <OUT>/model-provenance.json (from docs/), <OUT>/README.md
 # (from docs/reproduction-archive.md) and <OUT>/SHA256SUMS over every file.
+# Stops before writing anything while scripts/, docs/ or reproduce/ hold changed
+# or untracked files: CODE_COMMIT records HEAD and must name the staging code.
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="$REPO/work"; OUT=""
@@ -34,6 +36,11 @@ for a in "$@"; do
 done
 [ -n "$OUT" ] || { echo "OUT= is required" >&2; exit 2; }
 [ ! -e "$OUT" ] || { echo "OUT exists: $OUT (stage into a new directory)" >&2; exit 2; }
+# CODE_COMMIT records HEAD, so the code the archive depends on must be HEAD's.
+dirty="$(git -C "$REPO" status --porcelain -- scripts docs reproduce)" ||
+  { echo "cannot read the git status of $REPO" >&2; exit 1; }
+[ -z "$dirty" ] || { printf '%s\n' "uncommitted changes under scripts/, docs/ or reproduce/ of $REPO;" \
+  "CODE_COMMIT records HEAD, so commit or remove them before staging:" "$dirty" >&2; exit 1; }
 WORK="$(cd "$WORK" && pwd)"
 [ -f "$WORK/neon/frozen_2021/clip_manifest.csv" ] || { echo "no sealed root under $WORK/neon/frozen_2021" >&2; exit 1; }
 
@@ -42,20 +49,22 @@ JUNE_SITES=(SJER SOAP TEAK)
 # Job directories run on the sealed 2021 root: the headline population, the
 # two sensitivity populations, the new-plot runs they were re-scored from,
 # and the TreeisoNet voxel and mask-voxel sensitivity runs; the QL2-rung run
-# on its own root; and the unsmoothed CHM-VWF sensitivity run.
+# on its own root; and the unsmoothed CHM-VWF sensitivity runs on both roots.
 JOBS=(paper_runs paper_runs_all_mapped paper_runs_relaxed paper_runs_new_relaxed
       paper_runs_new_allmapped paper_runs_voxel0 paper_runs_maskvoxel paper_runs_ql2
-      paper_runs_nosmooth)
+      paper_runs_nosmooth paper_runs_nosmooth_ql2)
 ROOTS=(frozen_2021 frozen_2021_ql2)
 QL2_SITES=(SJER SOAP TEAK)
 SPARSE=(sparse_2017 sparse_2018 sparse_compare_2021)
 EXCL=(--exclude=/neon/frozen_2021 --exclude=/neon/frozen_2021_ql2 --exclude=rgb/ --exclude=lidar/ --exclude=figs/
+      --exclude=figures_jstars/   # the figures as drawn on 22 October 2026, since redrawn into figures/
       --exclude=chain/ --exclude=.rumdl_cache/ --exclude=sjer_header_check/ --exclude=nte/
       --exclude='*.log' --exclude='*.nohup' --exclude='*.progress'
       --exclude='master_tables.*/' --exclude='*.prev' --exclude='*.oldcrop-*'
       --exclude='*.before_persist' --exclude='*.7arm_*' --exclude='*.classical_*'
       --exclude='*_strict_v1/' --exclude='*_ladder_ff3d/' --exclude='*.crash-*'
-      --exclude='*-stale' --exclude=compute_cost/jobs/ --exclude=compute_cost/logs/)
+      --exclude='*-stale' --exclude=compute_cost/jobs/ --exclude=compute_cost/logs/
+      --exclude='*.20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]*')   # dated backups of re-run outputs
 
 say() { echo "$(date '+%F %T') $*"; }
 mkdir -p "$OUT/neon"

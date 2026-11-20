@@ -174,6 +174,37 @@ applies a declared policy to separate diagnostic rows with explicit measurement
 donors. It preserves original bole records and geometry; individual and bole
 populations must not be mixed in pooling. No admission blockers are cleared.
 
+The [Open Forest Observatory preflight](results/ofo-preflight-results.md)
+checked catalogue stem maps against public 3DEP clouds without running any
+detector. It ended no-go for every plot group: no registration method passed
+its known-truth test on NEON plots, and the
+[protocol](docs/ofo-preflight-protocol.md) allows no further redesign. Do not
+write reference tables, freeze clips or run detectors on these plots without
+a new protocol; `prepare_ofo_reference.R` refuses groups that are not go. All
+outputs live under `<job>/ofo`, and nothing may be written under `<job>/neon`:
+the registration stages read the sealed root and check that it is unchanged.
+The confirmation stage runs once and refuses a second run. In PDAL pipelines
+drop classes with `filters.expression`; `filters.range` joins ranges on one
+dimension with "or" and keeps every point. Write 3DEP clouds in LAS point
+format 1 when flight dates matter, because compressed formats 6 to 10
+corrupted GPS times there.
+
+The [second preflight](results/ofo-preflight-2-results.md) covers the two
+groups complete from 10 cm diameter and ended in hold: its test of the same
+frozen method against hand-drawn crowns had five credible units per signal
+where the [second protocol](docs/ofo-preflight-protocol-2.md) asks for ten.
+Hold is the preflight's reading of an inconclusive test; read strictly the
+groups are no-go. Either way nothing is authorised: no plot is registered,
+and the rules above still apply. Its outputs live under
+`<job>/ofo/preflight2`; the first preflight's outputs under
+`<job>/ofo/preflight` are read, never rewritten. Niwot Ridge (NIWO) data
+there is test-only and is not a benchmark site. The registration constants
+(`OFO_REG2`) are frozen by digest; neither protocol allows a redesign. The
+study was closed on 18 November 2026 with that decision standing. Preserve
+its documents, scripts and outputs; do not resume registration, clip
+freezing or evaluation on these plots without a new explicit decision and a
+new protocol.
+
 ## Analyses that branch off the sweep
 
 Five follow-on studies reuse the sweep's ground truth and scoring; each is one

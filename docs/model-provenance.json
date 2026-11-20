@@ -63,7 +63,8 @@
       "clue": "0.3-68",
       "Matrix": "1.6-5",
       "jsonlite": "2.0.0",
-      "digest": "0.6.37"
+      "digest": "0.6.37",
+      "curl": "7.1.0, for the reference audit's cache keys"
     },
     "container": "reproduce/Dockerfile"
   }

@@ -101,11 +101,25 @@ therefore stays; `relaxed` is frozen so that any arm can report it with
 The root holds 775 cells for 155 plots, 0.68 GB. All 773 decimated and native
 cells are usable; the 8 points/m² rung of SJER_022 and SJER_054 (native 7.3
 and 6.6 all returns per m²) is recorded as upsampled and not written.
-Decimated cells keep 5–15% more than the target density, because a 5 m cell
-holding fewer points than the target keeps them all. Eighteen of the 106
-adopted plots fall below 8 first returns per m² at native density and take
-the sub-8 smoothing branch there; seven of them are WREF distributed plots,
-whose density the preflight could not measure from its header tiles.
+Decimated cells keep 5–15% more than the target density, because the 5 m
+thinning cells cut by the clip boundary are smaller than 25 m² but may keep as
+many points as a full cell (see the core-density paragraph below). Eighteen
+of the 106 adopted plots fall below 8 first returns per m² at native density
+and take the sub-8 smoothing branch there; seven of them are WREF distributed
+plots, whose density the preflight could not measure from its header tiles.
+
+**Added on 17 November 2026: density of the scored cores.** The densities
+above and in `clip_manifest.csv` are measured over the whole clip, core plus
+25 m. A measurement added after an internal review counts the plot cores
+alone ([core density](core-density-results.md)). Inside the cores the thinned
+cells hold their all-return targets (five-site medians 7.99, 4.00, 2.00 and
+1.00 points/m² at 8, 4, 2 and 1); the excess over the target sits in the 5 m
+cells cut by the clip boundary, as the clip's outer 5 m ring shows (9.68,
+5.50, 2.98 and 1.54). First-return density in the cores is therefore about
+10% below the whole-clip figure at every thinned level. At native density,
+25 of the 106 adopted cores fall below 8 first returns per m², against the
+18 clips above. The arms' density gates read the whole-clip figure, as the
+runs did, so no clip or result changes.
 
 The canonical root was frozen at commit `4e7cc21`. Its clip manifest has
 SHA-256 `4567a247a6dd6d9630d6cea5427da3e262b1dcaac4a07a1173b3764e8a63c8d4`,
