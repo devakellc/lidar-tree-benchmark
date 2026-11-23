@@ -641,8 +641,9 @@ Rscript scripts/compare_crowns.R \
 Use a distinct `CLAUDE_JOB_DIR` for each experiment. Downloaded data, model
 resources, and accepted-run artifacts are prerequisites for the larger
 studies; a clone does not include them. Most R drivers use `KEY=VALUE`
-arguments, while most Python drivers use flags; the paper converter
-`scripts/paper_to_ieee.py` takes `KEY=VALUE` arguments. Check the selected
+arguments, while most Python drivers use flags; the paper converters
+`scripts/paper_to_elsevier.py` and `scripts/paper_to_ieee.py` take `KEY=VALUE`
+arguments. Check the selected
 script's parser and linked study instructions before changing its invocation.
 
 ### Rebuild the paper tables
@@ -752,7 +753,8 @@ scripts and configuration.
 | Paper chance agreement on plot subsets (tower, distributed, fire-plot exclusion) | [paper_null_subsets.R](scripts/paper_null_subsets.R) |
 | Chance-correction simulation | [simulate_chance_correction.R](scripts/simulate_chance_correction.R), [reference_stem_clustering.R](scripts/reference_stem_clustering.R), [chance_simulation_lib.R](scripts/chance_simulation_lib.R) |
 | Split-crown diagnostic | [split_crown_diagnostic.R](scripts/split_crown_diagnostic.R), [split_crown_lib.R](scripts/split_crown_lib.R) |
-| Paper LaTeX version for IEEE JSTARS | [paper_to_ieee.py](scripts/paper_to_ieee.py), [paper/ieee](paper/ieee/README.md) |
+| Paper LaTeX version for the ISPRS Journal of Photogrammetry and Remote Sensing (the target) | [paper_to_elsevier.py](scripts/paper_to_elsevier.py), [paper/elsevier](paper/elsevier/README.md) |
+| Paper LaTeX version for IEEE JSTARS (the fallback) | [paper_to_ieee.py](scripts/paper_to_ieee.py), [paper/ieee](paper/ieee/README.md) |
 | Native 3DEP cross-check | [native_ql2_crosscheck.R](scripts/native_ql2_crosscheck.R), [native_ql2_paired.R](scripts/native_ql2_paired.R), [ept_discovery.R](scripts/ept_discovery.R), [clip_noise_audit.R](scripts/clip_noise_audit.R) |
 | Reproduction archive and table rebuild | [stage_archive.sh](scripts/stage_archive.sh), [package_deposit.sh](scripts/package_deposit.sh), [reproduce_paper_tables.sh](scripts/reproduce_paper_tables.sh), [compare_reproduction.R](scripts/compare_reproduction.R), [reproduce/Dockerfile](reproduce/Dockerfile) |
 | NEON censused-subplot precision | [neon_reference_support.R](scripts/neon_reference_support.R), [review_census_support.R](scripts/review_census_support.R), [score_census_support.R](scripts/score_census_support.R) |
@@ -782,8 +784,9 @@ scripts and configuration.
 - [docs](docs/) — methodology, study protocols, execution guides, and the
   [paper proposal](docs/paper-proposal.md).
 - [paper](paper/) — the draft manuscript of the benchmark paper, its
-  supplement and figures, and their [LaTeX version for IEEE
-  JSTARS](paper/ieee/README.md).
+  supplement and figures, and their LaTeX versions for the [ISPRS Journal of
+  Photogrammetry and Remote Sensing](paper/elsevier/README.md), the target
+  journal, and for [IEEE JSTARS](paper/ieee/README.md), the fallback.
 - [Data and code availability](docs/data-code-availability.md) — data
   sources, model licences and what the archive holds; the
   [bibliography](docs/references.bib) holds the verified references.

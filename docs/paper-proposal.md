@@ -3,8 +3,10 @@
 Prepared 2026-09-30 from the committed study reports and a literature scan of
 about ninety primary sources. Revised 2026-10-05 after every arm was re-run on
 the frozen five-site population, 2026-10-06 after the remaining
-pre-submission steps were completed, and 2026-11-16 to 2026-11-18 after a
-pre-submission review. This document records which part of the
+pre-submission steps were completed, 2026-11-16 to 2026-11-18 after a
+pre-submission review, and 2026-11-23 when the target journal changed to the
+ISPRS Journal of Photogrammetry and Remote Sensing. This document records
+which part of the
 repository is proposed for a peer-reviewed paper, the outline of that paper,
 and the state of the work. Task tracking lives in the GitHub issues labelled
 `pre-paper`; this document stays free of tracker identifiers.
@@ -58,12 +60,17 @@ performance: benchmarking classical and zero-shot deep tree detectors on
 national-mapping airborne LiDAR with field-mapped stems. The claim holds
 below the USGS QL2 floor, and the title can say so.
 
-**Venue.** IEEE Journal of Selected Topics in Applied Earth Observations and
-Remote Sensing (JSTARS) first, for its shorter time to publication; the
-draft's [IEEE version](../paper/ieee/README.md) is in its template. ISPRS
-Journal of Photogrammetry and Remote Sensing, where FGI-EMIT and ITS-Net
-appeared in 2026, and Remote Sensing of Environment are the alternatives.
-IJAEOG or Remote Sensing are fallbacks.
+**Venue.** ISPRS Journal of Photogrammetry and Remote Sensing first, chosen on
+23 November 2026: it has the highest impact factor of the venues considered,
+sets no length limit for research papers, costs nothing by its subscription
+route, and published FGI-EMIT and ITS-Net in 2026. The draft's
+[Elsevier version](../paper/elsevier/README.md) is in its template. If the
+journal declines, Elsevier can transfer the paper to the ISPRS Open Journal of
+Photogrammetry and Remote Sensing. Remote Sensing of Environment is the
+alternative. IEEE JSTARS, the target from 22 October to 23 November 2026, is
+the fallback for faster publication; the draft's
+[IEEE version](../paper/ieee/README.md) is kept in its template. IJAEOG or
+Remote Sensing are further fallbacks.
 
 **Thesis.** On the NEON benchmark the two best zero-shot deep segmenters lead
 the CHM variable-window baseline (CHM-VWF) by about 0.05 F1 at native density

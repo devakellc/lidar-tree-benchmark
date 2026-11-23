@@ -745,7 +745,7 @@ TAB_ITEM = r"S?\d+[a-z]?"
 FIG_ITEM = r"S?\d+[a-z]?"
 
 
-def convert_refs(md, mode, known=None):
+def convert_refs(md, mode, known=None, style="ieee"):
     """Section/Table/Figure references. mode 'main' uses \\ref; 'supp' writes
     IEEE numbers for the manuscript's items. Supplement items (S-numbers) stay
     as text. known, when given, holds the section, table and figure numbers of
@@ -755,7 +755,10 @@ def convert_refs(md, mode, known=None):
     number in the prose after 'Table 2 and' is never read as a reference. Fig
     and Figs are read with or without their period. A figure panel is written
     the IEEE way in both documents: Fig. 2d and Fig. S1d become Fig. 2(d) and
-    Fig. S1(d)."""
+    Fig. S1(d). style 'elsevier' (scripts/paper_to_elsevier.py) keeps the
+    markdown's numbering instead: 'supp' writes the manuscript's items in its
+    own arabic numbers, and a panel stays as it is (Fig. 2d)."""
+    ieee = style == "ieee"
     def check(kind, item):
         if known is not None and item not in known[kind]:
             raise SystemExit(f"reference to {kind} {item}, which the manuscript does not have")
@@ -774,7 +777,9 @@ def convert_refs(md, mode, known=None):
             s_check("ssec", it)
             return it
         check("sec", it)
-        return f"\\ref{{sec:{it}}}" if mode == "main" else ieee_section_number(it)
+        if mode == "main":
+            return f"\\ref{{sec:{it}}}"
+        return ieee_section_number(it) if ieee else it
 
     def tab_one(it):
         if it.startswith("S"):
@@ -783,7 +788,9 @@ def convert_refs(md, mode, known=None):
         if not it.isdigit():
             raise SystemExit(f"Table {it}: the manuscript's tables have no lettered parts")
         check("tab", it)
-        return f"\\ref{{tab:{it}}}" if mode == "main" else roman(int(it))
+        if mode == "main":
+            return f"\\ref{{tab:{it}}}"
+        return roman(int(it)) if ieee else it
 
     def fig_one(it):
         mm = re.fullmatch(r"(S?)(\d+)([a-z]?)", it)
@@ -793,7 +800,9 @@ def convert_refs(md, mode, known=None):
         else:
             check("fig", mm.group(2))
             base = f"\\ref{{fig:{mm.group(2)}}}" if mode == "main" else mm.group(2)
-        return base + (f"({mm.group(3)})" if mm.group(3) else "")  # IEEE writes Fig. 2(d)
+        if not mm.group(3):
+            return base
+        return base + (f"({mm.group(3)})" if ieee else mm.group(3))  # IEEE writes Fig. 2(d)
 
     def rewrite(plural, single, item_re, one, text):
         pattern = (rf"\b(?:({plural})\s+({item_re}(?:{SEPS}{item_re}{CONT_END})*)"

@@ -4,7 +4,10 @@ This folder holds the LaTeX version of the [draft paper](../manuscript.md) for
 the IEEE Journal of Selected Topics in Applied Earth Observations and Remote
 Sensing (JSTARS). It is generated from the markdown by
 [paper_to_ieee.py](../../scripts/paper_to_ieee.py) and is the starting point for
-editing on Overleaf.
+editing on Overleaf. JSTARS was the target journal from 22 October to 23
+November 2026 and is now the fallback; the version for the target journal is
+the [ISPRS Journal version](../elsevier/README.md), whose converter reuses this
+one's machinery.
 
 - [main.tex](main.tex): the manuscript in the IEEEtran journal class.
 - [supplement.tex](supplement.tex): the supplement, submitted as a separate
