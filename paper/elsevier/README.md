@@ -56,7 +56,8 @@ What differs is the journal's form.
 - In the copy of the bibliography, software and dataset entries become misc
   entries. Version, notes and access dates ("Accessed 2 October 2026") go into
   the note. A paper with a DOI is cited without its arXiv identifier, and an
-  arXiv preprint takes its arXiv DOI, as the journal asks for a preprint's DOI.
+  arXiv preprint takes its arXiv DOI, as the journal asks for a preprint's
+  DOI; a published paper without a DOI keeps only its arXiv identifier.
   elsarticle-harv.bst prints no volume for a paper in proceedings, so the
   volume joins the proceedings title ("... Spatial Information Sciences
   XXXVI-8/W2"). The NEON products' corporate author is cited without its
@@ -127,7 +128,7 @@ pdflatex supplement && bibtex supplement && pdflatex supplement && pdflatex supp
 ```
 
 On 23 November 2026 the manuscript compiled to 37 pages and the supplement to
-30, with no overfull lines and no BibTeX warnings.
+30, with no overfull or badly underfull lines and no BibTeX warnings.
 
 From the repository root, the converter's tests run the end-to-end checks
 when pandoc is on the path or named in the `PANDOC` environment variable. They
@@ -135,8 +136,9 @@ compare every word, number and table row of the markdown with the LaTeX and
 check the journal's front and back matter rules, on the paper and on a small
 synthetic paper. A BibTeX check of the whole reference list runs when bibtex
 is on the path or named in `BIBTEX`, and a compile of both documents, which
-fails on any error, overfull line, undefined citation or BibTeX warning, runs
-when pdflatex is on the path or named in `PDFLATEX` as well:
+fails on any error, overfull or badly underfull line, undefined citation or
+BibTeX warning, runs when pdflatex is on the path or named in `PDFLATEX` as
+well:
 
 ```sh
 PANDOC=/path/to/pandoc BIBTEX=/path/to/bibtex PDFLATEX=/path/to/pdflatex \

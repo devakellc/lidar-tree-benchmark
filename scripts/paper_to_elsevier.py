@@ -52,11 +52,13 @@ date ("Accessed 2 October 2026") go into the note; a misc entry's publisher
 becomes its howpublished, or joins the note, unless it repeats the author; a
 proceedings paper's series, volume and number join its proceedings title. A
 paper with a DOI is cited without its arXiv identifier, as the journal cites
-the version of record, and an arXiv preprint without one takes its arXiv DOI
-(10.48550/arXiv.<id>), as the journal asks for a preprint's DOI. A corporate
+the version of record, and an arXiv preprint (a misc entry) without one takes
+its arXiv DOI (10.48550/arXiv.<id>), as the journal asks for a preprint's DOI;
+a published paper without a DOI keeps its arXiv identifier only. A corporate
 author written with its abbreviation, "National Ecological Observatory Network
 (NEON)", loses the abbreviation, so the citation does not nest parentheses. A
-publisher ending in a period loses it where the style adds one. Acronyms,
+publisher ending in a period loses it where the style adds one, and a long
+commit hash in a note may break every eight characters. Acronyms,
 single capitals and words with inner capitals in titles are braced, as in the
 IEEE copy, a note's first letter is braced so the style keeps its case, and a
 quotation inside a title keeps its double quotes. DOIs print as
@@ -199,10 +201,11 @@ def words_fit(spec, est, width_em, factors):
 
 def table_tex(num, caption_tex, header, aligns, body, mode, labels):
     """A table's LaTeX with booktabs rules. In the manuscript a table float
-    ([!htbp]) with its caption above; a table that fits at its natural width
-    is a centred tabular, any other a tabularx at the text width, and a table
-    whose words cannot fit the text width at all goes on a landscape page
-    (sidewaystable) as wide as the text is high. In the supplement an
+    ([!htbp]) with its caption directly below; a table that fits at its
+    natural width is a centred tabular, any other a tabularx at the text
+    width, and a table whose words cannot fit the text width at all goes on
+    a landscape page (sidewaystable) as wide as the text is high, its caption
+    below as well. In the supplement an
     xltabular at the text width that breaks across pages, its caption the
     first head row and its head repeated under 'Table Sn (continued)'. The X
     columns take widths in proportion to their text (paper_to_ieee.x_factors),
@@ -684,10 +687,13 @@ def elsevier_entry(etype, key, fields):
     out = [(n, v) for n, v in fields if n not in DROPS and v.strip()]
     if "doi" in f:  # the version of record, not the preprint
         out = [(n, v) for n, v in out if n != "eprint"]
-    elif "eprint" in f and f.get("archiveprefix", "").lower() == "arxiv":
+    elif is_misc and "eprint" in f and f.get("archiveprefix", "").lower() == "arxiv":
         # The journal asks for a preprint's DOI; arXiv's is derived from its
-        # identifier. The eprint field stays, to name the server.
-        out.append(("doi", f"10.48550/arXiv.{f['eprint']}"))
+        # identifier, without a version. The eprint field stays, to name the
+        # server. A published paper (an article or proceedings paper) keeps
+        # its arXiv identifier only as the eprint.
+        ident = re.sub(r"v\d+$", "", re.sub(r"^arXiv:", "", f["eprint"].strip(), flags=re.I))
+        out.append(("doi", f"10.48550/arXiv.{ident}"))
     if kind == "inproceedings":
         # elsarticle-harv.bst prints no volume, number or series for a paper in
         # proceedings, so they join the proceedings title.
@@ -697,9 +703,9 @@ def elsevier_entry(etype, key, fields):
             title += (" " + extra["volume"] if "volume" in extra else "")
             title += (f" ({extra['number']})" if "number" in extra else "")
             out = [(n, title if n == "booktitle" else v) for n, v in out if n not in extra]
-    if kind in ("inproceedings", "incollection"):
-        # The style writes '. ' after the publisher whatever it ends with, so
-        # 'Inc.' would print 'Inc..'.
+    if kind in ("inproceedings", "incollection") and not f.get("address", "").strip():
+        # Without an address after it, the style writes '. ' after the
+        # publisher whatever it ends with, so 'Inc.' would print 'Inc..'.
         out = [(n, re.sub(r"\.$", "", v) if n in ("publisher", "organization") else v) for n, v in out]
     have = {n for n, _ in out}
     author = p2i.decode_latex(f.get("author", ""))
@@ -728,6 +734,10 @@ def elsevier_entry(etype, key, fields):
         notes.append(accessed(f["urldate"]))
     note = join_sentences(notes)
     if note:
+        # A long commit or revision hash has no break point, so a justified
+        # line stretches around it; it may break every eight characters.
+        note = re.sub(r"\b[0-9a-f]{24,}\b",
+                      lambda m: "\\allowbreak{}".join(m.group(0)[i:i + 8] for i in range(0, len(m.group(0)), 8)), note)
         out.append(("note", protect_note(note)))
     out = [(n, CORPORATE_ABBR.sub(r"{\1}", v) if n == "author" else v) for n, v in out]
     # The style does not quote titles, so a quotation inside one keeps the

@@ -235,6 +235,20 @@ class BibliographyTests(unittest.TestCase):
         self.assertNotRegex(e, r"\b(volume|number|series)\s*=")
         self.assertIn("publisher = {Curran Associates, Inc}", tie.flat(e))
         self.assertIn("``quoted''", e)  # the style does not quote titles, so the source's quotes stay
+        # Followed by an address, the publisher keeps its period: the style
+        # writes 'publisher, address'.
+        e = p2e.elsevier_entry("inproceedings", "k", [
+            ("author", "Doe, Jane"), ("title", "T"), ("booktitle", "Proc"), ("publisher", "Curran Associates, Inc."),
+            ("address", "Red Hook, NY"), ("pages", "1--5"), ("year", "2021")])
+        self.assertIn("publisher = {Curran Associates, Inc.}", tie.flat(e))
+
+    def test_long_hashes_may_break(self):
+        e = p2e.elsevier_entry("misc", "k", [("author", "Doe, Jane"), ("title", "T"), ("year", "2024"),
+                                             ("note", "revision cc21436bc5d572dde8ff5f93c1e71a32f563cace")])
+        self.assertIn("cc21436b\\allowbreak{}c5d572dd\\allowbreak{}", e)
+        e = p2e.elsevier_entry("misc", "k", [("author", "Doe, Jane"), ("title", "T"), ("year", "2024"),
+                                             ("note", "commit d6082bb68511")])
+        self.assertNotIn("allowbreak", e)  # a short hash breaks nothing
 
     def test_misc_publisher_never_goes_to_organization(self):
         e = p2e.elsevier_entry("software", "k", [
@@ -249,6 +263,14 @@ class BibliographyTests(unittest.TestCase):
                                              ("eprint", "2107.07002"), ("archiveprefix", "arXiv")])
         self.assertIn("doi = {10.48550/arXiv.2107.07002}", tie.flat(e))
         self.assertIn("eprint", e)
+        e = p2e.elsevier_entry("misc", "k", [("author", "Doe, Jane"), ("title", "Pre"), ("year", "2026"),
+                                             ("eprint", "arXiv:2107.07002v3"), ("archiveprefix", "arXiv")])
+        self.assertIn("doi = {10.48550/arXiv.2107.07002}", tie.flat(e))  # arXiv DOIs carry no version
+        for kind in ("article", "inproceedings"):  # a published paper keeps the identifier only
+            e = p2e.elsevier_entry(kind, "k", [("author", "Doe, Jane"), ("title", "Pub"), ("year", "2011"),
+                                               ("eprint", "2010.16061"), ("archiveprefix", "arXiv")])
+            self.assertNotIn("doi", e, kind)
+            self.assertIn("2010.16061", e)
         e = p2e.elsevier_entry("misc", "k", [("author", "{National Ecological Observatory Network (NEON)}"),
                                              ("title", "Data"), ("year", "2026"),
                                              ("publisher", "National Ecological Observatory Network (NEON)")])
@@ -256,6 +278,9 @@ class BibliographyTests(unittest.TestCase):
         self.assertNotIn("howpublished", e)  # the publisher repeats the author
         self.assertEqual(p2e.short_corporate("National Ecological Observatory Network (NEON)"),
                          "National Ecological Observatory Network")
+        # The labels used for table widths are the citations as they print.
+        labels = p2e.cite_labels((ROOT / "docs/references.bib").read_text(encoding="utf-8"))
+        self.assertEqual(labels["neon2026vegetation"], ("National Ecological Observatory Network", "2026"))
 
     def test_note_protection(self):
         self.assertEqual(p2e.protect_note("model weights"), "{m}odel weights")
@@ -596,6 +621,8 @@ class BibtexTests(unittest.TestCase):
         self.assertIn("\\doi{10.48550/arXiv.2107.07002}", self.items["dehghani2021benchmark"])
         self.assertNotRegex(bbl, r"\.\}\. ")
         self.assertNotIn("(NEON)", self.items["neon2026vegetation"])
+        for key in ("powers2011evaluation", "agarwal2021deep"):  # published: no preprint DOI
+            self.assertNotIn("10.48550", self.items[key])
         self.assertIn("``equitable threat score''", self.items["hogan2010equitability"])
 
 
@@ -603,8 +630,9 @@ class BibtexTests(unittest.TestCase):
                      "pandoc, bibtex or pdflatex not available (set PANDOC, BIBTEX and PDFLATEX)")
 class CompileTests(unittest.TestCase):
     """Convert the paper and compile both documents with pdfLaTeX and BibTeX,
-    as Overleaf does: no error, no overfull line, no undefined citation or
-    reference and no BibTeX warning."""
+    as Overleaf does: no error, no overfull line, no line stretched to
+    badness 10000, no undefined citation or reference and no BibTeX
+    warning."""
 
     @classmethod
     def setUpClass(cls):
@@ -614,7 +642,10 @@ class CompileTests(unittest.TestCase):
         out = root / "elsevier"
         run_converter([f"OUT={out}", f"PANDOC={PANDOC}"])
         (root / "figures").symlink_to(ROOT / "paper/figures")  # the documents read ../figures
-        env = dict(os.environ, PATH=str(Path(PDFLATEX).resolve().parent) + os.pathsep + os.environ.get("PATH", ""))
+        # Long log lines unwrapped, so a warning is read whole whatever the TeX
+        # installation's default (79 columns in stock TeX Live).
+        env = dict(os.environ, max_print_line="10000",
+                   PATH=str(Path(PDFLATEX).resolve().parent) + os.pathsep + os.environ.get("PATH", ""))
         cls.logs, cls.blgs, cls.codes = {}, {}, {}
         for doc in ("main", "supplement"):
             codes = []
@@ -632,6 +663,8 @@ class CompileTests(unittest.TestCase):
                 self.assertNotRegex(log, r"(?m)^! ")
                 self.assertNotIn("Overfull \\hbox", log)
                 self.assertNotRegex(log, r"(Citation|Reference) `[^']*' on page \d+ undefined")
+                self.assertNotRegex(log, r"There were undefined (citations|references)")
+                self.assertNotIn("Underfull \\hbox (badness 10000)", log)
                 self.assertNotIn("Warning--", self.blgs[doc])
 
 
