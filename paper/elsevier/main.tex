@@ -35,6 +35,10 @@
 \newcommand{\URLprefix}{}
 \newcommand{\doi}[1]{\url{https://doi.org/#1}}
 
+% The journal lists a group of citations alphabetically, then chronologically,
+% as the reference list is sorted. elsarticle passes this option to natbib on
+% the next run.
+\biboptions{sort}
 \journal{ISPRS Journal of Photogrammetry and Remote Sensing}
 
 \begin{document}
@@ -283,13 +287,8 @@ the QL1 specification. The stands differ in density and size as much as in type
 (Table~S14).
 
 \begin{table}[!htbp]
-\caption{Sites and reference population. Plots are tower / distributed.
-Crown classes are overstory (dominant and codominant) / understory (intermediate
-and suppressed) / not classed. Pulse density is the median and range of
-first-return density inside the plot cores at native density.}
-\label{tab:1}
 \centering
-\scriptsize
+{\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{l>{\hsize=1.86998\hsize\linewidth=\hsize}L>{\hsize=1.25\hsize\linewidth=\hsize}L>{\hsize=0.61\hsize\linewidth=\hsize}Lr>{\hsize=0.77\hsize\linewidth=\hsize}L>{\hsize=0.88\hsize\linewidth=\hsize}L>{\hsize=0.62\hsize\linewidth=\hsize}L}
@@ -304,6 +303,12 @@ ABBY & Managed Douglas-fir, Washington & 19 and 24 July, Galaxy Prime & 25 (13 /
 All &  &  & 106 (52 / 54) & 2,525 & 1,872 / 592 / 61 & 9.8 (5.0--22.5) & 57 / 1,190 \\
 \bottomrule
 \end{tabularx}
+}
+\caption{Sites and reference population. Plots are tower / distributed.
+Crown classes are overstory (dominant and codominant) / understory (intermediate
+and suppressed) / not classed. Pulse density is the median and range of
+first-return density inside the plot cores at native density.}
+\label{tab:1}
 \end{table}
 
 \begin{figure}[!htbp]
@@ -441,19 +446,11 @@ their apexes and call them the segmenters, use TreeisoNet's localisation network
 as a detector, and call all three the learned detectors.
 
 \begin{table}[!htbp]
-\caption{Detectors. The three learned point detectors are used zero-shot
-with their published checkpoints. DeepForest's training annotations include two
-of the benchmark sites, SJER and TEAK, so it is not zero-shot there. Compute:
-device and median wall time per call at native density on nine plots, start-up,
-clip reading and model loading included, on an Intel Core i9-14900K and one
-NVIDIA RTX 5090 (DeepForest predicts a whole site at once), with the cost per
-square kilometre scaled from the clip area, before tiling overhead (Section~S22); the classical detectors cost a few CPU-minutes per km\textsuperscript{2}.}
-\label{tab:2}
 \centering
-\scriptsize
+{\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
-\begin{tabularx}{\linewidth}{>{\hsize=0.87\hsize\linewidth=\hsize}L>{\hsize=1.44\hsize\linewidth=\hsize}L>{\hsize=0.65\hsize\linewidth=\hsize}L>{\hsize=1.26\hsize\linewidth=\hsize}L>{\hsize=1.09\hsize\linewidth=\hsize}L>{\hsize=0.69\hsize\linewidth=\hsize}L}
+\begin{tabularx}{\linewidth}{>{\hsize=0.87\hsize\linewidth=\hsize}L>{\hsize=1.44998\hsize\linewidth=\hsize}L>{\hsize=0.63\hsize\linewidth=\hsize}L>{\hsize=1.27\hsize\linewidth=\hsize}L>{\hsize=1.09\hsize\linewidth=\hsize}L>{\hsize=0.69\hsize\linewidth=\hsize}L}
 \toprule
 Detector & Type & Input & Training data & Implementation & Compute \\
 \midrule
@@ -470,6 +467,15 @@ DeepForest & Crown boxes in RGB imagery \citep{weinstein2020deepforest} & 10 cm 
 Detectree2 & Crown polygons in RGB imagery \citep{ball2023accurate} & 10 cm camera mosaic & Tropical forests and an urban site & Published weights \citep{ball2025detectree2} & CPU, 8.1 s per plot \\
 \bottomrule
 \end{tabularx}
+}
+\caption{Detectors. The three learned point detectors are used zero-shot
+with their published checkpoints. DeepForest's training annotations include two
+of the benchmark sites, SJER and TEAK, so it is not zero-shot there. Compute:
+device and median wall time per call at native density on nine plots, start-up,
+clip reading and model loading included, on an Intel Core i9-14900K and one
+NVIDIA RTX 5090 (DeepForest predicts a whole site at once), with the cost per
+square kilometre scaled from the clip area, before tiling overhead (Section~S22); the classical detectors cost a few CPU-minutes per km\textsuperscript{2}.}
+\label{tab:2}
 \end{table}
 
 \textbf{The baseline.} CHM-VWF, local maxima on a canopy height model found with a
@@ -803,15 +809,8 @@ cut removes. SegmentAnyTree keeps its lead under both scorings, narrowly on the
 cut.
 
 \begin{sidewaystable}
-\caption{Accuracy at native density (median 9.8 pulses/m\textsuperscript{2}), five sites,
-nominal plot core (106 plots and 2,525 stems), with 95\% intervals. Detections
-per stem: core detections per reference stem. Null F1: F1 of the randomly
-shifted detections. Corrected F1: (F1 $-$ null F1) / (1 $-$ null F1) at the 4 m
-radius (Section~\ref{sec:4.2}). The last two columns repeat F1 and the corrected lead at
-the 2 m radius (Section~S12). The censused scoring is in Table~\ref{tab:5}.}
-\label{tab:3}
 \centering
-\footnotesize
+{\footnotesize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{LLllLLlLLlL}
@@ -831,6 +830,14 @@ Detectree2 (RGB) & 0.62 & 0.309 & 0.435 & 0.362 [0.334, 0.390] & $-$0.089 [$-$0.
 AMS3D & 4.67 & 0.713 & 0.145 & 0.240 [0.214, 0.267] & $-$0.210 [$-$0.240, $-$0.180] & 0.190 & 0.063 [0.051, 0.075] & $-$0.132 [$-$0.159, $-$0.107] & 0.191 & $-$0.125 [$-$0.150, $-$0.102] \\
 \bottomrule
 \end{tabularx}
+}
+\caption{Accuracy at native density (median 9.8 pulses/m\textsuperscript{2}), five sites,
+nominal plot core (106 plots and 2,525 stems), with 95\% intervals. Detections
+per stem: core detections per reference stem. Null F1: F1 of the randomly
+shifted detections. Corrected F1: (F1 $-$ null F1) / (1 $-$ null F1) at the 4 m
+radius (Section~\ref{sec:4.2}). The last two columns repeat F1 and the corrected lead at
+the 2 m radius (Section~S12). The censused scoring is in Table~\ref{tab:5}.}
+\label{tab:3}
 \end{sidewaystable}
 
 \subsection{Density response and rank stability}\label{sec:5.2}
@@ -851,15 +858,8 @@ while AMS3D, whose fixed crown-shape settings place far fewer detections on
 sparser clouds, gains, from 0.240 to 0.459 at 1.1 pulses/m\textsuperscript{2}.
 
 \begin{table}[!htbp]
-\caption{F1 by density for the eight detectors run at every density, five
-sites, nominal plot core. Columns give the median first-return density of the
-plot cores, in pulses/m\textsuperscript{2}, at native density and at the thinned levels with
-all-return targets of
-8, 4, 3.2, 2 and 1 points/m\textsuperscript{2}; the 1.8 column is the QL2 level and carries its
-95\% intervals. The leads at 0.6 pulses/m\textsuperscript{2} are in F1 and in corrected F1 (Section~\ref{sec:4.2}); leads over the baseline without its smoothing are in Table~S16.}
-\label{tab:4}
 \centering
-\scriptsize
+{\scriptsize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\hsize=0.78\hsize\linewidth=\hsize}Llll>{\hsize=0.93\hsize\linewidth=\hsize}Lll>{\hsize=1.15999\hsize\linewidth=\hsize}L>{\hsize=1.13\hsize\linewidth=\hsize}L}
@@ -876,6 +876,14 @@ AMS3D & 0.240 & 0.313 & 0.389 & 0.412 [0.388, 0.437] & 0.459 & 0.437 & +0.063 [+
 \texttt{lmfauto} & 0.386 & 0.340 & 0.284 & 0.273 [0.243, 0.309] & 0.262 & 0.269 & $-$0.105 [$-$0.148, $-$0.063] & $-$0.091 [$-$0.116, $-$0.068] \\
 \bottomrule
 \end{tabularx}
+}
+\caption{F1 by density for the eight detectors run at every density, five
+sites, nominal plot core. Columns give the median first-return density of the
+plot cores, in pulses/m\textsuperscript{2}, at native density and at the thinned levels with
+all-return targets of
+8, 4, 3.2, 2 and 1 points/m\textsuperscript{2}; the 1.8 column is the QL2 level and carries its
+95\% intervals. The leads at 0.6 pulses/m\textsuperscript{2} are in F1 and in corrected F1 (Section~\ref{sec:4.2}); leads over the baseline without its smoothing are in Table~S16.}
+\label{tab:4}
 \end{table}
 
 The baseline's loss below native density follows its pre-declared smoothing
@@ -1088,15 +1096,8 @@ brackets point the same way: nominal-plot precision understates every detector,
 and inside censused subplots the baseline most (Section~S20).
 
 \begin{sidewaystable}
-\caption{Censused subplots at native density (57 plots, 1,190 censused
-references) beside the nominal plot core on the same 57 plots (1,607 stems),
-with 95\% intervals; leads are over CHM-VWF, with paired intervals. Null F1,
-corrected F1 and corrected lead: the shift null scored inside the censused
-subplots at 4 m; the last column is the corrected lead in the nominal cores of
-the same plots. The RGB detectors are not in the censused scorer.}
-\label{tab:5}
 \centering
-\footnotesize
+{\footnotesize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\hsize=1.18\hsize\linewidth=\hsize}L>{\hsize=1.01\hsize\linewidth=\hsize}L>{\hsize=1.08\hsize\linewidth=\hsize}L>{\hsize=0.68\hsize\linewidth=\hsize}L>{\hsize=0.96\hsize\linewidth=\hsize}L>{\hsize=1.08\hsize\linewidth=\hsize}L>{\hsize=0.68\hsize\linewidth=\hsize}L>{\hsize=1.01\hsize\linewidth=\hsize}L>{\hsize=1.13\hsize\linewidth=\hsize}L>{\hsize=1.19\hsize\linewidth=\hsize}L}
@@ -1114,6 +1115,14 @@ CHM-VWF & 0.487 [0.463, 0.514] & --- & 0.779 & 0.608 [0.566, 0.651] & --- & 0.43
 AMS3D & 0.263 [0.238, 0.291] & $-$0.225 [$-$0.254, $-$0.191] & 0.243 & 0.364 [0.322, 0.404] & $-$0.245 [$-$0.298, $-$0.188] & 0.300 & 0.090 [0.060, 0.126] & $-$0.212 [$-$0.257, $-$0.166] & $-$0.148 [$-$0.179, $-$0.119] \\
 \bottomrule
 \end{tabularx}
+}
+\caption{Censused subplots at native density (57 plots, 1,190 censused
+references) beside the nominal plot core on the same 57 plots (1,607 stems),
+with 95\% intervals; leads are over CHM-VWF, with paired intervals. Null F1,
+corrected F1 and corrected lead: the shift null scored inside the censused
+subplots at 4 m; the last column is the corrected lead in the nominal cores of
+the same plots. The RGB detectors are not in the censused scorer.}
+\label{tab:5}
 \end{sidewaystable}
 
 \subsection{Decimation against native sparse flights}\label{sec:5.6}
@@ -1187,16 +1196,8 @@ sites; with the airborne setting it scores 0.28 and 0.37 there, in sample
 (Section~\ref{sec:4.5}).
 
 \begin{sidewaystable}
-\caption{Apex F1 on FGI-EMIT. Reserve: three plots, 257 trees, native
-density, under the 40-point instance filter of the policy fixed on the
-development plots. Development: ten plots, 841 trees, thinned to the NEON
-densities, under the 2 m apex rule (the two rules differ by at most 0.003 at
-native density). Leads are over CHM-VWF, with 95\% intervals on the development
-plots; the NEON columns give the five-site observed lead at the corresponding
-density level, scored without the 2 m apex floor.}
-\label{tab:6}
 \centering
-\footnotesize
+{\footnotesize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{lllLLLLLL}
@@ -1212,6 +1213,15 @@ Development & 1.5 & 0.361 & 0.544 & 0.393 & +0.184 [+0.143, +0.218] & +0.055 [+0
 Development & 0.7 & 0.344 & 0.515 & 0.116 & +0.171 [+0.127, +0.214] & +0.047 [+0.022, +0.069] & $-$0.228 [$-$0.308, $-$0.162] & $-$0.246 [$-$0.268, $-$0.223] \\
 \bottomrule
 \end{tabularx}
+}
+\caption{Apex F1 on FGI-EMIT. Reserve: three plots, 257 trees, native
+density, under the 40-point instance filter of the policy fixed on the
+development plots. Development: ten plots, 841 trees, thinned to the NEON
+densities, under the 2 m apex rule (the two rules differ by at most 0.003 at
+native density). Leads are over CHM-VWF, with 95\% intervals on the development
+plots; the NEON columns give the five-site observed lead at the corresponding
+density level, scored without the 2 m apex floor.}
+\label{tab:6}
 \end{sidewaystable}
 
 \section{Discussion}\label{sec:6}
@@ -1380,11 +1390,8 @@ sparse ones.
 \subsection{Threats to validity}\label{sec:6.4}
 
 \begin{table}[!htbp]
-\caption{Threats to validity: each issue, the direction in which it would
-bias the results, and where it is tested.}
-\label{tab:7}
 \centering
-\footnotesize
+{\footnotesize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\hsize=0.93\hsize\linewidth=\hsize}L>{\hsize=1.56999\hsize\linewidth=\hsize}L>{\hsize=0.50\hsize\linewidth=\hsize}L}
@@ -1403,6 +1410,10 @@ Oak woodland and conifer forest in two western regions only; SJER's 31 March fli
 Mask quality not assessed on NEON & Rankings of masks rest on a proxy reference & Sections~S7 and S8 \\
 \bottomrule
 \end{tabularx}
+}
+\caption{Threats to validity: each issue, the direction in which it would
+bias the results, and where it is tested.}
+\label{tab:7}
 \end{table}
 
 Of the threats in Table~\ref{tab:7}, three bear on every conclusion: the reference is

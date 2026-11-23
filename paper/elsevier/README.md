@@ -25,8 +25,9 @@ display math, code blocks and the references to sections, tables and figures.
 What differs is the journal's form.
 
 - Citations are author-year, through natbib and elsarticle-harv.bst. A
-  bracketed citation prints as "(Kaartinen et al., 2012; Jakubowski et al.,
-  2013)" and a narrative one as "Jakubowski et al. (2013)".
+  bracketed citation prints as "(Jakubowski et al., 2013; Kaartinen et al.,
+  2012)", its group sorted alphabetically and then chronologically as the
+  journal asks, and a narrative one as "Jakubowski et al. (2013)".
 - Sections, tables and figures keep the markdown's numbers: Section 4.2,
   Table 3, Fig. 2d. The build stops if the section numbers are not the
   sequence LaTeX prints. The supplement refers to the manuscript by the same
@@ -41,23 +42,29 @@ What differs is the journal's form.
   immediately before the references, so the build stops if it is not last. A
   section that still reads "To be completed" carries a TODO comment.
 - Tables take booktabs rules, with no vertical rules or shading, as the
-  journal asks, and the caption above. A table whose words cannot fit the
-  portrait width goes on a landscape page of its own (Tables 3, 5 and 6), in
-  10 pt type where it fits and 8 pt otherwise. Floats are placed next to the
-  text that cites them where they fit, as the journal asks for the first
-  submission.
-- The supplement's tables break across pages and repeat their head, and its
-  figures are labelled "Figure S1." in the text, as in the IEEE version.
+  journal asks. A table whose words cannot fit the portrait width goes on a
+  landscape page of its own (Tables 3, 5 and 6), in 10 pt type where it fits
+  and 8 pt otherwise. The journal asks that the single file of a first
+  submission place figures and tables next to the text that cites them, each
+  caption directly below, and the manuscript does both where the floats fit.
+- The supplement's tables break across pages and repeat their head, with the
+  caption in the first head row, and its figures are labelled "Figure S1." in
+  the text, as in the IEEE version.
 - A figure prints at the width it was drawn, as a share of the text width
   (160 mm in the manuscript, 170 mm in the supplement); the figures drawn for
   the IEEE page are wider and print at the full text width.
 - In the copy of the bibliography, software and dataset entries become misc
   entries. Version, notes and access dates ("Accessed 2 October 2026") go into
-  the note, and a paper with a DOI is cited without its arXiv identifier.
-  elsarticle-harv.bst sets titles in sentence case, so acronyms, single
-  capitals and words with inner capitals are braced, as in the IEEE copy, and
-  a note keeps the case of its first letter. DOIs print as <https://doi.org/>
-  links.
+  the note. A paper with a DOI is cited without its arXiv identifier, and an
+  arXiv preprint takes its arXiv DOI, as the journal asks for a preprint's DOI.
+  elsarticle-harv.bst prints no volume for a paper in proceedings, so the
+  volume joins the proceedings title ("... Spatial Information Sciences
+  XXXVI-8/W2"). The NEON products' corporate author is cited without its
+  abbreviation, "(National Ecological Observatory Network, 2026a)", so the
+  citation does not nest parentheses. The style sets titles in sentence case,
+  so acronyms, single capitals and words with inner capitals are braced, as in
+  the IEEE copy, and a note keeps the case of its first letter. DOIs print as
+  <https://doi.org/> links.
 
 Search main.tex for TODO to find the author block and the sections still to be
 completed.
@@ -65,31 +72,34 @@ completed.
 ## Before submission
 
 The journal's requirements below were read in its guide for authors on 21
-October 2026. Check them again at submission.
+October 2026. Check them again at submission. Make the markdown edits first
+and regenerate, and complete the author block last: regenerating resets it.
 
-- Complete the author block in main.tex: every author, each affiliation with
-  its full postal address and country, and the corresponding author's e-mail
-  address. The ORCID iD is in.
 - Complete the CRediT statement, the declaration of competing interest and the
   funding statement in the markdown. The journal also takes the competing
   interest on Elsevier's declaration template, uploaded in Editorial Manager
   even when there is none. Without funding, the guide's sentence is: "This
   research did not receive any specific grant from funding agencies in the
   public, commercial, or not-for-profit sectors."
+- Replace "DOI to be assigned at deposit" in the markdown once the archive is
+  deposited.
+- Regenerate this folder, then complete the author block in main.tex (or in the
+  Overleaf project): every author, each affiliation with its full postal
+  address and country, and the corresponding author's e-mail address. The
+  ORCID iD is in.
 - Choose the publishing route: subscription, at no charge to the author, or
   open access at an article publishing charge of USD 3,800, the list price on
   21 October 2026.
 - The guide asks that abbreviations that are not standard in the field be
   defined in a footnote on the first page. This version has no such footnote;
   the text defines each abbreviation at its first use.
-- The first submission is a single PDF in any layout: main.pdf, with
-  supplement.pdf as supplementary material. The editable LaTeX and the
-  highlights as a separate file are asked for at revision.
-- Elsevier marks data references with "[dataset]". Here the dataset entries,
-  the three NEON products among them, say "Dataset" in their note; add the tag
-  if the copy editor asks for it.
-- Replace "DOI to be assigned at deposit" once the archive is deposited, then
-  regenerate this folder.
+- The first submission is a single PDF, main.pdf, with supplement.pdf as
+  supplementary material. The editable LaTeX and the highlights as a separate
+  file are asked for at revision.
+- The guide asks authors to put "[dataset]" immediately before each data
+  reference. elsarticle-harv.bst cannot print it, so here the dataset entries,
+  the three NEON products among them, only say "Dataset" in their note; add
+  the tag by hand before the final files.
 
 The journal sets no length limit for research papers, no word limit for the
 abstract (246 words) and at most six keywords (six).
@@ -116,17 +126,19 @@ pdflatex main && bibtex main && pdflatex main && pdflatex main
 pdflatex supplement && bibtex supplement && pdflatex supplement && pdflatex supplement
 ```
 
-On 23 November 2026 the manuscript compiled to 36 pages and the supplement to
-29, with no overfull lines and no BibTeX warnings.
+On 23 November 2026 the manuscript compiled to 37 pages and the supplement to
+30, with no overfull lines and no BibTeX warnings.
 
 From the repository root, the converter's tests run the end-to-end checks
 when pandoc is on the path or named in the `PANDOC` environment variable. They
 compare every word, number and table row of the markdown with the LaTeX and
 check the journal's front and back matter rules, on the paper and on a small
 synthetic paper. A BibTeX check of the whole reference list runs when bibtex
-is on the path or named in `BIBTEX`:
+is on the path or named in `BIBTEX`, and a compile of both documents, which
+fails on any error, overfull line, undefined citation or BibTeX warning, runs
+when pdflatex is on the path or named in `PDFLATEX` as well:
 
 ```sh
-PANDOC=/path/to/pandoc BIBTEX=/path/to/bibtex \
+PANDOC=/path/to/pandoc BIBTEX=/path/to/bibtex PDFLATEX=/path/to/pdflatex \
   python3 -m unittest discover -s tests -p 'test_paper_to_elsevier.py'
 ```

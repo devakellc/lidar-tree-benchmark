@@ -5,10 +5,10 @@ proposal](../docs/paper-proposal.md), written on 6 October 2026 from the
 committed study reports, extended on 20 October 2026 with the ForestMamba run
 (now Section S23 of the supplement), restructured for IEEE JSTARS on 22 October
 2026 and revised on 17 November 2026 after a pre-submission review. On 23
-November 2026 the target changed to the ISPRS Journal of Photogrammetry and
-Remote Sensing, which has the higher impact factor, sets no length limit for
-research papers and costs nothing by its subscription route; the JSTARS
-version is kept as the fallback.
+November 2026 the target returned to the ISPRS Journal of Photogrammetry and
+Remote Sensing, the draft's target until 22 October, which has the higher
+impact factor, sets no length limit for research papers and costs nothing by
+its subscription route; the JSTARS version is kept as the fallback.
 
 - [manuscript.md](manuscript.md): the main text, with seven tables and seven
   figures.
@@ -54,16 +54,15 @@ With the routing moved to the supplement, the main text now has about 11,200
 words of prose (9,200 before the revision) and the IEEE version 20 pages, the
 body ending on page 18 (18 and 16 before); the IEEE supplement has 29 pages
 (19 before). The ISPRS Journal version, set in 12 pt on single-column A4 pages
-for review, has 36 pages and its supplement 29.
+for review, has 37 pages and its supplement 30.
 
 The [ISPRS Journal version](elsevier/README.md) uses Elsevier's elsarticle
 template. It keeps the highlights, the six keywords, the CRediT, competing
 interest and funding sections and the declaration of generative AI, which the
 journal asks to stand last before the references. It cites author-year and
-puts the three widest tables on landscape pages. Before submission:
+puts the three widest tables on landscape pages. Before submission, with every
+edit to the markdown made before the last step:
 
-- Complete the author block in its main.tex: affiliations with full postal
-  addresses and the corresponding author's e-mail (the ORCID iD is in).
 - Complete the CRediT statement, the declaration of competing interest and the
   funding statement here in the markdown. The journal also takes the
   competing interest on Elsevier's template in its submission system, even
@@ -88,6 +87,10 @@ puts the three widest tables on landscape pages. Before submission:
   commit and the rebuild's report. After the deposit, replace "DOI to be
   assigned at deposit" in the availability statement. If any archived output
   is re-run before the deposit, stage and rebuild again.
+- Last, regenerate the ISPRS Journal version and complete the author block in
+  its main.tex or Overleaf project: affiliations with full postal addresses
+  and the corresponding author's e-mail (the ORCID iD is in). Regenerating
+  resets the block, so do it after the markdown is final.
 
 Two analyses that the pre-submission review suggested were not run: a repeat run
 of ForestFormer3D at native density, which would measure the run-to-run spread

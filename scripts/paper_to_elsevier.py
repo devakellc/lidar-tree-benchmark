@@ -10,9 +10,10 @@ reference may name) is that of scripts/paper_to_ieee.py, which this script
 loads as a library; what differs is the journal's form:
 
 - Citations are author-year (natbib with elsarticle-harv.bst): a bracketed
-  group becomes \\citep, "(Kaartinen et al., 2012; Jakubowski et al., 2013)",
-  and a narrative citation becomes \\citet, "Jakubowski et al. (2013)". A key
-  that the bibliography does not hold stops the build.
+  group becomes \\citep, "(Jakubowski et al., 2013; Kaartinen et al., 2012)",
+  sorted alphabetically then chronologically as the journal asks, and a
+  narrative citation becomes \\citet, "Jakubowski et al. (2013)". A key that
+  the bibliography does not hold stops the build.
 - Numbering is the markdown's own: sections 1, 1.1, tables and figures 1, 2.
   Every reference to a manuscript section, table or figure is a \\ref, a
   figure panel stays as it is written (Fig. 2d), and the supplement writes
@@ -28,12 +29,14 @@ loads as a library; what differs is the journal's form:
   and, last before the references as the journal requires, the declaration
   of generative AI (the build stops if it is not last). A section that still
   reads "To be completed" gets a TODO comment.
-- Tables take booktabs rules and no vertical rules, with the caption above;
-  figures take the caption below. Floats are placed here, at the top or the
-  bottom of a page or on a page of their own ([!htbp]), as the journal asks
-  that figures and tables sit next to the text that cites them. The
-  supplement's tables break across pages (xltabular) and its figures are
-  labelled "Figure S1." in the text, as in the IEEE version.
+- Tables take booktabs rules and no vertical rules. In the manuscript every
+  caption goes directly below its figure or table and floats are placed here,
+  at the top or the bottom of a page or on a page of their own ([!htbp]), as
+  the journal asks of the single file of a first submission; a table whose
+  words cannot fit the portrait width goes on a landscape page. The
+  supplement's tables break across pages (xltabular), each captioned in its
+  first head row, and its figures are labelled "Figure S1." in the text, as
+  in the IEEE version.
 - A figure is included as the vector PDF beside its PNG when there is one, at
   the width it was drawn as a share of the text width (160 mm in the
   manuscript, 170 mm in the supplement), at most the whole width and rounded
@@ -41,14 +44,23 @@ loads as a library; what differs is the journal's form:
   aspect ratio.
 
 The Elsevier copy of the bibliography is written for elsarticle-harv.bst,
-which sets titles in sentence case, prints the DOI, URL and arXiv identifier
-fields itself, and ignores version and urldate. Software and dataset entries
-become misc entries; the version, the note and the access date ("Accessed 2
-October 2026") go into the note; a misc entry's publisher becomes its
-howpublished or organization unless it repeats the author; a paper with a DOI
-is cited without its arXiv identifier, as the journal cites the version of
-record; and acronyms, single capitals and words with inner capitals in titles
-are braced, as in the IEEE copy. DOIs print as https://doi.org/ links.
+which sets titles in sentence case and prints the DOI, URL and arXiv
+identifier fields itself, but ignores version and urldate, a misc entry's
+organization, and a proceedings paper's series, volume and number. Software
+and dataset entries become misc entries; the version, the note and the access
+date ("Accessed 2 October 2026") go into the note; a misc entry's publisher
+becomes its howpublished, or joins the note, unless it repeats the author; a
+proceedings paper's series, volume and number join its proceedings title. A
+paper with a DOI is cited without its arXiv identifier, as the journal cites
+the version of record, and an arXiv preprint without one takes its arXiv DOI
+(10.48550/arXiv.<id>), as the journal asks for a preprint's DOI. A corporate
+author written with its abbreviation, "National Ecological Observatory Network
+(NEON)", loses the abbreviation, so the citation does not nest parentheses. A
+publisher ending in a period loses it where the style adds one. Acronyms,
+single capitals and words with inner capitals in titles are braced, as in the
+IEEE copy, a note's first letter is braced so the style keeps its case, and a
+quotation inside a title keeps its double quotes. DOIs print as
+https://doi.org/ links.
 
 The converter stops with an error rather than guess in every case that
 scripts/paper_to_ieee.py stops, and also on a bracketed citation of an
@@ -113,9 +125,10 @@ FIG_FILE = {}
 
 def cite_labels(bib_text):
     """key -> (names, year) as natbib's author-year citations print them:
-    'Surname', 'A and B' or 'Surname et al.', and the year field."""
+    'Surname', 'A and B' or 'Surname et al.' (a corporate author without its
+    parenthesised abbreviation), and the year field."""
     names = p2i.bib_authors(bib_text)
-    return {key: (names.get(key, key), dict(fields).get("year", ""))
+    return {key: (short_corporate(names.get(key, key)), dict(fields).get("year", ""))
             for _, key, fields, _ in p2i.parse_bib(bib_text)}
 
 
@@ -221,10 +234,12 @@ def table_tex(num, caption_tex, header, aligns, body, mode, labels):
         has_x = any(s in "LRC" for s in spec)
         env, width = ("tabularx", "{\\linewidth}") if has_x else ("tabular", "")
         float_env, place = ("sidewaystable", "") if landscape else ("table", "[!htbp]")
-        lines = [f"\\begin{{{float_env}}}{place}", f"\\caption{{{caption_tex}}}", f"\\label{{tab:{num}}}",
-                 "\\centering", size] + setup + [f"\\begin{{{env}}}{width}{{{preamble}}}", "\\toprule", head_row,
-                                                 "\\midrule"]
-        return "\n".join(lines + body_rows + ["\\bottomrule", f"\\end{{{env}}}", f"\\end{{{float_env}}}"])
+        # The caption goes directly below the table, as the journal asks of
+        # the tables in the single file of a first submission.
+        lines = [f"\\begin{{{float_env}}}{place}", "\\centering", "{" + size] + setup + [
+            f"\\begin{{{env}}}{width}{{{preamble}}}", "\\toprule", head_row, "\\midrule"]
+        return "\n".join(lines + body_rows + ["\\bottomrule", f"\\end{{{env}}}", "}", f"\\caption{{{caption_tex}}}",
+                                              f"\\label{{tab:{num}}}", f"\\end{{{float_env}}}"])
     caption_row = (f"\\multicolumn{{{ncol}}}{{@{{}}p{{\\textwidth}}@{{}}}}"
                    f"{{\\normalsize\\textbf{{Table {num}.}} {caption_tex}}} \\\\[4pt]")
     continued_row = (f"\\multicolumn{{{ncol}}}{{@{{}}l@{{}}}}"
@@ -490,6 +505,10 @@ def build_main(labels):
 \\newcommand{{\\URLprefix}}{{}}
 \\newcommand{{\\doi}}[1]{{\\url{{https://doi.org/#1}}}}
 
+% The journal lists a group of citations alphabetically, then chronologically,
+% as the reference list is sorted. elsarticle passes this option to natbib on
+% the next run.
+\\biboptions{{sort}}
 \\journal{{{JOURNAL}}}
 
 \\begin{{document}}
@@ -560,7 +579,7 @@ def build_supplement(labels):
 \\renewcommand{{\\ttdefault}}{{pcr}}
 \\renewcommand{{\\sfdefault}}{{phv}}
 \\usepackage[a4paper,margin=2cm]{{geometry}}
-\\usepackage[round,authoryear]{{natbib}}
+\\usepackage[round,authoryear,sort]{{natbib}}
 \\usepackage{{amsmath}}
 \\usepackage{{graphicx}}
 \\ifdefined\\pdfsuppresswarningpagegroup\\pdfsuppresswarningpagegroup=1\\relax\\fi
@@ -647,12 +666,41 @@ def join_sentences(parts):
     return text
 
 
+# A corporate author written with its abbreviation, {National Ecological
+# Observatory Network (NEON)}: the author-year label drops the abbreviation, as
+# "(National Ecological Observatory Network (NEON), 2026)" nests parentheses.
+CORPORATE_ABBR = re.compile(r"^\{(.+?) \(([A-Z][A-Za-z0-9]*)\)\}$")
+
+
+def short_corporate(name):
+    """'Name (ABBR)' -> 'Name' for a name as bib_authors returns it."""
+    return re.sub(r" \([A-Z][A-Za-z0-9]*\)$", "", name)
+
+
 def elsevier_entry(etype, key, fields):
     f = dict(fields)
-    is_misc = etype.lower() in ("misc", "software", "online", "dataset")
+    kind = etype.lower()
+    is_misc = kind in ("misc", "software", "online", "dataset")
     out = [(n, v) for n, v in fields if n not in DROPS and v.strip()]
     if "doi" in f:  # the version of record, not the preprint
         out = [(n, v) for n, v in out if n != "eprint"]
+    elif "eprint" in f and f.get("archiveprefix", "").lower() == "arxiv":
+        # The journal asks for a preprint's DOI; arXiv's is derived from its
+        # identifier. The eprint field stays, to name the server.
+        out.append(("doi", f"10.48550/arXiv.{f['eprint']}"))
+    if kind == "inproceedings":
+        # elsarticle-harv.bst prints no volume, number or series for a paper in
+        # proceedings, so they join the proceedings title.
+        extra = {n: f[n].strip() for n in ("series", "volume", "number") if f.get(n, "").strip()}
+        if extra:
+            title = f.get("booktitle", "") + (", " + extra["series"] if "series" in extra else "")
+            title += (" " + extra["volume"] if "volume" in extra else "")
+            title += (f" ({extra['number']})" if "number" in extra else "")
+            out = [(n, title if n == "booktitle" else v) for n, v in out if n not in extra]
+    if kind in ("inproceedings", "incollection"):
+        # The style writes '. ' after the publisher whatever it ends with, so
+        # 'Inc.' would print 'Inc..'.
+        out = [(n, re.sub(r"\.$", "", v) if n in ("publisher", "organization") else v) for n, v in out]
     have = {n for n, _ in out}
     author = p2i.decode_latex(f.get("author", ""))
     notes = []
@@ -666,14 +714,14 @@ def elsevier_entry(etype, key, fields):
     if f.get("note", "").strip() and not f["note"].startswith("Undated page"):
         notes.append(f["note"])  # the access date below replaces the undated-page note
     if is_misc and f.get("publisher", "").strip():
+        # The style's misc prints howpublished but not organization, so a
+        # publisher that does not repeat the author goes to howpublished or,
+        # when that is taken, to the note.
         out = [(n, v) for n, v in out if n != "publisher"]
         if p2i.decode_latex(f["publisher"]) != author:
             if "howpublished" not in have:
                 out.append(("howpublished", f["publisher"]))
                 have.add("howpublished")
-            elif "organization" not in have:
-                out.append(("organization", f["publisher"]))
-                have.add("organization")
             else:
                 notes.append(f["publisher"])
     if "urldate" in f:
@@ -681,7 +729,10 @@ def elsevier_entry(etype, key, fields):
     note = join_sentences(notes)
     if note:
         out.append(("note", protect_note(note)))
-    out = [(n, p2i.protect_title(v) if n == "title" else v) for n, v in out]
+    out = [(n, CORPORATE_ABBR.sub(r"{\1}", v) if n == "author" else v) for n, v in out]
+    # The style does not quote titles, so a quotation inside one keeps the
+    # source's double quotes.
+    out = [(n, p2i.protect_title(v, single_quotes=False) if n == "title" else v) for n, v in out]
     width = max(len(n) for n, _ in out)
 
     def field(n, v):
@@ -705,11 +756,13 @@ def elsevier_bib(bib_text):
     head = ("% Elsevier copy of docs/references.bib, generated by scripts/paper_to_elsevier.py\n"
             "% for elsarticle-harv.bst. Software and dataset entries become misc; the\n"
             "% version, the note and the access date go into the note; a misc entry's\n"
-            "% publisher becomes howpublished or organization unless it repeats the\n"
-            "% author; a paper with a DOI is cited without its arXiv identifier.\n"
-            "% Acronyms and inner capitals in titles and a note's first word are braced;\n"
-            "% other title words follow the style's sentence case. Accented letters are\n"
-            "% written as LaTeX accents.\n\n")
+            "% publisher becomes howpublished, or joins the note, unless it repeats the\n"
+            "% author. A paper with a DOI is cited without its arXiv identifier, and an\n"
+            "% arXiv preprint takes its arXiv DOI. A proceedings paper's series, volume\n"
+            "% and number join the proceedings title, which the style prints. A corporate\n"
+            "% author loses its parenthesised abbreviation. Acronyms and inner capitals in\n"
+            "% titles and a note's first letter are braced; other title words follow the\n"
+            "% style's sentence case. Accented letters are written as LaTeX accents.\n\n")
     return head + p2i.latex_accents("\n\n".join(text for _, text in sorted(items))) + "\n"
 
 

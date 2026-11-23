@@ -556,15 +556,17 @@ def protect_part(part, lead):
     return part
 
 
-def protect_title(title):
+def protect_title(title, single_quotes=True):
     """Protect what IEEEtran.bst's sentence casing of titles would damage.
     Ordinary capitalised words are left for the style to lower-case, as IEEE
     reference lists set titles in sentence case; proper nouns that no rule
     can recognise are braced in the source bibliography. Brace groups, math
     and control words are kept as they are, and the text around them is
     protected word by word. A quotation inside a title takes single quotes,
-    since IEEEtran adds the outer double ones."""
-    title = re.sub(r"``(.*?)''", r"`\1'", title)
+    since IEEEtran adds the outer double ones; single_quotes=False keeps the
+    source's quotes, for a style that does not quote titles."""
+    if single_quotes:
+        title = re.sub(r"``(.*?)''", r"`\1'", title)
     segs, i = [], 0
     while i < len(title):
         c = title[i]

@@ -18,11 +18,13 @@ From the repository root:
 import contextlib
 import importlib.util
 import io
+import os
 import re
 import subprocess
 import tempfile
 import unittest
 import zipfile
+from collections import Counter
 from pathlib import Path
 from unittest import mock
 
@@ -40,7 +42,9 @@ p2e = load("paper_to_elsevier", ROOT / "scripts/paper_to_elsevier.py")
 p2i = p2e.p2i  # the instance the converter uses, so a patched REPO reaches it
 tie = load("test_paper_to_ieee_helpers", ROOT / "tests/test_paper_to_ieee.py")
 PANDOC, BIBTEX = tie.PANDOC, tie.BIBTEX
+PDFLATEX = tie.find_tool("PDFLATEX", "pdflatex")
 NB = "\u00a0"
+GROUP = r"\[@[a-z0-9]+(?:;\s*@[a-z0-9]+)*\]"
 
 LABELS = {"kuhn1955hungarian": ("Kuhn", "1955"), "eysn2015benchmark": ("Eysn et al.", "2015"),
           "hamraz2016robust": ("Hamraz et al.", "2016")}
@@ -69,6 +73,29 @@ def els_supp_md(supp, known, title):
     supp = re.sub(r"Supplement to the draft manuscript \[[^\]]*\]\(manuscript\.md\)\.",
                   f"Supplement to the manuscript \u201c{title}.\u201d", supp)
     return p2i.restore_code(p2i.convert_refs(supp, "supp", known, "elsevier"), code)
+
+
+def md_cite_keys(md):
+    """Every citation key of a markdown text, with its count, outside code."""
+    held, _ = p2i.hold_code(md)
+    keys = Counter(k for g in re.findall(GROUP, held) for k in re.findall(r"@([a-z0-9]+)", g))
+    return keys + Counter(re.findall(r"(?<![\w@\\{])@([a-z0-9]+)", re.sub(GROUP, " ", held)))
+
+
+def tex_cite_keys(tex):
+    """Every key of the \\citep and \\citet commands of a LaTeX text, with its
+    count, outside comments and code."""
+    body = re.sub(r"(?<!\\)%.*", " ", p2i.VERBATIM.sub(" ", tex))
+    return Counter(k for g in re.findall(r"\\cite[pt]\{([^}]*)\}", body) for k in g.split(","))
+
+
+def md_back_heads(md):
+    """The back-matter headings of a manuscript, in order: between the last
+    numbered section and the references."""
+    heads = [h for h, _ in p2i.split_sections(md)]
+    start = heads.index("## 1. Introduction")
+    end = next(i for i, h in enumerate(heads) if i > start and not re.match(r"## \d", h))
+    return [h[3:] for h in heads[end:heads.index("## References")]]
 
 
 def els_table_rows(tex):
@@ -158,6 +185,11 @@ class HighlightsTests(unittest.TestCase):
                 p2e.highlights(text)
         self.assertEqual(len(p2e.highlights("- A.\n- B.\n- **" + "x" * 85 + "**\n")), 3)  # markup is not counted
 
+    def test_spaces_count_toward_the_limit(self):
+        self.assertEqual(len(p2e.highlights("- A.\n- B.\n- " + "word " * 16 + "words\n")), 3)  # 85 characters
+        with self.assertRaises(SystemExit):
+            p2e.highlights("- A.\n- B.\n- " + "word " * 17 + "x\n")  # 86 characters
+
 
 class BibliographyTests(unittest.TestCase):
     @classmethod
@@ -194,6 +226,37 @@ class BibliographyTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             p2e.accessed("2 Oct 2026")
 
+    def test_proceedings_volume_publisher_and_quotes(self):
+        e = p2e.elsevier_entry("inproceedings", "k", [
+            ("author", "Doe, Jane"), ("title", "A ``quoted'' title"), ("booktitle", "Proc. of Things"),
+            ("series", "LNCS"), ("volume", "XXXVI-8/W2"), ("number", "3"), ("publisher", "Curran Associates, Inc."),
+            ("pages", "1--5"), ("year", "2004")])
+        self.assertIn("booktitle = {Proc. of Things, LNCS XXXVI-8/W2 (3)}", tie.flat(e))
+        self.assertNotRegex(e, r"\b(volume|number|series)\s*=")
+        self.assertIn("publisher = {Curran Associates, Inc}", tie.flat(e))
+        self.assertIn("``quoted''", e)  # the style does not quote titles, so the source's quotes stay
+
+    def test_misc_publisher_never_goes_to_organization(self):
+        e = p2e.elsevier_entry("software", "k", [
+            ("author", "Doe, Jane"), ("title", "Tool"), ("howpublished", "GitHub repository"),
+            ("publisher", "Example Foundation"), ("year", "2026")])
+        self.assertTrue(e.startswith("@misc{k,"))
+        self.assertNotIn("organization", e)
+        self.assertRegex(tie.flat(e), r"note += \{\{E\}xample Foundation\}")
+
+    def test_arxiv_preprint_takes_its_doi_and_corporate_author_its_short_name(self):
+        e = p2e.elsevier_entry("misc", "k", [("author", "Doe, Jane"), ("title", "Pre"), ("year", "2026"),
+                                             ("eprint", "2107.07002"), ("archiveprefix", "arXiv")])
+        self.assertIn("doi = {10.48550/arXiv.2107.07002}", tie.flat(e))
+        self.assertIn("eprint", e)
+        e = p2e.elsevier_entry("misc", "k", [("author", "{National Ecological Observatory Network (NEON)}"),
+                                             ("title", "Data"), ("year", "2026"),
+                                             ("publisher", "National Ecological Observatory Network (NEON)")])
+        self.assertIn("author = {{National Ecological Observatory Network}}", tie.flat(e))
+        self.assertNotIn("howpublished", e)  # the publisher repeats the author
+        self.assertEqual(p2e.short_corporate("National Ecological Observatory Network (NEON)"),
+                         "National Ecological Observatory Network")
+
     def test_note_protection(self):
         self.assertEqual(p2e.protect_note("model weights"), "{m}odel weights")
         self.assertEqual(p2e.protect_note("MIT licence"), "{MIT} licence")
@@ -208,6 +271,12 @@ class TableFitTests(unittest.TestCase):
         self.assertFalse(p2e.words_fit(["L", "L"], est, 8.0, ["1", "1"]))
         self.assertFalse(p2e.words_fit(["l", "l"], est, 5.0, [None, None]))
 
+    def test_words_fit_leaves_room_for_the_fixed_columns(self):
+        est = [["A very long label cell", "Score"], ["x", "word"]]
+        fixed, word = p2e.one_line_em("A very long label cell"), max(p2i.word_widths("Score", p2e.SPACE_EM))
+        self.assertTrue(p2e.words_fit(["l", "L"], est, fixed + word + 0.01, [None, "1"]))
+        self.assertFalse(p2e.words_fit(["l", "L"], est, word + 1.0, [None, "1"]))
+
 
 @unittest.skipUnless(PANDOC, "pandoc not available (set PANDOC=/path/to/pandoc)")
 class TableLayoutTests(unittest.TestCase):
@@ -220,8 +289,10 @@ class TableLayoutTests(unittest.TestCase):
 
     def test_small_table_keeps_its_natural_width(self):
         tex = self.table(["Site", "Plots"], [["SJER", "6"], ["SOAP", "18"]])
-        self.assertIn("\\begin{table}[!htbp]\n\\caption{Cap.}\n\\label{tab:1}", tex)
+        self.assertTrue(tex.startswith("\\begin{table}[!htbp]\n\\centering\n{\\footnotesize"))
         self.assertIn("\\begin{tabular}{ll}\n\\toprule\nSite & Plots \\\\\n\\midrule", tex)
+        # The caption directly below the table, as the journal asks.
+        self.assertTrue(tex.endswith("\\end{tabular}\n}\n\\caption{Cap.}\n\\label{tab:1}\n\\end{table}"))
         self.assertNotIn("\\hline", tex)
         self.assertEqual(els_table_rows(tex), [2])
 
@@ -234,7 +305,8 @@ class TableLayoutTests(unittest.TestCase):
         header = ["Detector"] + [f"Column {i}" for i in range(10)]
         body = [["SegmentAnyTree"] + ["+0.048 [+0.028, +0.069]"] * 10 for _ in range(3)]
         tex = self.table(header, body)
-        self.assertTrue(tex.startswith("\\begin{sidewaystable}\n\\caption{Cap.}"))
+        self.assertTrue(tex.startswith("\\begin{sidewaystable}\n\\centering"))
+        self.assertIn("\\caption{Cap.}\n\\label{tab:1}\n\\end{sidewaystable}", tex)
         self.assertTrue(tex.endswith("\\end{sidewaystable}"))
         self.assertEqual(els_table_rows(tex), [3])
 
@@ -273,11 +345,27 @@ class EndToEndTests(unittest.TestCase):
 
     def test_class_journal_and_bibliography_style(self):
         self.assertIn("\\documentclass[preprint,12pt,authoryear,a4paper]{elsarticle}", self.main_tex)
-        self.assertIn(f"\\journal{{{p2e.JOURNAL}}}", self.main_tex)
+        self.assertIn("\\journal{ISPRS Journal of Photogrammetry and Remote Sensing}", self.main_tex)
+        self.assertIn("\\biboptions{sort}", self.main_tex)
+        self.assertIn("\\usepackage[round,authoryear,sort]{natbib}", self.supp_tex)
+        self.assertIn("\\usepackage{rotating}", self.main_tex)
+        self.assertRegex(self.main_tex, r"\\end\{frontmatter\}\s*\\linenumbers")
         for tex in (self.main_tex, self.supp_tex):
-            self.assertIn("\\bibliographystyle{elsarticle-harv}", tex)
+            self.assertIn("\\bibliographystyle{elsarticle-harv}\n\\bibliography{references}", tex)
             self.assertRegex(tex, tie.PAGE_GROUP)
             self.assertNotRegex(tex, r"\\cite\{")  # natbib's \citep and \citet only
+
+    def test_geometry_matches_the_widths_the_layout_assumes(self):
+        for mode, tex in (("main", self.main_tex), ("supp", self.supp_tex)):
+            margin = float(re.search(r"\\usepackage\[a4paper,margin=([\d.]+)cm\]\{geometry\}", tex).group(1))
+            self.assertAlmostEqual(210 - 20 * margin, p2e.TEXT_WIDTH_MM[mode])
+            if mode == "main":
+                self.assertAlmostEqual((297 - 20 * margin) / 25.4 * 72.27, p2e.LANDSCAPE_PT)
+
+    def test_every_citation_reaches_the_latex(self):
+        md = (ROOT / "paper/manuscript.md").read_text(encoding="utf-8")
+        self.assertEqual(tex_cite_keys(self.main_tex), md_cite_keys(els_main_md(md)))
+        self.assertEqual(tex_cite_keys(self.supp_tex), md_cite_keys(self.supp_md))
 
     def test_front_matter(self):
         items = re.search(r"(?s)\\begin\{highlights\}(.*?)\\end\{highlights\}", self.main_tex).group(1)
@@ -290,6 +378,8 @@ class EndToEndTests(unittest.TestCase):
 
     def test_back_matter_ends_with_the_ai_declaration(self):
         heads = re.findall(r"\\section\*\{([^}]*)\}", self.main_tex)
+        md = (ROOT / "paper/manuscript.md").read_text(encoding="utf-8")
+        self.assertEqual(heads, md_back_heads(md))  # in the markdown's order, once each
         self.assertEqual(heads[-1], p2e.AI_HEADING[3:])
         tail = self.main_tex.split("\\section*{" + heads[-1], 1)[1]
         self.assertNotRegex(tail.split("\\bibliographystyle", 1)[0], r"\\section")
@@ -299,7 +389,10 @@ class EndToEndTests(unittest.TestCase):
 
     def test_floats(self):
         self.assertEqual(len(re.findall(r"\\begin\{figure\}\[!htbp\]", self.main_tex)), 7)
-        self.assertEqual(len(re.findall(r"\\begin\{(?:table\}\[!htbp\]|sidewaystable\})", self.main_tex)), 7)
+        # Tables 3, 5 and 6 cannot fit the portrait width; the other four can.
+        self.assertEqual(len(re.findall(r"\\begin\{sidewaystable\}", self.main_tex)), 3)
+        self.assertEqual(len(re.findall(r"\\begin\{table\}\[!htbp\]", self.main_tex)), 4)
+        self.assertEqual(re.findall(r"\\label\{tab:(\d+)\}\n\\end\{sidewaystable\}", self.main_tex), ["3", "5", "6"])
         self.assertNotRegex(self.main_tex, r"\\begin\{(?:figure|table)\*\}")
 
     def test_every_cite_key_is_in_the_bibliography(self):
@@ -323,6 +416,8 @@ class EndToEndTests(unittest.TestCase):
 
     def test_figures_print_at_the_width_they_were_drawn(self):
         for mode, tex in (("main", self.main_tex), ("supp", self.supp_tex)):
+            for f in p2i.graphics_files(tex):  # the vector PDF wherever there is one
+                self.assertTrue(f.endswith(".pdf") or not (ROOT / "paper" / f).with_suffix(".pdf").exists(), f)
             found = re.findall(r"\\includegraphics\[width=([\d.]*)\\textwidth\]\{(figures/[^}]*\.pdf)\}", tex)
             self.assertEqual(len(found), len([f for f in p2i.graphics_files(tex) if f.endswith(".pdf")]))
             for share, f in found:
@@ -409,6 +504,11 @@ class SyntheticPaperTests(unittest.TestCase):
         self.assertNotIn("equation", self.supp_tex)
         self.assertIn("\\section{Introduction}\\label{sec:1}", self.main_tex)
 
+    def test_citations_and_back_matter_order(self):
+        md = (p2i.REPO / "paper/manuscript.md").read_text(encoding="utf-8")
+        self.assertEqual(tex_cite_keys(self.main_tex), md_cite_keys(els_main_md(md)))
+        self.assertEqual(re.findall(r"\\section\*\{([^}]*)\}", self.main_tex), md_back_heads(md))
+
     def test_front_and_back_matter(self):
         self.assertEqual(re.search(r"(?s)\\begin\{highlights\}(.*?)\\end\{highlights\}", self.main_tex)
                          .group(1).count("\\item"), 3)
@@ -433,20 +533,26 @@ class SyntheticPaperTests(unittest.TestCase):
 
     def test_manuscript_rules_stop_the_build(self):
         md = (p2i.REPO / "paper/manuscript.md").read_text(encoding="utf-8")
-        bad = {"highlights": md.replace(SYNTH_HIGHLIGHTS, "- Only one.\n"),
-               "keywords": md.replace("**Keywords:** beta; alpha.", "**Keywords:** a; b; c; d; e; f; g."),
-               "numbering": md.replace("## 2. Methods", "## 3. Methods"),
-               "AI declaration last": md.replace("## Acknowledgements\n\nThanks.\n\n", "").replace(
+        # Each case breaks one rule and stops for that reason; the numbering
+        # case swaps two subsection numbers, which the supplement does not cite.
+        md = md.replace("## 2. Methods\n", "## 2. Methods\n\n### 2.1 First\n\nA.\n\n### 2.2 Second\n\nB.\n")
+        bad = {"3 highlights; the journal asks|1 highlights": md.replace(SYNTH_HIGHLIGHTS, "- Only one.\n"),
+               "7 keywords; the journal takes": md.replace("**Keywords:** beta; alpha.",
+                                                           "**Keywords:** a; b; c; d; e; f; g."),
+               "out of sequence": md.replace("### 2.1 First", "### 2.9 First"),
+               "section before the references must be": md.replace("## Acknowledgements\n\nThanks.\n\n", "").replace(
                    "## References", "## Acknowledgements\n\nThanks.\n\n## References")}
-        for name, text in bad.items():
-            with self.subTest(rule=name):
+        original = (p2i.REPO / "paper/manuscript.md").read_text(encoding="utf-8")
+        for reason, text in bad.items():
+            with self.subTest(reason=reason):
                 self.assertNotEqual(text, md)
                 (p2i.REPO / "paper/manuscript.md").write_text(text, encoding="utf-8")
                 try:
-                    with self.assertRaises(RuntimeError):
+                    with self.assertRaisesRegex(RuntimeError, reason):
                         run_converter([f"OUT={p2i.REPO / 'bad'}", f"PANDOC={PANDOC}"])
+                    self.assertFalse((p2i.REPO / "bad").exists())  # nothing is written on a failed build
                 finally:
-                    (p2i.REPO / "paper/manuscript.md").write_text(md, encoding="utf-8")
+                    (p2i.REPO / "paper/manuscript.md").write_text(original, encoding="utf-8")
 
 
 @unittest.skipUnless(BIBTEX, "bibtex not available (set BIBTEX=/path/to/bibtex)")
@@ -482,6 +588,51 @@ class BibtexTests(unittest.TestCase):
         # The version of record: the DOI, not the arXiv identifier.
         self.assertIn("\\doi{", self.items["hamraz2016robust"])
         self.assertNotIn("1701.00198", self.items["hamraz2016robust"])
+        # Proceedings volumes, preprint DOIs, one period after a publisher,
+        # corporate authors without their abbreviation, quotes in titles.
+        for key in ("yu2004effects", "hirata2004effects"):
+            self.assertIn("Sciences XXXVI-8/W2}", self.items[key])
+        self.assertIn("Systems 34}", self.items["agarwal2021deep"])
+        self.assertIn("\\doi{10.48550/arXiv.2107.07002}", self.items["dehghani2021benchmark"])
+        self.assertNotRegex(bbl, r"\.\}\. ")
+        self.assertNotIn("(NEON)", self.items["neon2026vegetation"])
+        self.assertIn("``equitable threat score''", self.items["hogan2010equitability"])
+
+
+@unittest.skipUnless(PANDOC and BIBTEX and PDFLATEX,
+                     "pandoc, bibtex or pdflatex not available (set PANDOC, BIBTEX and PDFLATEX)")
+class CompileTests(unittest.TestCase):
+    """Convert the paper and compile both documents with pdfLaTeX and BibTeX,
+    as Overleaf does: no error, no overfull line, no undefined citation or
+    reference and no BibTeX warning."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls.tmp.cleanup)
+        root = Path(cls.tmp.name)
+        out = root / "elsevier"
+        run_converter([f"OUT={out}", f"PANDOC={PANDOC}"])
+        (root / "figures").symlink_to(ROOT / "paper/figures")  # the documents read ../figures
+        env = dict(os.environ, PATH=str(Path(PDFLATEX).resolve().parent) + os.pathsep + os.environ.get("PATH", ""))
+        cls.logs, cls.blgs, cls.codes = {}, {}, {}
+        for doc in ("main", "supplement"):
+            codes = []
+            for cmd in ([PDFLATEX], [BIBTEX], [PDFLATEX], [PDFLATEX]):
+                arg = [doc] if cmd == [BIBTEX] else ["-interaction=nonstopmode", "-halt-on-error", doc]
+                codes.append(subprocess.run(cmd + arg, cwd=out, env=env, capture_output=True, text=True).returncode)
+            cls.codes[doc] = codes
+            cls.logs[doc] = (out / f"{doc}.log").read_text(errors="replace")
+            cls.blgs[doc] = (out / f"{doc}.blg").read_text(errors="replace")
+
+    def test_documents_compile_clean(self):
+        for doc, log in self.logs.items():
+            with self.subTest(document=doc):
+                self.assertEqual(self.codes[doc], [0, 0, 0, 0])
+                self.assertNotRegex(log, r"(?m)^! ")
+                self.assertNotIn("Overfull \\hbox", log)
+                self.assertNotRegex(log, r"(Citation|Reference) `[^']*' on page \d+ undefined")
+                self.assertNotIn("Warning--", self.blgs[doc])
 
 
 if __name__ == "__main__":
