@@ -16,7 +16,9 @@ figure_3.png) when there is one and as the PNG otherwise. A PDF figure prints
 at the width it was drawn: its page width as a fraction of the text width
 (IEEE's 7.16 in, or the supplement's 2 cm margins on US letter), at most the
 whole width and rounded up to hundredths; a figure with only a PNG takes its
-width from the PNG's aspect ratio. The manuscript's floats go at the top of a
+width from the PNG's aspect ratio. Figures are included by their paths
+relative to paper/ (figures/figure_3.pdf), which the documents' \\graphicspath
+reaches from OUT (graphics_path). The manuscript's floats go at the top of a
 page or, when the floats waiting fill most of a page, on a page of their own
 ([!tp]), so no text page is left with floats alone. The supplement's figures
 (Figure S1) are labelled in the text like its tables, without LaTeX's
@@ -54,16 +56,20 @@ more than six, as IEEE asks.
 
 The converter stops with an error instead of guessing when it meets markdown it
 does not handle: a bracketed citation with a prefix or locator, a narrative
-citation followed by a bracket, a reference to a section, table or figure that
-neither the manuscript nor the supplement has, a caption not followed by its
-table, a table without a caption, an image without a "Figure N." caption
-("Figure Sn." in the supplement), a figure that is not a PNG file under paper/,
+citation followed by a bracket, a bracket that still holds an at-sign once the
+citations are read ([@ key]), a reference to a section, table or figure that
+neither the manuscript nor the supplement has, the manuscript's figures or
+tables not numbered 1, 2, 3 in their order of appearance (LaTeX's numbers,
+which the supplement writes), a caption not followed by its table, a table
+without a caption, an image without a "Figure N." caption ("Figure Sn." in
+the supplement), a figure that is not a PNG file under paper/,
 a table cell, caption or heading that pandoc would read as a block or that
 holds display math, display math outside the body text or in a ```math fence
 (GitHub's other form), a character in math that has no LaTeX mapping, a code
 fence that is never closed, an indented code block (code must be fenced), a
-character outside ASCII in a code block, or a BibTeX form it does not parse
-(@string, @preamble, @comment, "#" concatenation or a macro value).
+character outside ASCII in a code block, a path from OUT to paper/ that LaTeX
+cannot read as a file name, or a BibTeX form it does not parse (@string,
+@preamble, @comment, "#" concatenation or a macro value).
 
 Arguments are KEY=VALUE pairs:
   OUT=paper/ieee        output directory (relative to the repository root)
@@ -75,6 +81,7 @@ Arguments are KEY=VALUE pairs:
     ZIP=work/paper-ieee/jstars-overleaf.zip
 """
 import math
+import os
 import re
 import shutil
 import subprocess
@@ -718,16 +725,37 @@ def ieee_bib(bib_text):
 # ------------------------------------------------------- markdown transforms
 
 
+# A citation key as pandoc reads one: letters, digits and underscores, with single marks inside.
+CITE_KEY = r"[A-Za-z0-9_]+(?:[:.-][A-Za-z0-9_]+)*"
+# The citation forms that convert_citations reads, and what it leaves over.
+CITE_GROUP = r"\[@" + CITE_KEY + r"(?:;\s*@" + CITE_KEY + r")*\]"
+# An at-sign after a word character is part of an address (a@b.org), not a citation.
+CITE_AT = r"(?<![\w@\\{])@"
+CITE_PREFIXED = r"\[[^\[\]]*(?<![\w\\{])@" + CITE_KEY + r"[^\[\]]*\]"
+CITE_LOCATOR = CITE_AT + CITE_KEY + r"\s*\["
+CITE_LEFT = r"\[[^\[\]]*(?<![\w\\{])@[^\[\]]*\]"
+
+
+def check_citations_left(md):
+    """After the citations are converted, no bracket may still hold an
+    at-sign that could start a citation ([@ key], [@]): it is not a form the
+    converter reads, and would print as it is written."""
+    left = re.search(CITE_LEFT, md)
+    if left:
+        raise SystemExit(f"{left.group(0)!r} holds an at-sign but is not a citation the converter reads "
+                         "([@key] or [@key1; @key2])")
+
+
 def convert_citations(md, authors):
     def group(m):
-        keys = re.findall(r"@([a-z0-9]+)", m.group(2))
+        keys = re.findall("@(" + CITE_KEY + ")", m.group(2))
         lead = NBSP if m.group(1) else ""
         return lead + "\\cite{" + ",".join(keys) + "}"
-    md = re.sub(r"(\s?)(\[@[a-z0-9]+(?:;\s*@[a-z0-9]+)*\])", group, md)
-    left = re.search(r"\[[^\[\]]*@[a-z0-9]+[^\[\]]*\]", md)
+    md = re.sub(r"(\s?)(" + CITE_GROUP + ")", group, md)
+    left = re.search(CITE_PREFIXED, md)
     if left:
         raise SystemExit(f"unsupported citation form (prefix, locator or comma list): {left.group(0)!r}")
-    left = re.search(r"(?<![\w@\\{])@[a-z0-9]+\s*\[", md)
+    left = re.search(CITE_LOCATOR, md)
     if left:
         raise SystemExit(f"unsupported citation form (narrative citation with a locator): {left.group(0)!r}")
 
@@ -736,7 +764,9 @@ def convert_citations(md, authors):
         if key not in authors:
             raise SystemExit(f"narrative citation of unknown key {key}")
         return f"{authors[key]}{NBSP}\\cite{{{key}}}"
-    return re.sub(r"(?<![\w@\\{])@([a-z0-9]+)", narrative, md)
+    md = re.sub(CITE_AT + "(" + CITE_KEY + ")", narrative, md)
+    check_citations_left(md)
+    return md
 
 
 SEPS = r"(?:,\s+(?:and\s+|or\s+)?|\s+(?:and|or|to)\s+|\s*–\s*)"
@@ -1261,6 +1291,18 @@ FIGURE_BLOCK = re.compile(r"!\[Figure (S?\d+)\.\]\(([^)]+)\)[ \t]*\n[ \t]*\n\*\*
                           r"((?:(?!\n[ \t]*\n).)*)", re.S)
 
 
+def check_float_order(word, nums):
+    """The manuscript's figures or tables (word is "Figure" or "Table") must be
+    numbered 1, 2, 3 and so on in the order they appear, none skipped or
+    repeated; nums are their numbers in that order. LaTeX numbers floats in
+    order of appearance, and the supplement writes the markdown's numbers, so
+    any other order would make the supplement name the wrong float."""
+    if list(nums) != [str(i) for i in range(1, len(nums) + 1)]:
+        raise SystemExit(f"the manuscript's {word.lower()}s are numbered {', '.join(nums)} in the order they appear; "
+                         f"they must run {word} 1, 2, 3 and so on in that order, none skipped or repeated, because "
+                         "LaTeX numbers them in order of appearance and the supplement writes the markdown's numbers")
+
+
 def body_to_tex(md, mode, authors, known):
     """Convert a body of markdown (headings, paragraphs, tables, figures)."""
     check_math_fence(md)
@@ -1268,6 +1310,7 @@ def body_to_tex(md, mode, authors, known):
     # Links first, so headings, captions and table cells get them too.
     md = links(convert_citations(md, authors), mode)
     blocks = {}
+    fig_nums, tab_nums = [], []  # in order of appearance, repeats kept
 
     def take_figure(m):
         num, path, cap = m.group(1), m.group(2), m.group(3)
@@ -1277,6 +1320,7 @@ def body_to_tex(md, mode, authors, known):
             raise SystemExit(f"Figure {num}: {where} and so on")
         tok = f"ZZFIG{num}ZZ"
         blocks[tok] = ("figure", num, path, cap)
+        fig_nums.append(num)
         return f"\n\n{tok}\n\n"
     md = FIGURE_BLOCK.sub(take_figure, md)
     if "![" in md or re.search(r"(?m)^\*\*Figure S?\d+\.\*\*", md):
@@ -1286,6 +1330,7 @@ def body_to_tex(md, mode, authors, known):
         num, cap, table = m.group(1), m.group(2), m.group(3)
         tok = f"ZZTAB{num}ZZ"
         blocks[tok] = ("table", num, cap, table)
+        tab_nums.append(num)
         return f"\n\n{tok}\n\n"
     md = TABLE_BLOCK.sub(take_table, md)
     stray = re.search(r"\*\*Table S?\d+[a-z]?\.\*\*", md)
@@ -1294,6 +1339,9 @@ def body_to_tex(md, mode, authors, known):
     stray = re.search(r"(?m)^[ \t]*\|.*$", md)
     if stray:
         raise SystemExit(f"a pipe table without a '**Table N.**' caption: {stray.group(0)[:60]!r}")
+    if mode == "main":  # before the references, so the order is the reason given
+        check_float_order("Figure", fig_nums)
+        check_float_order("Table", tab_nums)
 
     md = convert_refs(md, mode, known)
 
@@ -1371,7 +1419,26 @@ def front_matter(md):
     return sections, author.group(1), orcid.group(1) if orcid else None
 
 
-def build_main(authors):
+def graphics_path(out):
+    """The \\graphicspath of documents written to out: the argument that makes
+    the line \\graphicspath{{./}{<rel>/}}. The documents include their figures
+    by their paths relative to paper/ (figures/figure_1.pdf), so <rel> is the
+    path from out to paper/, written with forward slashes: '{./}{../}' for a
+    folder of paper/ such as paper/elsevier, and an absolute path where no
+    relative one exists (another Windows drive). ./ comes first, for the
+    Overleaf zip, which puts the figures folder beside the sources. A path
+    with a character that LaTeX cannot read in a file name stops the build."""
+    paper = (Path(REPO) / "paper").resolve()
+    try:
+        rel = os.path.relpath(paper, Path(out).resolve()).replace(os.sep, "/")
+    except ValueError:
+        rel = paper.as_posix()
+    if not re.fullmatch(r"[A-Za-z0-9._/+=,:@-]+", rel):
+        raise SystemExit(f"LaTeX cannot read the path from OUT to paper/, {rel!r}, as a file name; choose another OUT")
+    return f"{{./}}{{{rel}/}}"
+
+
+def build_main(authors, graphics):
     md = (REPO / "paper/manuscript.md").read_text(encoding="utf-8")
     known = paper_numbers()
     sections, author, orcid = front_matter(md)
@@ -1429,7 +1496,7 @@ def build_main(authors):
 \\newcolumntype{{L}}{{>{{\\raggedright\\arraybackslash}}X}}
 \\newcolumntype{{R}}{{>{{\\raggedleft\\arraybackslash}}X}}
 \\newcolumntype{{C}}{{>{{\\centering\\arraybackslash}}X}}
-\\graphicspath{{{{./}}{{../}}}}
+\\graphicspath{{{graphics}}}
 
 \\begin{{document}}
 % IEEEtran.bst control: the first author and "et al." beyond six authors.
@@ -1495,7 +1562,7 @@ This work was supported by TODO. % TODO: funding statement, or remove this sente
 """
 
 
-def build_supplement(authors):
+def build_supplement(authors, graphics):
     manuscript = (REPO / "paper/manuscript.md").read_text(encoding="utf-8")
     known = paper_numbers()
     _, author, _ = front_matter(manuscript)
@@ -1532,7 +1599,7 @@ def build_supplement(authors):
 \\newcolumntype{{L}}{{>{{\\raggedright\\arraybackslash}}X}}
 \\newcolumntype{{R}}{{>{{\\raggedleft\\arraybackslash}}X}}
 \\newcolumntype{{C}}{{>{{\\centering\\arraybackslash}}X}}
-\\graphicspath{{{{./}}{{../}}}}
+\\graphicspath{{{graphics}}}
 \\setlength{{\\parindent}}{{0pt}}
 \\setlength{{\\parskip}}{{4pt}}
 \\setlength{{\\emergencystretch}}{{3em}}
@@ -1561,6 +1628,7 @@ def build_supplement(authors):
 \\makeatother
 
 \\title{{Supplementary Material for ``{title}''}}
+% TODO: list every author here too, as in main.tex.
 \\author{{{author}}}
 \\date{{}}
 
@@ -1626,11 +1694,12 @@ def main(argv):
     out = (REPO / args.get("OUT", "paper/ieee")).resolve()
     bib_text = (REPO / "docs/references.bib").read_text(encoding="utf-8")
     authors = bib_authors(bib_text)
+    graphics = graphics_path(out)
     FIG_WIDTH.clear()
     FIG_FILE.clear()
     # Build everything before writing, so a failure leaves the folder as it was.
-    docs = {"references.bib": ieee_bib(bib_text), "main.tex": build_main(authors),
-            "supplement.tex": build_supplement(authors)}
+    docs = {"references.bib": ieee_bib(bib_text), "main.tex": build_main(authors, graphics),
+            "supplement.tex": build_supplement(authors, graphics)}
     out.mkdir(parents=True, exist_ok=True)
     for name, text in docs.items():
         (out / name).write_text(text, encoding="utf-8")

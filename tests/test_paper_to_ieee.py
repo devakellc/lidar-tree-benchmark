@@ -334,6 +334,19 @@ class NumberingTests(unittest.TestCase):
         self.assertEqual(p2i.ieee_section_number("2.1"), "II-A")
         self.assertEqual(p2i.ieee_section_number("4.10"), "IV-J")
 
+    def test_float_order(self):
+        # LaTeX numbers the manuscript's floats in order of appearance and the
+        # supplement writes the markdown's numbers, so they must run 1, 2, 3.
+        for nums in (["1", "2", "3"], []):
+            p2i.check_float_order("Table", nums)
+        for nums in (["2", "1"], ["1", "3"], ["1", "1"], ["1", "2a"]):
+            with self.subTest(nums=nums), self.assertRaisesRegex(
+                    SystemExit, rf"the manuscript's tables are numbered {', '.join(nums)} in the order they appear"
+                                r".*LaTeX numbers them in order of appearance"):
+                p2i.check_float_order("Table", nums)
+        with self.assertRaisesRegex(SystemExit, r"the manuscript's figures are numbered 2 in the order"):
+            p2i.check_float_order("Figure", ["2"])
+
     def test_headline_style(self):
         cases = {
             "What separates the collapsing learned detector from the two that do not":
@@ -390,6 +403,23 @@ class CitationTests(unittest.TestCase):
                      "@kuhn1955hungarian [p. 3] shows"):
             with self.subTest(text=text), self.assertRaises(SystemExit):
                 p2i.convert_citations(text, self.authors)
+
+    def test_keys_are_read_as_pandoc_reads_them(self):
+        # A bracketed key that is not all lower case becomes a \cite, which
+        # LaTeX reports as undefined, instead of printing as it is written.
+        self.assertEqual(p2i.convert_citations("[@Unknown2026]", self.authors), "\\cite{Unknown2026}")
+        self.assertEqual(p2i.convert_citations("as [@Doe_2020-a; @lee:2019.b].", self.authors),
+                         f"as{NB}\\cite{{Doe_2020-a,lee:2019.b}}.")
+        with self.assertRaisesRegex(SystemExit, "narrative citation of unknown key Unknown2026"):
+            p2i.convert_citations("as @Unknown2026 found", self.authors)
+        # A bracket that still holds an at-sign is not a citation it reads.
+        with self.assertRaisesRegex(SystemExit, r"'\[@ kuhn1955hungarian\]' holds an at-sign but is not a citation "
+                                                r"the converter reads"):
+            p2i.convert_citations("as [@ kuhn1955hungarian] shows", self.authors)
+        # An address is not a citation, in a link text or not.
+        for text in ("mail a@b.org", "write to [a@b.org](mailto:a@b.org)."):
+            with self.subTest(text=text):
+                self.assertEqual(p2i.convert_citations(text, self.authors), text)
 
 
 KNOWN = {"sec": {"1", "2", "2.1", "2.5", "4", "4.2", "4.3", "4.5", "4.10", "5.2"},
@@ -668,6 +698,30 @@ class FigureTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             p2i.write_zip(out, self.root / "up/other.zip")
         self.assertFalse((self.root / "up/other.zip").exists())
+
+
+class GraphicsPathTests(unittest.TestCase):
+    """The documents include figures by their path relative to paper/
+    (figures/figure_1.pdf), which their \\graphicspath reaches from OUT."""
+
+    def test_paths_to_the_paper_folder(self):
+        for out in ("paper/elsevier", "paper/ieee"):  # the default OUTs: the committed text
+            self.assertEqual(p2i.graphics_path(p2i.REPO / out), "{./}{../}")
+        self.assertEqual(p2i.graphics_path(p2i.REPO / "work/custom-parent/submission"), "{./}{../../../paper/}")
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp).resolve() / "submission"
+            m = re.fullmatch(r"\{\./\}\{(.+)/\}", p2i.graphics_path(out))
+            self.assertTrue(m)
+            self.assertFalse(Path(m.group(1)).is_absolute())
+            self.assertEqual(Path(os.path.normpath(out / m.group(1))), (p2i.REPO / "paper").resolve())
+
+    def test_paths_latex_cannot_read_stop(self):
+        names = ["a b", "a%b", "a#b", "a~b", "a{b", "a}b", "a$b", "a^b", "a&b"] + (["a\\b"] if os.sep == "/" else [])
+        with tempfile.TemporaryDirectory() as tmp:
+            for name in names:
+                with self.subTest(name=name), mock.patch.object(p2i, "REPO", Path(tmp) / name):
+                    with self.assertRaisesRegex(SystemExit, "LaTeX cannot read .* as a file name.*another OUT"):
+                        p2i.graphics_path(Path(tmp) / "out")
 
 
 class MathTests(unittest.TestCase):
@@ -998,7 +1052,7 @@ class PandocTests(unittest.TestCase):
 
     def test_links_in_headings_captions_and_cells(self):
         md = ("## 1. Intro to [the code](https://example.org/a)\n\nText.\n\n"
-              "**Table 2.** Caption with [a link](https://example.org/b).\n\n"
+              "**Table 1.** Caption with [a link](https://example.org/b).\n\n"
               "| A | B |\n| --- | --- |\n| [c](https://example.org/c) | 1 |\n")
         out = p2i.body_to_tex(md, "main", {}, KNOWN)
         self.assertNotIn("\\href", out)
@@ -1021,7 +1075,7 @@ class PandocTests(unittest.TestCase):
         self.assertNotIn("equation", supp)
 
     def test_inline_math_in_captions_cells_and_back_matter(self):
-        md = ("## 1. Intro\n\nText.\n\n**Table 2.** Scores of $F_1$ against $\\tau$.\n\n"
+        md = ("## 1. Intro\n\nText.\n\n**Table 1.** Scores of $F_1$ against $\\tau$.\n\n"
               "| A | $F_c$ |\n| --- | --- |\n| $x \u2212 1$ | 1 |\n")
         out = p2i.body_to_tex(md, "main", {}, KNOWN)
         self.assertIn("\\caption{Scores of \\(F_1\\) against \\(\\tau\\).}", out)
@@ -1032,8 +1086,8 @@ class PandocTests(unittest.TestCase):
 
     def test_display_math_outside_the_body_text_stops(self):
         cases = [("snippet", "An abstract with $$x = 1$$ in it."),
-                 ("body", "## 1. Intro\n\nText.\n\n**Table 2.** A $$x$$ caption.\n\n| A |\n| --- |\n| 1 |\n"),
-                 ("body", "## 1. Intro\n\nText.\n\n**Table 2.** Caption.\n\n| A |\n| --- |\n| $$x$$ |\n"),
+                 ("body", "## 1. Intro\n\nText.\n\n**Table 1.** A $$x$$ caption.\n\n| A |\n| --- |\n| 1 |\n"),
+                 ("body", "## 1. Intro\n\nText.\n\n**Table 1.** Caption.\n\n| A |\n| --- |\n| $$x$$ |\n"),
                  ("body", "## 1. The $$x$$ heading\n\nText.\n"),
                  ("body", "## 1. Intro\n\n```math\nx = 1\n```\n"),
                  ("snippet", "Abstract.\n\n```math\nx\n```\n")]
@@ -1065,12 +1119,30 @@ class PandocTests(unittest.TestCase):
         for md in ("## 1. Intro\n\n```\nx \u2265 1\n```\n",  # not ASCII
                    "## 1. Intro\n\nText.\n\n    indented code\n\nMore.\n",  # not fenced
                    "## 1. Intro\n\n```\nnever closed\n",
-                   "## 1. Intro\n\nText.\n\n**Table 2.** A caption\n```\nx\n```\n\n| A |\n| --- |\n| 1 |\n"):
+                   "## 1. Intro\n\nText.\n\n**Table 1.** A caption\n```\nx\n```\n\n| A |\n| --- |\n| 1 |\n"):
             with self.subTest(md=md), self.assertRaises(SystemExit):
                 p2i.body_to_tex(md, "main", {}, KNOWN)
 
+    def test_tables_and_figures_out_of_order_stop(self):
+        table = "**Table {}.** Cap.\n\n| A |\n| --- |\n| 1 |\n\n"
+        figure = "![Figure {0}.](figures/figure_{0}.png)\n\n**Figure {0}.** Cap.\n\n"
+        # In order the tables convert; the supplement's S-numbers are text
+        # labels and are not checked.
+        self.assertIn("\\label{tab:2}", p2i.body_to_tex("## 1. Intro\n\nSee Table 2.\n\n" + table.format(1)
+                                                        + table.format(2), "main", {}, KNOWN))
+        p2i.body_to_tex("## S1. Intro\n\nText.\n\n" + table.format("S2") + table.format("S1"), "supp", {}, KNOWN)
+        # The text cites Table 1, which KNOWN does not hold: the order stops
+        # the build first, before the references are read.
+        for md, reason in (("## 1. Intro\n\nSee Table 1.\n\n" + table.format(2) + table.format(1),
+                            "tables are numbered 2, 1"),
+                           ("## 1. Intro\n\nText.\n\n" + table.format(2) + table.format(3), "tables are numbered 2, 3"),
+                           ("## 1. Intro\n\nSee Fig. 1.\n\n" + figure.format(2), "figures are numbered 2")):
+            with self.subTest(reason=reason), self.assertRaisesRegex(
+                    SystemExit, f"the manuscript's {reason} in the order they appear"):
+                p2i.body_to_tex(md, "main", {}, KNOWN)
 
-ACCENT_CMD = re.compile(r"\{\\(?:[`'^\"~=.]|[cvukHr](?![A-Za-z])|textcommabelow)\s*\{?([A-Za-z])\}?\}")
+
+ACCENT_CMD =re.compile(r"\{\\(?:[`'^\"~=.]|[cvukHr](?![A-Za-z])|textcommabelow)\s*\{?([A-Za-z])\}?\}")
 LETTER_CMD = {"ae": "ae", "AE": "AE", "oe": "oe", "OE": "OE", "o": "o", "O": "O", "ss": "ss", "l": "l", "L": "L"}
 TOKEN = re.compile(r"[a-z0-9]+(?:[.,][0-9]+)*")
 
@@ -1271,9 +1343,13 @@ class EndToEndTests(unittest.TestCase):
         cls.tmp.cleanup()
 
     def test_figures_use_the_pdf_where_there_is_one(self):
-        for line in ("\\usepackage{amsmath}", "\\usepackage{graphicx}", "\\graphicspath{{./}{../}}",
-                     "\\newcommand\\suppFloatBarrier"):
+        for line in ("\\usepackage{amsmath}", "\\usepackage{graphicx}",
+                     f"\\graphicspath{{{p2i.graphics_path(self.out)}}}", "\\newcommand\\suppFloatBarrier"):
             self.assertIn(line, self.supp_tex)
+        # OUT is a temporary folder: the path leads from it to paper/.
+        for tex in (self.main_tex, self.supp_tex):
+            rel = re.search(r"(?m)^\\graphicspath\{\{\./\}\{(.+)/\}\}$", tex).group(1)
+            self.assertEqual(Path(os.path.normpath(self.out.resolve() / rel)), (ROOT / "paper").resolve())
         self.assertNotIn("\\usepackage{float}", self.supp_tex)
         for tex in (self.main_tex, self.supp_tex):
             for f in p2i.graphics_files(tex):
@@ -1523,7 +1599,7 @@ class SyntheticPaperTests(unittest.TestCase):
                                           "references.bib", "supplement.tex"])
 
     def test_supplementary_figure_and_references(self):
-        for line in ("\\usepackage{amsmath}", "\\usepackage{graphicx}", "\\graphicspath{{./}{../}}",
+        for line in ("\\usepackage{amsmath}", "\\usepackage{graphicx}", "\\graphicspath{{./}{../paper/}}",
                      "\\newcommand\\suppFloatBarrier{\\par\\addpenalty\\z@",
                      "\\g@addto@macro\\@afterheading{\\supp@afterheading}",
                      "\\AtBeginDocument{\\let\\supp@section\\section",
@@ -1545,6 +1621,9 @@ class SyntheticPaperTests(unittest.TestCase):
     def test_author_block_carries_the_orcid(self):
         self.assertIn("\\thanks{J.~Doe (ORCID: 0000-0002-1825-009X) is with TODO affiliation", self.main_tex)
         self.assertIn("{Doe: ", self.main_tex)
+        # The supplement's own author line must list the same authors.
+        self.assertIn("% TODO: list every author here too, as in main.tex.\n\\author{Jane Doe}\n", self.supp_tex)
+        self.assertRegex(self.main_tex, r"(?m)^\\graphicspath\{\{\./\}\{\.\./paper/\}\}$")  # OUT is root/out
 
     def test_math(self):
         self.assertIn("between the null and a perfect score:\n\\begin{equation}\n"

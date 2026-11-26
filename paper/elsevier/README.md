@@ -16,6 +16,8 @@ point for editing on Overleaf.
 
 The figures are read from [../figures](../figures/), so they are not copied
 here: a figure's PDF where there is one beside its PNG, otherwise the PNG.
+With another `OUT`, the documents read them through a path relative to that
+folder.
 
 ## What the conversion changes
 
@@ -29,8 +31,9 @@ What differs is the journal's form.
   2012)", its group sorted alphabetically and then chronologically as the
   journal asks, and a narrative one as "Jakubowski et al. (2013)".
 - Sections, tables and figures keep the markdown's numbers: Section 4.2,
-  Table 3, Fig. 2d. The build stops if the section numbers are not the
-  sequence LaTeX prints. The supplement refers to the manuscript by the same
+  Table 3, Fig. 2d. The build stops if the section, table or figure numbers
+  are not the sequence LaTeX prints, or if a numbered section comes after the
+  first unnumbered one. The supplement refers to the manuscript by the same
   numbers.
 - The front matter keeps the highlights, the abstract and the keywords. The
   build stops if there are not three to five highlights of at most 85
@@ -60,15 +63,17 @@ What differs is the journal's form.
   DOI; a published paper without a DOI keeps only its arXiv identifier.
   elsarticle-harv.bst prints no volume for a paper in proceedings, so the
   volume joins the proceedings title ("... Spatial Information Sciences
-  XXXVI-8/W2"). The NEON products' corporate author is cited without its
-  abbreviation, "(National Ecological Observatory Network, 2026a)", so the
-  citation does not nest parentheses. The style sets titles in sentence case,
-  so acronyms, single capitals and words with inner capitals are braced, as in
-  the IEEE copy, and a note keeps the case of its first letter. DOIs print as
+  XXXVI-8/W2"). It prints no issue number for an article, so the issue joins
+  the volume in parentheses, "2 (1–2)", as the journal prints it. The NEON
+  products' corporate author is cited without its abbreviation, "(National
+  Ecological Observatory Network, 2026a)", so the citation does not nest
+  parentheses. The style sets titles in sentence case, so acronyms, single
+  capitals and words with inner capitals are braced, as in the IEEE copy, and
+  a note keeps the case of its first letter. DOIs print as
   <https://doi.org/> links.
 
-Search main.tex for TODO to find the author block and the sections still to be
-completed.
+Search main.tex and supplement.tex for TODO to find the author block, the
+supplement's own author line and the sections still to be completed.
 
 ## Before submission
 
@@ -87,7 +92,7 @@ and regenerate, and complete the author block last: regenerating resets it.
 - Regenerate this folder, then complete the author block in main.tex (or in the
   Overleaf project): every author, each affiliation with its full postal
   address and country, and the corresponding author's e-mail address. The
-  ORCID iD is in.
+  ORCID iD is in. Give the `\author` line of supplement.tex the same authors.
 - Choose the publishing route: subscription, at no charge to the author, or
   open access at an article publishing charge of USD 3,800, the list price on
   21 October 2026.
@@ -127,7 +132,7 @@ pdflatex main && bibtex main && pdflatex main && pdflatex main
 pdflatex supplement && bibtex supplement && pdflatex supplement && pdflatex supplement
 ```
 
-On 23 November 2026 the manuscript compiled to 37 pages and the supplement to
+On 26 November 2026 the manuscript compiled to 37 pages and the supplement to
 30, with no overfull or badly underfull lines and no BibTeX warnings.
 
 From the repository root, the converter's tests run the end-to-end checks

@@ -89,8 +89,9 @@ edit to the markdown made before the last step:
   is re-run before the deposit, stage and rebuild again.
 - Last, regenerate the ISPRS Journal version and complete the author block in
   its main.tex or Overleaf project: affiliations with full postal addresses
-  and the corresponding author's e-mail (the ORCID iD is in). Regenerating
-  resets the block, so do it after the markdown is final.
+  and the corresponding author's e-mail (the ORCID iD is in). Give the
+  `\author` line of its supplement.tex the same authors. Regenerating resets
+  both, so do it after the markdown is final.
 
 Two analyses that the pre-submission review suggested were not run: a repeat run
 of ForestFormer3D at native density, which would measure the run-to-run spread

@@ -128,9 +128,28 @@ class CitationTests(unittest.TestCase):
                    "[@kuhn1955hungarian, p. 3]", "@kuhn1955hungarian [p. 3]"):
             with self.subTest(md=md), self.assertRaises(SystemExit):
                 p2e.convert_citations(md, LABELS)
+        # A key with capitals is read as pandoc reads it, so a mistyped key
+        # stops instead of printing as it is written.
+        for md in ("[@Unknown2026]", "@Unknown2026 found", "[@kuhn1955hungarian; @Unknown2026]"):
+            with self.subTest(md=md), self.assertRaisesRegex(
+                    SystemExit, "citation of Unknown2026, which docs/references.bib does not hold"):
+                p2e.convert_citations(md, LABELS)
+        with self.assertRaisesRegex(SystemExit, r"'\[@ kuhn1955hungarian\]' holds an at-sign but is not a citation "
+                                                r"the converter reads"):
+            p2e.convert_citations("as [@ kuhn1955hungarian] shows", LABELS)
+
+    def test_keys_with_capitals_underscores_and_inner_marks(self):
+        labels = dict(LABELS, **{"Doe_2020-a": ("Doe", "2020"), "SmithX2021": ("Smith", "2021"),
+                                 "lee:2019.b": ("Lee", "2019")})
+        md = "As @Doe_2020-a found, [@SmithX2021; @lee:2019.b; @kuhn1955hungarian] agree; see @SmithX2021."
+        self.assertEqual(p2e.convert_citations(md, labels),
+                         "As \\citet{Doe_2020-a} found, \\citep{SmithX2021,lee:2019.b,kuhn1955hungarian} agree; "
+                         "see \\citet{SmithX2021}.")
 
     def test_addresses_are_not_citations(self):
         self.assertEqual(p2e.convert_citations("mail a@b.org", LABELS), "mail a@b.org")
+        self.assertEqual(p2e.convert_citations("write to [a@b.org](mailto:a@b.org).", LABELS),
+                         "write to [a@b.org](mailto:a@b.org).")
 
     def test_cite_text_for_width_estimates(self):
         self.assertEqual(p2e.cite_text("x \\citep{eysn2015benchmark,kuhn1955hungarian} y", LABELS),
@@ -250,6 +269,20 @@ class BibliographyTests(unittest.TestCase):
                                              ("note", "commit d6082bb68511")])
         self.assertNotIn("allowbreak", e)  # a short hash breaks nothing
 
+    def test_article_issue_joins_its_volume(self):
+        # elsarticle-harv.bst prints an article's volume but not its number.
+        head = [("author", "Doe, Jane"), ("title", "T"), ("journal", "J"), ("year", "1955")]
+        e = p2e.elsevier_entry("article", "k", head + [("volume", "2"), ("number", "1--2"), ("pages", "83--97")])
+        self.assertIn("volume = {2 (1--2)}", tie.flat(e))
+        self.assertNotRegex(e, r"\bnumber\s*=")
+        self.assertEqual(re.findall(r"(?m)^  (\w+)", e), ["author", "title", "journal", "year", "volume", "pages"])
+        e = p2e.elsevier_entry("article", "k", head + [("number", "4"), ("pages", "1--5")])
+        self.assertIn("volume = {(4)}", tie.flat(e))
+        self.assertNotRegex(e, r"\bnumber\s*=")
+        self.assertEqual(re.findall(r"(?m)^  (\w+)", e), ["author", "title", "journal", "year", "volume", "pages"])
+        e = p2e.elsevier_entry("article", "k", head + [("volume", "7"), ("number", " "), ("pages", "1--5")])
+        self.assertIn("volume = {7}", tie.flat(e))  # an empty number changes nothing
+
     def test_misc_publisher_never_goes_to_organization(self):
         e = p2e.elsevier_entry("software", "k", [
             ("author", "Doe, Jane"), ("title", "Tool"), ("howpublished", "GitHub repository"),
@@ -266,11 +299,19 @@ class BibliographyTests(unittest.TestCase):
         e = p2e.elsevier_entry("misc", "k", [("author", "Doe, Jane"), ("title", "Pre"), ("year", "2026"),
                                              ("eprint", "arXiv:2107.07002v3"), ("archiveprefix", "arXiv")])
         self.assertIn("doi = {10.48550/arXiv.2107.07002}", tie.flat(e))  # arXiv DOIs carry no version
+        # The style prints "arXiv:" before the identifier itself, so the
+        # stored field drops the prefix and keeps the version.
+        self.assertIn("eprint = {2107.07002v3}", tie.flat(e))
+        self.assertNotRegex(e, r"(?i)arxiv\s*:")
         for kind in ("article", "inproceedings"):  # a published paper keeps the identifier only
             e = p2e.elsevier_entry(kind, "k", [("author", "Doe, Jane"), ("title", "Pub"), ("year", "2011"),
                                                ("eprint", "2010.16061"), ("archiveprefix", "arXiv")])
             self.assertNotIn("doi", e, kind)
             self.assertIn("2010.16061", e)
+        e = p2e.elsevier_entry("article", "k", [("author", "Doe, Jane"), ("title", "Pub"), ("year", "2011"),
+                                                ("eprint", "arXiv: 2010.16061"), ("archiveprefix", "arXiv")])
+        self.assertIn("eprint = {2010.16061}", tie.flat(e))
+        self.assertNotIn("doi", e)
         e = p2e.elsevier_entry("misc", "k", [("author", "{National Ecological Observatory Network (NEON)}"),
                                              ("title", "Data"), ("year", "2026"),
                                              ("publisher", "National Ecological Observatory Network (NEON)")])
@@ -542,6 +583,15 @@ class SyntheticPaperTests(unittest.TestCase):
         self.assertIn("\\section*{CRediT authorship contribution statement}\n% TODO: complete this section.",
                       self.main_tex)
         self.assertIn("Supplementary material for ``a short title:\nwith a subtitle''", self.supp_tex)
+        # The supplement has its own author line, which must list the authors
+        # completed in main.tex.
+        self.assertIn("% TODO: list every author here too, as in main.tex.\n\\author{Jane Doe}\n", self.supp_tex)
+
+    def test_graphics_path_reaches_the_paper_folder_from_out(self):
+        # OUT is root/out, so the figure paths (figures/figure_1.pdf) are read
+        # relative to ../paper/, after ./ for the Overleaf zip.
+        for tex in (self.main_tex, self.supp_tex):
+            self.assertRegex(tex, r"(?m)^" + re.escape("\\graphicspath{{./}{../paper/}}") + "$")
 
     def test_code_blocks(self):
         self.assertIn("\\begin{verbatim}\ngrep -E '\\[0-9\\]+' log.txt # \\( Table 9 @kuhn1955hungarian {x} $y$\n"
@@ -566,7 +616,21 @@ class SyntheticPaperTests(unittest.TestCase):
                                                            "**Keywords:** a; b; c; d; e; f; g."),
                "out of sequence": md.replace("### 2.1 First", "### 2.9 First"),
                "section before the references must be": md.replace("## Acknowledgements\n\nThanks.\n\n", "").replace(
-                   "## References", "## Acknowledgements\n\nThanks.\n\n## References")}
+                   "## References", "## Acknowledgements\n\nThanks.\n\n## References"),
+               # LaTeX numbers floats in order of appearance and the supplement
+               # writes the markdown's numbers: swapped, skipped (the text still
+               # cites Table 1 and Fig. 1) or repeated numbers stop the build.
+               "tables are numbered 2, 1 in the order they appear": md.replace("**Table 1.**", "**Table 9.**").replace(
+                   "**Table 2.**", "**Table 1.**").replace("**Table 9.**", "**Table 2.**"),
+               "tables are numbered 3, 2 in the order they appear": md.replace("**Table 1.**", "**Table 3.**"),
+               "tables are numbered 1, 1 in the order they appear": md.replace("**Table 2.**", "**Table 1.**"),
+               "figures are numbered 2 in the order they appear": md.replace("![Figure 1.]", "![Figure 2.]").replace(
+                   "**Figure 1.**", "**Figure 2.**"),
+               # An unnumbered section before a numbered one would make it back
+               # matter, its references printing "Section ??".
+               r"numbered section '3\. Discussion' comes after 'A preliminary note'.*every numbered section must "
+               r"come before the first unnumbered one": md.replace(
+                   "## CRediT", "## A preliminary note\n\nA note.\n\n## 3. Discussion\n\nShort.\n\n## CRediT")}
         original = (p2i.REPO / "paper/manuscript.md").read_text(encoding="utf-8")
         for reason, text in bad.items():
             with self.subTest(reason=reason):
@@ -625,6 +689,20 @@ class BibtexTests(unittest.TestCase):
             self.assertNotIn("10.48550", self.items[key])
         self.assertIn("``equitable threat score''", self.items["hogan2010equitability"])
 
+    def test_article_issues_print_with_their_volumes(self):
+        # The style ignores an article's number, so the copy joins it to the
+        # volume, as the journal prints "58 (5-6)".
+        self.assertIn("\\bibinfo{volume}{2 (1--2)}", self.items["kuhn1955hungarian"])
+        joined = 0
+        for etype, key, fields, _ in p2i.parse_bib(self.source):
+            f = dict(fields)
+            if etype.lower() == "article" and f.get("volume", "").strip() and f.get("number", "").strip():
+                joined += 1
+                with self.subTest(key=key):
+                    want = f"\\bibinfo{{volume}}{{{tie.flat(f['volume'])} ({tie.flat(f['number'])})}}"
+                    self.assertIn(want, self.items[key])
+        self.assertGreater(joined, 1)
+
 
 @unittest.skipUnless(PANDOC and BIBTEX and PDFLATEX,
                      "pandoc, bibtex or pdflatex not available (set PANDOC, BIBTEX and PDFLATEX)")
@@ -640,8 +718,9 @@ class CompileTests(unittest.TestCase):
         cls.addClassCleanup(cls.tmp.cleanup)
         root = Path(cls.tmp.name)
         out = root / "elsevier"
+        # OUT outside paper/: the documents find the figures through their
+        # \graphicspath, a path relative to OUT.
         run_converter([f"OUT={out}", f"PANDOC={PANDOC}"])
-        (root / "figures").symlink_to(ROOT / "paper/figures")  # the documents read ../figures
         # Long log lines unwrapped, so a warning is read whole whatever the TeX
         # installation's default (79 columns in stock TeX Live).
         env = dict(os.environ, max_print_line="10000",

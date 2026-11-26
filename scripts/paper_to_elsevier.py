@@ -18,11 +18,13 @@ loads as a library; what differs is the journal's form:
   Every reference to a manuscript section, table or figure is a \\ref, a
   figure panel stays as it is written (Fig. 2d), and the supplement writes
   the manuscript's numbers as text. The build stops when the markdown's
-  section numbers are not the sequence LaTeX would print.
+  section, table or figure numbers are not the sequence LaTeX would print.
 - The front matter keeps the highlights (3 to 5, each at most 85 characters,
   or the build stops), the abstract and at most six keywords, as the journal
   asks; headings keep the markdown's sentence case. The author block, the
-  affiliation and the corresponding author's e-mail are TODO placeholders.
+  affiliation and the corresponding author's e-mail are TODO placeholders,
+  and the supplement's author line, which names the first author, carries a
+  TODO to list the same authors.
 - The back matter keeps every section of the markdown between the conclusion
   and the references, in order, as unnumbered sections: CRediT statement,
   competing interest, funding, data and code availability, acknowledgements
@@ -41,20 +43,25 @@ loads as a library; what differs is the journal's form:
   the width it was drawn as a share of the text width (160 mm in the
   manuscript, 170 mm in the supplement), at most the whole width and rounded
   up to hundredths; a figure with only a PNG takes its width from the PNG's
-  aspect ratio.
+  aspect ratio. The documents find the figures, whose paths are relative to
+  paper/, through a \\graphicspath relative to OUT (paper_to_ieee's
+  graphics_path).
 
 The Elsevier copy of the bibliography is written for elsarticle-harv.bst,
 which sets titles in sentence case and prints the DOI, URL and arXiv
 identifier fields itself, but ignores version and urldate, a misc entry's
-organization, and a proceedings paper's series, volume and number. Software
-and dataset entries become misc entries; the version, the note and the access
-date ("Accessed 2 October 2026") go into the note; a misc entry's publisher
-becomes its howpublished, or joins the note, unless it repeats the author; a
-proceedings paper's series, volume and number join its proceedings title. A
-paper with a DOI is cited without its arXiv identifier, as the journal cites
-the version of record, and an arXiv preprint (a misc entry) without one takes
-its arXiv DOI (10.48550/arXiv.<id>), as the journal asks for a preprint's DOI;
-a published paper without a DOI keeps its arXiv identifier only. A corporate
+organization, an article's number, and a proceedings paper's series, volume
+and number. Software and dataset entries become misc entries; the version,
+the note and the access date ("Accessed 2 October 2026") go into the note; a
+misc entry's publisher becomes its howpublished, or joins the note, unless it
+repeats the author; a proceedings paper's series, volume and number join its
+proceedings title. An article's number joins its volume in parentheses, as
+the journal prints an issue ("58 (5-6)"). An eprint field drops an "arXiv:"
+prefix, which the style prints before it. A paper with a DOI is cited without
+its arXiv identifier, as the journal cites the version of record, and an
+arXiv preprint (a misc entry) without one takes its arXiv DOI
+(10.48550/arXiv.<id>), as the journal asks for a preprint's DOI; a published
+paper without a DOI keeps its arXiv identifier only. A corporate
 author written with its abbreviation, "National Ecological Observatory Network
 (NEON)", loses the abbreviation, so the citation does not nest parentheses. A
 publisher ending in a period loses it where the style adds one, and a long
@@ -65,10 +72,13 @@ quotation inside a title keeps its double quotes. DOIs print as
 https://doi.org/ links.
 
 The converter stops with an error rather than guess in every case that
-scripts/paper_to_ieee.py stops, and also on a bracketed citation of an
-unknown key, a heading numbered out of sequence, highlights that break the
-journal's limits, more than six keywords, or a back matter that does not end
-with the declaration of generative AI.
+scripts/paper_to_ieee.py stops, among them figures or tables numbered out of
+their order of appearance, a bracket that still holds an at-sign once the
+citations are read, and a path from OUT to paper/ that LaTeX cannot read. It
+also stops on a citation of an unknown key, a heading numbered out of
+sequence, a numbered section after the back matter begins, highlights that
+break the journal's limits, more than six keywords, or a back matter that
+does not end with the declaration of generative AI.
 
 Arguments are KEY=VALUE pairs:
   OUT=paper/elsevier    output directory (relative to the repository root)
@@ -135,23 +145,27 @@ def cite_labels(bib_text):
 
 
 def convert_citations(md, labels):
-    """[@a; @b] -> \\citep{a,b}; a narrative @a -> \\citet{a}. Prefixes,
-    locators, comma lists and unknown keys stop the build."""
+    """[@a; @b] -> \\citep{a,b}; a narrative @a -> \\citet{a}. Keys are read
+    as pandoc reads them (paper_to_ieee.CITE_KEY). Prefixes, locators, comma
+    lists, unknown keys and a bracket that still holds an at-sign stop the
+    build."""
     def known(key):
         if key not in labels:
             raise SystemExit(f"citation of {key}, which docs/references.bib does not hold")
         return key
 
     def group(m):
-        return "\\citep{" + ",".join(known(k) for k in re.findall(r"@([a-z0-9]+)", m.group(0))) + "}"
-    md = re.sub(r"\[@[a-z0-9]+(?:;\s*@[a-z0-9]+)*\]", group, md)
-    left = re.search(r"\[[^\[\]]*@[a-z0-9]+[^\[\]]*\]", md)
+        return "\\citep{" + ",".join(known(k) for k in re.findall("@(" + p2i.CITE_KEY + ")", m.group(0))) + "}"
+    md = re.sub(p2i.CITE_GROUP, group, md)
+    left = re.search(p2i.CITE_PREFIXED, md)
     if left:
         raise SystemExit(f"unsupported citation form (prefix, locator or comma list): {left.group(0)!r}")
-    left = re.search(r"(?<![\w@\\{])@[a-z0-9]+\s*\[", md)
+    left = re.search(p2i.CITE_LOCATOR, md)
     if left:
         raise SystemExit(f"unsupported citation form (narrative citation with a locator): {left.group(0)!r}")
-    return re.sub(r"(?<![\w@\\{])@([a-z0-9]+)", lambda m: f"\\citet{{{known(m.group(1))}}}", md)
+    md = re.sub(p2i.CITE_AT + "(" + p2i.CITE_KEY + ")", lambda m: f"\\citet{{{known(m.group(1))}}}", md)
+    p2i.check_citations_left(md)
+    return md
 
 
 def cite_text(cell, labels):
@@ -315,6 +329,7 @@ def body_to_tex(md, mode, labels, known):
     md, code = p2i.hold_code(md)
     md = p2i.links(convert_citations(md, labels), mode)
     blocks = {}
+    fig_nums, tab_nums = [], []  # in order of appearance, repeats kept
 
     def take_figure(m):
         num, path, cap = m.group(1), m.group(2), m.group(3)
@@ -324,6 +339,7 @@ def body_to_tex(md, mode, labels, known):
             raise SystemExit(f"Figure {num}: {where} and so on")
         tok = f"ZZFIG{num}ZZ"
         blocks[tok] = ("figure", num, path, cap)
+        fig_nums.append(num)
         return f"\n\n{tok}\n\n"
     md = p2i.FIGURE_BLOCK.sub(take_figure, md)
     if "![" in md or re.search(r"(?m)^\*\*Figure S?\d+\.\*\*", md):
@@ -332,6 +348,7 @@ def body_to_tex(md, mode, labels, known):
     def take_table(m):
         tok = f"ZZTAB{m.group(1)}ZZ"
         blocks[tok] = ("table", m.group(1), m.group(2), m.group(3))
+        tab_nums.append(m.group(1))
         return f"\n\n{tok}\n\n"
     md = p2i.TABLE_BLOCK.sub(take_table, md)
     stray = re.search(r"\*\*Table S?\d+[a-z]?\.\*\*", md)
@@ -340,6 +357,9 @@ def body_to_tex(md, mode, labels, known):
     stray = re.search(r"(?m)^[ \t]*\|.*$", md)
     if stray:
         raise SystemExit(f"a pipe table without a '**Table N.**' caption: {stray.group(0)[:60]!r}")
+    if mode == "main":  # before the references, so the order is the reason given
+        p2i.check_float_order("Figure", fig_nums)
+        p2i.check_float_order("Table", tab_nums)
 
     md = p2i.convert_refs(md, mode, known, style="elsevier")
 
@@ -432,7 +452,7 @@ def highlights(text):
     return items
 
 
-def build_main(labels):
+def build_main(labels, graphics):
     md = (p2i.REPO / "paper/manuscript.md").read_text(encoding="utf-8")
     known = p2i.paper_numbers()
     sections, title, author, orcid = front_matter(md)
@@ -455,6 +475,13 @@ def build_main(labels):
     body_md = "\n".join(h + "\n" + t for h, t in sections[start:end])
     check_numbering(body_md)
     back = sections[end:refs]
+    numbered = next((h for h, _ in back if re.match(r"## \d", h)), None)
+    if numbered:
+        # It would be back matter, unnumbered, and its references would print
+        # "Section ??".
+        raise SystemExit(f"the numbered section {numbered[3:]!r} comes after {heads[end][3:]!r}, the unnumbered "
+                         "section that begins the back matter; every numbered section must come before the first "
+                         "unnumbered one")
     if not back or back[-1][0] != AI_HEADING:
         raise SystemExit(f"the section before the references must be '{AI_HEADING[3:]}', as the journal asks")
 
@@ -499,7 +526,7 @@ def build_main(labels):
 \\newcolumntype{{L}}{{>{{\\raggedright\\arraybackslash}}X}}
 \\newcolumntype{{R}}{{>{{\\raggedleft\\arraybackslash}}X}}
 \\newcolumntype{{C}}{{>{{\\centering\\arraybackslash}}X}}
-\\graphicspath{{{{./}}{{../}}}}
+\\graphicspath{{{graphics}}}
 \\setlength{{\\emergencystretch}}{{2em}}
 % DOIs as https://doi.org/ links and URLs without a label, as the journal's
 % reference style prints them; elsarticle-harv.bst defines these only when
@@ -556,7 +583,7 @@ def build_main(labels):
 """
 
 
-def build_supplement(labels):
+def build_supplement(labels, graphics):
     manuscript = (p2i.REPO / "paper/manuscript.md").read_text(encoding="utf-8")
     known = p2i.paper_numbers()
     _, title, author, _ = front_matter(manuscript)
@@ -595,7 +622,7 @@ def build_supplement(labels):
 \\newcolumntype{{L}}{{>{{\\raggedright\\arraybackslash}}X}}
 \\newcolumntype{{R}}{{>{{\\raggedleft\\arraybackslash}}X}}
 \\newcolumntype{{C}}{{>{{\\centering\\arraybackslash}}X}}
-\\graphicspath{{{{./}}{{../}}}}
+\\graphicspath{{{graphics}}}
 \\setlength{{\\parindent}}{{0pt}}
 \\setlength{{\\parskip}}{{4pt}}
 \\setlength{{\\emergencystretch}}{{3em}}
@@ -621,6 +648,7 @@ def build_supplement(labels):
 \\makeatother
 
 \\title{{Supplementary material for ``{title_tex}''}}
+% TODO: list every author here too, as in main.tex.
 \\author{{{author}}}
 \\date{{}}
 
@@ -703,6 +731,18 @@ def elsevier_entry(etype, key, fields):
             title += (" " + extra["volume"] if "volume" in extra else "")
             title += (f" ({extra['number']})" if "number" in extra else "")
             out = [(n, title if n == "booktitle" else v) for n, v in out if n not in extra]
+    if kind == "article" and f.get("number", "").strip():
+        # elsarticle-harv.bst prints an article's volume but not its number, so
+        # the issue joins the volume in parentheses, as the journal prints
+        # "58 (5-6)"; without a volume it takes the volume field alone.
+        number = f["number"].strip()
+        if f.get("volume", "").strip():
+            out = [(n, f"{v.strip()} ({number})" if n == "volume" else v) for n, v in out if n != "number"]
+        else:
+            out = [("volume", f"({number})") if n == "number" else (n, v) for n, v in out]
+    # The style prints "arXiv:" before the eprint field and links it, so the
+    # field holds the bare identifier, its version kept.
+    out = [(n, re.sub(r"^\s*arxiv\s*:\s*", "", v, flags=re.I) if n == "eprint" else v) for n, v in out]
     if kind in ("inproceedings", "incollection") and not f.get("address", "").strip():
         # Without an address after it, the style writes '. ' after the
         # publisher whatever it ends with, so 'Inc.' would print 'Inc..'.
@@ -769,10 +809,12 @@ def elsevier_bib(bib_text):
             "% publisher becomes howpublished, or joins the note, unless it repeats the\n"
             "% author. A paper with a DOI is cited without its arXiv identifier, and an\n"
             "% arXiv preprint takes its arXiv DOI. A proceedings paper's series, volume\n"
-            "% and number join the proceedings title, which the style prints. A corporate\n"
-            "% author loses its parenthesised abbreviation. Acronyms and inner capitals in\n"
-            "% titles and a note's first letter are braced; other title words follow the\n"
-            "% style's sentence case. Accented letters are written as LaTeX accents.\n\n")
+            "% and number join the proceedings title, which the style prints. An article's\n"
+            "% number joins its volume in parentheses, 2 (1--2), as the style prints no\n"
+            "% number. A corporate author loses its parenthesised abbreviation. Acronyms\n"
+            "% and inner capitals in titles and a note's first letter are braced; other\n"
+            "% title words follow the style's sentence case. Accented letters are written\n"
+            "% as LaTeX accents.\n\n")
     return head + p2i.latex_accents("\n\n".join(text for _, text in sorted(items))) + "\n"
 
 
@@ -796,11 +838,12 @@ def main(argv):
     out = (p2i.REPO / args.get("OUT", "paper/elsevier")).resolve()
     bib_text = (p2i.REPO / "docs/references.bib").read_text(encoding="utf-8")
     labels = cite_labels(bib_text)
+    graphics = p2i.graphics_path(out)
     FIG_WIDTH.clear()
     FIG_FILE.clear()
     # Build everything before writing, so a failure leaves the folder as it was.
-    docs = {"references.bib": elsevier_bib(bib_text), "main.tex": build_main(labels),
-            "supplement.tex": build_supplement(labels)}
+    docs = {"references.bib": elsevier_bib(bib_text), "main.tex": build_main(labels, graphics),
+            "supplement.tex": build_supplement(labels, graphics)}
     out.mkdir(parents=True, exist_ok=True)
     for name, text in docs.items():
         (out / name).write_text(text, encoding="utf-8")

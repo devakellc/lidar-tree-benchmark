@@ -17,6 +17,8 @@ one's machinery.
 
 The figures are read from [../figures](../figures/), so they are not copied
 here: a figure's PDF where there is one beside its PNG, otherwise the PNG.
+With another `OUT`, the documents read them through a path relative to that
+folder.
 
 ## What the conversion changes
 
@@ -99,9 +101,11 @@ here: a figure's PDF where there is one beside its PNG, otherwise the PNG.
 - The AI-use statement moves into the Acknowledgment, as IEEE requires. The
   CRediT, competing-interest and funding sections stay as comments.
 
-Search main.tex for TODO to find the author block, the funding sentence and the
-biography and photograph. The AI-use statement already names the system, the
-sections and the level of use; check it against the final text.
+Search main.tex and supplement.tex for TODO to find the author block, the
+funding sentence, the biography and photograph, and the supplement's own
+author line, which lists the same authors. The AI-use statement already names
+the system, the sections and the level of use; check it against the final
+text.
 
 The converter stops with an error rather than guess when it meets markdown it
 does not handle. Examples are a citation with a locator, a reference to a
