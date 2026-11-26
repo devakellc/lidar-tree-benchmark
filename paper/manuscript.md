@@ -8,11 +8,11 @@ be completed.
 
 ORCID: [0009-0008-1571-4774](https://orcid.org/0009-0008-1571-4774).
 
-Draft manuscript for IEEE JSTARS (IEEE Journal of Selected Topics in Applied
-Earth Observations and Remote Sensing); its [LaTeX version](ieee/README.md) is
-generated from this file. Citations use the keys of the repository bibliography
-(`docs/references.bib`); every number is taken from a committed study report,
-listed in the [draft notes](README.md).
+Draft manuscript for the ISPRS Journal of Photogrammetry and Remote Sensing;
+its [LaTeX version](elsevier/README.md) is generated from this file, as is an
+[IEEE JSTARS version](ieee/README.md) kept as the fallback. Citations use the
+keys of the repository bibliography (`docs/references.bib`); every number is
+taken from a committed study report, listed in the [draft notes](README.md).
 
 ## Highlights
 

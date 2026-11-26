@@ -4,7 +4,10 @@ This folder holds the LaTeX version of the [draft paper](../manuscript.md) for
 the IEEE Journal of Selected Topics in Applied Earth Observations and Remote
 Sensing (JSTARS). It is generated from the markdown by
 [paper_to_ieee.py](../../scripts/paper_to_ieee.py) and is the starting point for
-editing on Overleaf.
+editing on Overleaf. JSTARS was the target journal from 22 October to 23
+November 2026 and is now the fallback; the version for the target journal is
+the [ISPRS Journal version](../elsevier/README.md), whose converter reuses this
+one's machinery.
 
 - [main.tex](main.tex): the manuscript in the IEEEtran journal class.
 - [supplement.tex](supplement.tex): the supplement, submitted as a separate
@@ -14,6 +17,8 @@ editing on Overleaf.
 
 The figures are read from [../figures](../figures/), so they are not copied
 here: a figure's PDF where there is one beside its PNG, otherwise the PNG.
+With another `OUT`, the documents read them through a path relative to that
+folder.
 
 ## What the conversion changes
 
@@ -96,9 +101,11 @@ here: a figure's PDF where there is one beside its PNG, otherwise the PNG.
 - The AI-use statement moves into the Acknowledgment, as IEEE requires. The
   CRediT, competing-interest and funding sections stay as comments.
 
-Search main.tex for TODO to find the author block, the funding sentence and the
-biography and photograph. The AI-use statement already names the system, the
-sections and the level of use; check it against the final text.
+Search main.tex and supplement.tex for TODO to find the author block, the
+funding sentence, the biography and photograph, and the supplement's own
+author line, which lists the same authors. The AI-use statement already names
+the system, the sections and the level of use; check it against the final
+text.
 
 The converter stops with an error rather than guess when it meets markdown it
 does not handle. Examples are a citation with a locator, a reference to a
